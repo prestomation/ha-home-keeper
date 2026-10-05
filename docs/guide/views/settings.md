@@ -7,7 +7,8 @@ through the `home_keeper.set_options` service.
 
 The tab has 7 sections:
 
-- **General** sets how long completed one-off tasks are kept.
+- **General** sets how long completed one-off tasks are kept. This number saves
+  when you leave the box or press Enter.
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](../appliances/appliances.md#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See
@@ -56,8 +57,8 @@ companion made has an **Edit companion** button on its detail page. The button o
 the declarative companion that made the task.
 
 Each task that a declarative companion makes is a sensor-based task, so it has no due date until
-its condition is true. A task with no due date shows as **Monitored** and stays off
-the to-do list and the calendar. When the condition becomes true, Home Keeper sets
+its condition is true. A task with no due date shows as **Monitored**, and neither
+the to-do list nor the calendar shows it. When the condition becomes true, Home Keeper sets
 the due date to that moment, so the task is due now and then overdue. The age of an
 overdue task shows how long the condition has been true. In the **Firmware update
 available** preset, a device with an update pending shows an overdue task, and a
@@ -71,16 +72,26 @@ a completion or a skip by hand from a service call or an automation. Home Assist
 entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.
 
-The *Add from preset* picker offers 3 presets.
+The *Add from preset* picker offers 3 general presets, and the integration presets
+that [Integration presets](#integration-presets) describes.
 
-- **Device Pulse** targets the per-device ping sensors from
+- **Device Pulse** watches the ping status of each device in
   [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
-  The Device Pulse integration must be installed.
+  It opens a task when a device is offline for 1 hour. Home Keeper completes the
+  task when the device replies again. The Device Pulse integration must be installed.
 - **Firmware update available** matches every `update.*` entity that reports `on`.
   This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
-- **Device stopped reporting** matches every `sensor.*_last_seen` entity. It opens a
-  task for each device that has not reported for 24 hours. This finds the Zigbee or
-  Z-Wave devices that dropped off the mesh. It needs no other integration.
+- **Device stopped reporting** matches every `sensor.*_last_seen` timestamp sensor. It
+  opens a task for each device that has not reported for 48 hours. This finds the
+  Zigbee or Z-Wave devices that dropped off the mesh. It needs no other integration.
+
+A declarative companion keeps the settings it was saved with. A Device Pulse companion
+from before version 0.28.0b14 watches the total count of failed pings. That count never
+goes down, so Home Keeper never completes its tasks. Delete that companion and add the
+preset again.
+
+When a preset matches entities in your home, the Tasks tab suggests it. See
+[Presets for your home](../start/panel.md#presets-for-your-home).
 
 A preset writes the task name and notes in the Home Assistant language. A later change
 of the language changes the tasks to the new language. When a declarative companion has
@@ -98,8 +109,8 @@ entities. See
 
 The *Which entities?* section of the dialog has the integration and the entity domain.
 Click **More filters** to see the other filters. Set a device class there, or write an
-entity id regex. You can also limit the declarative companion to some areas or to some
-labels. An
+entity id regex. The device, area and label filters keep only the entities in them.
+An
 entity that has no area of its own uses the area of its device. When **More filters**
 is closed, its row shows how many filters and exclusions are set.
 
@@ -120,7 +131,7 @@ preview, select it in the excluded entities list.
 
 ![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](../../images/21c-panel-declarative-preset-picker.png)
 
-![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](../../images/21d-panel-declarative-add-dialog.png)
+![The Add dialog seeded from the Firmware update available preset, with the preset box at the top and the live preview at the bottom](../../images/21d-panel-declarative-add-dialog.png)
 
 ![The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
 
@@ -130,13 +141,128 @@ A declarative companion you switch off keeps the tasks it made. The tasks stop u
 you switch it on again. Their history stays with them. Delete the declarative
 companion to remove its tasks.
 
+A disabled entity also keeps its task. The task stops while the entity is
+disabled. This also applies when you disable the device or the integration of the
+entity. When you enable the entity again, the same task starts again with its
+history.
+
 Each declarative companion gets a row under **Settings → Companions** with an Edit
 button and a Delete button. On a phone the row stacks, and the buttons take a line of
 their own.
 
-![A declarative companion row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+The row shows where the companion comes from:
+
+- **Logo.** The logo of the integration that the companion watches. If Home Assistant
+  has no logo for it, the row shows a generic logo or the preset icon.
+- **Badge.** A small icon on the logo shows what the companion looks for, such as
+  supplies that run low or parts near the end of their life. Hold the pointer on it to
+  see its name.
+- **Line under the name.** The integration, the entity platform, the limit and the
+  number of tasks. The limit shows only while the trigger is the same as in the preset.
+- **Custom chip.** You made the companion yourself, and no preset made it.
+
+![Declarative companion rows in Settings, Companions. Each row has the integration logo with a badge, the name and its chips, and a line with the integration, platform, limit and task count. Edit and Delete are at the right](../../images/21h-panel-declarative-row-actions.png)
 
 ![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
+
+##### Entity keys and task names
+
+The **Entity keys** block under **More filters** matches the key that an integration
+gives each of its entities in its own code, such as `filter_time_left` for the filter
+sensor of a Roborock. A rename of the entity or a change of the Home Assistant
+language leaves the key as it is. An entity id regex breaks in both cases. Home Keeper
+then makes a task only for an entity with one of the keys.
+
+Home Assistant does not show these keys on its own screens. So when the declarative
+companion has a target integration, Home Keeper lists the keys of that integration's
+entities under the block. Each key in the list shows one example entity and how many
+entities have the key. Click a key to add it, and click it again to take it out. Each
+device with the key gets its own task. To type a key that is not in the list,
+click **Add key**. Each row of the preview shows the key of its entity.
+
+Each key can also have a task name, such as *Replace filter*. The task name template
+reads it as `{{ task_name }}`, so one declarative companion can give each part its own
+task: `{{ task_name }}: {{ device_name }}`. A key with no task name uses the entity
+name. The key of the entity is also available as `{{ translation_key }}`.
+
+![The declarative companion dialog with two entity keys, one of them with the task name Replace the battery](../../images/21u-panel-declarative-entity-keys.png)
+
+![The entity keys on a phone, with each key above its task name](../../images/21u-panel-mobile-declarative-entity-keys.png)
+
+##### What a preset does
+
+When you add a declarative companion from a preset, a box at the top of the dialog
+says what the preset does. It also names the tasks that the preset makes. An
+integration preset also gives its limit. A time limit shows in days when it is 2 days
+or more. The limit of a reading such as a water pressure is in the unit of the sensor.
+
+The box names each section that you change. The text in the box always describes the
+preset and not your changes. Click **Reset to preset** to put those sections back.
+Your name, description and exclusions do not change.
+
+Each row in the preview shows what the entity reads now. When a preset opens a task
+above a limit, a bar shows how near the reading is to that limit.
+
+![The preset box at the top of the Add dialog, with what the Tuya Local preset does and its task](../../images/78-panel-preset-summary.png)
+
+![The preset box after a change to the trigger, with the Changed chip and Reset to preset](../../images/78b-panel-preset-summary-changed.png)
+
+![The preview row with the reading of the entity now](../../images/78a-panel-preset-reading.png)
+
+![The preset box on a phone, after a change to the trigger](../../images/78c-panel-mobile-preset-summary.png)
+
+![The preview row on a phone, with the reading of the entity now](../../images/78d-panel-mobile-preset-reading.png)
+
+##### Integration presets
+
+Many devices report the wear of their parts, such as the hours left on the filter of a
+robot vacuum or the toner level of a printer. An integration preset turns these
+readings into tasks for one integration.
+Each preset selects the entities by their [entity keys](#entity-keys-and-task-names)
+and gives each key its own task name, such as *Replace the main brush*.
+
+The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya preset for vacuum parts is not in that group. Then the picker
+shows the general presets. Click **Show more presets** to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.
+
+Each integration can have up to 6 presets, one for each type of reading:
+
+- **Parts and supplies running low**: a percentage falls below 10%.
+- **Parts near the end of their life**: the time left on a part falls below a limit.
+  The preset reads the time in any unit, from seconds to weeks.
+- **Wear counters**: a counter that the device resets passes a service limit.
+- **Readings too low** and **readings too high**: a measurement, such as the water
+  pressure of a boiler, passes its service level.
+- **Service alerts**: the device reports that it needs service.
+
+Home Keeper completes each task when the reading recovers. To complete it, reset the
+part on the device or refill the salt.
+
+![The preset picker with a search for filter, showing the integration presets and the tasks each one makes](../../images/21v-panel-declarative-preset-search.png)
+
+![The same search on a phone](../../images/21v-panel-mobile-preset-search.png)
+
+These integrations have presets:
+
+| Type of device | Integrations |
+|---|---|
+| Air and ventilation | Actron Air, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
+| Cars | Bosch eBike (Smart System & eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda) |
+| Garden and pool | Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision |
+| Heating and water | AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare |
+| Kitchen and laundry | Candy Simply-Fi, ConnectLife (Hisense / Gorenje / ASKO), Electrolux (OCP API), Haier hOn (Haier/Candy/Hoover), Home Connect, Home Connect Local, HomeWhiz (Beko / Grundig / Arçelik), LG ThinQ, Midea (core), Miele, Whirlpool |
+| Personal care | Philips shaver, Philips Sonicare (BLE) |
+| Pets | EHEIM Digital (aquarium), Litter-Robot, PetKit, PETLIBRO |
+| Printers | Brother printer, HP printer, Samsung SyncThru printer |
+| Robot vacuums | Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya, Xiaomi Miio, Xiaomi Vacuum (cloud) |
+| Storage (NAS) | MOS NAS, QNAP NAS, Synology NAS, UniFi UNAS (REST), Unraid, Unraid API, Unraid Management Agent |
+
+For an integration that is not in the list, write a declarative companion with the
+keys of its entities. The key of an entity is in the translation file of its
+integration.
 
 ##### Task labels and notes
 
@@ -190,7 +316,8 @@ task.
 
 The template reads the same values as the task name template and the task notes
 template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_name`,
-`area_name`, and `integration`. Home Assistant template functions are also available.
+`area_name`, `integration` and `translation_key`. Only the task name and notes
+templates can read `task_name`. Home Assistant template functions are also available.
 
 A template must render **true or false**. Home Keeper accepts a true or false result,
 and the words `on`, `off`, `yes` and `no`. Anything else is an error.

@@ -149,3 +149,225 @@ def test_a_child_device_reports_no_connections_instead_of_raising():
     # shim that logs a deprecation and stops answering in HA 2027.9; the fake has no
     # such shim, so reading the attribute here would raise outright.
     assert device_compat.device_connections(CHILD) == set()
+
+
+# ── RegistryDeviceIds (B04-1) ────────────────────────────────────────────────
+
+
+def test_b04_1_device_ids_answer_on_a_mapping_registry():
+    # Before 2026.9 iterating ``devices`` yields ids, so reading ``.id`` off each one
+    # raised AttributeError and every import failed.
+    ids = device_compat.RegistryDeviceIds(MappingRegistry([DEV_A, DEV_B]))
+    assert "a" in ids
+    assert "b" in ids
+    assert "nope" not in ids
+
+
+def test_b04_1_device_ids_include_a_child_that_devices_does_not_list():
+    # From 2026.9 ``devices`` lists main devices only. ``async_get`` answers both.
+    registry = CollectionRegistry([DEV_A])
+    registry._by_id[CHILD.id] = CHILD
+    ids = device_compat.RegistryDeviceIds(registry)
+    assert "a" in ids
+    assert "c" in ids
+    assert "b" not in ids
+
+
+def test_b04_1_device_ids_answer_no_for_an_empty_or_odd_value():
+    class Exploding:
+        def async_get(self, device_id):
+            raise AssertionError(f"registry consulted for {device_id!r}")
+
+    ids = device_compat.RegistryDeviceIds(Exploding())
+    assert "" not in ids
+    assert None not in ids
+    assert 7 not in ids
+
+
+# ── X13-1: the calls HA 2026.9 deprecates and 2027.8 removes ─────────────────
+
+
+@dataclass(frozen=True)
+class LegacyEntryDevice:
+    """Before 2026.8: a device lists its config entries, and has no single owner."""
+
+    id: str
+    config_entries: frozenset = frozenset()
+
+
+@dataclass(frozen=True)
+class OwnedDevice:
+    """2026.8 and later: a device has one config entry in ``config_entry_id``."""
+
+    id: str
+    config_entry_id: str | None = None
+    config_entries: frozenset = frozenset({"shim-value-that-must-not-be-read"})
+
+
+def test_x13_1_config_entries_reads_config_entry_id_when_there_is_one():
+    assert device_compat.device_config_entries(OwnedDevice("d", "hk")) == {"hk"}
+
+
+def test_x13_1_config_entries_falls_back_to_the_old_set():
+    device = LegacyEntryDevice("d", frozenset({"hk", "zwave"}))
+    assert device_compat.device_config_entries(device) == {"hk", "zwave"}
+    # A composite with no owner reads the old set too.
+    owned_by_none = OwnedDevice("d", None, frozenset({"x"}))
+    assert device_compat.device_config_entries(owned_by_none) == {"x"}
+    assert device_compat.device_config_entries(DEV_B) == set()
+
+
+class LookupRegistry:
+    """A registry with the lookups of one era, and a log of the calls it got."""
+
+    def __init__(self, devices, *, modern):
+        self._devices = list(devices)
+        self.calls = []
+        if modern:
+            self.async_get_devices = self._get_devices
+        else:
+            self.async_get_device = self._get_device
+
+    def _hits(self, identifiers, connections):
+        return [
+            d
+            for d in self._devices
+            if (identifiers and d.identifiers & identifiers)
+            or (connections and d.connections & connections)
+        ]
+
+    def _get_devices(self, *, identifiers=None, connections=None):
+        self.calls.append(("async_get_devices", identifiers, connections))
+        return self._hits(identifiers, connections)
+
+    def _get_device(self, identifiers=None, connections=None):
+        self.calls.append(("async_get_device", identifiers, connections))
+        hits = self._hits(identifiers, connections)
+        return hits[0] if hits else None
+
+
+@dataclass(frozen=True)
+class IdDevice:
+    id: str
+    identifiers: frozenset = frozenset()
+    connections: frozenset = frozenset()
+
+
+ZW1 = IdDevice("zw1", identifiers=frozenset({("zwave_js", "12")}))
+ZW2 = IdDevice("zw2", identifiers=frozenset({("zwave_js", "12")}))
+BT = IdDevice("bt", connections=frozenset({("bluetooth", "D0")}))
+
+
+def test_x13_1_find_devices_uses_async_get_devices_when_there_is_one():
+    registry = LookupRegistry([ZW1, ZW2, BT], modern=True)
+    found = device_compat.find_devices(registry, identifiers={("zwave_js", "12")})
+    assert found == [ZW1, ZW2]
+    assert registry.calls == [("async_get_devices", {("zwave_js", "12")}, None)]
+    assert device_compat.find_devices(registry, connections={("bluetooth", "D0")}) == [
+        BT
+    ]
+    assert registry.calls[-1] == ("async_get_devices", None, {("bluetooth", "D0")})
+
+
+def test_x13_1_find_devices_falls_back_to_async_get_device():
+    registry = LookupRegistry([ZW1, ZW2], modern=False)
+    found = device_compat.find_devices(registry, identifiers={("zwave_js", "12")})
+    assert found == [ZW1]
+    assert registry.calls == [("async_get_device", {("zwave_js", "12")}, None)]
+    assert device_compat.find_devices(registry, identifiers={("zwave_js", "9")}) == []
+
+
+class CreateRegistry:
+    """``async_get_or_create`` and ``async_get`` in one of two signatures."""
+
+    def __init__(self, devices, *, via_device_id):
+        self._by_id = {d.id: d for d in devices}
+        if via_device_id:
+            self.async_get_or_create = self._create_new
+        else:
+            self.async_get_or_create = self._create_old
+
+    def async_get(self, device_id):
+        return self._by_id.get(device_id)
+
+    def _create_new(self, *, config_entry_id, via_device_id=None, **kwargs):
+        return None
+
+    def _create_old(self, *, config_entry_id, via_device=None, **kwargs):
+        return None
+
+
+PARENT_IDENT = ("home_keeper", "asset_parent")
+
+
+def test_x13_1_via_device_id_when_the_registry_takes_it():
+    registry = CreateRegistry([DEV_A], via_device_id=True)
+    assert device_compat.via_device_kwargs(registry, PARENT_IDENT, "a") == {
+        "via_device_id": "a"
+    }
+
+
+def test_x13_1_no_via_device_id_for_a_parent_that_is_not_registered():
+    # An unknown via_device_id makes Home Assistant refuse the call, and via_device
+    # together with via_device_id is refused too, so nothing is given.
+    registry = CreateRegistry([DEV_A], via_device_id=True)
+    assert device_compat.via_device_kwargs(registry, PARENT_IDENT, "nope") == {}
+    assert device_compat.via_device_kwargs(registry, PARENT_IDENT, None) == {}
+
+
+def test_x13_1_via_device_on_an_older_registry():
+    registry = CreateRegistry([DEV_A], via_device_id=False)
+    assert device_compat.via_device_kwargs(registry, PARENT_IDENT, "a") == {
+        "via_device": PARENT_IDENT
+    }
+
+
+def test_x13_1_no_parent_gives_no_link():
+    for via_device_id in (True, False):
+        registry = CreateRegistry([DEV_A], via_device_id=via_device_id)
+        assert device_compat.via_device_kwargs(registry, None, "a") == {}
+
+
+def test_x13_1_supports_kwarg_reads_the_signature():
+    def func(*, named=None, **kwargs):
+        return None
+
+    assert device_compat.supports_kwarg(func, "named") is True
+    # A name taken only through **kwargs is not supported.
+    assert device_compat.supports_kwarg(func, "via_device") is False
+
+
+class RemoveRegistry:
+    def __init__(self):
+        self.removed = []
+        self.updated = []
+
+    def async_remove_device(self, device_id):
+        self.removed.append(device_id)
+
+    def async_update_device(self, device_id, **kwargs):
+        self.updated.append((device_id, kwargs))
+
+
+def test_x13_1_remove_config_entry_removes_a_device_the_entry_owns():
+    registry = RemoveRegistry()
+    device_compat.remove_config_entry(registry, OwnedDevice("d", "hk"), "hk")
+    assert (registry.removed, registry.updated) == (["d"], [])
+
+
+def test_x13_1_remove_config_entry_leaves_a_device_of_another_entry():
+    registry = RemoveRegistry()
+    device_compat.remove_config_entry(registry, OwnedDevice("d", "zwave"), "hk")
+    assert (registry.removed, registry.updated) == ([], [])
+
+
+def test_x13_1_remove_config_entry_on_an_older_registry():
+    registry = RemoveRegistry()
+    device = LegacyEntryDevice("d", frozenset({"hk", "zwave"}))
+    device_compat.remove_config_entry(registry, device, "hk")
+    assert registry.removed == []
+    assert registry.updated == [("d", {"remove_config_entry_id": "hk"})]
+
+
+def test_x13_1_supports_kwarg_is_false_without_a_signature():
+    assert device_compat.supports_kwarg(42, "via_device_id") is False

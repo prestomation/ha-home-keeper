@@ -31,6 +31,7 @@ import {
   SNOOZE_PRESETS,
   escapeHTML,
   formatOccurrenceTime,
+  guardWrite,
   setBtnWeight,
   taskRecordsReading,
 } from './utils';
@@ -87,6 +88,8 @@ export interface DeferMenuHost {
   onSnooze(task: Task): void;
   onSkip(task: Task): void;
   onDueToday(task: Task): void;
+  /** Open the completion dialog. Only the panel offers it (#399). */
+  onDetails?(task: Task): void;
 }
 
 /**
@@ -108,6 +111,11 @@ export class DeferMenus {
       const task = split.dataset.id ? this.host.taskById(split.dataset.id) : undefined;
       if (task) this._wireOne(split, task, caretSelector);
     });
+  }
+
+  /** Whether a menu is open now. A background re-render would close it. */
+  get isOpen(): boolean {
+    return this._open !== null;
   }
 
   /** Close whatever is open. Hosts call this before replacing their markup. */
@@ -150,6 +158,10 @@ export class DeferMenus {
       this.close();
       this.host.onDueToday(task);
     });
+    menu.querySelector('.hk-defer-details')?.addEventListener('click', () => {
+      this.close();
+      this.host.onDetails?.(task);
+    });
   }
 
   /**
@@ -166,8 +178,23 @@ export class DeferMenus {
     this.close();
     menu.hidden = false;
     caret.setAttribute('aria-expanded', 'true');
+    // The menu pattern (X11-5): focus goes to the first item on open, the arrow
+    // keys, Home and End move it, and Escape puts it back on the caret. Without
+    // this, focus stayed on the caret, and Escape from an item hid the focused
+    // node, so focus fell to the page body.
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    items[0]?.focus();
     this._onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.close();
+      if (e.key === 'Escape') {
+        this.close();
+        caret.focus();
+        return;
+      }
+      const at = items.findIndex((item) => e.composedPath().includes(item));
+      const next = menuKeyTarget(e.key, at, items.length);
+      if (next == null) return;
+      e.preventDefault();
+      items[next].focus();
     };
     this._onClick = (e: Event) => {
       // A click inside a shadow root retargets to the host at document level, so
@@ -178,6 +205,27 @@ export class DeferMenus {
     document.addEventListener('keydown', this._onKey);
     document.addEventListener('click', this._onClick);
     this._open = { caret, menu };
+  }
+}
+
+/**
+ * The index of the menu item that *key* moves focus to, from the item at *at*
+ * (-1 when focus is not on an item), in a menu of *count* items. `null` when the
+ * key does not move focus. The arrow keys wrap around.
+ */
+export function menuKeyTarget(key: string, at: number, count: number): number | null {
+  if (!count) return null;
+  switch (key) {
+    case 'ArrowDown':
+      return at < 0 ? 0 : (at + 1) % count;
+    case 'ArrowUp':
+      return at < 0 ? count - 1 : (at - 1 + count) % count;
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return null;
   }
 }
 
@@ -201,19 +249,53 @@ export interface DeferDialogHost {
   rerender(): void;
   /** Reload tasks after a successful write. */
   refresh(): Promise<void>;
+  /** Show a short message. For an error of a dialog that is no longer open. */
+  notify?(message: string): void;
+}
+
+/**
+ * *close* made safe for a request that ends late (F10-3). A dialog closes its own
+ * state only: after the user dismissed it, the host can show a different dialog of
+ * the same kind, and a late reply must not close that one. Dismissal sets
+ * `open = false` on the state object, so a later call does nothing.
+ */
+function closeOnce(s: { open: boolean }, close: () => void): () => void {
+  return () => {
+    if (!s.open) return;
+    s.open = false;
+    close();
+  };
+}
+
+/**
+ * Show the error of a failed write: in the dialog when it is still open, else as a
+ * message from the host, because the dialog state is gone from the screen (F10-3).
+ */
+function reportError(
+  host: DeferDialogHost,
+  s: { open: boolean; error?: string },
+  err: unknown,
+): void {
+  const message = String((err as { message?: string })?.message || err);
+  if (s.open) {
+    s.error = message;
+    host.rerender();
+  } else {
+    host.notify?.(message);
+  }
 }
 
 function footerButtons(
   footer: HTMLElement,
   primaryLabel: string,
-  onPrimary: () => void,
+  onPrimary: (button: Element) => void,
   onCancel: () => void,
 ): void {
   const primary = document.createElement('ha-button');
   primary.setAttribute('slot', 'primaryAction');
   setBtnWeight(primary, 'primary');
   primary.textContent = primaryLabel;
-  primary.addEventListener('click', onPrimary);
+  primary.addEventListener('click', () => onPrimary(primary));
   footer.appendChild(primary);
 
   const cancel = document.createElement('ha-button');
@@ -240,9 +322,8 @@ export function renderSnoozeDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
-  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), () => {
-    if (s.open) close();
-  });
+  close = closeOnce(s, close);
+  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
   const later = offersLaterDates(s.task) && s.mode === 'later';
   if (offersLaterDates(s.task)) body.appendChild(snoozeModeSwitch(host, s));
@@ -282,7 +363,7 @@ export function renderSnoozeDialog(
   body.appendChild(hint);
 
   errorAlert(body, s.error);
-  footerButtons(footer, t('btn.snooze'), () => void submitSnooze(host, s, close), close);
+  footerButtons(footer, t('btn.snooze'), (b) => void submitSnooze(host, s, close, b), close);
   mount();
   mountTo.appendChild(dialog);
 }
@@ -439,18 +520,26 @@ export async function submitSnooze(
   host: DeferDialogHost,
   s: SnoozeState,
   close: () => void,
+  button?: Element | null,
 ): Promise<void> {
   const until = snoozeTarget(s);
   const hass = host.hass();
-  if (!hass || !s.task || !until) return;
-  try {
-    await api.snoozeTask(hass, s.task.id, until.toISOString());
-    close();
-    await host.refresh();
-  } catch (err) {
-    s.error = String((err as { message?: string })?.message || err);
-    host.rerender();
-  }
+  const task = s.task;
+  if (!hass || !task || !until) return;
+  // A second press while the first call runs is ignored (X12-3).
+  await guardWrite(
+    s,
+    async () => {
+      try {
+        await api.snoozeTask(hass, task.id, until.toISOString());
+        close();
+        await host.refresh();
+      } catch (err) {
+        reportError(host, s, err);
+      }
+    },
+    button,
+  );
 }
 
 /**
@@ -468,12 +557,11 @@ export function renderSkipDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
+  close = closeOnce(s, close);
   const editing = s.ts != null;
   const { dialog, body, footer, mount } = makeDialog(
     editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
-    () => {
-      if (s.open) close();
-    },
+    close,
   );
 
   if (!editing) {
@@ -515,7 +603,7 @@ export function renderSkipDialog(
   footerButtons(
     footer,
     editing ? t('btn.save') : t('btn.skip'),
-    () => void submitSkip(host, s, close),
+    (b) => void submitSkip(host, s, close, b),
     close,
   );
   mount();
@@ -526,16 +614,24 @@ export async function submitSkip(
   host: DeferDialogHost,
   s: SkipState,
   close: () => void,
+  button?: Element | null,
 ): Promise<void> {
   const hass = host.hass();
-  if (!hass || !s.task) return;
-  try {
-    if (s.ts != null) await api.updateSkip(hass, s.task.id, s.ts, s.data);
-    else await api.skipTask(hass, s.task.id, s.data);
-    close();
-    await host.refresh();
-  } catch (err) {
-    s.error = String((err as { message?: string })?.message || err);
-    host.rerender();
-  }
+  const task = s.task;
+  if (!hass || !task) return;
+  // A double click must not skip two occurrences (X12-3).
+  await guardWrite(
+    s,
+    async () => {
+      try {
+        if (s.ts != null) await api.updateSkip(hass, task.id, s.ts, s.data);
+        else await api.skipTask(hass, task.id, s.data);
+        close();
+        await host.refresh();
+      } catch (err) {
+        reportError(host, s, err);
+      }
+    },
+    button,
+  );
 }

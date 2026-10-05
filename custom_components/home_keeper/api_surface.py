@@ -6,11 +6,10 @@ know about each other: services registered in ``__init__.py``, bus events named 
 ``device_trigger.py``, and entity platforms in ``const.PLATFORMS``. Nothing tied
 them together, so a surface could be added in one place and forgotten everywhere
 else — which is exactly how ``set_task_meter`` shipped registered but absent from
-the teardown list.
+the teardown list that unload used then.
 
 This module is that tie. It declares every surface once; the runtime *consumes* it
-(``__init__.async_unload_entry`` iterates :data:`SERVICE_NAMES`,
-``device_trigger`` builds its maps from :func:`triggers_for`), the generator
+(``device_trigger`` builds its maps from :func:`triggers_for`), the generator
 ``ci/generate_api_docs.py`` renders the Developer Guide reference from it, and
 ``tests/unit/test_api_surface.py`` fails when the source and the model disagree.
 
@@ -111,7 +110,7 @@ class WebsocketSpec:
     """A panel websocket command.
 
     Internal: a UI-latency optimization over the equivalent service, never a
-    substitute for it (see ``.amazonq/rules/architecture-and-code.md``). Modelled
+    substitute for it (see ``.amazonq/rules/services-and-events.md``). Modelled
     and tested so it can't drift; deliberately not published in the reference.
     """
 
@@ -129,6 +128,8 @@ class HttpViewSpec:
     url: str
     methods: tuple[str, ...]
     requires_auth: bool = True
+    admin_methods: tuple[str, ...] = ()
+    """The methods that carry ``@require_admin`` (a write is admin-only)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,11 +167,12 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("add_task", response="optional"),
     ServiceSpec("update_task"),
     ServiceSpec("delete_task"),
+    ServiceSpec("delete_orphaned_tasks", admin_only=True, response="optional"),
     ServiceSpec("complete_task"),
     ServiceSpec("update_completion"),
     ServiceSpec("delete_completion"),
     ServiceSpec("move_completion"),
-    ServiceSpec("delete_archived_completion"),
+    ServiceSpec("delete_archived_completion", admin_only=True),
     ServiceSpec("trigger_task"),
     ServiceSpec("set_task_meter"),
     ServiceSpec("snooze_task"),
@@ -198,6 +200,9 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("update_asset_document", admin_only=True),
     ServiceSpec("sign_document_url", response="only"),
     ServiceSpec("sign_part_file_url", response="only"),
+    ServiceSpec("remove_task_photo"),
+    ServiceSpec("set_task_photo_cover"),
+    ServiceSpec("sign_task_photo_url", response="only"),
     ServiceSpec("export_appliance_report", admin_only=True, response="only"),
     ServiceSpec("export_data", admin_only=True, response="only"),
     ServiceSpec("import_data", admin_only=True, response="only"),
@@ -213,9 +218,11 @@ SERVICES: tuple[ServiceSpec, ...] = (
 SERVICE_NAMES: tuple[str, ...] = tuple(spec.name for spec in SERVICES)
 """Every registered service name, in registration order.
 
-``__init__.async_unload_entry`` iterates this rather than a second hand-written
-tuple. That second tuple is how ``set_task_meter`` went unregistered-on-unload:
-a list nobody derives is a list somebody forgets.
+``__init__.async_setup`` registers the services once per Home Assistant run and
+nothing removes them (B02-1), so no runtime code iterates this. The unit and the
+integration tests of the API surface compare the registered services to it. Never
+write a second hand-written list of service names: a list nobody derives is a
+list somebody forgets, which is how ``set_task_meter`` once went unremoved.
 """
 
 
@@ -363,7 +370,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "EVENT_TASK_UPDATED",
         "fired",
         "task",
-        "a task actually changes",
+        "a task actually changes, including a photo added, removed or made the cover",
         extra=(_CHANGED_FIELDS,),
     ),
     EventSpec(
@@ -525,7 +532,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "fired",
         "task",
         "a task enters the three-day due-soon window, at most once per due date",
-        extra=(Field("due_in_hours", "int"),),
+        extra=(Field("due_in_hours", "float"),),
     ),
     EventSpec(
         const.EVENT_PART_LOW_STOCK,
@@ -661,12 +668,12 @@ DEVICE_TRIGGERS: tuple[DeviceTriggerSpec, ...] = (
 
 # ── Entity platforms ─────────────────────────────────────────────────────────
 #
-# ``todo`` and ``calendar`` are singletons named with ``_attr_name`` and
-# ``has_entity_name = False``, so they have no ``strings.json`` entity section.
+# ``todo`` and ``calendar`` are singletons on the service device. Each has a
+# translated name in the ``strings.json`` entity section.
 
 ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
-    EntityPlatformSpec("todo"),
-    EntityPlatformSpec("calendar"),
+    EntityPlatformSpec("todo", ("tasks",)),
+    EntityPlatformSpec("calendar", ("upcoming_tasks",)),
     EntityPlatformSpec("button", ("mark_done",)),
     EntityPlatformSpec(
         "sensor",
@@ -765,6 +772,11 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/add_task", service="add_task"),
     WebsocketSpec("home_keeper/update_task", service="update_task"),
     WebsocketSpec("home_keeper/delete_task", service="delete_task"),
+    WebsocketSpec(
+        "home_keeper/delete_orphaned_tasks",
+        admin_only=True,
+        service="delete_orphaned_tasks",
+    ),
     WebsocketSpec("home_keeper/set_task_consumable", service="set_task_consumable"),
     WebsocketSpec("home_keeper/complete_task", service="complete_task"),
     WebsocketSpec("home_keeper/update_completion", service="update_completion"),
@@ -781,7 +793,9 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/move_skip", service="move_skip"),
     WebsocketSpec("home_keeper/delete_skip", service="delete_skip"),
     WebsocketSpec(
-        "home_keeper/delete_archived_completion", service="delete_archived_completion"
+        "home_keeper/delete_archived_completion",
+        admin_only=True,
+        service="delete_archived_completion",
     ),
     WebsocketSpec("home_keeper/get_assets", service="list_assets"),
     WebsocketSpec("home_keeper/add_asset", admin_only=True, service="add_asset"),
@@ -814,6 +828,10 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
         "home_keeper/remove_part_file", admin_only=True, service="remove_part_file"
     ),
     WebsocketSpec("home_keeper/sign_part_file_url", service="sign_part_file_url"),
+    WebsocketSpec("home_keeper/remove_task_photo", service="remove_task_photo"),
+    WebsocketSpec("home_keeper/set_task_photo_cover", service="set_task_photo_cover"),
+    # Signs a list, so the task list signs every cover in one round trip.
+    WebsocketSpec("home_keeper/sign_task_photo_urls", service="sign_task_photo_url"),
     WebsocketSpec(
         "home_keeper/export_appliance_report",
         admin_only=True,
@@ -851,8 +869,13 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/preview_declarative_companion", admin_only=True),
     # Read-only helpers for the panel's Add dialog: the bundled presets, and the
     # integrations that have a config entry. Neither reads caller-supplied input.
+    # The preset list carries a match count per preset for the Tasks-tab
+    # suggestions; a count names no entity, so it stays open like the list.
     WebsocketSpec("home_keeper/list_declarative_presets"),
     WebsocketSpec("home_keeper/installed_integrations"),
+    # The entity keys of one integration, for the dialog's key list. It names every
+    # entity of that integration, so it is admin-only like the preview.
+    WebsocketSpec("home_keeper/list_entity_keys", admin_only=True),
 )
 
 HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
@@ -860,10 +883,17 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
         "api:home_keeper:document",
         const.DOCUMENT_URL_PREFIX + "/{asset_id}/{document_id}",
         ("GET", "POST"),
+        admin_methods=("POST",),
     ),
     HttpViewSpec(
         "api:home_keeper:part_document",
         const.PART_FILE_URL_PREFIX + "/{asset_id}/{part_id}",
+        ("GET", "POST"),
+        admin_methods=("POST",),
+    ),
+    HttpViewSpec(
+        "api:home_keeper:task_photo",
+        const.TASK_PHOTO_URL_PREFIX + "/{task_id}/{photo_id}",
         ("GET", "POST"),
     ),
 )

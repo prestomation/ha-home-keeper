@@ -12,7 +12,11 @@ then drives both surfaces — REST service calls and the websocket API — with 
 tokens, asserting the admin succeeds where the non-admin is refused.
 """
 
+import base64
+import importlib.util
+import sys
 import uuid
+from pathlib import Path
 
 import pytest
 import requests
@@ -175,6 +179,11 @@ def test_export_appliance_report_still_works_for_an_admin(ha):
             "add_asset_document",
             {"asset_id": "x", "document": {"name": "n", "url": "https://e.com"}},
         ),
+        # B03-1: it deletes appliance history, like the other asset writes.
+        (
+            "delete_archived_completion",
+            {"asset_id": "x", "task_id": "x", "ts": "2026-01-01T00:00:00+00:00"},
+        ),
     ],
 )
 def test_asset_mutation_services_refuse_a_non_admin(non_admin, service, data):
@@ -183,6 +192,71 @@ def test_asset_mutation_services_refuse_a_non_admin(non_admin, service, data):
     # gets 401 rather than a 400 that would reveal whether the asset exists.
     r = _call(non_admin, service, data)
     assert r.status_code == 401, f"{service} answered a non-admin: {r.status_code}"
+
+
+# X07-4: one call per ``admin_only`` service in ``api_surface.py``, each with data
+# that passes the service schema, so a refusal can only come from the gate. The
+# unit check reads the handler source; this one proves the gate runs.
+_ADMIN_ONLY_CALLS: dict[str, dict] = {
+    "delete_orphaned_tasks": {},
+    "delete_archived_completion": {
+        "asset_id": "x",
+        "task_id": "x",
+        "ts": "2026-01-01T00:00:00+00:00",
+    },
+    "add_asset": {"name": "Should not exist"},
+    "update_asset": {"asset_id": "x", "name": "Renamed"},
+    "update_managed_asset": {"asset_id": "x", "name": "Renamed"},
+    "delete_asset": {"asset_id": "x"},
+    "archive_asset": {"asset_id": "x"},
+    "restore_asset": {"asset_id": "x"},
+    "adjust_part_stock": {"asset_id": "x", "part_id": "x", "delta": 1},
+    "remove_part_file": {"asset_id": "x", "part_id": "x"},
+    "add_asset_document": {
+        "asset_id": "x",
+        "document": {"name": "n", "url": "https://e.com"},
+    },
+    "remove_asset_document": {"asset_id": "x", "document_id": "x"},
+    "update_asset_document": {
+        "asset_id": "x",
+        "document_id": "x",
+        "changes": {"name": "n"},
+    },
+    "export_appliance_report": {},
+    "export_data": {},
+    "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
+    "set_options": {"sync_problem_sensors": True},
+    "add_declarative_companion": {"name": "Should not exist"},
+    "update_declarative_companion": {"id": "x"},
+    "delete_declarative_companion": {"id": "x"},
+}
+
+
+def _admin_only_specs():
+    """The admin-only ServiceSpecs, read the way test_api_surface.py reads them."""
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "generate_api_docs", root / "ci" / "generate_api_docs.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return [s for s in module.load_surface().SERVICES if s.admin_only]
+
+
+_ADMIN_ONLY = _admin_only_specs()
+
+
+def test_x07_4_every_admin_only_service_has_a_refusal_call():
+    assert {s.name for s in _ADMIN_ONLY} == set(_ADMIN_ONLY_CALLS)
+
+
+@pytest.mark.parametrize("spec", _ADMIN_ONLY, ids=lambda s: s.name)
+def test_x07_4_every_admin_only_service_refuses_a_non_admin(non_admin, spec):
+    data = _ADMIN_ONLY_CALLS[spec.name]
+    r = _call(non_admin, spec.name, data, return_response=spec.response != "none")
+    assert r.status_code == 401, f"{spec.name} answered a non-admin: {r.status_code}"
 
 
 def test_non_admin_can_still_complete_a_task(ha, non_admin):
@@ -626,6 +700,121 @@ def test_asset_mutation_commands_refuse_a_non_admin(non_admin_token, priced_asse
     assert msg["error"]["code"] == "unauthorized"
 
 
+def test_delete_archived_completion_refuses_a_non_admin(non_admin_token, priced_asset):
+    # B03-1: this command echoed the full asset even when it deleted nothing, so a
+    # bogus task id was enough to read every cost and serial number.
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/delete_archived_completion",
+            "asset_id": priced_asset["id"],
+            "task_id": "x",
+            "ts": "x",
+        },
+    )
+    assert not msg.get("success"), "a non-admin deleted archived history"
+    assert msg["error"]["code"] == "unauthorized", msg
+    assert "SN-SECRET-1" not in str(msg)
+
+
+def test_delete_archived_completion_still_answers_an_admin(ha, priced_asset):
+    msg = ws_send(
+        _owner_token(ha),
+        {
+            "type": "home_keeper/delete_archived_completion",
+            "asset_id": priced_asset["id"],
+            "task_id": "x",
+            "ts": "x",
+        },
+    )
+    assert msg.get("success"), msg
+    assert msg["result"]["asset"]["id"] == priced_asset["id"]
+
+
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
+    b"\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+@pytest.mark.parametrize("route", ["document", "part_document"])
+def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
+    # B06-1: an upload changes an appliance, and its reply carries the full asset.
+    slot = str(uuid.uuid4()) if route == "document" else priced_asset["parts"][0]["id"]
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/{route}/{priced_asset['id']}/{slot}",
+        headers={"Authorization": f"Bearer {non_admin_token}"},
+        files={"file": ("probe.png", PNG_BYTES, "image/png")},
+        timeout=30,
+    )
+    assert r.status_code == 401, f"{route} took a non-admin upload: {r.status_code}"
+    assert "SN-SECRET-1" not in r.text
+
+
+# A 1x1 PNG that decodes. The upload makes a thumbnail, so it refuses PNG_BYTES above,
+# which has the right magic bytes but no readable image.
+PHOTO_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def _photo_upload(token, task_id, photo_id):
+    return requests.post(
+        f"{HA_URL}/api/home_keeper/task_photo/{task_id}/{photo_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("probe.png", PHOTO_PNG, "image/png")},
+        timeout=30,
+    )
+
+
+def test_a_non_admin_can_add_and_change_task_photos(ha, non_admin, non_admin_token):
+    # #399: a photo is task data, so it is open like add_task and update_task. A user
+    # who is not an admin adds photos from the dashboard card.
+    name = f"Photo usage probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "floating", "interval": 7, "unit": "days"},
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    try:
+        for photo_id in (first, second):
+            r = _photo_upload(non_admin_token, task["id"], photo_id)
+            assert r.status_code == 200, f"a non-admin could not upload: {r.text}"
+        data = {"task_id": task["id"], "photo_id": second}
+        r = _call(non_admin, "set_task_photo_cover", data)
+        assert r.status_code == 200, f"a non-admin could not set the cover: {r.text}"
+        r = _call(
+            non_admin, "remove_task_photo", {"task_id": task["id"], "photo_id": first}
+        )
+        assert r.status_code == 200, f"a non-admin could not remove a photo: {r.text}"
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert [p["id"] for p in after["photos"]] == [second]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_the_device_registry_does_not_carry_the_serial_number(
+    non_admin_token, priced_asset
+):
+    # X01-5: any signed-in user can list the device registry, so the serial number
+    # stays in the admin-only appliance record.
+    msg = ws_send(non_admin_token, {"type": "config/device_registry/list"})
+    assert msg.get("success"), msg
+    assert "SN-SECRET-1" not in str(msg["result"])
+
+
 # ── the panel is admin-only ─────────────────────────────────────────────────
 
 
@@ -639,3 +828,16 @@ def test_panel_is_hidden_from_a_non_admin(ha, non_admin_token):
     assert "home-keeper" not in panels["result"], (
         "administration is admin-only — the panel must not be offered to a non-admin"
     )
+
+
+def test_the_key_list_refuses_a_non_admin(non_admin_token):
+    # It names every entity of an integration, and only the admin panel calls it.
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+        },
+    )
+    assert not msg.get("success"), "a non-admin read the entity keys"
+    assert msg["error"]["code"] == "unauthorized", msg

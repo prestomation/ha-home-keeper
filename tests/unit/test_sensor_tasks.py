@@ -6,7 +6,7 @@ mode that lets a binary sensor drive a task. The HA-aware reading enumeration an
 state subscription (sensor_watcher) are exercised by the integration suite.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_sensor_tasks as s
 
@@ -315,6 +315,118 @@ def test_threshold_armed_stays_armed_no_action():
         task, reading=50, condition_met_prev=True, crossed_at=now, now=now
     )
     assert out["action"] is None
+
+
+def test_b14_5_a_crossing_while_armed_is_consumed():
+    # B14-5: the battery flaps 21 -> 19 while the task is armed. That crossing must not
+    # stay, or the pass after Done arms the task again on it.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_threshold(
+        _threshold("<", 20, armed=True),
+        reading=19,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+    # Done is pressed, and the sensor still reads 19: the task stays dormant.
+    later = now + timedelta(minutes=5)
+    after = s.evaluate_threshold(
+        _threshold("<", 20),
+        reading=19,
+        condition_met_prev=out["condition_met"],
+        crossed_at=out["crossed_at"],
+        now=later,
+    )
+    assert after["action"] is None
+    # A carried crossing on an armed task is dropped too, with a hold or not.
+    held = s.evaluate_state(
+        _state("on", for_seconds=300, armed=True),
+        state="on",
+        condition_met_prev=True,
+        crossed_at=now,
+        now=later,
+    )
+    assert held["crossed_at"] is None
+    assert held["action"] is None
+
+
+def test_b14_1_the_first_reading_after_an_unknown_baseline_does_not_arm():
+    # B14-1: the entity was not loaded when the baseline was taken. Its first real
+    # reading is a baseline, not a crossing, in every edge mode.
+    now = dt(2026, 6, 1, 10)
+    silent = {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+    assert (
+        s.evaluate_state(
+            _state("on"), state="on", condition_met_prev=None, crossed_at=None, now=now
+        )
+        == silent
+    )
+    assert (
+        s.evaluate_threshold(
+            _threshold("<", 20),
+            reading=5,
+            condition_met_prev=None,
+            crossed_at=None,
+            now=now,
+        )
+        == silent
+    )
+    avail = _state("on")
+    avail["sensor"] = {"entity_id": "sensor.x", "mode": "availability"}
+    assert (
+        s.evaluate_availability(
+            avail,
+            status=s.AVAILABILITY_UNAVAILABLE,
+            condition_met_prev=None,
+            crossed_at=None,
+            now=now,
+        )
+        == silent
+    )
+    # A not-met reading records "not met", so the next crossing arms as usual.
+    out = s.evaluate_state(
+        _state("on"), state="off", condition_met_prev=None, crossed_at=None, now=now
+    )
+    assert out["condition_met"] is False
+    assert out["action"] is None
+    armed = s.evaluate_state(
+        _state("on"), state="on", condition_met_prev=False, crossed_at=None, now=now
+    )
+    assert armed["action"] == "arm"
+
+
+def test_b14_1_an_unknown_baseline_stays_unknown_without_a_reading():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_state(
+        _state("on"), state=None, condition_met_prev=None, crossed_at=None, now=now
+    )
+    assert out["condition_met"] is None
+    assert out["action"] is None
+
+
+def test_b14_1_an_armed_task_still_clears_after_an_unknown_baseline():
+    # The clear is level-triggered: a device that came back while Home Assistant was
+    # down still completes a clear_on_recover task.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_state(
+        _state("on", clear_on_recover=True, armed=True),
+        state="off",
+        condition_met_prev=None,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] == "clear"
 
 
 def test_threshold_hold_delays_arming():
@@ -1286,3 +1398,88 @@ def test_holds_edge_state_treats_an_unknown_mode_as_a_meter():
     assert s.holds_edge_state("banana") is False
     assert s.holds_edge_state(None) is False
     assert s.holds_edge_state("") is False
+
+
+def test_b07_4_backstop_counts_on_the_ha_wall_clock():
+    """B07-4: 1 month from 23:30 PST on Feb 20 is 23:30 PDT on Mar 20."""
+    from zoneinfo import ZoneInfo
+
+    la = ZoneInfo("America/Los_Angeles")
+    task = _backstop(300, 660, 1, "months", created=dt(2026, 1, 15).isoformat())
+    task["last_completed"] = datetime(2026, 2, 20, 23, 30, tzinfo=la).isoformat()
+    assert s.backstop_due(task, task["sensor"], tz=la) == datetime(
+        2026, 3, 20, 23, 30, tzinfo=la
+    )
+    # Without a zone the stored offset is used, as before.
+    assert s.backstop_due(task, task["sensor"]) == datetime(
+        2026, 3, 21, 0, 30, tzinfo=la
+    )
+
+
+def test_b07_4_the_watcher_arms_the_backstop_on_the_ha_wall_clock():
+    """At 00:00 PDT on Mar 21 the 1-month backstop from 23:30 PST is due."""
+    from zoneinfo import ZoneInfo
+
+    la = ZoneInfo("America/Los_Angeles")
+    task = _backstop(300, 660, 1, "months", created=dt(2026, 1, 15).isoformat())
+    task["last_completed"] = datetime(2026, 2, 20, 23, 30, tzinfo=la).isoformat()
+    now = datetime(2026, 3, 21, 0, 0, tzinfo=la)
+    assert s.evaluate_usage(task, reading=661, now=now)["action"] == "arm"
+
+
+# ── low-severity review fixes ────────────────────────────────────────────────
+def test_b14_9_parse_reading_treats_nan_and_infinity_as_no_reading():
+    # A NaN compares false to every limit and an infinity arms every meter, so a
+    # non-finite value is indeterminate, the same as ``unavailable``.
+    for raw in ("nan", "NaN", "inf", "-inf", "Infinity", float("nan"), float("inf")):
+        assert s.parse_reading(raw) is None, raw
+    # Finite values at the edge still parse.
+    assert s.parse_reading("-0.5") == -0.5
+    assert s.parse_reading("1e308") == 1e308
+
+
+def _new_york():
+    from zoneinfo import ZoneInfo
+
+    return ZoneInfo("America/New_York")
+
+
+def test_x04_8_hold_counts_real_seconds_across_spring_dst():
+    # 01:50 EST, then 03:05 EDT is 15 real minutes, not 75. A 1-hour hold must not
+    # arm yet.
+    ny = _new_york()
+    cross = datetime(2027, 3, 14, 1, 50, tzinfo=ny)
+    now = datetime(2027, 3, 14, 3, 5, tzinfo=ny)
+    task = _threshold(">", 90, for_seconds=3600)
+    out = s.evaluate_threshold(
+        task, reading=95, condition_met_prev=True, crossed_at=cross, now=now
+    )
+    assert out["action"] is None
+    assert out["crossed_at"] == cross
+    # The hold ends 1 real hour after the crossing.
+    assert out["hold_due_at"] == datetime(2027, 3, 14, 7, 50, tzinfo=UTC)
+    # 1 real hour after the crossing, it arms.
+    out = s.evaluate_threshold(
+        task,
+        reading=95,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=datetime(2027, 3, 14, 3, 50, tzinfo=ny),
+    )
+    assert out["action"] == "arm"
+
+
+def test_x04_8_hold_counts_real_seconds_across_autumn_dst():
+    # 01:50 EDT plus 30 real minutes is 01:20 EST. A 10-minute hold is done.
+    ny = _new_york()
+    cross = datetime(2026, 11, 1, 1, 50, tzinfo=ny)  # fold=0: EDT
+    now = datetime(2026, 11, 1, 1, 20, fold=1, tzinfo=ny)  # EST
+    task = _threshold(">", 90, for_seconds=600)
+    out = s.evaluate_threshold(
+        task, reading=95, condition_met_prev=True, crossed_at=cross, now=now
+    )
+    assert out["action"] == "arm"
+    # The hold is due 10 real minutes after the crossing.
+    assert s.hold_due_at(task, crossed_at=cross, now=cross) == datetime(
+        2026, 11, 1, 6, 0, tzinfo=UTC
+    )

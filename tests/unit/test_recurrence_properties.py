@@ -352,7 +352,12 @@ def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, in
 
     Kills the `_regrid` call in `expand_fixed_occurrences` and, through the shared
     helper, in `next_fixed_occurrence`.
+
+    An anchor in the hour that a spring-forward skips (00:00 on a day that starts at
+    01:00) has no wall time to keep. Its stored offset names the first real time after
+    the gap, so that anchor is left out.
     """
+    assume(anchor.astimezone(_UTC).astimezone(anchor.tzinfo) == anchor)
     reloaded = datetime.fromisoformat(anchor.isoformat())
     end = anchor + timedelta(days=400)
     for occurrence in r.expand_fixed_occurrences(
@@ -405,6 +410,116 @@ def test_r7_completing_a_fixed_task_always_clears_the_occurrence_it_showed(
 
 
 @given(
+    completed=ps.zoned_datetimes(),
+    gap_days=st.integers(0, 400),
+    interval=st.integers(1, 24),
+    unit=st.sampled_from(["days", "weeks", "months"]),
+    season=st.one_of(st.none(), ps.seasons(always_exists=True)),
+)
+def test_r8_a_stored_floating_due_date_agrees_with_the_live_one(
+    completed, gap_days, interval, unit, season
+):
+    """R8. Calculating a floating due date again from the store gives the same date.
+
+    A completion computes ``next_due`` from a live clock in Home Assistant's zone. An
+    undo, a move, an edit or an import calculates it again from ``last_completed``,
+    which the store keeps with only a UTC offset. Both must count the interval on the
+    same wall clock, or a daylight-saving change moves the due time by 1 hour and a
+    late-evening one to the next day (B07-4).
+
+    The completion time goes through UTC first, because a real clock never reads a
+    local time that a daylight-saving gap skips.
+
+    Kills the removal of ``_local`` in ``compute_next_due``.
+    """
+    zone = completed.tzinfo
+    completed = completed.astimezone(_UTC).astimezone(zone)
+    now = (completed + timedelta(days=gap_days)).astimezone(_UTC).astimezone(zone)
+    payload: dict = {"name": "p", "interval": interval, "unit": unit}
+    if season:
+        payload["active_season"] = season
+    task = models.build_task(payload, now=now)
+    r.apply_completion(task, completed, now=now)
+    live = datetime.fromisoformat(task["next_due"])
+    assert r.compute_next_due(task, now=now) == live
+
+
+def _scheduled_payload() -> st.SearchStrategy[dict]:
+    """A floating or a fixed task: the 2 types whose due date the log moves."""
+    return st.one_of(
+        st.builds(
+            lambda i, u: {"name": "p", "interval": i, "unit": u},
+            st.integers(1, 12),
+            st.sampled_from(["days", "weeks", "months"]),
+        ),
+        st.builds(
+            lambda i, f, a: {
+                "name": "p",
+                "recurrence_type": "fixed",
+                "interval": i,
+                "freq": f,
+                "anchor": a.isoformat(),
+            },
+            st.integers(1, 4),
+            st.sampled_from(["DAILY", "WEEKLY", "MONTHLY"]),
+            ps.aware_datetimes(min_year=2024, max_year=2025),
+        ),
+    )
+
+
+_R9_NOW = datetime(2026, 6, 1, 12, tzinfo=ZoneInfo("America/New_York"))
+
+
+def _r9_task(payload: dict, hours_ago: list[int], deferral: int) -> tuple[dict, list]:
+    """A task with live completions, then a snooze that the log does not show."""
+    times = sorted(_R9_NOW - timedelta(hours=h) for h in hours_ago)
+    task = models.build_task(payload, now=times[0] - timedelta(days=1))
+    for when in times:
+        r.apply_completion(task, when, now=when)
+    r.defer(task, _R9_NOW + timedelta(minutes=deferral), now=_R9_NOW)
+    return task, times
+
+
+@given(
+    payload=_scheduled_payload(),
+    hours_ago=st.lists(st.integers(1, 2000), min_size=2, max_size=6, unique=True),
+    pick=st.integers(0, 10),
+    deferral=st.integers(-3 * 24 * 60, 30 * 24 * 60),
+)
+def test_r9_an_edit_below_the_latest_completion_keeps_the_due_date(
+    payload, hours_ago, pick, deferral
+):
+    """R9. Deleting, moving or back-filling an older row never moves ``next_due``.
+
+    The due date can hold a snooze, a skip, a due-today or an early completion, and
+    none of them is in the completion log. Only an edit that changes the latest
+    completion may calculate the due date again (B07-2, B07-3).
+
+    Kills the ``_rewinds`` guard in ``remove_completion`` and ``move_completion``
+    and the ``backfill`` return in ``apply_completion``.
+    """
+    task, times = _r9_task(payload, hours_ago, deferral)
+    before = (task["next_due"], task["last_completed"])
+    older = times[pick % (len(times) - 1)]
+
+    moved = dict(task, completions=[dict(e) for e in task["completions"]])
+    r.move_completion(
+        moved,
+        older.isoformat(),
+        (older - timedelta(minutes=30)).isoformat(),
+        now=_R9_NOW,
+    )
+    assert (moved["next_due"], moved["last_completed"]) == before
+
+    filled = dict(task, completions=[dict(e) for e in task["completions"]])
+    r.apply_completion(filled, older - timedelta(minutes=1), now=_R9_NOW)
+    assert (filled["next_due"], filled["last_completed"]) == before
+
+    r.remove_completion(task, older.isoformat(), now=_R9_NOW)
+    assert (task["next_due"], task["last_completed"]) == before
+
+
+@given(
     anchor=ps.aware_datetimes(min_year=2020, max_year=2030),
     days=st.sets(
         st.sampled_from(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]), min_size=1
@@ -413,10 +528,10 @@ def test_r7_completing_a_fixed_task_always_clears_the_occurrence_it_showed(
     moved=st.lists(st.tuples(st.integers(0, 30), st.integers(1, 72)), max_size=4),
     probe_days=st.integers(0, 60),
 )
-def test_r8_moves_take_dates_off_and_put_dates_on_and_nothing_else(
+def test_r10_moves_take_dates_off_and_put_dates_on_and_nothing_else(
     anchor, days, interval, moved, probe_days
 ):
-    """R8. With moves, every date is a rule date that did not move, or a move target.
+    """R10. With moves, every date is a rule date that did not move, or a move target.
 
     And the next date after any probe is after it. Moves are drawn as "the k-th rule
     date, moved h hours later", so each ``from`` really is a date of the rule. Kills

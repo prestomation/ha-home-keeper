@@ -33,15 +33,18 @@ with an injected clock and runs to completion *before* anything reaches disk.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from collections.abc import Container
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import lru_cache
 from typing import Any
 
 from . import assets as assets_model
-from . import models, reconcile, recurrence, resolve
+from . import models, reconcile, recurrence, resolve, task_photos
 from .const import (
+    ASSET_KIND_EXISTING,
     COMPLETION_ENTRY_FIELDS,
+    MAX_COMPLETION_HISTORY,
     MAX_IMPORT_BYTES,
     MAX_IMPORT_RECORDS,
     REC_FIXED,
@@ -67,11 +70,26 @@ EXCLUDED_TASK_KEYS: tuple[tuple[str, str], ...] = (
         "was made on another install's clock",
     ),
     ("next_due", "derived from the schedule and the history, recomputed on import"),
+    (
+        "deferred_from",
+        "the occurrence a snooze moved; it has a meaning only next to `next_due`, "
+        "which does not travel",
+    ),
     ("last_completed", "derived from the history, restated by replaying it"),
     ("completions", "re-shaped as `history`, keyed like the complete_task service"),
     ("skips", "re-shaped as `skips`, keyed like the completion entries"),
-    ("source", "reconciler-owned provenance; a task carrying one is not exported"),
+    (
+        "source",
+        "only its reserved namespaces: a task carrying one of those is not "
+        "exported, except a consumable link the user made, which is dropped and "
+        "counted in `skipped`. The namespaces of an integration travel.",
+    ),
     ("managed_by", "an owning integration's block; such a task is not exported"),
+    (
+        "photos",
+        "uploaded files, which a text document has no room for; counted in "
+        "`skipped`, like an appliance's uploaded documents",
+    ),
 )
 """``(key, reason)`` for every stored task key the document deliberately drops.
 
@@ -260,6 +278,12 @@ class ImportPlan:
     problems: tuple[Problem, ...] = ()
     completions: int = 0
     skips: int = 0
+    asset_refs: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
+    """The appliance references of the document, for :func:`replan_tasks`."""
+    shared_refs: dict[str, set[str]] = field(
+        default_factory=dict, compare=False, repr=False
+    )
+    """The references that several appliances answer to, for :func:`replan_tasks`."""
 
     @property
     def ok(self) -> bool:
@@ -303,7 +327,14 @@ def is_portable_task(task: dict[str, Any]) -> bool:
     reconcile pass deletes.
     """
     source = task.get("source")
-    if isinstance(source, dict) and _RECONCILER_SOURCES & set(source):
+    # A consumable link the user made by hand (B09-4) uses the same ``part`` key as
+    # a wear part's reminder, but the task is the user's own: the reconciler does not
+    # touch it. The task travels, and the link is left behind and counted.
+    if (
+        isinstance(source, dict)
+        and _RECONCILER_SOURCES & set(source)
+        and not reconcile.is_manual_part_link(task)
+    ):
         return False
     return not task.get("managed_by")
 
@@ -357,10 +388,13 @@ def _task_out(
     *,
     area_names: dict[str, str],
     asset_by_device: dict[str, dict[str, Any]],
+    shared_names: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """One stored task as a document record."""
     out = _strip(task, EXCLUDED_TASK_KEYS)
     out["id"] = task["id"]
+    if foreign := _foreign_source(task):
+        out["source"] = foreign
     if external_id := task.get("external_id"):
         out["external_id"] = external_id
     if area_id := task.get("area_id"):
@@ -372,7 +406,7 @@ def _task_out(
     if (device_id := task.get("device_id")) and (
         owner := asset_by_device.get(device_id)
     ):
-        out["appliance"] = owner.get("external_id") or owner.get("name") or device_id
+        out["appliance"] = _appliance_ref(owner, shared_names)
     if history := task.get("completions"):
         out["history"] = [
             _entry_out(e, when_key="completed_at", allowed=COMPLETION_ENTRY_FIELDS)
@@ -384,6 +418,67 @@ def _task_out(
             for e in skips
         ]
     return out
+
+
+def _foreign_source(task: dict[str, Any]) -> dict[str, Any]:
+    """The namespaces of ``source`` that Home Keeper does not reserve (X03-9).
+
+    An integration finds its own tasks by its namespace in ``source``. Import accepts
+    these namespaces, so they travel, and a restore keeps the link. A reserved
+    namespace on an exported task is a consumable link the user made, and it does not
+    travel (see :func:`count_consumable_links`).
+    """
+    source = task.get("source")
+    if not isinstance(source, dict):
+        return {}
+    return {
+        key: value for key, value in source.items() if key not in _RECONCILER_SOURCES
+    }
+
+
+def _appliance_ref(owner: dict[str, Any], shared_names: frozenset[str]) -> str:
+    """How a task names its appliance in the document.
+
+    The ``external_id`` first, then the name, then the appliance id. Import keeps
+    the id of a new appliance, so the id resolves on another install too. A device id
+    does not: it names nothing there (B04-2).
+
+    A name that 2 appliances share is not a reference, because import cannot tell
+    which one it means (B04-3). Such a task names its appliance by id. An appliance
+    an integration owns keeps its name, because that integration builds it again
+    with a new id on the other side.
+    """
+    if external_id := owner.get("external_id"):
+        return str(external_id)
+    name = owner.get("name")
+    if name and (name not in shared_names or not is_portable_asset(owner)):
+        return str(name)
+    return str(owner["id"])
+
+
+def _shared_names(assets: list[dict[str, Any]]) -> frozenset[str]:
+    """The appliance names that more than one appliance has."""
+    seen: set[str] = set()
+    shared: set[str] = set()
+    for asset in assets:
+        if name := asset.get("name"):
+            (shared if name in seen else seen).add(name)
+    return frozenset(shared)
+
+
+def count_consumable_links(tasks: list[dict[str, Any]]) -> int:
+    """How many consumable links the document leaves behind (B09-4).
+
+    A task the user linked to a consumable by hand travels, but its link does not:
+    import refuses the reserved ``part`` namespace of ``source``. Counted in the
+    envelope, like an uploaded file, so somebody restoring onto a new install knows to
+    link them again.
+    """
+    return sum(
+        1
+        for task in tasks
+        if reconcile.is_manual_part_link(task) and is_portable_task(task)
+    )
 
 
 def _counted_uses_by_part(
@@ -494,6 +589,17 @@ def count_file_documents(assets: list[dict[str, Any]]) -> int:
     )
 
 
+def count_task_photos(tasks: list[dict[str, Any]]) -> int:
+    """How many task photos the document leaves behind (see count_file_documents).
+
+    Only the tasks the document carries count: a task that does not travel does not
+    leave its photos behind either.
+    """
+    return sum(
+        len(task_photos.photos_of(task)) for task in tasks if is_portable_task(task)
+    )
+
+
 def build_document(
     tasks: list[dict[str, Any]],
     assets: list[dict[str, Any]],
@@ -515,31 +621,45 @@ def build_document(
     }
     stored_assets = [a for a in assets if a.get("id")]
     portable_assets = [a for a in stored_assets if is_portable_asset(a)]
+    skipped: dict[str, int] = {}
     if "appliances" in wanted:
         counted = _counted_uses_by_part(portable_assets, tasks)
         document["appliances"] = [
             _asset_out(a, area_names=names, counted_uses=counted)
             for a in portable_assets
         ]
-        if skipped := count_file_documents(portable_assets):
-            document["home_keeper"]["skipped"] = {"file_documents": skipped}
+        if files := count_file_documents(portable_assets):
+            skipped["file_documents"] = files
     if "tasks" in wanted:
         # Every stored appliance, not only the portable ones: a task attached to an
         # appliance an integration owns still states which appliance it means, and the
         # name resolves against the appliance that integration rebuilds on the other
         # side. A device id would not.
         by_device = {a["device_id"]: a for a in stored_assets if a.get("device_id")}
+        shared = _shared_names(stored_assets)
         document["tasks"] = [
-            _task_out(t, area_names=names, asset_by_device=by_device)
+            _task_out(
+                t, area_names=names, asset_by_device=by_device, shared_names=shared
+            )
             for t in tasks
             if is_portable_task(t)
         ]
+        if links := count_consumable_links(tasks):
+            skipped["consumable_links"] = links
+        if photos := count_task_photos(tasks):
+            skipped["task_photos"] = photos
+    if skipped:
+        document["home_keeper"]["skipped"] = skipped
     return document
 
 
 # The implicit resolver the loader drops. Spelled out rather than reached for
 # through yaml.resolver, so the reason sits next to the name.
 _TIMESTAMP_TAG = "tag:yaml.org,2002:timestamp"
+# The tags whose values are not JSON values. The loader has no constructor for them.
+_NON_JSON_TAGS = frozenset(
+    f"tag:yaml.org,2002:{name}" for name in ("binary", "set", "omap", "pairs")
+) | {_TIMESTAMP_TAG}
 
 
 @lru_cache(maxsize=1)
@@ -618,6 +738,16 @@ def _yaml_dialect() -> tuple[Any, Any]:
     _Loader.yaml_implicit_resolvers = {
         first: [(tag, regexp) for tag, regexp in resolvers if tag != _TIMESTAMP_TAG]
         for first, resolvers in _Loader.yaml_implicit_resolvers.items()
+    }
+    # An explicit tag can still ask for a type that JSON does not have: ``!!binary``
+    # gives bytes, ``!!set`` a set, ``!!timestamp`` a date. The store file cannot
+    # hold one, so a later save fails and every change after the import is lost at
+    # the next restart (B04-8). Without its constructor, such a tag is a syntax
+    # error with a line and a column.
+    _Loader.yaml_constructors = {
+        tag: constructor
+        for tag, constructor in _Loader.yaml_constructors.items()
+        if tag not in _NON_JSON_TAGS
     }
 
     return _Dumper, _Loader
@@ -781,9 +911,16 @@ def apply_history(
     *,
     now: datetime,
 ) -> tuple[int, int]:
-    """Fold a record's past onto a freshly built *task*.
+    """Fold a record's past onto *task*, a freshly built one or a stored one.
 
     Returns ``(completions, skips)``.
+
+    **A stored task keeps its own past** (B04-4). An update merges the document's
+    entries into the ones the task already has, by date, and the history cap then
+    keeps the newest 500 of the merged log. When the stored task was done at or after
+    the newest date in the document, its ``last_completed`` and ``next_due`` stay as
+    they are: running a migration file again after the task was done must not move
+    the task back to the date the file ends on.
 
     **Chronologically**, and that is not a detail. ``recurrence.apply_completion``
     stamps ``last_completed`` from whichever entry it is handed, and the history cap
@@ -805,6 +942,13 @@ def apply_history(
     decade of completions happening now, and firing one per entry would replay
     through notifications and to-do sync as if it were.
     """
+    stored_completions = list(task.get("completions") or [])
+    stored_skips = list(task.get("skips") or [])
+    stored_last = task.get("last_completed")
+    stored_due = task.get("next_due")
+    # The replay adds each document entry at the end of the log, where the cap cuts
+    # the oldest *position* and not the oldest *date*. So the stored entries are
+    # merged back in by date afterwards, and the cap applies to that merged log.
     events: list[tuple[datetime, bool, dict[str, Any]]] = []
     records_reading = models.task_records_reading(task)
     for entry in history:
@@ -838,7 +982,41 @@ def apply_history(
         # *history* so an import carrying none cannot snap a stored (e.g. snoozed) due
         # date back onto the grid.
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+        # The replay stamped each replayed entry with a due date that no user saw.
+        # Remove it, so an undo calculates the due date from the anchor again. A
+        # stored entry keeps its own, because that one is a real due date.
+        stored_ids = {id(entry) for entry in stored_completions}
+        for entry in task.get("completions") or []:
+            if id(entry) not in stored_ids:
+                entry.pop(recurrence.PRIOR_DUE, None)
+    # A task stored by an older release can have no ``skips`` key at all.
+    task["completions"] = _merge_log(stored_completions, task.get("completions") or [])
+    task["skips"] = _merge_log(stored_skips, task.get("skips") or [])
+    replayed_last = task.get("last_completed")
+    if stored_last and (
+        not replayed_last
+        or datetime.fromisoformat(stored_last) >= datetime.fromisoformat(replayed_last)
+    ):
+        task["last_completed"] = stored_last
+        task["next_due"] = stored_due
     return len(history), len(skips)
+
+
+def _merge_log(
+    stored: list[dict[str, Any]], replayed: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """One ``ts``-keyed log from a stored one and a replayed one, oldest first.
+
+    An entry at the same ``ts`` as a stored one replaces it, as a live completion at
+    that instant does (``recurrence._record_entry``). The cap keeps the newest
+    entries by date.
+    """
+    by_ts = {entry["ts"]: entry for entry in stored}
+    by_ts.update((entry["ts"], entry) for entry in replayed)
+    merged = sorted(
+        by_ts.values(), key=lambda entry: datetime.fromisoformat(entry["ts"])
+    )
+    return merged[-MAX_COMPLETION_HISTORY:]
 
 
 _PROBE_NOW = datetime(2026, 1, 1, tzinfo=None).replace(
@@ -923,7 +1101,7 @@ def plan_import(
     tasks: dict[str, dict[str, Any]],
     assets: dict[str, dict[str, Any]],
     area_ids: dict[str, str] | None = None,
-    device_ids: frozenset[str] | set[str] | None = None,
+    device_ids: Container[str] | None = None,
     match: str = "auto",
     now: datetime,
 ) -> ImportPlan:
@@ -997,28 +1175,38 @@ def plan_import(
             )
 
     areas = area_ids or {}
+    check_area_ids = area_ids is not None
     # ``None`` means "do not check"; an empty set means "this install has no
     # devices", which must reject a stated id rather than wave it through.
-    known_devices = None if device_ids is None else set(device_ids)
+    # Only ``in`` is asked of it, so the caller can answer from the registry itself
+    # (child devices included) rather than build a set of every device (B04-1).
+    known_devices = device_ids
     asset_matcher = _Matcher(dict(assets))
-    task_matcher = _Matcher(dict(tasks))
     planned: list[PlannedRecord] = []
-    completions = skips = 0
 
     # Appliances first, and their planned ids are what a task's ``appliance``
     # reference resolves against — so a document can describe an appliance and the
     # tasks on it in one go, before either exists.
-    doc_assets = _section(document, "appliances", problems)
+    doc_assets = _keyed_records(
+        _section(document, "appliances", problems), "appliances", problems
+    )
     asset_refs: dict[str, str] = {}
-    planned_assets: dict[str, dict[str, Any]] = {}
+    # A reference that more than one planned appliance answers to, with the ids it
+    # names. Refused where it is used, rather than resolved to the first (B04-3).
+    shared_refs: dict[str, set[str]] = {}
     for index, record in enumerate(doc_assets):
+        if record is None:
+            continue
         entry = _plan_asset(
             record,
             index=index,
             matcher=asset_matcher,
             stored=assets,
             areas=areas,
+            check_area_ids=check_area_ids,
+            known_devices=known_devices,
             asset_refs=asset_refs,
+            shared_refs=shared_refs,
             match=match,
             now=now,
             problems=problems,
@@ -1026,36 +1214,90 @@ def plan_import(
         if entry is None:
             continue
         planned.append(entry)
-        planned_assets[entry.record_id] = entry.payload
-        for ref in (record.get("external_id"), record.get("name")):
-            if ref:
-                asset_refs.setdefault(str(ref), entry.record_id)
+        # The ids as well as the readable keys (B04-2). An export names a parent, and
+        # the appliance of a task, by id when it has nothing better, and a restore
+        # onto an empty install finds that id only here: it is not in the store yet.
+        # The stated device_id is for a file an older version wrote, which named an
+        # unnamed appliance by its device.
+        refs = (
+            record.get("id"),
+            entry.record_id,
+            record.get("device_id"),
+            record.get("external_id"),
+            record.get("name"),
+        )
+        for ref in {str(ref) for ref in refs if ref}:
+            owner = asset_refs.setdefault(ref, entry.record_id)
+            if owner != entry.record_id:
+                shared_refs.setdefault(ref, {owner}).add(entry.record_id)
 
     # Both post-passes need the whole section decided before they can see anything:
     # one collision and one loop each look like an ordinary record on its own.
     if clashed := _colliding_external_ids(planned, "appliances", doc_assets, problems):
         planned = [r for r in planned if r.record_id not in clashed]
-        planned_assets = {k: v for k, v in planned_assets.items() if k not in clashed}
         asset_refs = {k: v for k, v in asset_refs.items() if v not in clashed}
 
     # Only now, with every parent link in the document decided, can a loop be seen.
     if looped := _looping_parents(planned, assets, problems):
         planned = [r for r in planned if r.record_id not in looped]
-        planned_assets = {k: v for k, v in planned_assets.items() if k not in looped}
         asset_refs = {k: v for k, v in asset_refs.items() if v not in looped}
 
-    doc_tasks = _section(document, "tasks", problems)
+    planned_tasks, completions, skips = _plan_task_section(
+        document,
+        tasks=tasks,
+        areas=areas,
+        check_area_ids=check_area_ids,
+        known_devices=known_devices,
+        asset_refs=asset_refs,
+        shared_refs=shared_refs,
+        stored_assets=assets,
+        match=match,
+        now=now,
+        problems=problems,
+    )
+    return ImportPlan(
+        records=(*planned, *planned_tasks),
+        problems=tuple(problems),
+        completions=completions,
+        skips=skips,
+        asset_refs=asset_refs,
+        shared_refs=shared_refs,
+    )
+
+
+def _plan_task_section(
+    document: dict[str, Any],
+    *,
+    tasks: dict[str, dict[str, Any]],
+    areas: dict[str, str],
+    check_area_ids: bool,
+    known_devices: Container[str] | None,
+    asset_refs: dict[str, str],
+    shared_refs: dict[str, set[str]],
+    stored_assets: dict[str, dict[str, Any]],
+    match: str,
+    now: datetime,
+    problems: list[Problem],
+) -> tuple[list[PlannedRecord], int, int]:
+    """Plan the ``tasks`` section: ``(records, completions, skips)``."""
+    matcher = _Matcher(dict(tasks))
+    planned: list[PlannedRecord] = []
+    completions = skips = 0
+    doc_tasks = _keyed_records(_section(document, "tasks", problems), "tasks", problems)
     for index, record in enumerate(doc_tasks):
+        if record is None:
+            continue
         entry, counted = _plan_task(
             record,
             index=index,
-            matcher=task_matcher,
+            matcher=matcher,
             stored=tasks,
             areas=areas,
+            check_area_ids=check_area_ids,
             known_devices=known_devices,
             asset_refs=asset_refs,
-            planned_assets=planned_assets,
-            stored_assets=assets,
+            shared_refs=shared_refs,
+            stored_assets=stored_assets,
             match=match,
             now=now,
             problems=problems,
@@ -1068,19 +1310,73 @@ def plan_import(
 
     if clashed := _colliding_external_ids(planned, "tasks", doc_tasks, problems):
         planned = [r for r in planned if r.record_id not in clashed]
+    return planned, completions, skips
 
+
+def replan_tasks(
+    document: dict[str, Any],
+    plan: ImportPlan,
+    *,
+    tasks: dict[str, dict[str, Any]],
+    assets: dict[str, dict[str, Any]],
+    area_ids: dict[str, str] | None = None,
+    device_ids: Container[str] | None = None,
+    match: str = "auto",
+    now: datetime,
+) -> ImportPlan:
+    """*plan* with its ``tasks`` section planned again against the store as it is now.
+
+    The applier writes the appliances and provisions their devices before it writes
+    the tasks, and each of those steps waits for a save. A task that changed in that
+    time (a completion, a snooze, a sensor that armed it) was written back as it was
+    when the plan was made, and a task deleted in that time came back (X03-6). The
+    applier calls this just before it writes the tasks, so each task merges into the
+    stored task as it is at that moment.
+
+    The appliance references resolve as they did in *plan*, so a task still attaches
+    to an appliance the same document created. A task created again keeps the id that
+    *plan* gave it, so the report matches what was written.
+    """
+    problems: list[Problem] = []
+    planned_tasks, completions, skips = _plan_task_section(
+        document,
+        tasks=tasks,
+        areas=area_ids or {},
+        check_area_ids=area_ids is not None,
+        known_devices=device_ids,
+        asset_refs=plan.asset_refs,
+        shared_refs=plan.shared_refs,
+        stored_assets=assets,
+        match=match,
+        now=now,
+        problems=problems,
+    )
+    first = {r.index: r for r in plan.for_section("tasks")}
+    kept: list[PlannedRecord] = []
+    for record in planned_tasks:
+        before = first.get(record.index)
+        if (
+            record.action == "create"
+            and before is not None
+            and before.action == "create"
+        ):
+            payload = {**record.payload, "id": before.record_id}
+            record = replace(record, record_id=before.record_id, payload=payload)
+        kept.append(record)
     return ImportPlan(
-        records=tuple(planned),
-        problems=tuple(problems),
+        records=(*plan.for_section("appliances"), *kept),
+        problems=(*(p for p in plan.problems if p.section != "tasks"), *problems),
         completions=completions,
         skips=skips,
+        asset_refs=plan.asset_refs,
+        shared_refs=plan.shared_refs,
     )
 
 
 def _colliding_external_ids(
     planned: list[PlannedRecord],
     section: str,
-    raw: list[dict[str, Any]],
+    raw: list[dict[str, Any] | None],
     problems: list[Problem],
 ) -> set[str]:
     """Record ids to drop because two records in one document claim one key.
@@ -1124,7 +1420,7 @@ def _colliding_external_ids(
         # A stated uuid is what `_claim_id` keeps, so it is also what a re-run matches
         # on. Anything else (absent, or not a uuid) is replaced by a fresh id the
         # document does not carry, leaving `external_id` as the only way back.
-        if all(_is_uuid(raw[r.index].get("id")) for r in group):
+        if all(_is_uuid((raw[r.index] or {}).get("id")) for r in group):
             continue
         where = ", ".join(f"{section}[{r.index}]" for r in group)
         for record in group:
@@ -1185,6 +1481,56 @@ def _section(
     return records
 
 
+# The record keys that the import uses as dictionary keys and set members.
+_KEY_FIELDS = ("id", "external_id", "device_id")
+
+
+def _keyed_records(
+    records: list[dict[str, Any]], section: str, problems: list[Problem]
+) -> list[dict[str, Any] | None]:
+    """*records*, with ``None`` in place of each record whose keys are unusable.
+
+    A key field that holds a list or a mapping cannot be looked up, and the planner
+    raised ``TypeError`` on it (B04-10). It is reported here at its path instead.
+
+    Two records that state one ``id`` are both reported (B04-5). The second could not
+    take the id, so it got a new one, and each new run of the file added one more
+    copy of it.
+    """
+    out: list[dict[str, Any] | None] = []
+    by_id: dict[str, list[int]] = {}
+    for index, record in enumerate(records):
+        bad = [key for key in _KEY_FIELDS if isinstance(record.get(key), (dict, list))]
+        for key in bad:
+            problems.append(
+                Problem(
+                    section,
+                    index,
+                    f"{section}[{index}].{key}",
+                    f'"{key}" must be text, not a list or a mapping',
+                )
+            )
+        out.append(None if bad else record)
+        if not bad and record.get("id"):
+            by_id.setdefault(str(record["id"]), []).append(index)
+    for record_id, indexes in by_id.items():
+        if len(indexes) < 2:
+            continue
+        where = ", ".join(f"{section}[{index}]" for index in indexes)
+        for index in indexes:
+            problems.append(
+                Problem(
+                    section,
+                    index,
+                    f"{section}[{index}].id",
+                    f'"{record_id}" is the id of {len(indexes)} records in this '
+                    f"document ({where}). An id names one record, so remove the id "
+                    "from the copies.",
+                )
+            )
+    return out
+
+
 def _warn_unknown(
     record: dict[str, Any],
     known: frozenset[str],
@@ -1216,8 +1562,14 @@ def _resolve_area(
     section: str,
     index: int,
     problems: list[Problem],
+    check_ids: bool = True,
 ) -> str | None:
     """The record's area id: a stated ``area_id`` first, then ``area`` by name.
+
+    A stated ``area_id`` is kept only when the area is on this install (B04-6). Area
+    ids differ between installs when an area was renamed, so on another install the
+    ``area`` name is what finds the area. ``check_ids=False`` keeps every stated id,
+    for a caller that has no area registry to check against.
 
     A name that matches no area on this install is kept verbatim, because the panel
     falls back to showing an unknown area id as its own text and the author's word for
@@ -1227,10 +1579,27 @@ def _resolve_area(
     automation, a dashboard filter — will ever see it. Saying so is the difference
     between a migration the reader can finish and one that looks complete.
     """
-    if area_id := record.get("area_id"):
-        return str(area_id)
+    stated = record.get("area_id")
+    if stated and (check_ids is False or str(stated) in areas.values()):
+        return str(stated)
     key = record.get("area")
     if not key:
+        if stated:
+            # An area id that is not on this install, and no name to find the
+            # area by (B04-6).
+            problems.append(
+                Problem(
+                    section=section,
+                    index=index,
+                    path=f"{section}[{index}].area_id",
+                    message=(
+                        f'no area with the id "{stated}" exists here, so the record '
+                        "keeps the id as written. Set the area again to attach it."
+                    ),
+                    severity="warning",
+                )
+            )
+            return str(stated)
         return None
     key = str(key)
     if key in areas.values():
@@ -1273,7 +1642,10 @@ def _plan_asset(
     matcher: _Matcher,
     stored: dict[str, dict[str, Any]],
     areas: dict[str, str],
+    check_area_ids: bool = True,
+    known_devices: Container[str] | None = None,
     asset_refs: dict[str, str],
+    shared_refs: dict[str, set[str]],
     match: str,
     now: datetime,
     problems: list[Problem],
@@ -1301,7 +1673,12 @@ def _plan_asset(
     payload = {k: v for k, v in record.items() if k not in ("area", "archived", "id")}
     if (
         area_id := _resolve_area(
-            record, areas, section="appliances", index=index, problems=problems
+            record,
+            areas,
+            section="appliances",
+            index=index,
+            problems=problems,
+            check_ids=check_area_ids,
         )
     ) is not None:
         payload["area_id"] = area_id
@@ -1311,7 +1688,15 @@ def _plan_asset(
     # parent key straight through as an id, and `_clean_relationship_links` would
     # quietly null it on the next load — losing the tree with nothing said.
     if parent := payload.get("parent_asset_id"):
-        resolved = _parent_id(str(parent), asset_refs, stored)
+        try:
+            resolved = _parent_id(str(parent), asset_refs, shared_refs, stored)
+        except resolve.AmbiguousName as err:
+            problems.append(
+                _shared_ref_problem(
+                    err, "appliances", index, f"appliances[{index}].parent_asset_id"
+                )
+            )
+            return None
         if resolved is None:
             problems.append(
                 Problem(
@@ -1344,6 +1729,14 @@ def _plan_asset(
         if matched is not None:
             matcher.claimed.add(matched)
             merged = assets_model.merge_update(stored[matched], payload, now=now)
+            # An explicit ``archived`` applies to an update too (B04-11). A record
+            # that leaves it out keeps the stored value.
+            if "archived" in record:
+                if not record["archived"]:
+                    merged["archived_at"] = None
+                elif not merged.get("archived_at"):
+                    merged["archived_at"] = now.isoformat()
+            _check_existing_device(merged, known_devices, index, problems)
             return PlannedRecord(
                 "appliances",
                 index,
@@ -1369,6 +1762,7 @@ def _plan_asset(
         built["identifiers"] = [list(assets_model.asset_device_identifier(built["id"]))]
     if record.get("archived"):
         built["archived_at"] = now.isoformat()
+    _check_existing_device(built, known_devices, index, problems)
     matcher.claimed.add(built["id"])
     return PlannedRecord(
         "appliances",
@@ -1382,6 +1776,39 @@ def _plan_asset(
     )
 
 
+def _check_existing_device(
+    asset: dict[str, Any],
+    known_devices: Container[str] | None,
+    index: int,
+    problems: list[Problem],
+) -> None:
+    """Warn when an appliance of kind ``existing`` names a device not on this install.
+
+    The appliance and the tasks on it keep the id, and Home Assistant has no device
+    with it (B04-7). Device ids differ between installs, so a move to a new install
+    needs each such appliance pointed at its device again.
+    """
+    device_id = asset.get("device_id")
+    if (
+        known_devices is None
+        or asset.get("kind") != ASSET_KIND_EXISTING
+        or not device_id
+        or device_id in known_devices
+    ):
+        return
+    problems.append(
+        Problem(
+            "appliances",
+            index,
+            f"appliances[{index}].device_id",
+            f'no device "{device_id}" exists here, so this appliance and its tasks '
+            "point at a device that is not on this install. Open the appliance and "
+            "select its device.",
+            severity="warning",
+        )
+    )
+
+
 def _plan_task(
     record: dict[str, Any],
     *,
@@ -1389,9 +1816,10 @@ def _plan_task(
     matcher: _Matcher,
     stored: dict[str, dict[str, Any]],
     areas: dict[str, str],
-    known_devices: set[str] | None,
+    check_area_ids: bool = True,
+    known_devices: Container[str] | None,
     asset_refs: dict[str, str],
-    planned_assets: dict[str, dict[str, Any]],
+    shared_refs: dict[str, set[str]],
     stored_assets: dict[str, dict[str, Any]],
     match: str,
     now: datetime,
@@ -1435,7 +1863,12 @@ def _plan_task(
     }
     if (
         area_id := _resolve_area(
-            record, areas, section="tasks", index=index, problems=problems
+            record,
+            areas,
+            section="tasks",
+            index=index,
+            problems=problems,
+            check_ids=check_area_ids,
         )
     ) is not None:
         payload["area_id"] = area_id
@@ -1450,9 +1883,15 @@ def _plan_task(
     if stated_device and not device_known:
         payload.pop("device_id")
     if not payload.get("device_id") and (appliance := record.get("appliance")):
-        device_id = _appliance_device(
-            str(appliance), asset_refs, planned_assets, stored_assets
-        )
+        try:
+            device_id = _appliance_device(
+                str(appliance), asset_refs, shared_refs, stored_assets
+            )
+        except resolve.AmbiguousName as err:
+            problems.append(
+                _shared_ref_problem(err, "tasks", index, f"{path}.appliance")
+            )
+            return None, (0, 0)
         if device_id is None:
             problems.append(
                 Problem(
@@ -1556,6 +1995,7 @@ def _plan_task(
 def _parent_id(
     key: str,
     asset_refs: dict[str, str],
+    shared_refs: dict[str, set[str]],
     stored_assets: dict[str, dict[str, Any]],
 ) -> str | None:
     """The asset id a ``parent_asset_id`` reference names, document before store.
@@ -1565,7 +2005,12 @@ def _parent_id(
     — its id is already decided by the time its children are read. Which is also why
     a parent has to be listed before its children: ``asset_refs`` only holds what has
     been planned so far.
+
+    Raises ``resolve.AmbiguousName`` when *key* names more than one appliance, in the
+    document or in the store.
     """
+    if ids := shared_refs.get(key):
+        raise resolve.AmbiguousName(key, ids)
     if asset_id := asset_refs.get(key):
         return asset_id
     for asset_id, asset in stored_assets.items():
@@ -1629,7 +2074,7 @@ def _looping_parents(
 def _appliance_device(
     key: str,
     asset_refs: dict[str, str],
-    planned_assets: dict[str, dict[str, Any]],
+    shared_refs: dict[str, set[str]],
     stored_assets: dict[str, dict[str, Any]],
 ) -> str | None:
     """The device id a task's ``appliance`` reference points at.
@@ -1639,7 +2084,12 @@ def _appliance_device(
     happens to already exist. A planned virtual appliance has no device id yet — the
     applier provisions it and fills this in — so returning its *asset* id would be
     wrong; the applier resolves the placeholder instead.
+
+    Raises ``resolve.AmbiguousName`` when *key* names more than one appliance, in the
+    document or in the store.
     """
+    if ids := shared_refs.get(key):
+        raise resolve.AmbiguousName(key, ids)
     if asset_id := asset_refs.get(key):
         return _PLANNED_ASSET_PREFIX + asset_id
     for asset_id, asset in stored_assets.items():
@@ -1649,6 +2099,20 @@ def _appliance_device(
     if found is not None and stored_assets[found].get("device_id"):
         return str(stored_assets[found]["device_id"])
     return None
+
+
+def _shared_ref_problem(
+    err: resolve.AmbiguousName, section: str, index: int, path: str
+) -> Problem:
+    """The error for a reference that more than one appliance answers to (B04-3)."""
+    return Problem(
+        section,
+        index,
+        path,
+        f'"{err.key}" names several appliances ({", ".join(err.ids)}), so Home '
+        "Keeper cannot tell which one this means. Use the appliance's id or its "
+        "external_id.",
+    )
 
 
 _PLANNED_ASSET_PREFIX = "hk-planned-asset:"

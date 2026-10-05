@@ -16,8 +16,11 @@ import {
   emptySkipState,
   emptySnoozeState,
   snoozeHintText,
+  snoozeStateFor,
   snoozeTarget,
 } from '../src/defer.ts';
+import { isoToHaDateTime } from '../src/forms.ts';
+import { DEFAULT_SNOOZE_PRESET } from '../src/utils.ts';
 import { t } from '../src/i18n.ts';
 
 // The clock is pinned so a fixture's due date cannot quietly drift past it and
@@ -35,7 +38,12 @@ describe('deferVerbs', () => {
   it('offers every verb when nothing is configured', () => {
     // The switches default *on*, so an install that predates them — every existing
     // one — must read as "offer everything" rather than as "all off".
-    expect(deferVerbs(task(), {}, NOW)).toEqual({ snooze: true, skip: true, dueToday: true });
+    expect(deferVerbs(task(), {}, NOW)).toEqual({
+      snooze: true,
+      skip: true,
+      dueToday: true,
+      details: true,
+    });
   });
 
   it('withdraws each verb independently when its switch is off', () => {
@@ -43,16 +51,19 @@ describe('deferVerbs', () => {
       snooze: false,
       skip: true,
       dueToday: true,
+      details: true,
     });
     expect(deferVerbs(task(), { allow_skip: false }, NOW)).toEqual({
       snooze: true,
       skip: false,
       dueToday: true,
+      details: true,
     });
     expect(deferVerbs(task(), { allow_due_today: false }, NOW)).toEqual({
       snooze: true,
       skip: true,
       dueToday: false,
+      details: true,
     });
   });
 
@@ -63,6 +74,7 @@ describe('deferVerbs', () => {
       snooze: false,
       skip: false,
       dueToday: false,
+      details: false,
     });
   });
 
@@ -76,6 +88,7 @@ describe('deferVerbs', () => {
       snooze: true,
       skip: false,
       dueToday: true,
+      details: false,
     });
   });
 
@@ -89,6 +102,7 @@ describe('deferVerbs', () => {
       snooze: true,
       skip: true,
       dueToday: false,
+      details: true,
     });
   });
 
@@ -105,6 +119,34 @@ describe('deferVerbs', () => {
     );
   });
 
+  it('offers details only on a one-tap task (#399)', () => {
+    // A task that asks for details opens the dialog from Done already, so the entry
+    // would repeat it. A missing mode is one-tap, as everywhere else.
+    expect(deferVerbs(task({ completion_detail: 'none' }), {}, NOW).details).toBe(true);
+    expect(deferVerbs(task({ completion_detail: 'optional' }), {}, NOW).details).toBe(false);
+    expect(deferVerbs(task({ completion_detail: 'required' }), {}, NOW).details).toBe(false);
+  });
+
+  it('withholds details on a task locked to its tag (#399)', () => {
+    // Done refuses a tag-locked task, so a second way to complete it must refuse too.
+    // Both halves of the lock are needed: the flag alone locks nothing.
+    expect(deferVerbs(task({ tag_id: 'tag1', require_tag_scan: true }), {}, NOW).details).toBe(
+      false,
+    );
+    expect(deferVerbs(task({ require_tag_scan: true }), {}, NOW).details).toBe(true);
+  });
+
+  it('keeps details when every deferral switch is off (#399)', () => {
+    // The entry is not a deferral, so the deferral switches do not govern it.
+    const off = { allow_snooze: false, allow_skip: false, allow_due_today: false };
+    expect(deferVerbs(task(), off, NOW)).toEqual({
+      snooze: false,
+      skip: false,
+      dueToday: false,
+      details: true,
+    });
+  });
+
   it('reads the wall clock when no now is given', () => {
     // The default parameter is the production path: every caller omits it.
     const longPast = task({ next_due: '2000-01-01T00:00:00Z' });
@@ -118,6 +160,31 @@ describe('deferSplit', () => {
   it('returns Done untouched when no verb is on offer', () => {
     const done = '<ha-button class="done-btn">Done</ha-button>';
     expect(deferSplit(task(), done, { snooze: false, skip: false })).toBe(done);
+  });
+
+  it('wraps Done when only the details entry is on offer (#399)', () => {
+    // Every deferral switch off still leaves a one-tap task the details entry, and
+    // it needs the caret to be reached.
+    const html = deferSplit(task(), '<b>Done</b>', {
+      snooze: false,
+      skip: false,
+      dueToday: false,
+      details: true,
+    });
+    expect(html).toContain('hk-split-caret');
+    expect(html).toContain('hk-defer-details');
+    expect(html).not.toContain('hk-defer-snooze');
+  });
+
+  it('lists the details entry first, with its label and hint (#399)', () => {
+    const html = deferMenuItems({ snooze: true, skip: false, dueToday: false, details: true });
+    expect(html.indexOf('hk-defer-details')).toBeLessThan(html.indexOf('hk-defer-snooze'));
+    expect(html).toContain(t('defer.details'));
+    expect(html).toContain(t('defer.detailsHint'));
+    expect(html).toContain('mdi:camera-outline');
+    expect(deferMenuItems({ snooze: true, skip: false, dueToday: false, details: false })).not.toContain(
+      'hk-defer-details',
+    );
   });
 
   it('returns nothing at all when there is no Done to wrap', () => {
@@ -167,9 +234,42 @@ describe('deferSplit', () => {
 describe('snoozeTarget', () => {
   const from = new Date('2026-03-10T09:00:00Z');
 
+  // An overdue task: the length counts from the given instant.
+  const overdue = task({ next_due: '2026-03-01T09:00:00Z' });
+
   it('resolves a preset relative to the given instant', () => {
-    const until = snoozeTarget({ open: true, task: task(), preset: '1d' }, from);
+    const until = snoozeTarget({ open: true, task: overdue, preset: '1d' }, from);
     expect(until?.toISOString()).toBe('2026-03-11T09:00:00.000Z');
+  });
+
+  // F10-2: presets counted from now moved a task that is not yet due earlier.
+  it('F10-2: resolves a preset from a due date later than now', () => {
+    const later = task({ next_due: '2026-04-09T09:00:00Z' });
+    const until = snoozeTarget({ open: true, task: later, preset: '1d' }, from);
+    expect(until?.toISOString()).toBe('2026-04-10T09:00:00.000Z');
+  });
+
+  it('F10-2: resolves a preset from now for a task with no due date', () => {
+    const until = snoozeTarget({ open: true, task: null, preset: '1d' }, from);
+    expect(until?.toISOString()).toBe('2026-03-11T09:00:00.000Z');
+  });
+
+  it('F10-2: refuses a custom date that is not later than the due date', () => {
+    const later = task({ next_due: '2026-04-09T09:00:00Z' });
+    const s = (customAt) => ({ open: true, task: later, preset: 'custom', customAt });
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-01T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-09T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-09T09:01:00Z')), from)?.toISOString()).toBe(
+      '2026-04-09T09:01:00.000Z',
+    );
+  });
+
+  it('F10-2: refuses a custom date in the past for an overdue task', () => {
+    const s = (customAt) => ({ open: true, task: overdue, preset: 'custom', customAt });
+    expect(snoozeTarget(s(isoToHaDateTime('2026-03-05T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-03-10T09:01:00Z')), from)?.toISOString()).toBe(
+      '2026-03-10T09:01:00.000Z',
+    );
   });
 
   it('returns null for a custom snooze with no date typed yet', () => {
@@ -183,7 +283,7 @@ describe('snoozeTarget', () => {
   });
 
   it('uses the typed date when the custom preset has one', () => {
-    const s = { open: true, task: task(), preset: 'custom', customAt: '2026-04-01 08:30:00' };
+    const s = { open: true, task: overdue, preset: 'custom', customAt: '2026-04-01 08:30:00' };
     const until = snoozeTarget(s, from);
     expect(until).not.toBeNull();
     expect(until.getFullYear()).toBe(2026);
@@ -262,6 +362,34 @@ describe('snoozeHintText', () => {
     expect(snoozeHintText(s, 'en')).toBe(t('defer.snoozePickDate'));
   });
 
+  it('F10-2: says why a custom date before the due date does not work', () => {
+    const s = {
+      open: true,
+      task: task(),
+      preset: 'custom',
+      customAt: isoToHaDateTime('2026-09-20T09:00:00Z'),
+    };
+    const text = snoozeHintText(s, 'en', NOW);
+    expect(text).toMatch(/^Pick a date and time after .+\.$/);
+    expect(text).toContain('2026');
+    expect(text).not.toBe(t('defer.snoozePickDate'));
+  });
+
+  it('F10-2: says "pick a date" for a preset with no date, whatever was typed before', () => {
+    const s = {
+      open: true,
+      task: task(),
+      preset: 'no-such-preset',
+      customAt: isoToHaDateTime('2026-09-20T09:00:00Z'),
+    };
+    expect(snoozeHintText(s, 'en', NOW)).toBe(t('defer.snoozePickDate'));
+  });
+
+  it('F10-2: states the date a preset gives from a later due date', () => {
+    const s = { open: true, task: task(), preset: '1d' };
+    expect(snoozeHintText(s, 'en', NOW)).toMatch(/^Due date moves to .*Oct.*1.*2026/);
+  });
+
   it('states the resolved date once there is one', () => {
     const s = { open: true, task: task(), preset: '1d' };
     const text = snoozeHintText(s, 'en');
@@ -317,5 +445,41 @@ describe('deferRowActions', () => {
       skip: true,
     });
     expect(html).not.toContain('<script>');
+  });
+});
+
+describe('snoozeStateFor', () => {
+  it('opens on the usual preset for a task with no length of its own', () => {
+    const tk = task();
+    expect(snoozeStateFor(tk, NOW)).toEqual({ open: true, task: tk, preset: DEFAULT_SNOOZE_PRESET });
+    expect(snoozeStateFor(task({ snooze_hours: null }), NOW).preset).toBe(DEFAULT_SNOOZE_PRESET);
+  });
+
+  it('opens on the preset of the task length', () => {
+    const tk = task({ snooze_hours: 1 });
+    expect(snoozeStateFor(tk, NOW)).toEqual({ open: true, task: tk, preset: '1h' });
+    expect(snoozeStateFor(task({ snooze_hours: 4 }), NOW).preset).toBe('4h');
+    expect(snoozeStateFor(task({ snooze_hours: 24 }), NOW).preset).toBe('1d');
+    expect(snoozeStateFor(task({ snooze_hours: 720 }), NOW).preset).toBe('1mo');
+  });
+
+  it('opens on custom, filled in, for a length no preset has', () => {
+    const tk = task({ snooze_hours: 3, next_due: '2026-09-01T09:00:00Z' });
+    const s = snoozeStateFor(tk, NOW);
+    expect(s).toEqual({
+      open: true,
+      task: tk,
+      preset: 'custom',
+      customAt: isoToHaDateTime('2026-09-15T15:00:00Z'),
+    });
+    // The date field resolves to exactly the task length from now.
+    expect(snoozeTarget(s, NOW)).toEqual(new Date('2026-09-15T15:00:00Z'));
+  });
+
+  it('F10-2: fills in the length from a due date later than now', () => {
+    const tk = task({ snooze_hours: 3 });
+    const s = snoozeStateFor(tk, NOW);
+    expect(s.customAt).toBe(isoToHaDateTime('2026-09-30T16:00:00Z'));
+    expect(snoozeTarget(s, NOW)).toEqual(new Date('2026-09-30T16:00:00Z'));
   });
 });

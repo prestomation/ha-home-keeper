@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
+import { endOfZonedDay } from '../src/utils.ts';
 import {
   DAY_MS,
   SOON_DAYS,
@@ -9,9 +10,11 @@ import {
   filterTasks,
   groupTasks,
   matchesQuery,
+  normalizeCardConfig,
   normalizeSearch,
   profileMatches,
   sortTasks,
+  startsCollapsed,
   statusBucket,
   taskMatchesQuery,
 } from '../src/card-filter.ts';
@@ -206,6 +209,16 @@ describe('filterTasks', () => {
     expect(filterTasks(all, { type: '', filter: 'overdue' }, {}, NOW).map((t) => t.id)).toEqual(['o']);
   });
 
+  // F05-1: the card default puts a task due later today in a Today bucket, so a Due
+  // soon card dropped it on its due day. The panel's Due soon pill keeps it.
+  it('F05-1: soon keeps a task due later today, the same as the panel pill', () => {
+    expect(statusBucket(today, NOW)).toBe('today');
+    expect(filterTasks(all, { type: '', filter: 'soon' }, {}, NOW).map((t) => t.id)).toEqual([
+      't',
+      's',
+    ]);
+  });
+
   it('overdue means late work, so a buy reminder is not one', () => {
     // A buy reminder is past due by the clock — dateless one-off, therefore due now —
     // but `filter: shopping` is how a card asks for those. A card set to `overdue`
@@ -257,6 +270,25 @@ describe('filterTasks', () => {
     const list = [...all, disabled];
     expect(filterTasks(list, { type: '' }, {}, NOW).find((t) => t.id === 'd')).toBeUndefined();
     expect(filterTasks(list, { type: '', show_disabled: true }, {}, NOW).find((t) => t.id === 'd')).toBeTruthy();
+  });
+
+  // F05-7: with show_disabled, a switched-off task with an old due date passed the
+  // Overdue and Today filters. The panel's Overdue pill leaves it out.
+  it('F05-7: overdue and today leave out a disabled task, also with show_disabled', () => {
+    const off = task({ id: 'off', enabled: false, next_due: new Date(NOW - 5 * DAY).toISOString() });
+    const on = task({ id: 'on', enabled: true, next_due: new Date(NOW - DAY).toISOString() });
+    const list = [off, on, today];
+    const ids = (filter) =>
+      filterTasks(list, { type: '', filter, show_disabled: true }, {}, NOW).map((t) => t.id);
+    expect(ids('overdue')).toEqual(['on']);
+    expect(ids('today')).toEqual(['on', 't']);
+    expect(ids('all')).toEqual(['off', 'on', 't']);
+  });
+
+  it('F05-7: today keeps a task due at the last instant of the day', () => {
+    const last = task({ id: 'last', next_due: new Date(endOfZonedDay(NOW)).toISOString() });
+    const ids = filterTasks([last], { type: '', filter: 'today' }, {}, NOW).map((t) => t.id);
+    expect(ids).toEqual(['last']);
   });
 
   it('hides managed tasks when hide_managed is set', () => {
@@ -359,6 +391,128 @@ describe('filterTasks', () => {
       ).map((t) => t.id);
       expect(ids).toEqual(['both']);
     });
+  });
+});
+
+// F05-8: a YAML scalar for a list option became a set of its letters, so the card
+// showed no tasks and no config error.
+describe('normalizeCardConfig (F05-8)', () => {
+  it('F05-8: makes a string list option a list of one', () => {
+    const cfg = normalizeCardConfig({
+      type: 'x',
+      areas: 'kitchen',
+      devices: 'dev1',
+      labels: 'dog',
+      recurrence_types: 'fixed',
+    });
+    expect(cfg).toEqual({
+      type: 'x',
+      areas: ['kitchen'],
+      devices: ['dev1'],
+      labels: ['dog'],
+      recurrence_types: ['fixed'],
+    });
+    const kitchen = task({ id: 'k', area_id: 'kitchen' });
+    expect(filterTasks([kitchen], { type: '', areas: cfg.areas }, {}, NOW)).toEqual([kitchen]);
+  });
+
+  it('F05-8: keeps lists, absent and null values as they are, and does not change the input', () => {
+    const input = { type: 'x', areas: ['a', 'b'], labels: null, filter: 'today', sort: 'name', group_by: 'area' };
+    const cfg = normalizeCardConfig(input);
+    expect(cfg).toEqual(input);
+    expect(cfg).not.toBe(input);
+    expect(normalizeCardConfig({ type: 'x', filter: null })).toEqual({ type: 'x', filter: null });
+  });
+
+  it.each([['areas'], ['devices'], ['labels'], ['recurrence_types']])(
+    'F05-8: refuses a %s value that is not a list or a string',
+    (key) => {
+      expect(() => normalizeCardConfig({ type: 'x', [key]: 5 })).toThrow(
+        `Home Keeper card: ${key} must be a list`,
+      );
+      expect(() => normalizeCardConfig({ type: 'x', [key]: { a: 1 } })).toThrow(key);
+    },
+  );
+
+  it.each([
+    ['filter', ['all', 'overdue', 'soon', 'today', 'no_due', 'shopping', 'counted']],
+    ['sort', ['due', 'name', 'recent', 'area']],
+    ['group_by', ['none', 'status', 'area', 'device']],
+  ])('F05-8: accepts each known %s value and refuses an unknown one', (key, values) => {
+    for (const v of values) expect(normalizeCardConfig({ type: 'x', [key]: v })[key]).toBe(v);
+    expect(() => normalizeCardConfig({ type: 'x', [key]: 'bogus' })).toThrow(
+      `Home Keeper card: ${key} must be one of ${values.join(', ')}, not bogus`,
+    );
+  });
+});
+
+// Issue #435: options that start the card groups closed.
+describe('collapse options (issue #435)', () => {
+  it('makes a string collapsed_groups value a list of one', () => {
+    expect(normalizeCardConfig({ type: 'x', collapsed_groups: 'overdue' }).collapsed_groups).toEqual([
+      'overdue',
+    ]);
+    expect(() => normalizeCardConfig({ type: 'x', collapsed_groups: 5 })).toThrow(
+      'Home Keeper card: collapsed_groups must be a list',
+    );
+  });
+
+  it('accepts true, false and absent for collapsed, and refuses other values', () => {
+    expect(normalizeCardConfig({ type: 'x', collapsed: true }).collapsed).toBe(true);
+    expect(normalizeCardConfig({ type: 'x', collapsed: false }).collapsed).toBe(false);
+    expect(() => normalizeCardConfig({ type: 'x', collapsed: 'yes' })).toThrow(
+      'Home Keeper card: collapsed must be true or false',
+    );
+  });
+
+  it('accepts 0 or more for collapse_above, and refuses other values', () => {
+    expect(normalizeCardConfig({ type: 'x', collapse_above: 0 }).collapse_above).toBe(0);
+    expect(normalizeCardConfig({ type: 'x', collapse_above: 3 }).collapse_above).toBe(3);
+    for (const bad of [-1, '3', NaN, Infinity]) {
+      expect(() => normalizeCardConfig({ type: 'x', collapse_above: bad })).toThrow(
+        'Home Keeper card: collapse_above must be a number of 0 or more',
+      );
+    }
+  });
+
+  const group = (key, n) => ({ key, label: key, items: new Array(n).fill(overdue) });
+
+  it('starts every group open by default', () => {
+    expect(startsCollapsed(group('status:overdue', 5), { type: 'x' })).toBe(false);
+  });
+
+  it('closes every group when collapsed is true', () => {
+    expect(startsCollapsed(group('status:today', 1), { type: 'x', collapsed: true })).toBe(true);
+    expect(startsCollapsed(group('status:today', 1), { type: 'x', collapsed: false })).toBe(false);
+  });
+
+  it('closes a group named in collapsed_groups, by name or by full key', () => {
+    const cfg = { type: 'x', collapsed_groups: ['overdue', 'area:kitchen'] };
+    expect(startsCollapsed(group('status:overdue', 1), cfg)).toBe(true);
+    expect(startsCollapsed(group('area:kitchen', 1), cfg)).toBe(true);
+    expect(startsCollapsed(group('status:today', 1), cfg)).toBe(false);
+    expect(startsCollapsed(group('device:overdue', 1), { type: 'x', collapsed_groups: ['status:overdue'] })).toBe(false);
+  });
+
+  it('matches an id that has a colon, and an id that YAML gives as a number', () => {
+    expect(startsCollapsed(group('area:living:room', 1), { type: 'x', collapsed_groups: ['living:room'] })).toBe(true);
+    expect(startsCollapsed(group('device:123', 1), { type: 'x', collapsed_groups: [123] })).toBe(true);
+    expect(startsCollapsed(group('device:124', 1), { type: 'x', collapsed_groups: [123] })).toBe(false);
+  });
+
+  it('matches the fallback group by none', () => {
+    expect(startsCollapsed(group('area:none', 1), { type: 'x', collapsed_groups: ['none'] })).toBe(true);
+  });
+
+  it('closes a group only when it holds more tasks than collapse_above', () => {
+    const cfg = { type: 'x', collapse_above: 3 };
+    expect(startsCollapsed(group('status:overdue', 3), cfg)).toBe(false);
+    expect(startsCollapsed(group('status:overdue', 4), cfg)).toBe(true);
+    expect(startsCollapsed(group('status:overdue', 99), { type: 'x', collapse_above: 0 })).toBe(false);
+  });
+
+  it('never closes the unlabelled group of an ungrouped card', () => {
+    expect(startsCollapsed(group('', 5), { type: 'x', collapsed: true })).toBe(false);
   });
 });
 

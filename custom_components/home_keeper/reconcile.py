@@ -316,6 +316,9 @@ def replacement_backstop_due(
         return None
     if anchor.tzinfo is None:
         anchor = anchor.replace(tzinfo=tz) if tz is not None else anchor.astimezone()
+    elif tz is not None:
+        # Count on Home Assistant's wall clock, not the stored offset (B07-4).
+        anchor = anchor.astimezone(tz)
     return recurrence.add_interval(
         anchor, int(backstop["interval"]), str(backstop["unit"])
     )
@@ -579,6 +582,20 @@ def is_part_owned_tag_update(task: dict[str, Any], updates: dict[str, Any]) -> b
     )
 
 
+def is_part_owned_name_update(task: dict[str, Any], updates: dict[str, Any]) -> bool:
+    """Whether *updates* would change a name that the task's part owns (B09-5).
+
+    The reconciler writes the name of a wear item task and a use task on every pass.
+    A rename made on the task stays until the next pass and then goes away with no
+    event, so ``update_task`` refuses it and points to the part. The same name, with
+    or without outer spaces, is not a change. A manual consumable link keeps its name.
+    """
+    src = part_source(task)
+    if src is None or src.get("manual") or "name" not in updates:
+        return False
+    return str(updates["name"]).strip() != task.get("name")
+
+
 def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
@@ -778,6 +795,24 @@ def reconcile_part_tasks(
                     merged["next_due"] = recurrence.compute_next_due(
                         merged, now=now
                     ).isoformat()
+            if (
+                anchored
+                and rec_type == REC_FLOATING
+                and before.get("recurrence_type") != REC_FLOATING
+            ):
+                # A counted part switched back to time (B09-3). The replacement task
+                # was dormant, so its last_completed can be older than the part's
+                # recorded replacement, or empty. Start the time cycle from the later
+                # of the 2, as creation does. This runs once, on the conversion, so a
+                # later undo of a completion is never snapped back to the part date.
+                last = qualify_iso(merged.get("last_completed"), now.tzinfo)
+                if last is None or datetime.fromisoformat(
+                    anchored
+                ) > datetime.fromisoformat(last):
+                    merged = {**merged, "last_completed": anchored}
+                    merged["next_due"] = recurrence.compute_next_due(
+                        merged, now=now
+                    ).isoformat()
             if merged is not before:
                 result[existing_tid] = merged
                 changed = True
@@ -810,6 +845,71 @@ def reconcile_part_tasks(
     return result, changed
 
 
+def reanchor_edited_parts(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    tasks: dict[str, dict[str, Any]],
+    *,
+    now: datetime,
+) -> dict[str, dict[str, Any]]:
+    """Move a wear part's task when an edit changes ``last_replaced`` (B09-3).
+
+    :func:`reconcile_part_tasks` anchors a floating task to ``last_replaced`` only
+    when it creates the task. This function applies a later edit of that date:
+    *before* and *after* are the appliance before and after one update. Returns
+    ``{task_id: updated task}`` for each task it moved. The input is not mutated.
+
+    Only an edit starts this. A completion also writes ``last_replaced``, but not
+    through an appliance update, so undoing or moving a completion never snaps the
+    task back to the part's date. A task keeps its schedule when it has a recorded
+    completion at or after the new date, because that completion is newer evidence.
+    """
+    old_dates = {
+        part.get("id"): part.get("last_replaced")
+        for part in before.get("parts") or []
+        if isinstance(part, dict)
+    }
+    edited: dict[Any, str] = {}
+    for part in after.get("parts") or []:
+        part_id = part.get("id")
+        # A new part has no task yet; the reconcile anchors it when it creates one.
+        if part_id not in old_dates:
+            continue
+        if part.get("last_replaced") == old_dates[part_id]:
+            continue
+        anchored = qualify_iso(part.get("last_replaced"), now.tzinfo)
+        if anchored:
+            edited[part_id] = anchored
+
+    moved: dict[str, dict[str, Any]] = {}
+    if not edited:
+        return moved
+    for tid, task in tasks.items():
+        src = part_source(task)
+        if not src or src.get("manual") or src.get("asset_id") != after.get("id"):
+            continue
+        anchored = edited.get(src.get("part_id"))
+        if anchored is None:
+            continue
+        if task.get("recurrence_type") != REC_FLOATING:
+            continue
+        if part_role(task) != PART_ROLE_REPLACE:
+            continue
+        anchor_at = datetime.fromisoformat(anchored)
+        if any(
+            datetime.fromisoformat(stamp) >= anchor_at
+            for entry in task.get("completions") or []
+            if (stamp := qualify_iso(entry.get("ts"), now.tzinfo))
+        ):
+            continue
+        if task.get("last_completed") == anchored:
+            continue
+        updated = {**task, "last_completed": anchored}
+        updated["next_due"] = recurrence.compute_next_due(updated, now=now).isoformat()
+        moved[tid] = updated
+    return moved
+
+
 def reconcile_buy_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
@@ -832,11 +932,12 @@ def reconcile_buy_tasks(
     out, or was deleted — which also ends the episode and re-arms the next one.
 
     Pure: the input maps are not mutated, and the name is localized by the caller
-    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). The only update
-    is the name of an **open** reminder: it follows a part rename and a change of
+    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). Only an
+    **open** reminder is updated. Its name follows a part rename and a change of
     language, the same drift the wear-part reconciler corrects, but only while it is
     still a generated name (:func:`is_generated_buy_name`). A name someone typed is
-    kept, and a completed reminder is a record, so it is left as it was.
+    kept. Its device and area follow the appliance. A completed reminder is a record,
+    so it is left as it was.
     """
     result = dict(tasks)
 
@@ -870,17 +971,24 @@ def reconcile_buy_tasks(
         if key in existing_by_key:
             tid = existing_by_key[key]
             current = result[tid]
+            if recurrence.one_off_completed(current):
+                continue
+            updates: dict[str, Any] = {}
             stored = str(current.get("name") or "")
-            if (
-                stored != name
-                and not recurrence.one_off_completed(current)
-                and _name_is_ours(current, stored)
-            ):
-                source = current["source"]
-                buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
-                renamed = models.merge_update(current, {"name": name}, now=now)
-                renamed["source"] = {**source, TASK_SOURCE_BUY: buy}
-                result[tid] = renamed
+            if stored != name and _name_is_ours(current, stored):
+                updates["name"] = name
+            # An open reminder follows its appliance to a new device or area, the
+            # same as a wear item task (B09-6).
+            for field in ("device_id", "area_id"):
+                if current.get(field) != asset.get(field):
+                    updates[field] = asset.get(field)
+            if updates:
+                updated = models.merge_update(current, updates, now=now)
+                if "name" in updates:
+                    source = current["source"]
+                    buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
+                    updated["source"] = {**source, TASK_SOURCE_BUY: buy}
+                result[tid] = updated
                 changed = True
             continue
         task = models.build_task(

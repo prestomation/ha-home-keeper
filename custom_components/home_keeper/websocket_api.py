@@ -8,6 +8,7 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -20,6 +21,7 @@ from homeassistant.util import dt as dt_util
 from . import (
     appliance_report,
     companions,
+    declarative_companion_sync,
     declarative_presets,
     devices,
     manuals,
@@ -38,6 +40,7 @@ from .const import (
 )
 from .coordinator import (
     HomeKeeperCoordinator,
+    async_delete_orphaned_tasks,
     find_coordinator,
     task_has_entities,
 )
@@ -216,6 +219,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_task)
     websocket_api.async_register_command(hass, ws_update_task)
     websocket_api.async_register_command(hass, ws_delete_task)
+    websocket_api.async_register_command(hass, ws_delete_orphaned_tasks)
     websocket_api.async_register_command(hass, ws_set_task_consumable)
     websocket_api.async_register_command(hass, ws_complete_task)
     websocket_api.async_register_command(hass, ws_update_completion)
@@ -243,6 +247,9 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_remove_part_file)
     websocket_api.async_register_command(hass, ws_sign_part_file_url)
+    websocket_api.async_register_command(hass, ws_remove_task_photo)
+    websocket_api.async_register_command(hass, ws_set_task_photo_cover)
+    websocket_api.async_register_command(hass, ws_sign_task_photo_urls)
     websocket_api.async_register_command(hass, ws_export_appliance_report)
     websocket_api.async_register_command(hass, ws_export_data)
     websocket_api.async_register_command(hass, ws_import_data)
@@ -257,6 +264,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_list_declarative_presets)
     websocket_api.async_register_command(hass, ws_preview_declarative_companion)
     websocket_api.async_register_command(hass, ws_installed_integrations)
+    websocket_api.async_register_command(hass, ws_list_entity_keys)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -349,6 +357,23 @@ async def ws_delete_task(
     else:
         await coord.async_request_refresh()
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/delete_orphaned_tasks"}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_delete_orphaned_tasks(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    # Admin-only, like its service twin: it deletes tasks in bulk.
+    deleted = await async_delete_orphaned_tasks(hass, coord)
+    connection.send_result(msg["id"], {"deleted": deleted})
 
 
 @websocket_api.websocket_command(
@@ -812,6 +837,7 @@ async def ws_delete_skip(
         vol.Required("ts"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator(not_found="asset_id")
 async def ws_delete_archived_completion(
@@ -988,7 +1014,14 @@ async def ws_restore_asset(
         vol.Required("asset_id"): str,
         vol.Required("part_id"): str,
         # Fractional, like stock itself — 0.33 of a bottle is a real adjustment.
-        vol.Required("delta"): vol.Coerce(float),
+        # Open bounds at the infinities refuse NaN and both infinities, which
+        # Coerce(float) accepts from the text "nan" and "inf" (B05-5).
+        vol.Required("delta"): vol.All(
+            vol.Coerce(float),
+            vol.Range(
+                min=-math.inf, max=math.inf, min_included=False, max_included=False
+            ),
+        ),
     }
 )
 @websocket_api.require_admin
@@ -1001,7 +1034,8 @@ async def ws_adjust_part_stock(
     coord: HomeKeeperCoordinator,
 ) -> None:
     try:
-        report = await coord.store.adjust_part_stock(
+        # The coordinator settles the buy tasks and the stock entities.
+        report = await coord.async_adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
@@ -1016,9 +1050,6 @@ async def ws_adjust_part_stock(
             part_id=msg["part_id"],
         )
         return
-    # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
-    # device entities changed, else refresh).
-    await coord.async_settle_buy_tasks()
     # The asset for the panel, which redraws the appliance, and the same stock report
     # the service returns, for any other client.
     connection.send_result(
@@ -1212,6 +1243,116 @@ async def ws_sign_part_file_url(
         _err(hass, connection, msg, "not_found", "unknown_part_file")
         return
     connection.send_result(msg["id"], {"url": signed})
+
+
+async def _task_photo_op(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    op: Any,
+) -> None:
+    """Run a photo store call and send back the task, or a not-found error."""
+    try:
+        task = await op(msg["task_id"], msg["photo_id"])
+    except KeyError as err:
+        if err.args and err.args[0] == msg["task_id"]:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "task_not_found",
+                task_id=msg["task_id"],
+            )
+        else:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "unknown_task_photo",
+                photo_id=msg["photo_id"],
+            )
+        return
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/remove_task_photo",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_remove_task_photo(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.remove_task_photo)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_task_photo_cover",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_set_task_photo_cover(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.set_task_photo_cover)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/sign_task_photo_urls",
+        vol.Required("photos"): vol.All(
+            [
+                {
+                    vol.Required("task_id"): str,
+                    vol.Required("photo_id"): str,
+                    vol.Optional("thumb", default=False): bool,
+                }
+            ],
+            vol.Length(max=500),
+        ),
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_sign_task_photo_urls(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Sign many task photo URLs at once (the list signs every visible cover).
+
+    A photo that is gone gets ``url: null`` rather than failing the whole batch: the
+    list may still show a row that was removed a moment ago.
+    """
+    urls = [
+        {
+            "task_id": ref["task_id"],
+            "photo_id": ref["photo_id"],
+            "thumb": ref["thumb"],
+            "url": await manuals.async_sign_task_photo_url(
+                hass, ref["task_id"], ref["photo_id"], thumb=ref["thumb"]
+            ),
+        }
+        for ref in msg["photos"]
+    ]
+    connection.send_result(msg["id"], {"urls": urls})
 
 
 @websocket_api.websocket_command(
@@ -1438,6 +1579,7 @@ async def ws_add_declarative_companion(
         return
     try:
         spec = await coord.store.async_add_declarative_companion(msg["companion"])
+        await declarative_companion_sync.async_settle(coord)
     except TaskValidationError as err:
         _err(
             hass,
@@ -1477,6 +1619,7 @@ async def ws_update_declarative_companion(
         spec = await coord.store.async_update_declarative_companion(
             msg["companion_id"], msg["updates"]
         )
+        await declarative_companion_sync.async_settle(coord)
     except KeyError:
         _err(
             hass,
@@ -1520,6 +1663,11 @@ async def ws_delete_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     removed = await coord.store.async_delete_declarative_companion(msg["companion_id"])
+    await declarative_companion_sync.async_settle(coord)
+    # B03-2: the removed tasks' device-page entities go only on a reload, because the
+    # platforms prune the entity registry at setup.
+    if removed:
+        await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True, "entity_set_changed": removed})
 
 
@@ -1537,23 +1685,59 @@ async def ws_list_declarative_presets(
     Description strings live in ``backend_strings/<lang>.json`` (the same catalog
     channel Battery Notes uses); resolve them per this HA's configured language
     so the panel doesn't need to know which locale to render.
+
+    Each preset also carries ``matches``: how many entities its default selection
+    matches now, or ``None`` while the reconciler is not set up. The picker puts the
+    integration presets that match first, and the Tasks tab suggests every preset
+    that matches. The command stays open to every user: it reads no caller input and
+    returns counts only, never an entity name, and any user can already read every
+    state.
     """
     from .backend_i18n import resolve_string  # local import: no HA dep in presets
 
-    if _coordinator(hass) is None:
+    coord = _coordinator(hass)
+    if coord is None:
         _not_loaded(hass, connection, msg)
         return
     lang = hass.config.language
+    # The picker puts an integration preset first only when some entity would match
+    # it: an installed integration can have none of the entities a preset selects.
+    # The counts are kept between calls until the registry changes.
+    sync = coord.declarative_sync
+    counts: dict[str, int] = sync.preset_match_counts() if sync is not None else {}
     presets_out = []
     for preset in declarative_presets.CATALOG_PRESETS:
-        name = resolve_string(lang, preset["name_key"])
+        # An integration preset fills the integration's name into a string that
+        # every integration shares; the general presets have no placeholders.
+        args = preset.get("name_args", {})
+        name = resolve_string(lang, preset["name_key"], **args)
         presets_out.append(
             {
                 "id": preset["id"],
                 "name": name,
-                "description": resolve_string(lang, preset["description_key"]),
+                # An integration preset's text also says its limit, so a user can
+                # tell what the preset does before they add it.
+                "description": declarative_presets.preset_description(
+                    preset, lang, resolve_string
+                ),
                 "icon": preset["icon"],
                 "requires_integration": preset["requires_integration"],
+                # The picker lists the presets made for one integration apart from the
+                # general ones, and hides those for an integration that is not there.
+                "group": "integration" if "name_args" in preset else "general",
+                # The entities the preset would match now. The picker sorts only the
+                # integration presets by it; the Tasks tab suggests any that match.
+                "matches": counts.get(preset["id"]),
+                # The one limit the trigger compares with, or ``None``. The preview
+                # draws each reading against it.
+                "limit": preset.get("limit"),
+                # The integration preset's brand name, shape and limit as a short
+                # phrase. A companion row shows them; a general preset has none.
+                "brand": preset.get("brand"),
+                "shape": preset.get("shape"),
+                "limit_text": declarative_presets.limit_text(
+                    preset, lang, resolve_string
+                ),
                 # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(
@@ -1610,8 +1794,9 @@ async def ws_preview_declarative_companion(
     try:
         # Normalize the draft so bad input fails the same way an add would — except
         # for the one field a draft is expected to be part-way through.
+        # A draft also has a blank name and an empty trigger value (F06-3).
         spec = dc.normalize_declarative_companion(
-            msg["companion"], allow_missing_template=True
+            msg["companion"], allow_missing_template=True, draft=True
         )
     except TaskValidationError as err:
         _err(
@@ -1628,6 +1813,40 @@ async def ws_preview_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     connection.send_result(msg["id"], sync.preview(spec))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/list_entity_keys",
+        vol.Required("integration"): str,
+        vol.Optional("domain"): vol.Any(str, None),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_list_entity_keys(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the entity keys of one integration, for the companion dialog's key list.
+
+    Home Assistant shows a ``translation_key`` on no screen, so the dialog offers the
+    keys it finds in the entity registry: each with a count and one example entity.
+    Admin-only like the preview it sits beside: it names every entity of the
+    integration, and the panel that calls it is ``require_admin``.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    sync = coord.declarative_sync
+    if sync is None:
+        _not_loaded(hass, connection, msg)
+        return
+    connection.send_result(
+        msg["id"], sync.entity_keys(msg["integration"], msg.get("domain") or None)
+    )
 
 
 @websocket_api.websocket_command(

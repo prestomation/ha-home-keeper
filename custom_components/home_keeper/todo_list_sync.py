@@ -11,7 +11,8 @@ defensive list snapshotting, the capability-checked ``todo`` calls and the
 warn-once ledger, along with the three properties both syncs owe their callers.
 What stays here is what is particular to syncing profile-filtered chores: many
 targets rather than one, task events feeding the pass, due dates and
-descriptions on the items, and an inbound tick meaning a task is done.
+descriptions on the items, an inbound tick meaning a task is done, and an inbound
+date change moving the task (#398).
 
 Where the two syncs diverge is what a *vanished* item means: the shopping-list sync
 leaves a deleted line deleted, while a to-do list sync may read it as "done" so that
@@ -23,6 +24,7 @@ driver only supplies the inputs it needs.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, ClassVar
 
 from homeassistant.components.todo import TodoListEntityFeature
@@ -121,7 +123,22 @@ class TodoListSync(TodoSyncDriver):
         # Unforced: ``needs_pass`` gates the read, so a completion on a task no
         # sync wants costs nothing. Our own inbound completions echo back through
         # here as well, and settle for free.
+        if not self._has_work():
+            return
         self._hass.async_create_task(self.async_sync())
+
+    def _has_work(self) -> bool:
+        """Whether a pass can do work now.
+
+        Before Home Assistant has started, the initial pass is still to come, and
+        a list of another integration can read as missing (B10-8). With no sync
+        configured and no item tracked, a pass has nothing to do, so a burst of
+        task events costs no pass each (X08-3).
+        """
+        if self._stopped or not self._started:
+            return False
+        configured = profiles.synced_profiles(self._configured_syncs())
+        return bool(configured or self._coordinator.store.get_todo_list_items())
 
     @callback
     def async_schedule_sweep(self) -> None:
@@ -144,10 +161,7 @@ class TodoListSync(TodoSyncDriver):
         below is deliberately about having *nothing tracked at all*, which a held
         entry is not.
         """
-        if self._stopped:
-            return
-        configured = profiles.synced_profiles(self._configured_syncs())
-        if not configured and not self._coordinator.store.get_todo_list_items():
+        if not self._has_work():
             return
         self._hass.async_create_task(self.async_sync(force=True))
 
@@ -180,9 +194,8 @@ class TodoListSync(TodoSyncDriver):
             str(profile["sync"]["entity_id"])
             for profile in profiles.synced_profiles(synced)
         }
-        items_by_entity = await self._read_lists(
-            todo_list.lists_to_read(tracked, synced), targets=targets
-        )
+        to_read = todo_list.lists_to_read(tracked, synced)
+        items_by_entity = await self._read_lists(to_read, targets=targets)
         if self._stopped:
             return False
         capabilities = {
@@ -195,17 +208,23 @@ class TodoListSync(TodoSyncDriver):
             items_by_entity=items_by_entity,
             capabilities=capabilities,
             now=now,
+            gone=self._gone_lists(to_read),
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:
             return False
         completed = await self._complete_tasks(plan)
+        rescheduled = await self._reschedule_tasks(plan, now=now)
         # Persist before settling: the settle below reconciles and refreshes, and
         # everything that wakes off it — the task events it fires, the sweep on the
         # refresh — re-enters this class. What they find should be what this pass
         # concluded, not what the one before it did.
         await store.async_set_todo_list_items(settled)
         if not completed:
+            if rescheduled:
+                # A snooze moves only next_due, so a refresh is enough — the same
+                # as the snooze_task service.
+                await self._coordinator.async_request_refresh()
             return False
         # An inbound completion has to behave like every other completion surface —
         # consumables spent, buy reminders reconciled, entities refreshed — so it
@@ -247,6 +266,39 @@ class TodoListSync(TodoSyncDriver):
             else:
                 completed = True
         return completed
+
+    async def _reschedule_tasks(
+        self, plan: todo_list.TodoListPlan, *, now: datetime
+    ) -> bool:
+        """Move the tasks whose items the household gave a new date.
+
+        The move is a snooze: only ``next_due`` changes, so the schedule, the
+        history and a problem sensor's claim on the task all stay as they were.
+        A task that is gone or will not move keeps the new date in the
+        bookkeeping all the same, so the next pass writes the task's own date
+        back onto the item rather than trying again.
+        """
+        store = self._coordinator.store
+        rescheduled = False
+        for op in plan.reschedule:
+            task = store.get_tasks().get(op.task_id)
+            if task is None or not task.get("next_due"):
+                continue
+            until = todo_list.reschedule_until(str(task["next_due"]), op.due, now=now)
+            try:
+                await store.snooze_task(op.task_id, until, origin=ORIGIN_TODO_SYNC)
+            except (KeyError, TaskValidationError) as err:
+                self._warn_once(
+                    f"reschedule:{op.task_id}",
+                    "Home Keeper could not move task %s to %s from a to-do list "
+                    "(%s), so the item gets the task's own date back",
+                    op.task_id,
+                    op.due,
+                    err,
+                )
+            else:
+                rescheduled = True
+        return rescheduled
 
     # ── reading ──────────────────────────────────────────────────────────────
     def _configured_syncs(self) -> list[dict[str, Any]]:

@@ -64,7 +64,11 @@ source_paths = ["custom_components/home_keeper"]
 # reason: no PR touching mutable Python had run since that assertion landed. It is
 # listed as its directory because mutmut ``copy2``s a bare file without creating
 # its parent, and only ``copytree``s a directory into place.
-also_copy = ["ci", "CHANGELOG.md", "website/scripts"]
+# ``test_service_text.py`` reads ``docs/INTEGRATING.md`` to check what it says about
+# ``update_task`` (B02-5), so ``docs`` is listed too, as its directory.
+# ``test_ci_release_publish_gate.py`` reads ``.github/workflows/release.yml`` to run
+# the release workflow's publish decision (X06-2), so that directory is listed too.
+also_copy = ["ci", "CHANGELOG.md", "website/scripts", "docs", ".github/workflows"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
@@ -91,6 +95,9 @@ only_mutate = [
     "custom_components/home_keeper/appliance_report.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
+    # Task photos (#399): the list rules and the on-disk paths. Pure, and driven by
+    # tests/unit/test_task_photos.py.
+    "custom_components/home_keeper/task_photos.py",
     "custom_components/home_keeper/events.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
@@ -125,6 +132,75 @@ pytest_add_cli_args_test_selection = ["tests/unit"]
 # ci/mutation_report.py fails the run if they drift.
 break = 80
 
+# ci/docs.py: the docs CLI and the docs gate (lint.yml, `docs-audit`). A doc's kind
+# comes from the first glob here that matches its path; `strip` is cut from the path
+# to make the doc id. A kind with no cap (the user guide) gets only the link check.
+[tool.docs-audit]
+line_width = 100
+max_exceptions = 2
+duplicate_min_words = 12
+# Every file here must be in at least one design doc's `implements`.
+coverage = [
+    "custom_components/home_keeper/*.py",
+    "custom_components/home_keeper/frontend/src/**/*.ts",
+]
+uncovered = []
+link_scan = ["**/*.md"]
+link_skip = ["CHANGELOG.md", "**/node_modules/**", "website/docs/guide/**", "website/developer/**"]
+# Where a backticked file or `module.func` reference may live.
+code_dirs = [
+    "custom_components/home_keeper",
+    "custom_components/home_keeper/frontend/src",
+    "custom_components/home_keeper/frontend",
+    "ci",
+    "tests",
+    "docs",
+    "website/scripts",
+]
+code_ref_ignore = ["**/dist/**", "dist/**", "docs/videos/**"]
+# Files whose text is searched for a `docs/...md` path that must exist.
+# Test fixtures name docs that do not exist on purpose.
+doc_ref_skip = ["tests/frontend/**", "tests/unit/test_docs_cli.py"]
+doc_ref_suffixes = [".py", ".ts", ".js", ".mjs", ".md", ".yml", ".yaml", ".toml", ".sh", ".ini", ".json"]
+budgets = [{ files = ["CLAUDE.md", "AGENTS.md"], max_lines = 250 }]
+kinds = [
+    { glob = "docs/design/*.md", kind = "design", strip = "docs/design/" },
+    { glob = "docs/guide/**/*.md", kind = "guide", strip = "docs/" },
+    { glob = "docs/*.md", kind = "reference", strip = "docs/" },
+    { glob = ".amazonq/rules/*.md", kind = "rules", strip = ".amazonq/" },
+    { glob = ".claude/skills/**/*.md", kind = "skill", strip = ".claude/skills/" },
+    { glob = "AGENTS.md", kind = "process" },
+    { glob = "CLAUDE.md", kind = "process" },
+    { glob = "RELEASE.md", kind = "process" },
+    { glob = "website/README.md", kind = "process" },
+    { glob = "IDEAS.md", kind = "backlog" },
+]
+
+[tool.docs-audit.caps]
+design = 150
+reference = 300
+rules = 200
+process = 200
+backlog = 300
+skill = 200
+
+# Text that tells history instead of the current design. Prose only; code spans and
+# fences are not checked.
+[tool.docs-audit.history]
+all = [
+    '(?i)\bthis PR\b',
+    '\bPR #\d+',
+    '(?i)\boriginally\b',
+    '(?i)\bpreviously\b',
+    '(?i)\bwe first\b',
+    '(?i)\bused to be\b',
+    '(?i)\bhistorically\b',
+    '\bPhase \d',
+    'Status:',
+    '(?i)\bwritten (in )?(january|february|march|april|may|june|july|august|september|october|november|december) \d{4}',
+]
+design = ['(?<![\w/&-])#\d{2,}\b']
+
 # Strict typing is a Platinum quality-scale gate (see custom_components/home_keeper/
 # quality_scale.yaml). CI runs `mypy custom_components/home_keeper` with Home
 # Assistant installed so HA's own types resolve; keep the integration error-free.
@@ -135,6 +211,13 @@ break = 80
 # cannot even *parse* when targeting an older version. It bails with a syntax error
 # inside HA and reports nothing about our code, so this silently stops being a gate.
 python_version = "3.14"
+# Home Assistant 2026.10 types its schema arguments with probatio, the engine it
+# aliases `voluptuous` to at runtime since 2026.9. hass-nabucasa still installs the
+# real voluptuous, so without this mypy reads our `import voluptuous as vol` as a
+# different class and rejects every schema we pass in (#417). The stubs in
+# `typings/` point `voluptuous` at probatio for mypy only, as Home Assistant core's
+# `stubs/voluptuous` does. Remove them when the code imports probatio directly.
+mypy_path = "typings"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true

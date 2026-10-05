@@ -251,6 +251,30 @@ def test_download_streams_with_content_disposition(ha):
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
+def test_b06_6_upload_keeps_a_non_latin_name_for_display(ha):
+    # The key on disk is ASCII only. With no name part, the document shows the
+    # real name of the file, and the download carries it in filename*.
+    name = f"Doc unicode probe {uuid.uuid4().hex[:8]}"
+    asset = _provision(ha, name)
+    doc_id = uuid.uuid4().hex
+    up = requests.post(
+        f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc_id}",
+        files={"file": ("Инструкция.pdf", PDF_BYTES, "application/pdf")},
+        headers=_bearer(ha),
+        timeout=30,
+    )
+    assert up.status_code == 200, up.text
+    doc = up.json()["document"]
+    assert doc["name"] == "Инструкция.pdf"
+    assert doc["filename"].isascii()
+
+    dl = ha.get(f"{HA_URL}/api/home_keeper/document/{asset['id']}/{doc['id']}")
+    assert dl.status_code == 200
+    disposition = dl.headers.get("Content-Disposition", "")
+    assert "filename*=UTF-8''%D0%98%D0%BD%D1%81" in disposition
+    call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_upload_rejects_non_allowlisted_type(ha):
     name = f"Doc bad-type {uuid.uuid4().hex[:8]}"
     asset = _provision(ha, name)

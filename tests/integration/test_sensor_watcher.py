@@ -8,12 +8,12 @@ its target), and cleared again when the task is completed. Driving a real
 subscription + evaluation path that the pure unit tests can't.
 """
 
-import importlib.util
 import time
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 from conftest import HA_URL, call_service, get_state
+from ha_registry import ws_send
+from presets_loader import load_declarative_presets
 
 METER = "input_number.hk_demo_meter"
 
@@ -1162,22 +1162,13 @@ def test_the_stopped_reporting_preset_keeps_its_task_open_when_the_device_drops(
     template must fail to render there instead, which decides nothing.
     """
     # Read from the component source, so the test covers the template that ships.
-    # ``declarative_presets.py`` imports only ``typing``, so it loads by path.
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "custom_components"
-        / "home_keeper"
-        / "declarative_presets.py"
-    )
-    spec = importlib.util.spec_from_file_location("hk_presets_for_watcher", path)
-    assert spec and spec.loader
-    presets = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(presets)
+    presets = load_declarative_presets()
     trigger = presets.preset_by_id("device_stopped_reporting")["default_spec"][
         "trigger"
     ]
     probe = "sensor.hk_probe_last_seen"
-    quiet_since = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    # Well past the preset's 48 hours, so the task opens on the first reading.
+    quiet_since = (datetime.now(UTC) - timedelta(days=3)).isoformat()
     ha.post(
         f"{HA_URL}/api/states/{probe}", json={"state": quiet_since}
     ).raise_for_status()
@@ -1347,3 +1338,42 @@ def test_a_template_with_a_syntax_error_is_refused_when_saved(ha):
         assert _require_task(ha, task_id)["sensor"]["template"] == good
     finally:
         _delete(ha, task_id)
+
+
+# ── an entity id rename follows into the binding (X10-1) ────────────────────
+# Home Assistant does not rewrite integration storage on a rename, so the watcher
+# listens to the entity registry and rewrites every binding on the old id.
+RENAMED_FLAG = "input_boolean.hk_demo_flag_renamed"
+
+
+def _rename_entity(ha, entity_id, new_entity_id):
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    msg = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert msg.get("success"), f"rename failed: {msg}"
+
+
+def test_a_renamed_entity_keeps_its_sensor_task(ha):
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": FLAG, "mode": "state", "state": "on"})
+    renamed = False
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _rename_entity(ha, FLAG, RENAMED_FLAG)
+        renamed = True
+        _poll_task(ha, task_id, lambda t: t["sensor"].get("entity_id") == RENAMED_FLAG)
+        # The task reads the entity at its new id: a crossing there arms it.
+        call_service(ha, "input_boolean", "turn_on", {"entity_id": RENAMED_FLAG})
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+    finally:
+        _delete(ha, task_id)
+        if renamed:
+            call_service(ha, "input_boolean", "turn_off", {"entity_id": RENAMED_FLAG})
+            _rename_entity(ha, RENAMED_FLAG, FLAG)
+        _set_flag(ha, False)

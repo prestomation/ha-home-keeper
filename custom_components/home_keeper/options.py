@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -130,6 +131,31 @@ def caller_is_reloading(entry_id: str) -> bool:
     return entry_id in _CALLER_RELOADING
 
 
+# Entry ids whose last ``async_set_options`` write lowered the one-off retention. The
+# coordinator skips the purge once for each, in the first refresh of that reload.
+# A lower retention deletes tasks for good, so it takes effect one periodic tick
+# after the write, not in the reload of the write. A value that is only on its way to
+# a higher number (the "3" of "30") then deletes no task, because the next write
+# replaces it before the purge reads it.
+_RETENTION_GRACE: set[str] = set()
+
+
+def retention_lowered(old: int, new: int) -> bool:
+    """Whether a retention change from *old* to *new* can delete more tasks.
+
+    ``0`` keeps completed one-offs forever, so any positive value lowers it.
+    """
+    return new > 0 and (old == 0 or new < old)
+
+
+def take_retention_grace(entry_id: str) -> bool:
+    """Return True once after a write lowered *entry_id*'s retention, then False."""
+    if entry_id in _RETENTION_GRACE:
+        _RETENTION_GRACE.discard(entry_id)
+        return True
+    return False
+
+
 def current_options(entry: ConfigEntry) -> dict[str, Any]:
     """Return the entry's options with every key defaulted (toggle off, lists empty).
 
@@ -141,19 +167,95 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
     and a write can't disagree about a key's shape, which is what makes
     ``async_set_options``' ``merged == base`` short-circuit trustworthy.
     """
-    return _normalize(dict(entry.options), _empty_options())
+    return _normalize(dict(entry.options), _empty_options(), read=True)
+
+
+# The device-id lists in a profile filter. A profile filter matches a task on these.
+_PROFILE_DEVICE_KEYS = ("devices", "exclude_devices")
+
+
+def _repoint_ids(ids: Any, mapping: dict[str, str]) -> list[str] | None:
+    """*ids* with each id in *mapping* replaced; ``None`` when nothing changed.
+
+    Keeps the order and removes a duplicate that the replacement makes (two dead ids
+    of one device map to one live id).
+    """
+    if not isinstance(ids, list) or not any(i in mapping for i in ids):
+        return None
+    values: list[str] = ids
+    return list(dict.fromkeys(mapping.get(i, i) for i in values))
+
+
+def device_ids_in_options(options: dict[str, Any]) -> set[str]:
+    """Every device id that *options* refers to.
+
+    These are the problem-sensor device exclusions and the device lists of each
+    profile filter. The device-split repair in ``devices.py`` resolves them.
+    """
+    found = set(options.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES) or [])
+    for profile in options.get(OPTION_PROFILES) or []:
+        filt = profile.get("filter") if isinstance(profile, dict) else None
+        if not isinstance(filt, dict):
+            continue
+        for key in _PROFILE_DEVICE_KEYS:
+            found.update(filt.get(key) or [])
+    return found
+
+
+def repoint_device_ids(
+    options: dict[str, Any], mapping: dict[str, str]
+) -> dict[str, Any] | None:
+    """*options* with each dead device id in *mapping* set to its live id.
+
+    Home Assistant 2026.8 gave some devices a new id (#183). The repair moves the
+    tasks and the appliances to the new id, and this moves the options that refer to
+    a device: the problem-sensor device exclusions and the profile device filters.
+    Returns a new options dict, or ``None`` when no id changed, so the caller writes
+    the entry only when it must. *options* is not changed.
+    """
+    result = dict(options)
+    # None reads as False in the return below, so that mutant is equivalent.
+    changed = False  # pragma: no mutate
+    excluded = _repoint_ids(options.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES), mapping)
+    if excluded is not None:
+        result[OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES] = excluded
+        changed = True
+    new_profiles: list[Any] = []
+    for profile in options.get(OPTION_PROFILES) or []:
+        filt = profile.get("filter") if isinstance(profile, dict) else None
+        if not isinstance(filt, dict):
+            new_profiles.append(profile)
+            continue
+        new_filt = dict(filt)
+        for key in _PROFILE_DEVICE_KEYS:
+            ids = _repoint_ids(filt.get(key), mapping)
+            if ids is not None:
+                new_filt[key] = ids
+                changed = True
+        new_profiles.append({**profile, "filter": new_filt})
+    if OPTION_PROFILES in options:
+        result[OPTION_PROFILES] = new_profiles
+    return result if changed else None
 
 
 def _coerce_days(value: Any) -> int:
-    """Coerce a retention-days value to a non-negative int (garbage/negative -> 0)."""
+    """Coerce a retention-days value to an int in ``0..MAX_ONE_OFF_RETENTION_DAYS``.
+
+    Garbage and negatives read as ``0``. A value above the maximum reads as the
+    maximum. This is the read path too, so a value stored before the clamp existed
+    reads back clamped, and the entry loads again with no user action.
+    """
     try:
         days = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
-    return days if days > 0 else 0
+    # ``>= 0`` is equivalent: min(0, MAX) is 0 as well.
+    return min(days, MAX_ONE_OFF_RETENTION_DAYS) if days > 0 else 0  # pragma: no mutate
 
 
-def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
+def _normalize(
+    updates: dict[str, Any], base: dict[str, Any], *, read: bool = False
+) -> dict[str, Any]:
     """Merge *updates* onto *base*, coercing to the stored shape (bool/int/id list).
 
     The one coercion table, shared by every read and every write. Each branch exists
@@ -171,6 +273,9 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
 
     A key absent from *updates* keeps its value from *base*, which is what makes an
     update partial.
+
+    *read* is ``True`` on the read path, so a dropped notify target is not logged
+    again on each read (B16-11).
     """
     merged = dict(base)
     for key in _BOOL_OPTIONS:
@@ -196,7 +301,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
         merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])
     if OPTION_NOTIFICATIONS in updates:
         merged[OPTION_NOTIFICATIONS] = notifications.normalize_notifications(
-            updates[OPTION_NOTIFICATIONS]
+            updates[OPTION_NOTIFICATIONS], warn=not read
         )
     for key in _LIST_OPTIONS:
         if key in updates:
@@ -277,10 +382,15 @@ def profile_removals_in_use(
       that sends no ``profiles`` key removes nothing and can never block
     - the references come from ***merged*'s** notifications, never *base*'s, so one
       save that deletes a profile together with its notifications is allowed
-    - only ids this save removes are candidates, so an options document that already
-      holds a dangling ``profile_id`` still reads and writes — that state is designed
-      (``notifier._notification_profile``), documented, and reachable from a backup
-    - ids are matched, names are only reported, so a rename is not a removal
+    - only a reference that resolved before this save is a candidate, so an options
+      document that already holds a dangling ``profile_id`` still reads and writes —
+      that state is designed (``notifier._notification_profile``), documented, and
+      reachable from a backup
+    - a reference resolves the way the notifier resolves it, with
+      ``profiles.resolve_profile``: by id, then by name. A notification that names
+      its profile is then blocked like one that holds the id, and for that
+      notification a rename is a removal (B19-3). For an id, a rename is not a
+      removal
 
     Both arguments are **normalized** documents — ``current_options`` and
     ``_normalize`` are the only two things that produce them, and both hold every
@@ -289,20 +399,22 @@ def profile_removals_in_use(
     key here is a bug in the caller, and a ``KeyError`` says so instead of quietly
     returning "nothing is in the way" and writing the save through.
     """
-    removed = {profile["id"]: profile["name"] for profile in base[OPTION_PROFILES]}
-    for profile in merged[OPTION_PROFILES]:
-        removed.pop(profile["id"], None)
+    before_profiles = base[OPTION_PROFILES]
+    after_profiles = merged[OPTION_PROFILES]
     blocked: list[tuple[str, str]] = []
     for notification in merged[OPTION_NOTIFICATIONS]:
         # ``profile_id`` is None for a notification that covers every due task. That
         # is a **valid** value, not malformed input, and it has to fall through: such
-        # a notification names no profile, so no profile removal can strand it. The
-        # lookup handles it because every key here is a string, so None never matches.
-        # Do not "harden" this into a string check — that would make a None read as a
-        # blocker. ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
-        profile_name = removed.get(notification["profile_id"])
-        if profile_name is not None:
-            blocked.append((profile_name, notification["name"]))
+        # a notification names no profile, so no profile removal can strand it.
+        # ``resolve_profile`` answers None for it. Do not "harden" this into a string
+        # check — that would make a None read as a blocker.
+        # ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
+        reference = notification["profile_id"]
+        before = profiles.resolve_profile(before_profiles, reference)
+        if before is None:
+            continue
+        if profiles.resolve_profile(after_profiles, reference) is None:
+            blocked.append((before["name"], notification["name"]))
     return blocked
 
 
@@ -333,6 +445,10 @@ async def async_set_options(
         # are also the **read** path, and an options document that already holds a
         # dangling ``profile_id`` has to keep reading back.
         raise ProfileInUseError(blocked)
+    if retention_lowered(
+        base[OPTION_ONE_OFF_RETENTION_DAYS], merged[OPTION_ONE_OFF_RETENTION_DAYS]
+    ):
+        _RETENTION_GRACE.add(entry.entry_id)
     _CALLER_RELOADING.add(entry.entry_id)
     try:
         hass.config_entries.async_update_entry(entry, options=merged)

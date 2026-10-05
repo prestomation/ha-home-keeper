@@ -49,7 +49,7 @@
         },
         "recurrence_type": {
           "name": "Recurrence type",
-          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date)."
+          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date). Omit it and the type is inferred from the schedule fields you passed. A name on its own makes a one-off due today."
         },
         "interval": {
           "name": "Interval",
@@ -115,6 +115,10 @@
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Every other way of marking it done is refused. Needs a tag."
         },
+        "snooze_hours": {
+          "name": "Snooze length",
+          "description": "Hours that Snooze moves this task. The snooze dialog starts on this length, and the Snooze button on a notification uses it. Leave empty to use the usual lengths."
+        },
         "source": {
           "name": "Source",
           "description": "Opaque provenance owned by the integration that created the task. Home Keeper stores and echoes it verbatim and never inspects it. See docs/INTEGRATING.md."
@@ -129,7 +133,7 @@
         },
         "active_season": {
           "name": "Active season",
-          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings. Pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         },
         "enabled": {
           "name": "Enabled",
@@ -217,9 +221,13 @@
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Needs a tag."
         },
+        "snooze_hours": {
+          "name": "Snooze length",
+          "description": "Hours that Snooze moves this task. Send an empty value to use the usual lengths again."
+        },
         "source": {
           "name": "Source",
-          "description": "Opaque provenance owned by the integration that created the task. See docs/INTEGRATING.md."
+          "description": "Opaque provenance owned by the integration that created the task. Each namespace replaces the stored namespace of the same name. A namespace with the value null is removed. See docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Completion detail",
@@ -231,7 +239,7 @@
         },
         "active_season": {
           "name": "Active season",
-          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings. Pass a list or a single object. Send null to clear the season."
         },
         "enabled": {
           "name": "Enabled",
@@ -252,6 +260,10 @@
           "description": "Bypass deletion protection for a task managed by another integration. Use this to clean up a task whose managing integration was uninstalled or is misbehaving and can't remove it itself."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Delete orphaned tasks",
+      "description": "Delete every task that an integration manages when that integration is not loaded (removed, disabled or not set up). Admin-only. Returns the IDs of the deleted tasks under \"deleted\"."
     },
     "complete_task": {
       "name": "Complete task",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Hours",
-          "description": "How many hours to defer the task (defaults to 24). Ignored when Until is set."
+          "description": "How many hours to defer the task (defaults to 24). Do not set Hours and Until in the same call."
         },
         "until": {
           "name": "Until",
-          "description": "Defer the task to this exact date and time instead of a number of hours. Setting this leaves Hours unused."
+          "description": "Defer the task to this exact date and time instead of a number of hours. Do not set Hours and Until in the same call."
         },
         "origin": {
           "name": "Origin",
@@ -373,7 +385,7 @@
     },
     "skip_task": {
       "name": "Skip task",
-      "description": "Advance a task to its next occurrence without recording a completion. The skip is logged separately, so it never counts as a completion.",
+      "description": "Advance a task to its next occurrence without recording a completion. Home Keeper logs the skip separately from the completions, so it is never counted as a completion.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -381,7 +393,7 @@
         },
         "note": {
           "name": "Note",
-          "description": "Why this occurrence was passed over."
+          "description": "Why this occurrence was skipped."
         },
         "who": {
           "name": "Who",
@@ -398,16 +410,16 @@
       }
     },
     "set_due_today": {
-      "name": "Pull forward task",
-      "description": "Move a task's due date to now, independent of its periodic schedule, without recording a completion or changing its recurrence.",
+      "name": "Set task due today",
+      "description": "Move a task's due date to now, whatever its periodic schedule says, without recording a completion or changing its recurrence.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
-          "description": "The id of the task to pull forward. Its name works too. The panel shows the id."
+          "description": "The id of the task to move. Its name works too. The panel shows the id."
         },
         "origin": {
           "name": "Origin",
-          "description": "Optional free-form marker echoed back in the home_keeper_task_due_today_set event so a contributing integration can recognise and ignore the pull-forward it triggered (loop prevention), and Home Keeper never interprets it."
+          "description": "Optional free-form marker echoed back in the home_keeper_task_due_today_set event so a contributing integration can recognise and ignore the change it triggered (loop prevention), and Home Keeper never interprets it."
         }
       }
     },
@@ -760,12 +772,12 @@
       "description": "Mint a short-lived URL (no auth header needed) an external caller can fetch the file document's bytes from, e.g. an MCP-connected agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the document belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the document belongs to. Its name works too. The panel shows the id."
         },
         "document_id": {
-          "name": "Document ID",
-          "description": "The id of the document to sign a URL for."
+          "name": "Document name or ID",
+          "description": "The id of the document to sign a URL for. Its name works too. The panel shows the id."
         }
       }
     },
@@ -774,12 +786,58 @@
       "description": "Mint a short-lived URL (no auth header needed) an external caller can fetch a part's attached file bytes from, e.g. an MCP-connected agent.",
       "fields": {
         "asset_id": {
-          "name": "Asset ID",
-          "description": "The id of the appliance the part belongs to."
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance the part belongs to. Its name works too. The panel shows the id."
         },
         "part_id": {
-          "name": "Part ID",
-          "description": "The id of the part whose attached file to sign a URL for."
+          "name": "Part name or ID",
+          "description": "The id of the part whose attached file to sign a URL for. Its name works too. The panel shows the id."
+        }
+      }
+    },
+    "remove_task_photo": {
+      "name": "Remove task photo",
+      "description": "Remove a photo from a task and delete its file. Add photos in the panel. A service call cannot send a file.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Set task photo cover",
+      "description": "Make a photo the cover of its task. The cover is the first photo. It shows on the task list, the task page and the completion dialog.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Sign task photo URL",
+      "description": "Mint a short-lived URL (no auth header needed) that gives the bytes of a task photo. Use it to show the photo in a notification.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        },
+        "thumbnail": {
+          "name": "Thumbnail",
+          "description": "Sign the URL of the small copy, at most 256 pixels on its long side."
         }
       }
     },
@@ -946,7 +1004,7 @@
     },
     "update_skip": {
       "name": "Update skip",
-      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date and the schedule is untouched.",
+      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date, and the schedule of the task does not change.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -958,7 +1016,7 @@
         },
         "note": {
           "name": "Note",
-          "description": "Why this occurrence was passed over. An empty value clears it."
+          "description": "Why this occurrence was skipped. An empty value clears it."
         },
         "who": {
           "name": "Who",
@@ -972,7 +1030,7 @@
     },
     "delete_skip": {
       "name": "Delete skip",
-      "description": "Remove a recorded skip, identified by its timestamp. Undoing the skip that last reset a usage meter restores that meter.",
+      "description": "Remove a recorded skip, identified by its timestamp. Removal of the skip that last reset a usage meter restores that meter.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -986,7 +1044,7 @@
     },
     "move_skip": {
       "name": "Move skip",
-      "description": "Re-date a recorded skip, identified by its current timestamp. The task's schedule is untouched.",
+      "description": "Re-date a recorded skip, identified by its current timestamp. The date of the skip changes, and the schedule of the task does not.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} spares"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tasks"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Upcoming tasks"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Unknown document: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Unknown photo: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Only a task with a usage sensor binding has a meter."
+    },
+    "meter_has_no_reading": {
+      "message": "The bound sensor has no numeric reading now. Add a baseline to the call."
+    },
+    "archived_completion_not_found": {
+      "message": "The appliance has no archived completion of {task_id} at {ts}."
     },
     "unknown_part_file": {
       "message": "Unknown part or no attached file."

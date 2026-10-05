@@ -189,6 +189,9 @@ export interface Task {
   // When true (and a tag is bound), the task can *only* be completed by scanning
   // that tag — the UI's Done action is blocked and explains why.
   require_tag_scan?: boolean;
+  // How long Snooze moves this task, in whole hours. The snooze dialog opens on it
+  // and a notification's Snooze button uses it. Null/absent = the usual lengths.
+  snooze_hours?: number | null;
   active_season?: Array<{ start: string; end: string }> | { start: string; end: string } | null;
   // Which metadata fields a `required` task makes mandatory. The panel gates a
   // required completion by reading this list (not a hard-coded field), so a future
@@ -239,6 +242,20 @@ export interface Task {
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
+  // Uploaded photos (#399), at most 6. The first is the cover. Upload-only: the
+  // task form never sends this field, and the backend ignores it if it does.
+  photos?: TaskPhoto[];
+}
+
+/** A photo on a task. The bytes are served through a short-lived signed URL (see
+ *  `api.signTaskPhotoUrls`), the original or a small JPEG thumbnail. */
+export interface TaskPhoto {
+  id: string;
+  name: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  created?: string;
 }
 
 export interface HassDevice {
@@ -286,9 +303,13 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
+  // Home Assistant's own translations. The panel reads only an integration's title
+  // with it (`component.<domain>.title`), and gets `''` for a key it has not loaded.
+  localize?: (key: string) => string;
   // The instance's configured currency, used to format a completion's cost, and its
   // language, which the backend formats the shopping-list lines in.
-  config?: { currency?: string; language?: string };
+  // `time_zone` is the zone the panel reads and writes times in (see `setTimeZone`).
+  config?: { currency?: string; language?: string; time_zone?: string };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //
@@ -303,6 +324,9 @@ export interface Hass {
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
   };
+  // The signed-in user. The card reads `is_admin`: Home Assistant refuses a
+  // non-admin subscription to a custom event and logs an error for each refusal.
+  user?: { is_admin?: boolean };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
   // from another surface (the panel, a device button, or an automation).
@@ -311,7 +335,16 @@ export interface Hass {
       callback: (event: T) => void,
       eventType: string,
     ): Promise<() => void>;
+    // A websocket subscription command. The card uses `todo/item/subscribe`, which
+    // any user can send, to refresh when Home Keeper changes a task (F09-3).
+    subscribeMessage?<T = unknown>(
+      callback: (message: T) => void,
+      msg: Record<string, unknown>,
+    ): Promise<() => void>;
   };
+  // The entity registry entries that the frontend has. The card finds the Home
+  // Keeper to-do list here, also when the user renamed its entity id.
+  entities?: Record<string, { entity_id: string; platform?: string }>;
 }
 
 export type AssetKind = 'virtual' | 'existing';
@@ -668,6 +701,11 @@ export interface DeclarativeCompanionSelection {
   domain?: string;
   device_class?: string;
   entity_regex?: string;
+  // The keys the integration gives its entities (`translation_key` in the entity
+  // registry). A rename or the Home Assistant language does not change them.
+  translation_keys?: string[];
+  // Only the entities of these devices. Empty or missing: every device.
+  device_ids?: string[];
   area_ids: string[];
   label_ids: string[];
   exclude_entity_ids: string[];
@@ -682,6 +720,8 @@ export interface DeclarativeCompanionTaskTemplate {
   category?: string;
   priority?: number;
   labels: string[];
+  // Entity key -> plain-text task name, read by the templates as `{{ task_name }}`.
+  task_names?: Record<string, string>;
 }
 
 /**
@@ -721,7 +761,32 @@ export interface DeclarativeCompanionPreset {
   description: string;
   icon: string;
   requires_integration: string | null;
+  // `general` for the presets that work across integrations, `integration` for the
+  // presets made for one integration's devices. Older backends send neither.
+  group?: 'general' | 'integration';
+  // How many entities the preset would match now. The picker sorts the integration
+  // presets by it, and the Tasks tab suggests any preset that matches at least one.
+  // Older backends omit it (or send `null` for a general preset); neither suggests.
+  matches?: number | null;
+  // The one limit an integration preset's trigger compares with, or `null`. The
+  // preview draws each reading against it. Older backends omit it.
+  limit?: PresetLimit | null;
+  // An integration preset's brand name (`Roborock`), its shape (`life_low`, a key of
+  // SHAPES in `declarative_presets.py`) and its limit as a short localized phrase
+  // (`less than 24 hours left`). A companion row shows them. A general preset sends
+  // `null`, and older backends omit them.
+  brand?: string | null;
+  shape?: string | null;
+  limit_text?: string | null;
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
+}
+
+/** The limit of an integration preset: a percentage, a time in hours, or a number in
+ *  the entity's own unit. `above` says a task opens when the reading rises past it. */
+export interface PresetLimit {
+  kind: 'percent' | 'hours' | 'number';
+  value: number;
+  above: boolean;
 }
 
 /**
@@ -731,6 +796,8 @@ export interface DeclarativeCompanionPreset {
 export interface DeclarativeCompanionPreviewMatch {
   entity_id: string;
   entity_registry_id: string;
+  /** The key the integration gives the entity, or `null`. Older backends omit it. */
+  translation_key?: string | null;
   rendered_name: string;
   rendered_notes: string;
   device_name: string | null;
@@ -743,6 +810,9 @@ export interface DeclarativeCompanionPreviewMatch {
   trigger_now: boolean | null;
   /** The Jinja error, when the template did not render. `null` otherwise. */
   trigger_error: string | null;
+  /** The entity's state now, and its unit. Older backends omit both. */
+  state?: string | null;
+  unit?: string | null;
 }
 
 export interface DeclarativeCompanionPreviewResult {
@@ -800,4 +870,18 @@ export interface ImportReport {
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+}
+
+/** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */
+export interface EntityKeySummary {
+  key: string;
+  count: number;
+  example_entity_id: string;
+  example_name: string;
+}
+
+export interface EntityKeyList {
+  keys: EntityKeySummary[];
+  /** How many of the integration's entities have no key at all. */
+  without_key: number;
 }

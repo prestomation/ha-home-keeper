@@ -24,6 +24,7 @@ import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import hk_options as real_options  # type: ignore[import-not-found]
 from fakes import FakeTaskSnapshotStore
 from ha_stubs import install_ha_stubs
 
@@ -63,6 +64,9 @@ def _load_coordinator():
 
     options = types.ModuleType("hk.options")
     options.current_options = lambda entry: entry.options
+    # The grace is the real one: the tests below lower the retention through the
+    # real ``async_set_options`` and then watch the purge that reads it.
+    options.take_retention_grace = real_options.take_retention_grace
     sys.modules["hk.options"] = options
 
     store_mod = types.ModuleType("hk.store")
@@ -135,13 +139,23 @@ class _FakeStore(FakeTaskSnapshotStore):
     def __init__(self, tasks: dict) -> None:
         super().__init__(tasks)
         self.deleted: list[str] = []
+        # One entry per call: the purge deletes with one call, so one save (X08-2).
+        self.calls: list[list[str]] = []
 
-    async def delete_task(self, tid: str) -> None:
-        self.deleted.append(tid)
-        self._tasks.pop(tid, None)
+    async def delete_tasks(self, tids: list[str]) -> list[dict]:
+        self.calls.append(list(tids))
+        removed = []
+        for tid in tids:
+            if tid in self._tasks:
+                self.deleted.append(tid)
+                removed.append(self._tasks.pop(tid))
+        return removed
 
 
 def _make_coord(tasks: dict, *, retention: int = 30):
+    # The grace set is module state in the real ``options``. Start each coordinator
+    # without one, whatever an earlier test wrote.
+    real_options._RETENTION_GRACE.discard("entry-1")
     coord = object.__new__(coordinator.HomeKeeperCoordinator)
     coord.config_entry = _FakeEntry(retention)
     coord.store = _FakeStore(tasks)
@@ -204,12 +218,39 @@ def test_purge_reloads_once_for_mixed_batch():
     assert len(coord.hass.created) == 1
 
 
+def test_x08_2_the_purge_deletes_every_expired_task_in_one_call():
+    tasks = {
+        "a": _one_off("a", days_ago=60, device_id=None),
+        "b": _one_off("b", days_ago=60, device_id=None),
+        "fresh": _one_off("fresh", days_ago=5, device_id=None),
+    }
+    coord = _make_coord(tasks)
+    asyncio.run(coord._purge_expired_one_offs())
+    assert [sorted(call) for call in coord.store.calls] == [["a", "b"]]
+    assert coord.hass.created == []
+
+
+def test_x08_2_a_task_the_store_keeps_does_not_ask_for_a_reload():
+    tasks = {"t1": _one_off("t1", days_ago=60, device_id="dev-1")}
+    coord = _make_coord(tasks)
+
+    async def _keep_all(tids):
+        coord.store.calls.append(list(tids))
+        return []
+
+    coord.store.delete_tasks = _keep_all
+    asyncio.run(coord._purge_expired_one_offs())
+    assert coord.store.calls == [["t1"]]
+    assert coord.hass.created == []
+
+
 def test_purge_noop_when_nothing_expired():
     """Retention not yet elapsed → nothing deleted, no reload."""
     tasks = {"t1": _one_off("t1", days_ago=5, device_id="dev-1")}
     coord = _make_coord(tasks)
     asyncio.run(coord._purge_expired_one_offs())
     assert coord.store.deleted == []
+    assert coord.store.calls == []
     assert coord.hass.created == []
 
 
@@ -220,6 +261,68 @@ def test_purge_disabled_when_retention_zero():
     asyncio.run(coord._purge_expired_one_offs())
     assert coord.store.deleted == []
     assert coord.hass.created == []
+
+
+# ── a lowered retention waits one tick (X12-1) ─────────────────────────────
+class _FakeWriteEntries:
+    """The two calls ``async_set_options`` makes, with no reload behind them."""
+
+    def async_update_entry(self, entry, *, options) -> None:
+        entry.options = options
+
+    async def async_reload(self, entry_id: str) -> None:
+        return None
+
+
+def _write_retention(coord, days: int) -> None:
+    hass = types.SimpleNamespace(config_entries=_FakeWriteEntries())
+    asyncio.run(
+        real_options.async_set_options(
+            hass,
+            coord.config_entry,
+            {
+                coordinator.OPTION_ONE_OFF_RETENTION_DAYS: days,
+            },
+        )
+    )
+
+
+def test_x12_1_the_reload_that_lowers_retention_deletes_no_task():
+    """X12-1: the panel used to save "3" on the way to "30", and the reload of that
+    save deleted every one-off completed more than 3 days ago. The first purge after a
+    write that lowers the retention now skips, and the next periodic one applies it."""
+    tasks = {"t1": _one_off("t1", days_ago=10, device_id=None)}
+    coord = _make_coord(tasks, retention=0)
+    _write_retention(coord, 3)
+
+    asyncio.run(coord._purge_expired_one_offs())
+    assert coord.store.deleted == []
+
+    # One tick later the stored value applies, as the user asked.
+    asyncio.run(coord._purge_expired_one_offs())
+    assert coord.store.deleted == ["t1"]
+
+
+def test_x12_1_the_next_keystroke_replaces_the_partial_value_before_a_purge():
+    """X12-1: "3" then "30". The partial value never reaches a purge."""
+    tasks = {"t1": _one_off("t1", days_ago=10, device_id=None)}
+    coord = _make_coord(tasks, retention=0)
+    _write_retention(coord, 3)
+    asyncio.run(coord._purge_expired_one_offs())  # the reload of the "3"
+    _write_retention(coord, 30)
+    asyncio.run(coord._purge_expired_one_offs())  # the reload of the "30"
+    asyncio.run(coord._purge_expired_one_offs())  # a later tick
+    assert coord.store.deleted == []
+
+
+def test_x12_1_a_raised_retention_purges_in_its_own_reload():
+    """X12-1: only a lower value waits. A higher one can delete no more than before,
+    so its reload purges at once, as it always did."""
+    tasks = {"t1": _one_off("t1", days_ago=60, device_id=None)}
+    coord = _make_coord(tasks, retention=10)
+    _write_retention(coord, 30)
+    asyncio.run(coord._purge_expired_one_offs())
+    assert coord.store.deleted == ["t1"]
 
 
 # ── settling a stock change ──────────────────────────────────────────────────
@@ -251,13 +354,19 @@ def _settle_coord(entity_set_changed: bool):
     return coord, calls
 
 
-def test_a_stock_change_shows_at_once_before_the_debounced_refresh():
+def test_a_stock_change_shows_at_once_before_the_debounced_refresh(monkeypatch):
     # The spares number reads the store, so it can show the new count now. The
     # refresh is debounced, and waiting for it left a card's badge a count behind for
-    # up to 10 seconds after the tap that changed it.
+    # up to 10 seconds after the tap that changed it. Only the part entities get the
+    # early write, by the signal (X08-5).
     coord, calls = _settle_coord(entity_set_changed=False)
+    monkeypatch.setattr(
+        coordinator,
+        "async_dispatcher_send",
+        lambda hass, signal: calls.append(signal),
+    )
     asyncio.run(coord.async_settle_buy_tasks())
-    assert calls == ["listeners", "refresh"]
+    assert calls == [coordinator.SIGNAL_PART_STOCK_CHANGED, "refresh"]
 
 
 def test_a_buy_task_change_reloads_instead():

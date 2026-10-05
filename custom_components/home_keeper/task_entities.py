@@ -14,10 +14,13 @@ entity's name.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import Any
 
 from .declarative_companions import declarative_source
 from .notifications import is_completion_blocked
+from .problem_tasks import problem_source
+from .tags import completion_allowed
 
 # Separators left over when the device name is cut off the start or end of a task
 # name: "Kitchen Sensor: Check battery" -> ": Check battery" -> "Check battery".
@@ -50,7 +53,26 @@ def _strip_device_name(name: str, device_name: str) -> str:
     return name.strip(_TRIM)
 
 
-def entity_name_prefix(task: dict[str, Any], device_name: str | None) -> str:
+def _shares_companion_on_device(
+    task: dict[str, Any], tasks: Iterable[dict[str, Any]]
+) -> bool:
+    """Whether another enabled task of *task*'s companion is on the same device."""
+    source = declarative_source(task) or {}
+    for other in tasks:
+        if other.get("id") == task.get("id") or not other.get("enabled", True):
+            continue
+        if other.get("device_id") != task.get("device_id"):
+            continue
+        if (declarative_source(other) or {}).get("spec_id") == source.get("spec_id"):
+            return True
+    return False
+
+
+def entity_name_prefix(
+    task: dict[str, Any],
+    device_name: str | None,
+    tasks: Iterable[dict[str, Any]] = (),
+) -> str:
     """The label for *task* in front of its entity names on *device_name*'s page.
 
     A declarative companion task uses the companion name: it is short, the user chose
@@ -58,14 +80,35 @@ def entity_name_prefix(task: dict[str, Any], device_name: str | None) -> str:
     device name, which Home Assistant adds again, so it made long, repeated names and
     entity_ids (#377). Any other task uses its name without the device name at its start
     or end, or its whole name when nothing else is left. The caller adds the ``": "``.
+
+    *tasks* is every task. When one companion has more than one enabled task on the
+    device, as a printer preset has one per ink, the companion name is the same on
+    each, so each task uses its own name as any other task does (B15-1).
     """
     companion = companion_name(task)
-    if companion is not None:
+    if companion is not None and not _shares_companion_on_device(task, tasks):
         return companion
     name = str(task.get("name") or "").strip()
     if not name or not device_name or not device_name.strip():
         return name
     return _strip_device_name(name, device_name) or name
+
+
+def has_mark_done_button(task: dict[str, Any]) -> bool:
+    """Whether a device-attached *task* gets a mark-done button.
+
+    The button completes the task with no origin. A task that refuses that
+    completion gets no button, because each press can only fail (B15-2):
+
+    * a problem-sensor task: the integration that owns the sensor clears it.
+    * a declarative companion task that clears itself (``completion_blocked``).
+    * a task with ``require_tag_scan``: only a scan of its tag completes it.
+    """
+    return (
+        problem_source(task) is None
+        and not is_completion_blocked(task)
+        and completion_allowed(task, None)
+    )
 
 
 def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
@@ -79,15 +122,17 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
     * ``name`` and the companion name are in the key because Home Assistant caches an
       entity's computed ``name``. Making the entity again on reload is how a rename
       reaches the device page (and how a self-owned task device gets its new name).
-    * ``completion_blocked`` is in the key because it decides whether the task has a
-      mark-done button at all.
+    * ``completion_blocked`` and ``require_tag_scan`` are in the key because they
+      decide whether the task has a mark-done button at all
+      (:func:`has_mark_done_button`).
     """
     if not task:
-        return (None, False, None, None, False)
+        return (None, False, None, None, False, False)
     return (
         task.get("device_id"),
         bool(task.get("enabled", True)),
         task.get("name"),
         companion_name(task),
         is_completion_blocked(task),
+        bool(task.get("require_tag_scan")),
     )

@@ -12,6 +12,7 @@ from __future__ import annotations
 import calendar as _calendar
 import math
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -57,6 +58,18 @@ EDGE_ONLY_SENSOR_FIELDS = ("for_seconds", "clear_on_recover")
 
 class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
+
+
+class StoreClosedError(RuntimeError):
+    """A write reached a store that an unload closed (X02-2).
+
+    A reload builds a new store that loads the file again. A pass that started
+    before the unload still holds the old store, and its save would write the old
+    snapshot over the new one. The closed store refuses the save instead.
+
+    Defined here, in the pure core, so the upload view can catch it with no import
+    of ``store``. ``store`` imports it from here.
+    """
 
 
 def _finite_float(value: Any, field: str) -> float:
@@ -137,6 +150,35 @@ def normalize_completion_metadata(
     return result
 
 
+def normalize_entry_edit_metadata(
+    data: Any, *, allow_reading: bool, stored_reading: Any
+) -> dict[str, Any]:
+    """Clean the metadata for an edit of a logged completion or skip.
+
+    When the task records readings, this is :func:`normalize_completion_metadata`.
+    When it does not (its type or sensor mode changed after the entry was logged), the
+    entry can still keep the reading it has. An edit form sends that reading back, so a
+    reading equal to *stored_reading* is not a change, and an absent one does not
+    clear it: the reading box is not shown for this task, so the user cannot mean to
+    clear it. Only a new, different reading is refused (F10-1).
+    """
+    if allow_reading:
+        return normalize_completion_metadata(data, allow_reading=True)
+    rest = dict(data) if isinstance(data, dict) else {}
+    reading = rest.pop("reading", None)
+    changed = reading is not None and reading != ""
+    if changed and (
+        stored_reading is None or _finite_float(reading, "reading") != stored_reading
+    ):
+        raise TaskValidationError(
+            "reading is only valid for a sensor task with a numeric binding"
+        )
+    result = normalize_completion_metadata(rest)
+    if stored_reading is not None:
+        result["reading"] = stored_reading
+    return result
+
+
 def task_records_reading(task: Any) -> bool:
     """Whether completing *task* should record the bound sensor's reading.
 
@@ -196,7 +238,8 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError(
             "sensor.also_every.interval must be a valid integer"
         ) from err
@@ -212,6 +255,10 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
     return {"interval": interval, "unit": unit}
 
 
+MAX_FOR_SECONDS = 365 * 24 * 3600
+"""The longest ``for_seconds`` hold a sensor binding can ask for: 1 year."""
+
+
 def _normalize_for_seconds(data: dict[str, Any]) -> int:
     """Validate the optional ``for_seconds`` hold shared by edge-driven modes.
 
@@ -222,10 +269,17 @@ def _normalize_for_seconds(data: dict[str, Any]) -> int:
     raw_for = data.get("for_seconds") or 0
     try:
         for_seconds = int(raw_for)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("sensor.for_seconds must be an integer") from err
     if for_seconds < 0:
         raise TaskValidationError("sensor.for_seconds must be >= 0")
+    # A bound keeps the value inside a 64-bit integer, which the store file can hold,
+    # and inside the range of a timedelta (B04-8).
+    if for_seconds > MAX_FOR_SECONDS:
+        raise TaskValidationError(
+            f"sensor.for_seconds must be at most {MAX_FOR_SECONDS} (1 year)"
+        )
     return for_seconds
 
 
@@ -247,6 +301,7 @@ def normalize_sensor(
     *,
     allow_missing_entity: bool = False,
     allow_missing_template: bool = False,
+    allow_missing_value: bool = False,
 ) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
@@ -305,6 +360,12 @@ def normalize_sensor(
     per row, so the preview still says what it cannot decide. Nothing that **saves** a
     binding passes this: ``add_task``, ``update_task`` and the add/update companion
     commands all leave it at ``False``.
+
+    ``allow_missing_value`` opts out of the gates for an empty ``target`` (usage),
+    ``value`` (threshold) and ``state`` (state), for the same preview alone (F06-3).
+    The companion dialog leaves the box empty after a switch to one of these modes,
+    and the match list does not depend on the box. An empty field is left out of
+    the result. A field that is set is still checked.
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")
@@ -335,11 +396,13 @@ def normalize_sensor(
                 )
         target_raw = data.get("target")
         if target_raw is None or target_raw == "":
-            raise TaskValidationError("sensor.target must be a number")
-        target = _finite_float(target_raw, "sensor.target")
-        if target <= 0:
-            raise TaskValidationError("sensor.target must be > 0")
-        result["target"] = target
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.target must be a number")
+        else:
+            target = _finite_float(target_raw, "sensor.target")
+            if target <= 0:
+                raise TaskValidationError("sensor.target must be > 0")
+            result["target"] = target
         baseline_raw = data.get("baseline")
         if baseline_raw is not None and baseline_raw != "":
             result["baseline"] = _finite_float(baseline_raw, "sensor.baseline")
@@ -363,11 +426,12 @@ def normalize_sensor(
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
         value_raw = data.get("value")
-        if value_raw is None or value_raw == "":
-            raise TaskValidationError("sensor.value must be a number")
-        value = _finite_float(value_raw, "sensor.value")
         result["comparison"] = comparison
-        result["value"] = value
+        if value_raw is None or value_raw == "":
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.value must be a number")
+        else:
+            result["value"] = _finite_float(value_raw, "sensor.value")
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
@@ -378,14 +442,18 @@ def normalize_sensor(
             (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "template"),
             "state",
         )
-        state = str(data.get("state") or "").strip()
-        if not state:
+        # A bare ``state: on`` in YAML is the boolean ``True``, and ``str()`` stored it
+        # as ``"True"``, which no entity reports (B08-2). YAML also reads yes and no
+        # as booleans, so a mapping to ``on`` and ``off`` would guess.
+        state = str(_reject_boolean(data.get("state"), "sensor.state") or "").strip()
+        if not state and not allow_missing_value:
             raise TaskValidationError("sensor.state is required")
         if len(state) > MAX_SENSOR_STATE_LEN:
             raise TaskValidationError(
                 f"sensor.state must be <= {MAX_SENSOR_STATE_LEN} characters"
             )
-        result["state"] = state
+        if state:
+            result["state"] = state
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
@@ -404,11 +472,13 @@ def normalize_sensor(
             result["for_seconds"] = for_seconds
         # ``clear_on_recover`` defaults to True in this mode (an offline device
         # returning to reachable *is* the recovery signal); the panel still surfaces
-        # a checkbox, and an explicit ``False`` disables auto-clear. Stored only when
-        # True so a dict-equality test does not care about default padding.
+        # a checkbox, and an explicit ``False`` disables auto-clear. Always stored, so
+        # a second pass reads the same value: a dropped ``False`` would come back as
+        # the default True on the next normalize (F06-2).
         clear_on_recover = data.get("clear_on_recover")
-        if clear_on_recover is None or bool(clear_on_recover):
-            result["clear_on_recover"] = True
+        result["clear_on_recover"] = (
+            True if clear_on_recover is None else bool(clear_on_recover)
+        )
     else:  # SENSOR_MODE_TEMPLATE
         # The condition is one Jinja template, so every operator and target field
         # belongs to another mode. ``attribute`` goes too: a template reads
@@ -454,6 +524,30 @@ def normalize_tag_id(value: Any) -> str | None:
     if not isinstance(value, str):
         raise TaskValidationError("tag_id must be a string")
     return value.strip() or None
+
+
+def normalize_snooze_hours(value: Any) -> int | None:
+    """Normalize a task's ``snooze_hours`` — how long Snooze moves this task.
+
+    ``None`` or an empty string means "no length of its own": the snooze dialog opens
+    on its usual preset and a notification's Snooze button uses the notification's
+    own ``snooze_hours``. Anything else must be a whole number of hours, 1 or more.
+    A boolean is refused, because ``True`` is an ``int`` in Python and would store as
+    a 1-hour snooze.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, float) and value.is_integer():
+        hours = int(value)
+    elif isinstance(value, int) and not isinstance(value, bool):
+        hours = value
+    elif isinstance(value, str) and value.strip().removeprefix("-").isdigit():
+        hours = int(value.strip())
+    else:
+        raise TaskValidationError("snooze_hours must be a whole number of hours")
+    if hours < 1:
+        raise TaskValidationError("snooze_hours must be at least 1")
+    return hours
 
 
 def _reject_boolean(value: Any, field: str) -> Any:
@@ -891,7 +985,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
         raise TaskValidationError("interval must be >= 1")
@@ -965,6 +1060,35 @@ def validate_source(source: Any) -> None:
     """
     if source is not None and not isinstance(source, dict):
         raise TaskValidationError("source must be a mapping")
+
+
+def merge_source(
+    existing: Any, update: Any, *, reserved: Iterable[str]
+) -> dict[str, Any] | None:
+    """The ``source`` of a task after an ``update_task`` call (B02-4).
+
+    Each namespace in *update* replaces the stored one, and a namespace set to
+    ``None`` is removed. The other stored namespaces stay, so an integration
+    changes only its own (see "Every writer merges into ``source``" in
+    ``docs/INTEGRATING.md``). A *reserved* namespace belongs to a Home Keeper
+    reconciler, so a call that names one is rejected, as ``add_task`` does.
+    """
+    validate_source(update)
+    if not update:
+        return existing if isinstance(existing, dict) else None
+    blocked = sorted(set(update) & set(reserved))
+    if blocked:
+        raise TaskValidationError(
+            f"source keys {blocked} are reserved for Home Keeper's own task "
+            "reconcilers and cannot be set via update_task"
+        )
+    merged = dict(existing) if isinstance(existing, dict) else {}
+    for namespace, payload in update.items():
+        if payload is None:
+            merged.pop(namespace, None)
+        else:
+            merged[namespace] = payload
+    return merged or None
 
 
 def validate_managed_by(managed_by: Any) -> None:
@@ -1121,6 +1245,8 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # way to complete it (a physical presence check: you have to be at the thing).
         "tag_id": tag_id,
         "require_tag_scan": require_tag_scan,
+        # How long Snooze moves this task, in hours, or None for the usual lengths.
+        "snooze_hours": normalize_snooze_hours(data.get("snooze_hours")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -1158,6 +1284,42 @@ def build_task(data: dict, *, now: datetime) -> dict:
     return task
 
 
+def _same_schedule_value(key: str, new: Any, old: Any) -> bool:
+    """Whether 2 values of a schedule field mean the same schedule (B08-1).
+
+    ``due`` and ``anchor`` compare as instants, to the second: the panel keeps
+    milliseconds or no fraction, and a service keeps microseconds. ``active_season``
+    compares as the (month, day) pairs of its windows, so ``"4-1"`` and ``"04-01"``
+    are equal. Text that does not parse compares as text.
+    """
+    if key == "active_season":
+        return _season_key(new) == _season_key(old)
+    try:
+        return datetime.fromisoformat(str(new)).replace(
+            microsecond=0
+        ) == datetime.fromisoformat(str(old)).replace(microsecond=0)
+    except ValueError:
+        return bool(new == old)
+
+
+def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    """The windows of *season* as (month, day) pairs.
+
+    Both values went through :func:`normalize_active_season`, so they parse.
+    """
+    if not season:
+        return []
+    return [
+        (recurrence._parse_mmdd(w["start"]), recurrence._parse_mmdd(w["end"]))
+        for w in recurrence._normalize_season(season)
+    ]
+
+
+# Fields that only some recurrence types use. A type change removes the ones that
+# the new type does not use (see merge_update).
+_TYPE_SCHEDULE_KEYS = ("interval", "unit", "freq", "anchor", "due", "sensor")
+
+
 def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
@@ -1176,6 +1338,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             updates = {k: v for k, v in updates.items() if k not in locked}
 
     merged = dict(existing)
+    old_type = existing.get("recurrence_type")
+    type_changed = (
+        "recurrence_type" in updates and updates["recurrence_type"] != old_type
+    )
     # Build a candidate field set from existing + updates, then normalize so the
     # same validation applies to edits as to creation.
     candidate = {
@@ -1216,6 +1382,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         candidate["rrule"] = _rule_after_legacy_edit(
             existing["rrule"], updates.get("freq"), updates.get("interval")
         )
+    if type_changed:
+        # A type change reads the due date and the sensor binding only from the
+        # update. A value stored for an earlier type is stale: an old due date made
+        # a task converted back to one-off overdue at once (B08-7).
+        candidate["due"] = updates.get("due")
+        candidate["sensor"] = updates.get("sensor")
     # Converting a task to one-off without supplying a due date defaults to now (due
     # today), mirroring build_task — so the conversion can't fail for a missing due
     # (the panel always sends one, but a service caller may not).
@@ -1223,6 +1395,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         candidate["due"] = now.isoformat()
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
+    if type_changed:
+        # Remove the schedule fields that the new type does not use, so the task
+        # has the shape that build_task gives it (B08-7).
+        for key in _TYPE_SCHEDULE_KEYS:
+            if key not in fields:
+                merged.pop(key, None)
     if merged.get("recurrence_type") == REC_FIXED:
         # The rule replaced the legacy pair; a stale copy would contradict it.
         merged.pop("freq", None)
@@ -1249,19 +1427,28 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         merged.pop("moved_occurrences", None)
 
     # Preserve a usage meter's accumulated baseline across edits. The panel's edit
-    # payload rebuilds the ``sensor`` binding from form fields and never carries the
-    # watcher-stamped ``baseline``, so without this a plain rename or target tweak
-    # would drop it and the watcher would re-anchor to the current reading — silently
-    # resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
-    # the binding still points at the same entity in usage mode and the update didn't
-    # set one explicitly; changing the entity (a genuinely new meter) re-baselines.
+    # payload rebuilds the ``sensor`` binding from form fields and sends ``baseline``
+    # only when the user changed the box, so without this a plain rename or target
+    # tweak would drop it and the watcher would re-anchor to the current reading —
+    # silently resetting "12,000 of 15,000" to zero. Carry the old baseline forward
+    # only when the binding still points at the same entity in usage mode and the
+    # update didn't set one explicitly; changing the entity (a genuinely new meter)
+    # re-baselines.
+    #
+    # The old binding must be a usage binding of a sensor task that reads the same
+    # quantity: the same entity and the same attribute. A different attribute is a
+    # different meter, and a sensor block kept from before a type change is stale
+    # (B08-5).
     new_sensor = merged.get("sensor")
     old_sensor = existing.get("sensor")
     if (
         isinstance(new_sensor, dict)
         and new_sensor.get("mode") == SENSOR_MODE_USAGE
+        and old_type == REC_SENSOR
         and isinstance(old_sensor, dict)
+        and old_sensor.get("mode") == SENSOR_MODE_USAGE
         and old_sensor.get("entity_id") == new_sensor.get("entity_id")
+        and old_sensor.get("attribute") == new_sensor.get("attribute")
         and "baseline" not in new_sensor
         and old_sensor.get("baseline") is not None
     ):
@@ -1298,6 +1485,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         merged["tag_id"] = normalize_tag_id(updates["tag_id"])
     if "require_tag_scan" in updates:
         merged["require_tag_scan"] = bool(updates["require_tag_scan"])
+    # The snooze length follows the same rule: send ``None`` to clear it.
+    if "snooze_hours" in updates:
+        merged["snooze_hours"] = normalize_snooze_hours(updates["snooze_hours"])
     # Checked against the *merged* task rather than the payload: requiring a scan with
     # no tag to scan would lock the task out of every completion surface, and that
     # state is reachable by clearing the tag alone (leaving the flag standing) just as
@@ -1323,7 +1513,6 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "active_season",
     }
     new_type = merged.get("recurrence_type")
-    old_type = existing.get("recurrence_type")
     # Recompute only when a recurrence field's *value* actually changed — not merely
     # because the key is present in the payload. The panel's edit form always sends
     # recurrence_type/due (and interval/unit for scheduled tasks), so keying off
@@ -1331,6 +1520,16 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # (next_due derived from its past ``due``) and silently cancelled a snooze
     # (next_due snapped back to the schedule). Comparing merged-vs-existing keeps a
     # no-op field edit a no-op while still rescheduling on a genuine change.
+    #
+    # The comparison is by meaning, not by text (B08-1). The panel sends a date as UTC
+    # text with milliseconds, and a service stores it with the local offset and
+    # microseconds. The same instant in 2 forms is not a change, so the stored text
+    # stays and ``next_due`` stays.
+    for key in ("due", "anchor", "active_season"):
+        if key in updates and _same_schedule_value(
+            key, merged.get(key), existing.get(key)
+        ):
+            merged[key] = existing.get(key)
     recurrence_changed = any(
         key in updates and merged.get(key) != existing.get(key)
         for key in recurrence_keys

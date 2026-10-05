@@ -408,6 +408,20 @@ def test_state_is_required(state):
         )
 
 
+@pytest.mark.parametrize("state", [True, False])
+def test_b08_2_state_rejects_a_yaml_boolean(state):
+    # B08-2: YAML reads a bare ``state: on`` as True, and ``str()`` stored "True",
+    # which no entity reports. ``state: off`` failed as "is required" instead.
+    with raises_exactly(
+        m.TaskValidationError,
+        "sensor.state must be text. YAML reads a bare yes, no, on and off as true "
+        "or false, so put quotation marks around the value.",
+    ):
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "state", "state": state}
+        )
+
+
 def test_state_over_length_rejected():
     # Home Assistant caps a state at 255 chars, so a longer one could never match.
     with raises_exactly(
@@ -793,7 +807,21 @@ def test_availability_clear_on_recover_can_be_disabled():
             "clear_on_recover": False,
         }
     )
-    assert "clear_on_recover" not in cfg
+    assert cfg["clear_on_recover"] is False
+
+
+def test_f06_2_availability_clear_on_recover_off_survives_a_second_normalize():
+    # The declarative reconciler and build_task normalize the binding again. A dropped
+    # False read back as the default True, so auto-clear could never be turned off.
+    once = m.normalize_sensor(
+        {"entity_id": "sensor.node", "mode": "availability", "clear_on_recover": False}
+    )
+    twice = m.normalize_sensor(once)
+    assert twice == once
+    assert twice["clear_on_recover"] is False
+    default = m.normalize_sensor({"entity_id": "sensor.node", "mode": "availability"})
+    assert m.normalize_sensor(default) == default
+    assert default["clear_on_recover"] is True
 
 
 @pytest.mark.parametrize(
@@ -1178,3 +1206,117 @@ def test_template_mode_works_without_an_entity_id_for_a_companion():
     )
     assert "entity_id" not in cfg
     assert cfg["template"] == TEMPLATE_SRC
+
+
+# ── F06-3: allow_missing_value for the companion preview ───────────────────
+@pytest.mark.parametrize(
+    ("binding", "expected"),
+    [
+        ({"mode": "usage", "target": ""}, {"mode": "usage"}),
+        ({"mode": "usage"}, {"mode": "usage"}),
+        (
+            {"mode": "threshold", "comparison": ">", "value": None},
+            {"mode": "threshold", "comparison": ">"},
+        ),
+        (
+            {"mode": "threshold", "comparison": ">", "value": ""},
+            {"mode": "threshold", "comparison": ">"},
+        ),
+        ({"mode": "state", "state": "  "}, {"mode": "state"}),
+        ({"mode": "state"}, {"mode": "state"}),
+    ],
+)
+def test_f06_3_allow_missing_value_accepts_an_empty_box(binding, expected):
+    cfg = m.normalize_sensor(
+        binding, allow_missing_entity=True, allow_missing_value=True
+    )
+    assert cfg == expected
+
+
+@pytest.mark.parametrize(
+    ("binding", "message"),
+    [
+        ({"mode": "usage", "target": ""}, "sensor.target must be a number"),
+        (
+            {"mode": "threshold", "comparison": ">", "value": ""},
+            "sensor.value must be a number",
+        ),
+        ({"mode": "state", "state": ""}, "sensor.state is required"),
+    ],
+)
+def test_f06_3_allow_missing_value_is_off_by_default(binding, message):
+    with raises_exactly(m.TaskValidationError, message):
+        m.normalize_sensor(binding, allow_missing_entity=True)
+
+
+@pytest.mark.parametrize(
+    ("binding", "message"),
+    [
+        ({"mode": "usage", "target": 0}, "sensor.target must be > 0"),
+        ({"mode": "usage", "target": "x"}, "sensor.target must be a number"),
+        (
+            {"mode": "threshold", "comparison": ">", "value": "nan"},
+            "sensor.value must be a finite number",
+        ),
+        (
+            {"mode": "threshold", "comparison": "~", "value": ""},
+            "invalid sensor comparison: '~'",
+        ),
+        (
+            {"mode": "state", "state": "x" * 256},
+            "sensor.state must be <= 255 characters",
+        ),
+    ],
+)
+def test_f06_3_allow_missing_value_still_checks_a_set_value(binding, message):
+    with raises_exactly(m.TaskValidationError, message):
+        m.normalize_sensor(binding, allow_missing_entity=True, allow_missing_value=True)
+
+
+@pytest.mark.parametrize(
+    ("binding", "key", "value"),
+    [
+        ({"mode": "usage", "target": "5"}, "target", 5.0),
+        ({"mode": "threshold", "comparison": "<", "value": "3"}, "value", 3.0),
+        ({"mode": "state", "state": " on "}, "state", "on"),
+    ],
+)
+def test_f06_3_allow_missing_value_keeps_a_set_value(binding, key, value):
+    cfg = m.normalize_sensor(
+        binding, allow_missing_entity=True, allow_missing_value=True
+    )
+    assert cfg[key] == value
+
+
+def test_b04_8_for_seconds_has_an_upper_bound():
+    year = 365 * 24 * 3600
+    assert year == m.MAX_FOR_SECONDS
+    ok = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 1,
+            "for_seconds": year,
+        }
+    )
+    assert ok["for_seconds"] == year
+    with pytest.raises(m.TaskValidationError, match="at most 31536000"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 1,
+                "for_seconds": 99999999999999999999999,
+            }
+        )
+    with pytest.raises(m.TaskValidationError, match="at most"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "state",
+                "state": "on",
+                "for_seconds": year + 1,
+            }
+        )

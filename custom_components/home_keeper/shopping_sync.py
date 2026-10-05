@@ -24,6 +24,7 @@ from homeassistant.components.todo import TodoListEntityFeature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from . import shopping
 from .const import (
@@ -132,9 +133,9 @@ class ShoppingListSync(TodoSyncDriver):
         ):
             return False
 
+        to_read = shopping.lists_to_read(tracked, target=target)
         items_by_entity = await self._read_lists(
-            shopping.lists_to_read(tracked, target=target),
-            targets={target} if target else set(),
+            to_read, targets={target} if target else set()
         )
         if self._stopped:
             return False
@@ -144,6 +145,8 @@ class ShoppingListSync(TodoSyncDriver):
             items_by_entity=items_by_entity,
             target=target,
             capabilities={eid: self._capabilities(eid) for eid in items_by_entity},
+            now=dt_util.now(),
+            gone=self._gone_lists(to_read),
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:
@@ -152,8 +155,16 @@ class ShoppingListSync(TodoSyncDriver):
         # Persist before settling: the reconcile below re-enters this class, and
         # what it finds should be what this pass concluded.
         await store.async_set_shopping_items(settled)
+        # A line moved off the old list goes on the new list in the next pass, which
+        # the planner holds until the remove has landed (B11-4).
+        moved = bool(target) and any(
+            op.key in desired
+            and not desired[op.key]["completed"]
+            and op.key not in settled
+            for op in plan.remove
+        )
         if not completed:
-            return False
+            return moved
         # Completing a buy reminder restocks the part, which normally lifts it
         # back above its threshold — the reconciler then retires the reminder, and
         # the next pass tidies whatever that leaves on the list.

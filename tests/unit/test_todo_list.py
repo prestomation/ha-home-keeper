@@ -12,9 +12,11 @@ live with the rest of the profile, in ``test_profiles.py``.
 """
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import hk_profiles as profiles
 import hk_todo_list as tm
+import pytest
 
 LIST = "todo.family"
 OTHER = "todo.chores"
@@ -136,6 +138,7 @@ def _plan(
     lists=None,
     caps=None,
     now=NOW,
+    gone=frozenset(),
 ):
     """Run one pass. *items* is LIST's contents (None = unreadable list)."""
     if lists is None:
@@ -147,6 +150,7 @@ def _plan(
         items_by_entity=lists,
         capabilities=CAPS if caps is None else caps,
         now=now,
+        gone=gone,
     )
 
 
@@ -155,8 +159,56 @@ def _plan(
 
 def test_sync_key_names_one_task_on_one_profiles_list():
     assert tm.sync_key("m1", "t1") == "m1:t1"
-    # The first colon splits it, so a task id may hold one of its own.
-    assert tm.sync_key("m1", "t:1").partition(":")[2] == "t:1"
+    # A known profile id splits it, so a profile id may hold a colon (B19-2)...
+    key = tm.sync_key("kids:chores", "t1")
+    assert tm.split_sync_key(key, ["kids:chores"]) == ("kids:chores", "t1")
+    # ...and the longest known id wins.
+    assert tm.split_sync_key(key, ["kids", "kids:chores"]) == ("kids:chores", "t1")
+    assert tm.split_sync_key(key, ["kids:chores", "kids"]) == ("kids:chores", "t1")
+    # A task id may hold one too.
+    assert tm.split_sync_key("m1:t:1", ["m1"]) == ("m1", "t:1")
+    # A key no profile matches splits at its first colon.
+    assert tm.split_sync_key("m1:t:1", []) == ("m1", "t:1")
+    assert tm.split_sync_key("m1:t:1", ["m"]) == ("m1", "t:1")
+    assert tm.split_sync_key("m1", []) == ("m1", "")
+
+
+def test_b19_2_a_profile_id_with_a_colon_settles():
+    pid = "kids:chores"
+    key = tm.sync_key(pid, T1)
+    synced = [_synced_profile(mid=pid)]
+    tracked = {key: _entry(uid="i1")}
+    desired = _desired([_want()], profile_id=pid)
+    plan = _plan(
+        synced=synced, tracked=tracked, desired=desired, items=[_item(uid="i1")]
+    )
+    assert plan.add == []
+    assert plan.remove == []
+    assert plan.tracked == tracked
+    assert tm.needs_pass(tracked=tracked, desired=desired, synced=synced) is False
+
+
+def test_b10_6_a_key_splits_after_the_longest_known_profile_id():
+    key = tm.sync_key("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids:weekly"]) == ("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids", "kids:weekly"]) == ("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids:weekly", "kids"]) == ("kids:weekly", "t1")
+    # A known id must be followed by the separator, not only be a prefix.
+    assert tm.split_sync_key("kidsx:t1", ["kids"]) == ("kidsx", "t1")
+    # A key of a deleted profile splits at its first colon.
+    assert tm.split_sync_key(key, ["m1"]) == ("kids", "weekly:t1")
+    assert tm.split_sync_key("m1:t:1", ["m1"]) == ("m1", "t:1")
+
+
+def test_b10_6_a_colon_in_a_profile_id_gives_a_settled_pass():
+    profile = _synced_profile("kids:weekly")
+    key = tm.sync_key("kids:weekly", T1)
+    tracked = _tracked(key=key)
+    desired = _desired([_want()], profile_id="kids:weekly")
+    assert tm.needs_pass(tracked=tracked, desired=desired, synced=[profile]) is False
+    plan = _plan(synced=[profile], tracked=tracked, desired=desired, items=[_item()])
+    assert (plan.add, plan.update, plan.remove, plan.complete) == ([], [], [], [])
+    assert plan.tracked == tracked
 
 
 # ── completed_since ───────────────────────────────────────────────────────────
@@ -296,6 +348,24 @@ def test_desired_by_sync_reduces_a_due_instant_to_the_date_a_list_holds():
     task = _task(due="2026-06-14T23:30:00-04:00")
     wanted = tm.desired_by_sync([_synced_profile()], [task], now=NOW)
     assert wanted[M1][T1]["due"] == DUE
+
+
+def test_x04_1_a_utc_due_is_dated_in_home_assistants_zone_not_utc():
+    # X04-1: the panel stores a one-off due (and a snooze) in UTC. 19:00 on the
+    # 5th in a UTC-7 zone is 02:00 on the 6th in UTC, and the native to-do list
+    # dates it the 5th (#250), so the synced list has to say the 5th too.
+    evening = datetime(2026, 10, 5, 19, 0, tzinfo=timezone(timedelta(hours=-7)))
+    task = _task(due="2026-10-06T02:00:00+00:00")
+    wanted = tm.desired_by_sync([_synced_profile()], [task], now=evening)
+    assert wanted[M1][T1]["due"] == "2026-10-05"
+
+
+def test_x04_1_a_utc_due_lands_on_the_local_date_east_of_utc_too():
+    # X04-1, the other side: 22:30 UTC on the 4th is 00:30 on the 5th in UTC+2.
+    morning = datetime(2026, 10, 5, 9, 0, tzinfo=timezone(timedelta(hours=2)))
+    task = _task(due="2026-10-04T22:30:00+00:00")
+    wanted = tm.desired_by_sync([_synced_profile()], [task], now=morning)
+    assert wanted[M1][T1]["due"] == "2026-10-05"
 
 
 def test_desired_by_sync_carries_a_task_without_notes_as_an_empty_description():
@@ -621,7 +691,9 @@ def test_completing_the_task_ticks_the_item_off_and_the_next_one_is_fresh():
     assert plan.tracked == {KEY: _added(due="2026-09-14", last_completed=DONE_ISO)}
 
 
-def test_completing_a_task_that_is_done_for_good_only_ticks_the_item_off():
+def test_b10_9_a_completion_that_leaves_the_profile_removes_the_item():
+    # The task no longer matches the profile after its completion (a one-off that
+    # is done, or an overdue task that is rescheduled), so the item is removed.
     plan = _plan(
         tracked=_tracked(),
         desired={M1: {}},
@@ -808,6 +880,101 @@ def test_a_vanished_item_is_re_added_when_the_sync_is_one_way():
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
 
 
+def test_b10_1_deleting_the_bound_item_beside_an_old_ticked_record_re_adds_it():
+    # B10-1 / B09-1: last cycle's ticked line "old" stays on the list as the
+    # record. The household deletes this cycle's line "i1". The uid is gone, and
+    # the old record reads the same, but it is not our line: with vanish read as
+    # deletion, the chore goes back on the list and nothing is completed.
+    plan = _plan(
+        synced=[_synced_profile(vanish_as_completed=False)],
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+
+
+def test_b10_1_a_one_way_sync_re_adds_a_deleted_item_beside_an_old_record():
+    # B10-1: with two-way off the old record froze the entry, so the deleted
+    # chore never came back.
+    plan = _plan(
+        synced=[_synced_profile(two_way=False)],
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(uid="old", status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+
+
+def test_b10_3_a_vanished_item_completed_in_home_keeper_is_not_completed_again():
+    # B10-3: Home Keeper recorded the completion, then the line went. The line
+    # going is that completion, not a second one.
+    plan = _plan(
+        tracked=_tracked(_entry(last_completed=OLD_ISO)),
+        desired=_desired([_want(last_completed=DONE_ISO)]),
+        items=[],
+    )
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+
+
+def test_b10_3_a_vanished_item_with_no_new_completion_still_completes_the_task():
+    # B10-3, the other half: the snapshot and the task agree, so the line going
+    # is the household's tick and the task completes.
+    plan = _plan(
+        tracked=_tracked(_entry(last_completed=OLD_ISO)),
+        desired=_desired([_want(last_completed=OLD_ISO)]),
+        items=[],
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+
+
+def test_b10_3_two_profiles_ticking_one_task_complete_it_once():
+    # B10-3: two profiles hold one task on two lists and both lines are ticked in
+    # one snapshot. That is one chore done, so one completion, and neither list
+    # gets the chore straight back.
+    key2 = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(mid=M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), key2: _entry(entity_id=OTHER, uid="o1")},
+        desired={M1: {T1: _want()}, M2: {T1: _want()}},
+        lists={
+            LIST: [_item(status=tm.STATUS_COMPLETED)],
+            OTHER: [_item(uid="o1", status=tm.STATUS_COMPLETED)],
+        },
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+    assert plan.add == [] and plan.tracked == {}
+
+
+def test_b10_3_two_profiles_whose_lines_vanish_together_complete_the_task_once():
+    key2 = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(mid=M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), key2: _entry(entity_id=OTHER, uid="o1")},
+        desired={M1: {T1: _want()}, M2: {T1: _want()}},
+        lists={LIST: [], OTHER: []},
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+    assert plan.add == [] and plan.tracked == {}
+
+
+def test_b10_3_two_tasks_ticked_in_one_pass_still_complete_each():
+    # The dedupe is per task: two different tasks both complete.
+    key2 = tm.sync_key(M1, "t2")
+    plan = _plan(
+        tracked={KEY: _entry(), key2: _entry(uid="i2", summary="Other")},
+        desired=_desired([_want(), _want(tid="t2", name="Other")]),
+        items=[
+            _item(status=tm.STATUS_COMPLETED),
+            _item(summary="Other", uid="i2", status=tm.STATUS_COMPLETED),
+        ],
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1), tm.CompleteOp(key2, "t2")]
+
+
 def test_a_vanished_item_whose_task_stopped_matching_is_simply_forgotten():
     plan = _plan(tracked=_tracked(), desired={M1: {}}, items=[])
     assert plan.complete == [] and plan.add == [] and plan.remove == []
@@ -944,6 +1111,57 @@ def test_a_chore_moved_onto_a_list_nobody_could_read_still_leaves_the_old_one():
     )
     assert plan.remove == [tm.RemoveOp(KEY, LIST, "i1")]
     assert plan.add == [] and plan.tracked == {}
+
+
+def test_b10_2_a_chore_on_a_list_that_is_gone_moves_to_the_new_one():
+    # B10-2: the old list was renamed or its integration removed, and the profile
+    # now points at LIST. The old line went with the old list, so the chore goes
+    # on the new list rather than waiting for a list that will never come back.
+    plan = _plan(
+        tracked=_tracked(_entry(entity_id=GHOST)),
+        desired=_desired([_want()]),
+        items=[],
+        gone=frozenset({GHOST}),
+    )
+    assert plan.remove == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+    assert plan.tracked == {KEY: _added()}
+
+
+def test_b10_2_a_chore_already_on_the_new_list_is_adopted_when_the_old_is_gone():
+    # B10-2, entity rename: the line is already on the list under its new id.
+    plan = _plan(
+        tracked=_tracked(_entry(entity_id=GHOST)),
+        desired=_desired([_want()]),
+        items=[_item(uid="n1")],
+        gone=frozenset({GHOST}),
+    )
+    assert plan.add == []
+    assert plan.tracked == {KEY: _entry(uid="n1")}
+
+
+def test_b10_2_a_target_that_is_gone_keeps_its_bookkeeping():
+    # A configured list that does not exist is a setting to fix, not a move:
+    # nothing is dropped until the user points the profile somewhere else.
+    tracked = _tracked()
+    plan = _plan(
+        tracked=tracked,
+        desired=_desired([_want()]),
+        items=None,
+        gone=frozenset({LIST}),
+    )
+    assert plan.tracked == tracked
+
+
+def test_b10_2_a_deleted_sync_on_a_list_that_is_gone_forgets_its_entry():
+    plan = _plan(
+        synced=[],
+        tracked=_tracked(),
+        desired={},
+        items=None,
+        gone=frozenset({LIST}),
+    )
+    assert plan.remove == [] and plan.tracked == {}
 
 
 def test_a_wanted_sync_that_is_not_configured_at_all_is_skipped():
@@ -1448,3 +1666,146 @@ def test_a_title_that_already_reads_as_the_new_name_is_not_a_user_rename():
     )
     assert plan.update == []
     assert "user_named" not in plan.tracked[KEY]
+
+
+# ── a date the user moved on the list (#398) ──────────────────────────────────
+
+MOVED = "2026-06-20"
+
+
+def test_398_a_date_moved_on_the_list_moves_the_task():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+    )
+    # Their date wins: the task follows it, and the item is not written back.
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+    assert plan.update == []
+    assert plan.tracked == {KEY: _entry(due=MOVED)}
+
+
+def test_398_a_moved_datetime_is_read_as_its_date():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=f"{MOVED}T00:00:00+00:00")],
+    )
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+
+
+def test_398_a_moved_date_still_lets_the_title_and_notes_sync():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(notes="Under it")]),
+        items=[_item(due=MOVED)],
+    )
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", description="Under it")]
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+
+
+def test_398_a_one_way_sync_writes_its_own_date_back():
+    plan = _plan(
+        synced=[_synced_profile(two_way=False)],
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+    )
+    assert plan.reschedule == []
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", due=DUE)]
+    assert plan.tracked == _tracked()
+
+
+@pytest.mark.parametrize(
+    ("entry", "item"),
+    [
+        # No uid: the summary is the only handle, so the planner does not guess.
+        (_entry(uid=None), _item(uid=None, due=MOVED)),
+        # An entry that never recorded a date has nothing to compare with.
+        (_entry(due=""), _item(due=MOVED)),
+        # A task must have a date, so a cleared one is put back.
+        (_entry(), _item(due=None)),
+        # A date that does not parse is not a date to move a task to.
+        (_entry(), _item(due="next week")),
+    ],
+    ids=["no-uid", "no-written-date", "cleared", "unparsable"],
+)
+def test_398_only_a_real_date_on_a_known_item_moves_the_task(entry, item):
+    plan = _plan(tracked=_tracked(entry), desired=_desired([_want()]), items=[item])
+    assert plan.reschedule == []
+    assert [op.due for op in plan.update] == [DUE]
+    assert plan.tracked[KEY]["due"] == DUE
+
+
+def test_398_our_own_new_date_on_the_list_is_not_a_move():
+    # Home Keeper moved the task, and the list already shows the new date.
+    plan = _plan(
+        tracked=_tracked(_entry(due="2026-06-10")),
+        desired=_desired([_want()]),
+        items=[_item()],
+    )
+    assert plan.reschedule == [] and plan.update == []
+    assert plan.tracked == _tracked()
+
+
+def test_398_a_list_without_due_dates_never_moves_a_task():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+        caps={LIST: frozenset()},
+    )
+    assert plan.reschedule == [] and plan.update == []
+
+
+def test_398_a_task_moved_on_two_lists_moves_once_and_the_other_follows():
+    other = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), other: _entry(entity_id=OTHER, uid="i2")},
+        desired={**_desired([_want()]), **_desired([_want()], profile_id=M2)},
+        lists={
+            LIST: [_item(due=MOVED)],
+            OTHER: [_item(uid="i2", due="2026-06-25")],
+        },
+    )
+    # The first one read wins. The second gets the task's date for now, and the
+    # moved date on the next pass, once the task has moved.
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+    assert plan.update == [tm.UpdateOp(other, OTHER, "i2", due=DUE)]
+    assert plan.tracked[other]["due"] == DUE
+
+
+def test_398_a_task_completed_in_the_same_pass_is_not_moved_too():
+    other = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), other: _entry(entity_id=OTHER, uid="i2")},
+        desired={**_desired([_want()]), **_desired([_want()], profile_id=M2)},
+        lists={
+            LIST: [_item(due=MOVED)],
+            OTHER: [_item(uid="i2", status=tm.STATUS_COMPLETED)],
+        },
+    )
+    assert plan.complete == [tm.CompleteOp(other, T1)]
+    assert plan.reschedule == []
+
+
+def test_398_a_moved_task_needs_no_pass_once_it_has_moved():
+    plan = _plan(
+        tracked=_tracked(), desired=_desired([_want()]), items=[_item(due=MOVED)]
+    )
+    moved = _desired([_want(due=MOVED)])
+    assert _needs(tracked=plan.tracked, desired=moved) is False
+
+
+def test_398_reschedule_until_keeps_the_tasks_time_of_day():
+    until = tm.reschedule_until("2026-06-14T13:30:00+00:00", MOVED, now=NOW)
+    assert until.isoformat() == "2026-06-20T09:30:00-04:00"
+
+
+def test_398_reschedule_until_gives_the_new_date_its_own_offset():
+    zone = ZoneInfo("America/New_York")
+    now = datetime(2026, 10, 30, 12, 0, tzinfo=zone)
+    until = tm.reschedule_until("2026-10-30T09:00:00-04:00", "2026-11-03", now=now)
+    assert until.isoformat() == "2026-11-03T09:00:00-05:00"

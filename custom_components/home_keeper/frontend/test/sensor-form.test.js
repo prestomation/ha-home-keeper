@@ -385,7 +385,7 @@ describe('usage tasks with a time backstop', () => {
         combinator: 'all',
       },
     });
-    expect(summary).toContain('and every 1 months');
+    expect(summary).toContain('and every 1 month');
   });
 
   it('extends the live hint with the backstop clause', () => {
@@ -421,7 +421,7 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     // promises and what the card later says are the same sentence, not two
     // formatters that agree today and drift tomorrow.
     expect(formRecurrenceSummary(form)).toBe(recurrenceSummary(buildTaskPayload(form)));
-    expect(formRecurrenceSummary(form)).toBe('Every 100 h of use, or every 1 months');
+    expect(formRecurrenceSummary(form)).toBe('Every 100 h of use, or every 1 month');
   });
 
   it('says "and" for the both-must-be-met combinator', () => {
@@ -460,9 +460,15 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     expect(formRecurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' })).toBe(
       'Every 3 months after completion',
     );
-    expect(formRecurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'Every 2 weeks',
-    );
+    // A new fixed task anchors at now, so the test fixes the anchor: Tuesday.
+    expect(
+      formRecurrenceSummary({
+        recurrence_type: 'fixed',
+        interval: 2,
+        freq: 'WEEKLY',
+        anchor: '2026-10-06T07:00:00',
+      }),
+    ).toBe('Every 2 weeks on Tuesday');
     // A triggered task is the trap here: buildTaskPayload drops recurrence_type for
     // that kind, so a naive preview reads "every day" instead of "Monitored".
     expect(formRecurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
@@ -813,6 +819,86 @@ describe('task form — the meter starting reading', () => {
       );
       expect(payload.sensor, `blank=${String(blank)}`).not.toHaveProperty('baseline');
     }
+  });
+
+  describe('B08-5: a binding moved to another meter', () => {
+    const stored = (over = {}) => ({
+      recurrence_type: 'sensor',
+      sensor_mode: 'usage',
+      sensor_target: 100,
+      sensor: {
+        entity_id: 'vacuum.robo',
+        attribute: 'cleaning_time',
+        mode: 'usage',
+        target: 100,
+        baseline: 1200,
+      },
+      sensor_entity_id: 'vacuum.robo',
+      sensor_attribute: 'cleaning_time',
+      sensor_baseline: 1200,
+      ...over,
+    });
+
+    it('keeps the stored baseline for the same entity and attribute', () => {
+      expect(buildTaskPayload(stored()).sensor.baseline).toBe(1200);
+    });
+
+    it('drops the stored baseline when the attribute changes', () => {
+      const payload = buildTaskPayload(stored({ sensor_attribute: 'total_cleaned_area' }));
+      expect(payload.sensor.attribute).toBe('total_cleaned_area');
+      expect(payload.sensor).not.toHaveProperty('baseline');
+    });
+
+    it('drops the stored baseline when the attribute is cleared', () => {
+      const payload = buildTaskPayload(stored({ sensor_attribute: '' }));
+      expect(payload.sensor).not.toHaveProperty('baseline');
+    });
+
+    it('drops the stored baseline when the entity changes', () => {
+      const payload = buildTaskPayload(stored({ sensor_entity_id: 'vacuum.other' }));
+      expect(payload.sensor).not.toHaveProperty('baseline');
+    });
+
+    it('drops it when the box was never seeded', () => {
+      const payload = buildTaskPayload(
+        stored({ sensor_entity_id: 'vacuum.other', sensor_baseline: undefined }),
+      );
+      expect(payload.sensor).not.toHaveProperty('baseline');
+    });
+
+    it('keeps a number the user typed for the new meter', () => {
+      const payload = buildTaskPayload(
+        stored({ sensor_entity_id: 'vacuum.other', sensor_baseline: 40 }),
+      );
+      expect(payload.sensor.baseline).toBe(40);
+    });
+
+    it('keeps a stored 0 baseline on the same meter', () => {
+      const task = stored({ sensor_baseline: 0 });
+      task.sensor.baseline = 0;
+      expect(buildTaskPayload(task).sensor.baseline).toBe(0);
+    });
+
+    it('drops a stored 0 baseline on another meter', () => {
+      const task = stored({ sensor_baseline: 0, sensor_entity_id: 'vacuum.other' });
+      task.sensor.baseline = 0;
+      expect(buildTaskPayload(task).sensor).not.toHaveProperty('baseline');
+    });
+
+    it('a stored binding with no attribute matches a blank attribute box', () => {
+      const task = stored({ sensor_attribute: '  ' });
+      delete task.sensor.attribute;
+      expect(buildTaskPayload(task).sensor.baseline).toBe(1200);
+    });
+
+    it('the hint counts from the live reading on another meter', () => {
+      const hint = sensorHintText(stored({ sensor_attribute: 'total_cleaned_area' }), {
+        reading: 48000,
+      });
+      expect(hint).toBe(
+        t('hint.sensor.usage', { reading: '48000', due: '48100', target: '100' }),
+      );
+    });
   });
 
   it('never sends a baseline in threshold mode, even with one in edit state', () => {

@@ -20,7 +20,10 @@ import {
   formatDateTime,
   formatOccurrenceTime,
   isOverdue,
+  scanRequired,
   resolveSnoozePreset,
+  snoozePresetForHours,
+  taskSnoozeHours,
 } from './utils';
 
 /** Which deferral verbs a task may be offered right now. */
@@ -28,6 +31,8 @@ export interface DeferVerbs {
   snooze: boolean;
   skip: boolean;
   dueToday: boolean;
+  /** Open the completion dialog on a one-tap task, for a photo or a note (#399). */
+  details: boolean;
 }
 
 /**
@@ -47,6 +52,11 @@ export interface DeferVerbs {
  *   button says. #312 asked for this on a task that was explicitly not overdue,
  *   and `notifications.py` keeps the verb off notifications for the same reason.
  *
+ * The details entry is not a deferral, but it rides the same caret (#399). It is
+ * offered only on a one-tap task: a task that asks for details already opens the
+ * dialog from Done, so the entry would repeat it. A blocked or tag-locked task
+ * cannot be completed from the panel at all, and a dormant one has no Done.
+ *
  * Hiding rather than disabling: a control that explains why it is dead earns its
  * place when the action is the page's whole point, but these are already tucked
  * behind a caret, and a menu of dead entries is just noise.
@@ -65,6 +75,8 @@ export function deferVerbs(
     snooze: allowSnooze && !dormant,
     skip: allowSkip && !blocked && !dormant,
     dueToday: allowDueToday && !dormant && !isOverdue(task, now),
+    details:
+      (task.completion_detail ?? 'none') === 'none' && !blocked && !dormant && !scanRequired(task),
   };
 }
 
@@ -76,6 +88,14 @@ export function deferMenuItems(verbs: DeferVerbs): string {
     `<span class="hk-defer-text">${escapeHTML(label)}` +
     `<span class="hk-defer-sub">${escapeHTML(sub)}</span></span></button>`;
   return (
+    (verbs.details
+      ? item(
+          'hk-defer-details',
+          'mdi:camera-outline',
+          t('defer.details'),
+          t('defer.detailsHint'),
+        )
+      : '') +
     (verbs.snooze
       ? item('hk-defer-snooze', 'mdi:clock-outline', t('btn.snooze'), t('defer.snoozeHint'))
       : '') +
@@ -106,7 +126,9 @@ export function deferSplit(
   verbs: DeferVerbs,
   weight: BtnWeight = 'primary',
 ): string {
-  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday)) return doneBtn;
+  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday && !verbs.details)) {
+    return doneBtn;
+  }
   // The caret is an ha-button carrying *Done's own weight*, which is the only way the
   // two halves are guaranteed to paint the same. Home Assistant fills a button from
   // its appearance, and the weights differ by surface — the task page's Done is solid
@@ -160,6 +182,8 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
 export type SnoozeMode = 'next' | 'later';
 
 export interface SnoozeState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   preset: SnoozePresetId;
@@ -175,6 +199,8 @@ export interface SnoozeState {
 }
 
 export interface SkipState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts?: string;
@@ -190,9 +216,37 @@ export const emptySnoozeState = (): SnoozeState => ({
 
 export const emptySkipState = (): SkipState => ({ open: false, task: null, data: {} });
 
-/** The instant the current snooze selection resolves to, or `null` if unusable. */
-export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
-  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, now);
+/**
+ * The snooze dialog's opening state for *task*.
+ *
+ * A task with its own snooze length opens on the preset of that length. A length no
+ * preset has (a service can set any number of hours) opens on `custom`, with the
+ * date that length gives from *now* already filled in. A task with no length of its
+ * own opens on the usual preset.
+ */
+export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState {
+  const hours = taskSnoozeHours(task);
+  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  const preset = snoozePresetForHours(hours);
+  if (preset) return { open: true, task, preset };
+  const at = new Date(snoozeFrom(task, now).getTime() + hours * 3_600_000);
+  return { open: true, task, preset: 'custom', customAt: isoToHaDateTime(at.toISOString()) };
+}
+
+/**
+ * The instant a snooze length counts from: *now*, or the due date when that is
+ * later (F10-2). Snooze moves the due date later, and a length counted from *now*
+ * moved a task due in 30 days to 7 days from now. The backend's
+ * `recurrence.snooze_from` gives the same instant for the service and a
+ * notification.
+ */
+export function snoozeFrom(task: Task | null | undefined, now: Date = new Date()): Date {
+  const due = task?.next_due ? new Date(task.next_due).getTime() : NaN;
+  return Number.isNaN(due) ? now : new Date(Math.max(due, now.getTime()));
+}
+
+/** The typed custom date, or `null` when there is none or it will not parse. */
+function customDate(s: SnoozeState): Date | null {
   if (!s.customAt) return null;
   const iso = haDateTimeToIso(s.customAt);
   if (!iso) return null;
@@ -216,11 +270,17 @@ export function occurrenceOrigin(row: UpcomingOccurrence): string {
   return row.moved_from ?? row.start;
 }
 
-/** A starting value for the new date: one day after the row, same time. */
+/**
+ * A starting value for the new date: one day after the row, same time. The day is
+ * added on the wall clock of Home Assistant's zone, so the time stays the same across
+ * a clock change and in a browser in another zone.
+ */
 export function defaultMoveTo(start: string): string {
-  const d = new Date(start);
-  d.setDate(d.getDate() + 1);
-  return isoToHaDateTime(d.toISOString()) ?? '';
+  const shown = isoToHaDateTime(start);
+  if (!shown) return '';
+  const [date, time] = shown.split(' ');
+  const [y, mo, d] = date.split('-').map(Number);
+  return `${new Date(Date.UTC(y, mo - 1, d + 1)).toISOString().slice(0, 10)} ${time}`;
 }
 
 /** Pick *row* to move, seeding its new date. */
@@ -250,9 +310,29 @@ export function moveHintText(s: SnoozeState, lang?: string): string {
   });
 }
 
+/**
+ * The instant the current snooze selection resolves to, or `null` if unusable. A
+ * custom date that is not later than `snoozeFrom` is unusable: it would move the
+ * task earlier, or make it due at once (F10-2).
+ */
+export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
+  const from = snoozeFrom(s.task, now);
+  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, from);
+  const at = customDate(s);
+  return at && at.getTime() > from.getTime() ? at : null;
+}
+
 /** The line stating where the current choice lands, or a prompt if unset. */
-export function snoozeHintText(s: SnoozeState, lang?: string): string {
-  const until = snoozeTarget(s);
-  if (!until) return t('defer.snoozePickDate');
-  return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+export function snoozeHintText(s: SnoozeState, lang?: string, now: Date = new Date()): string {
+  const until = snoozeTarget(s, now);
+  if (until) {
+    return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+  }
+  // A typed date that is too early gets its own line, so the user knows why the
+  // Snooze button does nothing (F10-2).
+  if (s.preset === 'custom' && customDate(s)) {
+    const from = snoozeFrom(s.task, now);
+    return t('defer.snoozeTooEarly', { date: formatDateTime(from.toISOString(), lang) });
+  }
+  return t('defer.snoozePickDate');
 }

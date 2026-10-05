@@ -33,9 +33,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import assets as asset_model
+from .const import SIGNAL_PART_STOCK_CHANGED
 from .coordinator import HomeKeeperCoordinator
 from .task_entities import entity_name_prefix
 
@@ -59,7 +61,11 @@ class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
         prefix = ""
         if self.device_entry is not None:
             device = self.device_entry
-            label = entity_name_prefix(task, device.name_by_user or device.name)
+            label = entity_name_prefix(
+                task,
+                device.name_by_user or device.name,
+                coordinator.data.values(),
+            )
             prefix = f"{label}: " if label else ""
         self._attr_translation_placeholders = {"task_name": prefix}
 
@@ -95,6 +101,15 @@ class HomeKeeperPartEntity(CoordinatorEntity[HomeKeeperCoordinator]):
         self._attr_unique_id = unique_id
         # Linked, not owned: the appliance device belongs to whoever created it.
         self.device_entry = device
+
+    async def async_added_to_hass(self) -> None:
+        """Also write the state when the coordinator says a stock changed."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, SIGNAL_PART_STOCK_CHANGED, self.async_write_ha_state
+            )
+        )
 
     def _part(self) -> dict[str, Any] | None:
         """The part's stored record, or None once it (or its appliance) is gone."""

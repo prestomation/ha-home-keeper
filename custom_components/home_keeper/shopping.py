@@ -29,6 +29,7 @@ Two rules shape the plan:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from .assets import find_part, part_restock_label
@@ -38,6 +39,8 @@ from .todo_items import (
     CAP_DESCRIPTION,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
+    add_unconfirmed,
+    added_stamp,
     find_open,
     item_identity,
     item_is_open,
@@ -293,7 +296,9 @@ def plan_sync(
     desired: dict[str, dict[str, Any]],
     items_by_entity: dict[str, list[dict[str, Any]]],
     target: str,
+    now: datetime,
     capabilities: dict[str, frozenset[str]] | None = None,
+    gone: frozenset[str] = frozenset(),
 ) -> SyncPlan:
     """Decide what to do about the mirror this pass.
 
@@ -315,7 +320,15 @@ def plan_sync(
     A list absent from *items_by_entity* could not be read — it is unavailable,
     or the integration behind it is not loaded — so nothing is planned for it and
     its bookkeeping is carried forward untouched. That is what keeps a broken
-    shopping list from quietly deleting the mirror's memory of it.
+    shopping list from quietly deleting the mirror's memory of it. A list in
+    *gone* does not exist at all any more (no state, no registry entry): an entry
+    on it that is not on *target* is dropped, because its line went with the list,
+    and pass two can then put the reminder on the new list (B10-2).
+
+    A fresh add carries ``added_at`` (stamped from *now*) until a pass sees the
+    line. While it does, a ticked-off line with the same text is last episode's
+    record, not our new line, so it is not read as "bought" (B09-2). See
+    ``todo_items.UNCONFIRMED_GRACE``.
     """
     plan = SyncPlan()
     caps_by_entity = capabilities or {}
@@ -338,7 +351,8 @@ def plan_sync(
 
         items = items_by_entity.get(entity_id)
         if items is None:
-            plan.tracked[key] = dict(entry)
+            if entity_id == target or entity_id not in gone:
+                plan.tracked[key] = dict(entry)
             continue
 
         item = resolve_tracked(
@@ -365,14 +379,28 @@ def plan_sync(
             # Ticked off. If the reminder is still open, that tick is the user
             # telling Home Keeper they bought it.
             if want is not None and not want["completed"]:
+                if entry.get("added_at") and not add_unconfirmed(entry, now=now):
+                    # An add we have not seen back yet, resolving to a ticked-off
+                    # line: that is last episode's record, found by its text
+                    # because the list cannot show our new line yet. Hold until
+                    # an open line shows (it wins over a ticked one) or the
+                    # grace runs out.
+                    held = dict(entry)
+                    held["added_at"] = added_stamp(entry, now=now)
+                    plan.tracked[key] = held
+                    continue
                 plan.complete.append(CompleteOp(key, str(want["task_id"])))
                 settled.add(key)
             continue
 
         if entity_id != target:
             # The target moved (or the mirror was switched off): clear the item
-            # from the list it is on. Pass two puts it on the new list.
+            # from the list it is on. The next pass puts it on the new list, after
+            # the remove lands. An add in this pass shares the key with the remove,
+            # so a failed remove and its add overwrite each other's bookkeeping
+            # (B11-4).
             plan.remove.append(RemoveOp(key, entity_id, identity))
+            settled.add(key)
             continue
         if want is None:
             # The reminder went away without anyone buying anything.
@@ -398,12 +426,19 @@ def plan_sync(
         )
         rename = name if not user_named and live != name else None
         current = str(item.get("description") or "")
-        # A note on a line that has no description from Home Keeper was typed by
-        # someone (an adopted line, or a note added to a line with no amount).
-        # Never write the amount over it or clear it. The flag is not kept: when
-        # the note goes, the next pass writes the amount.
-        user_described = bool(current) and not entry.get("description")
-        if description is not None and (current == description or user_described):
+        recorded = str(entry.get("description") or "")
+        # A note that is neither what Home Keeper last wrote nor what it writes now
+        # was typed by someone: on an adopted line, on a line with no amount, or
+        # over the amount (B11-3). This is the rule for a title, above. Never write
+        # the amount over the note or clear it. The flag is not kept: when the note
+        # goes, the next pass writes the amount. A list that shows our write late
+        # reads as a note until it shows the write.
+        user_described = bool(current) and not any(
+            _same_text(current, ours) for ours in (recorded, wanted) if ours
+        )
+        if description is not None and (
+            _same_text(current, description) or user_described
+        ):
             description = None
         if rename is not None or description is not None:
             plan.update.append(
@@ -425,8 +460,10 @@ def plan_sync(
         written: str | None = None
         if description is not None:
             written = description
-        elif current and current in (wanted, str(entry.get("description") or "")):
-            written = current
+        elif wanted and _same_text(current, wanted):
+            written = wanted
+        elif recorded and _same_text(current, recorded):
+            written = recorded
         if CAP_DESCRIPTION in caps and written:
             new_entry["description"] = written
         plan.tracked[key] = new_entry
@@ -461,11 +498,25 @@ def plan_sync(
         # No uid: ``todo.add_item`` answers with nothing. The next pass binds one
         # by summary (see ``todo_items.resolve_tracked``), and until then the
         # summary is a perfectly good handle for ``update_item``/``remove_item``.
-        added: dict[str, Any] = {"entity_id": target, "summary": name, "uid": None}
+        added: dict[str, Any] = {
+            "entity_id": target,
+            "summary": name,
+            "uid": None,
+            "added_at": now.isoformat(),
+        }
         if description:
             added["description"] = description
         plan.tracked[key] = added
     return plan
+
+
+def _same_text(live: str, ours: str) -> bool:
+    """Whether the *live* text on a list is the text Home Keeper wrote as *ours*.
+
+    Case and white space do not count, because a list can change them when it
+    stores a line ("500 ml" can come back as "500ML").
+    """
+    return "".join(live.split()).casefold() == "".join(ours.split()).casefold()
 
 
 def lists_to_read(tracked: dict[str, dict[str, Any]], *, target: str) -> list[str]:

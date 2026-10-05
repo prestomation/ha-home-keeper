@@ -1,4 +1,4 @@
-import { getLanguage, t, tn } from './i18n';
+import { getLanguage, t, tlist, tn } from './i18n';
 import {
   anchorDay,
   buildSimple,
@@ -7,7 +7,7 @@ import {
   shownDays,
   type SimpleFreq,
 } from './rrule';
-import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
+import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
  *  or materializes itself carries it in `managed_by.integration`, which is how the
@@ -44,13 +44,38 @@ export function normalizeIcon(value: unknown): string {
 }
 
 /**
+ * The glyph color for a fill of *hex* (`#rrggbb`): black or white, whichever has the
+ * higher WCAG contrast against it. The picker is a free color wheel, so a fixed white
+ * glyph is invisible on a white or yellow fill (X11-6).
+ */
+export function inkFor(hex: string): '#000' | '#fff' {
+  const channel = (i: number): number => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent. Below
+    // 0.04 the 2 sRGB segments differ by under 0.001, far from the 0.179 crossover.
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  // Contrast with black is (L + 0.05) / 0.05, with white 1.05 / (L + 0.05). They are
+  // equal at L = 0.179, so a fill lighter than that takes the black glyph.
+  // Stryker disable next-line EqualityOperator: equivalent. No 8-bit color has a
+  // luminance of exactly 0.179.
+  return lum > 0.179 ? '#000' : '#fff';
+}
+
+/**
  * The Settings row badge for a notification: the accent as the fill, the glyph in
- * white. Returns `''` without an icon, so a row that has none stays as it was.
+ * black or white, whichever reads on that fill. Returns `''` without an icon, so a
+ * row that has none stays as it was.
  *
  * Filled rather than a bare tinted glyph because the fill is the only treatment that
  * survives every color the picker offers — a pale glyph on the panel's white card is
- * invisible, while white on a pale fill is not. It is also what an iPhone draws, so the
- * chip and the phone agree.
+ * invisible, while a dark glyph on a pale fill is not. It is also what an iPhone
+ * draws, so the chip and the phone agree.
+ *
+ * With no color, the badge takes the theme's own surface and text colors, which
+ * contrast in a light and in a dark theme. A white glyph on the secondary text color
+ * was about 2.8:1 in Home Assistant's dark theme (X11-6).
  */
 export function notifyRowChip(icon: unknown, color: unknown): string {
   const name = normalizeIcon(icon);
@@ -60,9 +85,11 @@ export function notifyRowChip(icon: unknown, color: unknown): string {
     .toLowerCase();
   // The color reaches a `style` attribute, so accept only the one shape the backend
   // stores rather than escaping an arbitrary string into CSS.
-  const fill = /^#[0-9a-f]{6}$/.test(hex) ? hex : 'var(--secondary-text-color)';
+  const style = /^#[0-9a-f]{6}$/.test(hex)
+    ? `background:${hex};color:${inkFor(hex)}`
+    : 'background:var(--secondary-background-color);color:var(--primary-text-color)';
   return (
-    `<span class="hk-notify-chip" style="background:${fill}">` +
+    `<span class="hk-notify-chip" style="${style}">` +
     `<ha-icon icon="${escapeHTML(name)}"></ha-icon></span>`
   );
 }
@@ -94,7 +121,7 @@ export function safeHref(url: unknown): string {
  * completion `photo` field is caller-supplied via `home_keeper.complete_task`, so it
  * must be validated before it reaches an href/src.
  */
-export function isSafeImageUrl(url: unknown): boolean {
+export function isSafeImageUrl(url: unknown): url is string {
   return typeof url === 'string' && (isHttpUrl(url) || /^\/[^/]/.test(url));
 }
 
@@ -194,6 +221,37 @@ export function setBtnWeight(el: Element, weight: BtnWeight): void {
   el.setAttribute('data-hk-weight', weight);
 }
 
+/** State that one write marks while it runs. See {@link guardWrite}. */
+export interface WriteGuard {
+  busy?: boolean;
+}
+
+/**
+ * Run *write* only when no write is running on *state* (X12-3). A second press of
+ * Done, Skip, Snooze or Save while the first call runs does nothing, so it cannot log
+ * two completions or create two tasks. The pressed *button* is disabled for the same
+ * time, so the user sees that the press was taken. A re-render during the call draws
+ * a new, enabled button; the `busy` flag still ignores it.
+ *
+ * Returns false when the press was ignored.
+ */
+export async function guardWrite(
+  state: WriteGuard,
+  write: () => Promise<void>,
+  button?: Element | null,
+): Promise<boolean> {
+  if (state.busy) return false;
+  state.busy = true;
+  button?.setAttribute('disabled', '');
+  try {
+    await write();
+  } finally {
+    state.busy = false;
+    button?.removeAttribute('disabled');
+  }
+  return true;
+}
+
 /**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
@@ -254,20 +312,93 @@ export async function copyText(value: string): Promise<boolean> {
 }
 
 /**
+ * The completion that a Done added, for its Undo.
+ *
+ * *before* holds the `ts` of each completion the task had when Done was pressed.
+ * Another person can complete the same task in that time, so more than one entry
+ * can be new. The one that Done made is the newest: the task's `last_completed`
+ * when it is new, else the latest new `ts`. Undefined when nothing is new.
+ */
+export function addedCompletion(
+  before: ReadonlySet<string>,
+  done: Pick<Task, 'completions' | 'last_completed'> | null | undefined,
+): Completion | undefined {
+  const fresh = (done?.completions ?? []).filter((c) => !before.has(c.ts));
+  const last = done?.last_completed;
+  const named = last ? fresh.find((c) => c.ts === last) : undefined;
+  if (named) return named;
+  return fresh.reduce<Completion | undefined>(
+    (best, c) => (!best || Date.parse(c.ts) > Date.parse(best.ts) ? c : best),
+    undefined,
+  );
+}
+
+/**
  * Surface a transient message through Home Assistant's own toast.
  *
  * `composed` so the event escapes the shadow root it is fired in, `bubbles` so HA's
  * listener further up the tree receives it. The panel and the card both need this and
  * had a byte-identical copy each.
  */
-export function toast(el: EventTarget, message: string): void {
+export function toast(
+  el: EventTarget,
+  message: string,
+  action?: { text: string; action: () => void },
+): void {
   el.dispatchEvent(
     new CustomEvent('hass-notification', {
-      detail: { message },
+      // Home Assistant draws `action` as a button on the toast, e.g. Undo.
+      detail: action ? { message, action } : { message },
       bubbles: true,
       composed: true,
     }),
   );
+}
+
+/**
+ * How many times a command waits out an unloaded integration, and how long it waits
+ * between tries. A config-entry reload is a second or two, so five tries a second
+ * apart cover a slow one with room to spare, and a failure that is not a reload
+ * gives up on the first try (see the panel's `_reload` and `writeQueue`).
+ */
+export const RELOAD_RETRIES = 5;
+export const RELOAD_RETRY_MS = 1000;
+
+/** Send one write and get its answer. */
+export type QueuedWrite = <T>(write: () => Promise<T>) => Promise<T>;
+
+/**
+ * A queue that sends writes one at a time, in the order they arrive.
+ *
+ * Each options write reloads the config entry, and every Home Keeper command fails
+ * while the entry is unloaded. So a second write sent during the reload of the
+ * first one fails, and the edit it carries is lost. The queue holds each write until
+ * the one before it has answered. A write that still fails with an error that
+ * *isRetryable* accepts waits *waitMs* and tries again, at most *retries* times. A
+ * failed write does not stop the writes after it.
+ */
+export function writeQueue(
+  isRetryable: (err: unknown) => boolean,
+  retries = RELOAD_RETRIES,
+  waitMs = RELOAD_RETRY_MS,
+): QueuedWrite {
+  let tail: Promise<unknown> = Promise.resolve();
+  const attempt = async <T>(write: () => Promise<T>, left: number): Promise<T> => {
+    try {
+      return await write();
+    } catch (err) {
+      if (left > 0 && isRetryable(err)) {
+        await new Promise((r) => setTimeout(r, waitMs));
+        return attempt(write, left - 1);
+      }
+      throw err;
+    }
+  };
+  return <T>(write: () => Promise<T>): Promise<T> => {
+    const run = tail.then(() => attempt(write, retries));
+    tail = run.catch(() => undefined);
+    return run;
+  };
 }
 
 /**
@@ -334,8 +465,7 @@ const EDGE_SENSOR_MODES: readonly string[] = [
  * `last_replaced`, consumes a spare and moves `last_completed`, which is the instant
  * `reconcile.cycle_start` measures the next count from — so renewing the coating at 10
  * of 25 wears restarts the count instead of letting it climb to 31 of 25.
- * `docs/COUNTED_WEAR_ITEMS_PLAN.md` always said early completion was allowed; only
- * this predicate withheld it.
+ * Early completion is allowed (`docs/design/appliances.md`).
  */
 export function isMonitoredDormant(task: Task): boolean {
   if (task.next_due) return false;
@@ -484,6 +614,25 @@ export function snapStock(value: number, step: number): number {
 }
 
 /**
+ * The number typed in a stock box, or null when the box holds no number (F07-3).
+ *
+ * An empty box reads as `''`, and `Number('')` is 0: a user who deleted the old count
+ * to type a new one, and then tapped away, set the stock to 0. That can fire the
+ * out-of-stock event and make a buy task. A number box with text that is not a number
+ * also reads as `''`, with `validity.badInput` set.
+ */
+export function typedStock(input: {
+  value: string;
+  validity?: { badInput?: boolean };
+}): number | null {
+  if (input.validity?.badInput) return null;
+  const text = input.value.trim();
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
  * Whether completing `task` records the bound sensor's reading.
  *
  * True for a sensor task in a *numeric* mode — `usage` or `threshold`. A `state`
@@ -535,6 +684,99 @@ export function readingUnit(
   return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
+// ── Home Assistant's time zone ───────────────────────────────────────────────
+// A time that the user types in the panel is a time in Home Assistant's zone, the
+// same as the same text sent to a `home_keeper` service. The browser can be in a
+// different zone (a remote admin, travel), so the panel must not use the browser
+// zone to read or write a time (X04-7). `set hass` keeps this value current.
+let haTimeZone: string | undefined;
+
+/** Set the zone the panel uses for dates and times (`hass.config.time_zone`). */
+export function setTimeZone(tz?: string | null): void {
+  haTimeZone = undefined;
+  // Stryker disable next-line ConditionalExpression: equivalent. Without the guard,
+  // `Intl` reads an absent zone as the browser zone and throws on an empty name, and
+  // both leave `haTimeZone` undefined, as the guard does.
+  if (!tz) return;
+  try {
+    // An unknown zone name makes every `Intl` call throw, so use the browser zone.
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    haTimeZone = tz;
+  } catch {
+    /* an unknown zone name — keep the browser zone */
+  }
+}
+
+/** The zone the panel uses, or undefined for the browser zone. */
+export function getTimeZone(): string | undefined {
+  return haTimeZone;
+}
+
+/**
+ * The wall-clock parts of the instant *ms* in *tz*. Month is 1-based. An undefined
+ * *tz* is the browser zone.
+ */
+export function zonedParts(ms: number, tz: string | undefined): number[] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(ms));
+  // Stryker disable next-line OptionalChaining: equivalent. `formatToParts` gives
+  // every part that the options ask for, so `find` always finds one.
+  const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
+  return [get('year'), get('month'), get('day'), get('hour'), get('minute'), get('second')];
+}
+
+/**
+ * The instant at which the wall clock in *tz* shows the given parts. Month is 1-based.
+ *
+ * The first guess reads the parts as UTC and corrects by the zone offset at that
+ * guess. A second pass corrects again when the guess and the answer are on the 2
+ * sides of a daylight-saving change.
+ */
+export function zonedTimeToMs(parts: number[], tz: string | undefined): number {
+  const [y, mo, d, h, mi, s] = parts;
+  const asUtc = Date.UTC(y, mo - 1, d, h, mi, s);
+  const offsetAt = (ms: number): number => {
+    const [py, pmo, pd, ph, pmi, ps] = zonedParts(ms, tz);
+    return Date.UTC(py, pmo - 1, pd, ph, pmi, ps) - ms;
+  };
+  const first = asUtc - offsetAt(asUtc);
+  return asUtc - offsetAt(first);
+}
+
+/**
+ * The calendar day of the instant *ms* in Home Assistant's zone, as a count of days.
+ * Without a zone set, the browser zone is used.
+ *
+ * Only the difference between 2 values has a meaning. "Today" and "tomorrow" are days
+ * in Home Assistant's zone, the same days that the to-do list and the calendar use
+ * (X04-7).
+ */
+export function zonedDayNumber(ms: number): number {
+  // `Intl` throws on an invalid instant. An invalid instant is on no day.
+  if (Number.isNaN(ms)) return Number.NaN;
+  const [y, mo, d] = zonedParts(ms, haTimeZone);
+  return Date.UTC(y, mo - 1, d) / 86_400_000;
+}
+
+/** The instant at which the date *y*-*mo*-*d* starts in Home Assistant's zone. */
+export function zonedMidnight(y: number, mo: number, d: number): Date {
+  return new Date(zonedTimeToMs([y, mo, d, 0, 0, 0], haTimeZone));
+}
+
+/** The last millisecond of the day that holds the instant *ms*, in Home Assistant's zone. */
+export function endOfZonedDay(ms: number): number {
+  const [y, mo, d] = zonedParts(ms, haTimeZone);
+  return zonedMidnight(y, mo, d + 1).getTime() - 1;
+}
+
 // ── Dates and times, as a person would write them ───────────────────────────
 /**
  * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
@@ -551,6 +793,7 @@ export function formatDate(value: string | Date | null | undefined, lang?: strin
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: haTimeZone,
   });
 }
 
@@ -570,12 +813,19 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: haTimeZone,
   });
 }
 
-/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+/**
+ * "today" / "yesterday" / "N days ago" for a past date, counted in calendar days.
+ *
+ * Count calendar days in Home Assistant's zone, as `dueLabel` does, not rolling 24h
+ * windows. The history row shows this text beside the date, so the 2 must agree: a
+ * completion at 23:30 yesterday reads "yesterday" at 08:00 today (F04-2).
+ */
 export function relativeDay(d: Date, now: Date = new Date()): string {
-  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  const days = zonedDayNumber(now.getTime()) - zonedDayNumber(d.getTime());
   if (days <= 0) return t('due.today');
   if (days === 1) return t('due.yesterday');
   return tn('due.days_ago', days);
@@ -661,7 +911,7 @@ function recurrenceText(task: Task): string {
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
-    const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+    const every = intervalText(s.also_every.interval, s.also_every.unit);
     return s.combinator === 'all'
       ? t('recurrence.sensorUsageAll', { summary, every })
       : t('recurrence.sensorUsageAny', { summary, every });
@@ -679,15 +929,19 @@ function recurrenceText(task: Task): string {
     const windows = Array.isArray(task.active_season)
       ? task.active_season
       : [task.active_season];
-    const range = windows
-      .map((w) => {
-        const s = t(`opt.month.${parseInt(w.start, 10)}`);
-        const sDay = parseInt(w.start.split('-')[1], 10);
-        const e = t(`opt.month.${parseInt(w.end, 10)}`);
-        const eDay = parseInt(w.end.split('-')[1], 10);
-        return `${s} ${sDay}–${e} ${eDay}`;
-      })
-      .join(' & ');
+    // Each language orders and inflects "month day" in its own way ("15. April",
+    // "15 kwietnia"), so `Intl` formats each boundary and `tlist` joins the windows
+    // (F04-4). The year 2000 is a leap year, so "02-29" is a real date.
+    const fmt = new Intl.DateTimeFormat(getLanguage(), {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+    const boundary = (md: string): string => {
+      const [m, d] = md.split('-').map((x) => parseInt(x, 10));
+      return fmt.format(new Date(Date.UTC(2000, m - 1, d)));
+    };
+    const range = tlist(windows.map((w) => `${boundary(w.start)}–${boundary(w.end)}`));
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
@@ -701,6 +955,7 @@ export function formatOccurrence(value: string | Date, lang?: string): string {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    timeZone: haTimeZone,
   });
 }
 
@@ -717,6 +972,7 @@ export function formatOccurrenceTime(value: string | Date, lang?: string): strin
     month: 'short',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: haTimeZone,
   });
 }
 
@@ -749,6 +1005,42 @@ function fixedRuleText(task: Task): string {
   const days = shownDays(rule, anchorDay(task.anchor));
   if (!days.length) return summary;
   return t('recurrence.fixedDays', { summary, days: dayList(days, getLanguage()) });
+}
+
+/**
+ * "1 month", "5 months": a time interval with the plural-aware unit, as the main
+ * summary uses. The plural-only `opt.unit.*` label gave "every 1 months" (F04-5).
+ * *unit* is a time unit (days, weeks or months), as a usage backstop stores it.
+ */
+export function intervalText(n: number, unit: string): string {
+  // Stryker disable next-line Regex: equivalent. Each time unit has 1 "s", at its end.
+  return `${n} ${tn(`recurrence.unit.${unit.replace(/s$/, '')}`, n)}`;
+}
+
+/**
+ * Cheap fingerprint of the Home Keeper entities, which drives live updates.
+ *
+ * The integration's 2 singleton `CoordinatorEntity`s, `todo.home_keeper_tasks` and
+ * `calendar.home_keeper_upcoming_tasks`, write their state again (and bump
+ * `last_updated`) on each coordinator refresh, which follows each task change from
+ * any surface. The count and the newest stamp of every entity with `home_keeper` in
+ * its id therefore change when the task set does. The card and the panel both use it.
+ */
+export function hkStateSignal(
+  states: Record<string, { last_updated?: string }> | undefined,
+): string {
+  if (!states) return '';
+  let n = 0;
+  let max = 0;
+  for (const id in states) {
+    if (!id.includes('home_keeper')) continue;
+    n++;
+    const ts = Date.parse(String(states[id].last_updated));
+    // Stryker disable next-line EqualityOperator: equivalent. An equal stamp sets the
+    // same value again.
+    if (ts > max) max = ts;
+  }
+  return `${n}:${max}`;
 }
 
 /** True when the task's next due date is at or before now. */
@@ -1001,19 +1293,14 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   // scheduled. It is counting, and that is its whole job.
   if (task.recurrence_type === 'use') return t('due.counting');
   // A completed one-off (do-once, now dormant) reads as "Completed".
-  if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed) {
+  if (isCompletedOneOff(task)) {
     return t('due.completed');
   }
   if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);
-  // Compare calendar days (local midnights), not rolling 24h windows: at 20:00 a
-  // task due 08:00 tomorrow should read "tomorrow", not "today".
-  const startOfDay = (d: Date) => {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x.getTime();
-  };
-  const days = Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
+  // Compare calendar days in Home Assistant's zone, not rolling 24h windows: at 20:00
+  // a task due 08:00 tomorrow should read "tomorrow", not "today".
+  const days = zonedDayNumber(due.getTime()) - zonedDayNumber(now.getTime());
   if (days === 0) return t('due.today');
   if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);
@@ -1045,24 +1332,53 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
 export function statusChipHtml(
   task: Task,
   hass?: Hass,
-  opts: {
-    elapsed?: boolean;
-    now?: Date;
-    /** A counted wear item's progress, from `countedProgress`. Supplied by the
-     *  surfaces that hold the appliances; without it a use task falls back to the
-     *  plain "Counting" label rather than rendering a made-up figure. */
-    counted?: { count: number; target: number; noun: string } | null;
-  } = {},
+  opts: StatusChipOptions = {},
 ): string {
+  const { label, cls } = statusInfo(task, hass, opts);
+  return `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+}
+
+/**
+ * The plain text of `statusChipHtml`'s label, with no markup.
+ *
+ * For an `aria-label`, and anywhere else a chip's colour cannot stand in for its
+ * meaning — a task tile and a board card both name their status inside the label
+ * that announces the card, because the card itself is one press target.
+ */
+export function statusText(
+  task: Task,
+  hass?: Hass,
+  opts: StatusChipOptions = {},
+): string {
+  return statusInfo(task, hass, opts).label;
+}
+
+/** What `statusChipHtml` and `statusText` both ask for. */
+interface StatusChipOptions {
+  elapsed?: boolean;
+  now?: Date;
+  /** A counted wear item's progress, from `countedProgress`. Supplied by the
+   *  surfaces that hold the appliances; without it a use task falls back to the
+   *  plain "Counting" label rather than rendering a made-up figure. */
+  counted?: { count: number; target: number; noun: string } | null;
+}
+
+/**
+ * The label and the chip class the two share, so a chip and the text that
+ * announces it can never disagree about what a task's status says.
+ */
+function statusInfo(
+  task: Task,
+  hass?: Hass,
+  opts: StatusChipOptions = {},
+): { label: string; cls: string } {
   const now = opts.now ?? new Date();
-  const chip = (label: string, cls = '') =>
-    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
   // First of all, because a switched-off task is off whatever else it is. Its stored
   // due date is frozen where it was, so every branch below would read that date and
   // report urgency that nothing will ever announce — a task switched off in October
   // would sit in the list all winter saying "165 days overdue". The state replaces the
   // date rather than sitting beside it.
-  if (task.enabled === false) return chip(t('chip.disabled'), 'hk-disabled');
+  if (task.enabled === false) return { label: t('chip.disabled'), cls: 'hk-disabled' };
   // Ahead of every other branch. A use task is never overdue and never completed in
   // the terminal sense, so nothing below would draw the one number that matters.
   if (opts.counted) {
@@ -1070,7 +1386,7 @@ export function statusChipHtml(
     // At or past the target the replacement task is armed and sitting in Overdue, so
     // this chip says the count has been reached rather than repeating the urgency.
     const cls = count >= target ? 'hk-counted hk-counted-full' : 'hk-counted';
-    return chip(useCountLabel(count, target, noun), cls);
+    return { label: useCountLabel(count, target, noun), cls };
   }
   // "Low stock" answers an *open* reminder. A reminder that was bought while the part
   // stayed under its reorder point keeps its row — the reconciler only retires it once
@@ -1078,15 +1394,14 @@ export function statusChipHtml(
   // where `statusBucket` puts it by running its `completed` check ahead of its buy
   // check. The pill runs them in the same order for the same reason: a row filed under
   // Completed must not carry a chip arguing it is still outstanding.
-  const boughtAlready =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
-  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  const boughtAlready = isCompletedOneOff(task);
+  if (isBuyTask(task) && !boughtAlready) return { label: t('chip.lowStock'), cls: 'hk-shopping' };
+  if (!isOverdue(task, now)) return { label: dueLabel(task, now, hass), cls: '' };
   const days = task.next_due
     ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
     : 0;
   const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
-  return chip(label, 'hk-overdue');
+  return { label, cls: 'hk-overdue' };
 }
 
 /**
@@ -1114,6 +1429,19 @@ export function deviceName(
   const dev = devices?.[deviceId];
   if (!dev) return '';
   return dev.name_by_user || dev.name || '';
+}
+
+/**
+ * The title an appliance shows: its name, else its device's name, else the generic
+ * fallback. An appliance on an existing device can have no name of its own, so every
+ * surface that shows or sorts by the title must use this, not `asset.name`
+ * (F07-6, F07-11).
+ */
+export function assetTitle(
+  asset: { name?: string; device_id?: string | null },
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
+): string {
+  return asset.name || deviceName(devices, asset.device_id) || t('appliance.fallbackName');
 }
 
 /**
@@ -1198,6 +1526,16 @@ export function scanRequired(task: Partial<Task>): boolean {
   return !!task.tag_id && !!task.require_tag_scan;
 }
 
+/**
+ * Whether *task* is a one-off that is done: no next due date, and a completion.
+ * This is the task the Completed group holds.
+ */
+export function isCompletedOneOff(
+  task: Pick<Task, 'recurrence_type' | 'next_due' | 'last_completed'>,
+): boolean {
+  return task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+}
+
 // ── panel routing ────────────────────────────────────────────────────────────
 
 /** The navigable list view; mirrors the panel's two tabs. */
@@ -1266,6 +1604,19 @@ export interface PanelLocation {
 }
 
 /**
+ * Decode one path segment. A malformed escape, such as `%E0` or `50%off`, gives the
+ * raw segment, because `decodeURIComponent` throws on it and the route setter must
+ * not throw (F04-3).
+ */
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
  * Parse the panel's route path (the part after the `/home-keeper` prefix that HA
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
@@ -1297,7 +1648,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // Short-circuit rather than falling back to '': an empty-string default is
     // indistinguishable from any other non-section string here, so it would only
     // add a mutant no test could ever kill.
-    const raw = parts[1] && decodeURIComponent(parts[1]);
+    const raw = parts[1] && safeDecode(parts[1]);
     return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
       ? { view, detail: null, section: raw as SettingsSection }
       : { view, detail: null };
@@ -1309,24 +1660,26 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
       // Short-circuit rather than defaulting to '', for the same reason the settings
       // branch does: an empty-string default is indistinguishable from any other
       // non-tab string, so it only adds a mutant no test could ever kill.
-      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const raw = parts[2] && safeDecode(parts[2]);
       const tab =
         raw && (ASSET_TABS as readonly string[]).includes(raw)
           ? (raw as AssetTab)
           : DEFAULT_ASSET_TAB;
-      const id = decodeURIComponent(parts[1]);
+      const id = safeDecode(parts[1]);
       // A part segment counts only under an explicit parts tab, the one tab that
       // lists parts. A bogus tab falls back to parts, but its segment is no part.
-      const part = raw === 'parts' && parts[3] ? decodeURIComponent(parts[3]) : '';
+      const part = raw === 'parts' && parts[3] ? safeDecode(parts[3]) : '';
       return part
         ? { view, detail: { kind, id, tab, part } }
         : { view, detail: { kind, id, tab } };
     }
     // A task page has sub-tabs of its own, resolved the same way.
-    const raw = parts[2] && decodeURIComponent(parts[2]);
+    // Stryker disable next-line LogicalOperator: equivalent. With no segment, `||`
+    // decodes "undefined", which is no tab, so the default tab is kept.
+    const raw = parts[2] && safeDecode(parts[2]);
     const tab =
       raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
-    return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    return { view, detail: { kind, id: safeDecode(parts[1]), tab } };
   }
   return { view, detail: null };
 }
@@ -1378,6 +1731,7 @@ export function sortedCompletions(completions?: { ts: string }[]): Date[] {
  */
 export const SNOOZE_PRESETS = [
   { id: '1h', hours: 1 },
+  { id: '4h', hours: 4 },
   { id: '1d', days: 1 },
   { id: '1w', days: 7 },
   { id: '1mo', months: 1 },
@@ -1389,6 +1743,39 @@ export type SnoozePresetId = (typeof SNOOZE_PRESETS)[number]['id'];
 /** The preset the dialog opens on. A week is the middle of the range and the one a
  *  "not this time" deferral most often means. */
 export const DEFAULT_SNOOZE_PRESET: SnoozePresetId = '1w';
+
+/**
+ * The length of a snooze preset in whole hours, or `null` for `custom`.
+ *
+ * A month counts as 30 days (720 hours). That is the value a task stores as its own
+ * snooze length, because the backend and a notification measure a snooze in hours.
+ */
+export function snoozePresetHours(id: SnoozePresetId): number | null {
+  const preset = SNOOZE_PRESETS.find((p) => p.id === id) as
+    | { hours?: number; days?: number; months?: number }
+    | undefined;
+  if (!preset) return null;
+  if (preset.hours) return preset.hours;
+  if (preset.days) return preset.days * 24;
+  if (preset.months) return preset.months * 720;
+  return null;
+}
+
+/** The preset whose length is exactly *hours*, or `null` when no preset matches. */
+export function snoozePresetForHours(hours: number): SnoozePresetId | null {
+  return SNOOZE_PRESETS.find((p) => snoozePresetHours(p.id) === hours)?.id ?? null;
+}
+
+/**
+ * A task's own snooze length in whole hours, or `null` when it has none.
+ *
+ * The backend stores an integer of 1 or more, or null. Anything else (a task from an
+ * older version has no key at all) means "use the usual length".
+ */
+export function taskSnoozeHours(task: { snooze_hours?: unknown } | null | undefined): number | null {
+  const hours = task?.snooze_hours;
+  return typeof hours === 'number' && Number.isInteger(hours) && hours >= 1 ? hours : null;
+}
 
 /**
  * Resolve a snooze preset to a real instant, measured from *from*.

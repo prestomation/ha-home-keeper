@@ -7,6 +7,7 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
+import type { StagedPhoto } from './photo-staging';
 import type {
   Asset,
   Completion,
@@ -30,17 +31,35 @@ export interface DeclarativeDialogState {
   /** Whether **More filters** is open. Unset until the user toggles it, so the
    *  default (open when a filter in it is set) applies on the first render. */
   moreOpen?: boolean;
+  /** The preset picker's search text, kept across a re-render of the picker. */
+  presetQuery?: string;
+  /** Whether the preset picker shows the integrations that are not installed. */
+  presetShowAll?: boolean;
 }
 
 /** What the inline notes editor on a detail page is currently editing. */
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };
 
+/** The action sheet a task tile or a board card opens on a press. A press held
+ *  instead opens the task's detail page, so the sheet is the short way to the
+ *  actions the list row carries inline (see `panel-lists.ts`). */
+export interface ActionSheetState {
+  open: boolean;
+  task: Task | null;
+}
+
 export interface EditState {
+  /** Set while Create/Save runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Photos picked in the New task form. They upload after Create (#399). */
+  photos?: StagedPhoto[];
 }
 export interface AssetEditState {
+  /** Set while Create/Save runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
   open: boolean;
   asset: Partial<Asset> | null;
   error?: string;
@@ -67,6 +86,11 @@ export interface AssetEditState {
   // form-level `error` above is hundreds of pixels away from the upload buttons, which
   // is what made these failures look silent (issue #159).
   uploadError?: { key: string; message: string; link?: string };
+  // The link typed in the "add a document" form, kept across a re-render so a failed
+  // Add link, or any other render, does not clear it (F08-1). Cleared when it is added.
+  docDraft?: { name: string; url: string };
+  // The same for the inline editor of document `id`. Cleared on Save and on Cancel.
+  docEditDraft?: { id: string; name: string; url: string };
 }
 
 /** Progress of the in-flight upload. `key` scopes it to the control that started it:
@@ -96,6 +120,8 @@ export const UPLOAD_BAR_DELAY_MS = 150;
  * metadata; `required` is the set of fields that must be filled before saving.
  */
 export interface CompletionDialogState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts?: string;
@@ -116,6 +142,8 @@ export interface CompletionDialogState {
  * edit-metadata mode, which never touches the timestamp.
  */
 export interface MoveCompletionDialogState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts: string;
@@ -143,8 +171,13 @@ export interface HistoryGroup {
 }
 /** How the list view buckets rows; `status`/`device`/`integration` apply to tasks only. */
 export type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
+/**
+ * Every task-list quick filter. The type and the localStorage restore both read this
+ * list, so a new filter cannot be saved and then dropped on reload (F01-8).
+ */
+export const TASK_FILTERS = ['all', 'overdue', 'soon', 'shopping', 'counted'] as const;
 /** Task-list quick filter. */
-export type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping' | 'counted';
+export type TaskFilter = (typeof TASK_FILTERS)[number];
 /** Appliance-list quick filter. */
 export type AssetFilter = 'active' | 'archived';
 export type AssetView = 'flat' | 'tree';
@@ -181,4 +214,13 @@ export interface TransferState {
   error: string;
   /** The name of the picked file, shown so the user can tell which one is loaded. */
   filename: string;
+}
+
+/** The one-time "Presets you can use" dialog: the presets it lists, the ones still
+ *  checked, and whether an add is running. */
+export interface PresetDialogState {
+  open: boolean;
+  ids: string[];
+  selected: string[];
+  busy: boolean;
 }

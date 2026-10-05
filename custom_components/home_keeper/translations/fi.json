@@ -115,6 +115,10 @@
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Kaikki muut tavat merkitä se tehdyksi hylätään. Vaatii tunnisteen."
         },
+        "snooze_hours": {
+          "name": "Lykkäyksen pituus",
+          "description": "Tunnit, joilla Lykkää siirtää tätä tehtävää. Lykkää-ikkuna alkaa tästä pituudesta, ja ilmoituksen Lykkää-painike käyttää sitä. Jätä tyhjäksi, niin tavalliset pituudet ovat käytössä."
+        },
         "source": {
           "name": "Lähde",
           "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Home Keeper tallentaa ja toistaa sen sanatarkasti eikä koskaan tarkastele sitä. Katso docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Vaatii tunnisteen."
         },
+        "snooze_hours": {
+          "name": "Lykkäyksen pituus",
+          "description": "Tunnit, joilla Lykkää siirtää tätä tehtävää. Lähetä tyhjä arvo palataksesi tavallisiin pituuksiin."
+        },
         "source": {
           "name": "Lähde",
-          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Katso docs/INTEGRATING.md."
+          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Jokainen nimiavaruus korvaa tallennetun samannimisen nimiavaruuden. Nimiavaruus, jonka arvo on null, poistetaan. Katso docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Suorituksen tiedot",
@@ -252,6 +260,10 @@
           "description": "Ohita poistosuojaus tehtävälle, jota hallinnoi toinen integraatio. Käytä tätä siivotaksesi tehtävän, jonka hallinnoiva integraatio on poistettu tai toimii virheellisesti eikä voi poistaa sitä itse."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Poista orvot tehtävät",
+      "description": "Poistaa jokaisen tehtävän, jota integraatio hallinnoi, kun kyseistä integraatiota ei ole ladattu (poistettu, poistettu käytöstä tai ei määritetty). Vain järjestelmänvalvojille. Palauttaa poistettujen tehtävien tunnukset avaimella \"deleted\"."
     },
     "complete_task": {
       "name": "Merkitse tehtävä valmiiksi",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Tunnit",
-          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Ohitetaan, kun Mihin asti on asetettu."
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Älä aseta Tunnit- ja Mihin asti -kenttää samassa kutsussa."
         },
         "until": {
           "name": "Mihin asti",
-          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Kun tämä on asetettu, Tunnit-kenttää ei käytetä."
+          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Älä aseta Tunnit- ja Mihin asti -kenttää samassa kutsussa."
         },
         "origin": {
           "name": "Alkuperä",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Poista tehtävän valokuva",
+      "description": "Poistaa valokuvan tehtävästä ja sen tiedoston. Lisää valokuvat paneelissa, koska palvelukutsu ei voi kuljettaa tiedostoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Aseta tehtävän kansikuva",
+      "description": "Tekee valokuvasta tehtävänsä kansikuvan. Kansikuva on ensimmäinen valokuva. Se näkyy tehtäväluettelossa, tehtäväsivulla ja valmis-ikkunassa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Allekirjoita tehtävän valokuvan URL",
+      "description": "Luo lyhytikäisen URL-osoitteen (ei todennusotsaketta), joka antaa tehtävän valokuvan tavut, esimerkiksi valokuvan näyttämiseen ilmoituksessa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        },
+        "thumbnail": {
+          "name": "Pikkukuva",
+          "description": "Allekirjoita pienen kopion URL, enintään 256 pikseliä pitkältä sivulta."
+        }
+      }
+    },
     "update_skip": {
       "name": "Päivitä ohitus",
       "description": "Muokkaa kirjatun ohituksen tietoja, jotka tunnistetaan aikaleimasta. Ohitus säilyttää päivämääränsä eikä aikatauluun kosketa.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} – varaosat"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tehtävät"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Tulevat tehtävät"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Tuntematon asiakirja: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Tuntematon valokuva: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Vain käyttöanturiin sidotulla tehtävällä on mittari."
+    },
+    "meter_has_no_reading": {
+      "message": "Sidotulla anturilla ei ole nyt numeerista lukemaa. Anna lähtöarvo kutsussa."
+    },
+    "archived_completion_not_found": {
+      "message": "Laitteella ei ole arkistoitua suoritusta tehtävälle {task_id} ajalla {ts}."
     },
     "unknown_part_file": {
       "message": "Tuntematon varaosa tai ei liitettyä tiedostoa."

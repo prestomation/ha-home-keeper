@@ -3,7 +3,8 @@
 Surfaces upcoming task occurrences as calendar events so users can see "what's due
 when" on HA's built-in Calendar card. Floating tasks contribute a single event at
 their current ``next_due``; fixed tasks are expanded across the requested range by
-the recurrence engine.
+the recurrence engine. A fixed task's ``next_due`` replaces the schedule dates before
+it.
 
 A fixed task's events carry the task's RRULE and a ``recurrence_id``, the same shape
 Home Assistant's own local calendar uses. That is what makes Home Assistant's event
@@ -34,6 +35,7 @@ from . import recurrence
 from .const import DOMAIN, ORIGIN_CALENDAR, REC_FIXED, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
+from .service_device import service_device_info
 
 # Default duration shown for each task occurrence on the calendar.
 EVENT_DURATION = timedelta(hours=1)
@@ -108,25 +110,27 @@ def _same_rule(given: object, task: dict | None) -> bool:
     return given in (None, "")
 
 
-def _deferred_due(
-    task: dict, now: datetime | None = None
-) -> tuple[datetime, datetime] | None:
-    """A fixed task's snoozed or due-today date, when it is not on the schedule.
+def _due_ahead(task: dict, now: datetime) -> datetime | None:
+    """A fixed task's ``next_due`` while its event has not ended, else ``None``.
 
-    Returns ``(due, now)``, or ``None``. The clock is read only when there is an
-    off-schedule date to judge, so a plain schedule never depends on it.
+    ``next_due`` is what every other surface shows. A completion before the time of
+    day, a skip, a snooze and a due-today all move it off the next schedule date, so
+    the calendar follows it (B11-2). A ``next_due`` in the past is an overdue date,
+    and the schedule shows from now on.
     """
     due = dt_util.parse_datetime(task.get("next_due") or "")
+    if due is None or due + EVENT_DURATION <= now:
+        return None
+    return due
+
+
+def _off_schedule(task: dict, due: datetime) -> bool:
+    """Whether *due* is a snoozed or due-today date, not a date of the schedule."""
     # ``next_due`` comes off storage with a bare offset; judge it in Home Assistant's
     # zone, or a summer anchor makes every winter date look like a snooze.
-    if due is None or recurrence.is_task_occurrence(
+    return not recurrence.is_task_occurrence(
         task, due, tz=dt_util.get_default_time_zone()
-    ):
-        return None
-    now = now or dt_util.now()
-    if due + EVENT_DURATION <= now:
-        return None
-    return due, now
+    )
 
 
 def _fixed_events(
@@ -134,27 +138,36 @@ def _fixed_events(
 ) -> list[CalendarEvent]:
     """The events of a fixed task in ``[start_date, end_date)``.
 
-    Moves are applied by the engine. A snooze or due-today puts ``next_due`` off the
-    schedule: that date shows as its own event, and the schedule dates between now and
-    it are left out, because completing the task on the snoozed date deals with them.
+    Moves are applied by the engine. The schedule dates from now up to ``next_due``
+    are done, skipped or deferred, so they are left out. A ``next_due`` that is off
+    the schedule (a snooze or a due-today) shows as its own event.
     """
     season = task.get("active_season")
     moved_to = {dst.timestamp(): src for src, dst in recurrence.task_moves(task)}
-    deferred = _deferred_due(task)
+    now = dt_util.now()
+    due = _due_ahead(task, now)
     events: list[CalendarEvent] = []
+    # The expansion starts 1 event length early, to get a date that is in progress at
+    # the window start. A date that ends exactly at the window start is not in the
+    # window (B11-7).
     for occ in recurrence.expand_task_occurrences(
         task, start_date - EVENT_DURATION, end_date
     ):
+        if occ + EVENT_DURATION <= start_date:
+            continue
         if season and not recurrence.in_season(occ, season):
             continue
-        if deferred is not None and deferred[1] - EVENT_DURATION <= occ < deferred[0]:
+        if due is not None and now - EVENT_DURATION <= occ < due:
             continue
         original = moved_to.get(occ.timestamp(), occ)
         events.append(_schedule_event(task, occ, original))
-    if deferred is not None:
-        due = deferred[0]
-        if due < end_date and due + EVENT_DURATION > start_date:
-            events.append(_single_event(task, due))
+    if (
+        due is not None
+        and due < end_date
+        and due + EVENT_DURATION > start_date
+        and _off_schedule(task, due)
+    ):
+        events.append(_single_event(task, due))
     return events
 
 
@@ -163,15 +176,18 @@ class HomeKeeperCalendarEntity(
 ):
     """Calendar of upcoming maintenance/chore occurrences."""
 
-    # Explicit name anchors entity_id -> calendar.home_keeper_upcoming_tasks.
-    _attr_has_entity_name = False
-    _attr_name = "Home Keeper Upcoming tasks"
+    # The entity is on the "Home Keeper" service device, so the translated name
+    # composes to "Home Keeper Upcoming tasks" and the entity_id is
+    # calendar.home_keeper_upcoming_tasks (X13-4).
+    _attr_has_entity_name = True
+    _attr_translation_key = "upcoming_tasks"
     _attr_icon = "mdi:calendar-clock"
     _attr_supported_features = CalendarEntityFeature.UPDATE_EVENT
 
     def __init__(self, coordinator: HomeKeeperCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_calendar"
+        self._attr_device_info = service_device_info()
 
     @property
     def event(self) -> CalendarEvent | None:
@@ -204,8 +220,13 @@ class HomeKeeperCalendarEntity(
         if task.get("recurrence_type") == REC_FIXED:
             if dt_util.parse_datetime(task["anchor"]) is None:
                 return None
-            if (deferred := _deferred_due(task, now)) is not None:
-                return _single_event(task, deferred[0])
+            if (due := _due_ahead(task, now)) is not None:
+                if _off_schedule(task, due):
+                    return _single_event(task, due)
+                moved_to = {
+                    dst.timestamp(): src for src, dst in recurrence.task_moves(task)
+                }
+                return _schedule_event(task, due, moved_to.get(due.timestamp(), due))
             return self._next_fixed_event(task, now)
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None
@@ -218,21 +239,22 @@ class HomeKeeperCalendarEntity(
     def _next_fixed_event(task: dict, now: datetime) -> CalendarEvent | None:
         season = task.get("active_season")
         moved_to = {dst.timestamp(): src for src, dst in recurrence.task_moves(task)}
+        after = now - EVENT_DURATION
         try:
-            occ = recurrence.next_task_occurrence(task, after=now - EVENT_DURATION)
             if season:
-                # Walk the schedule forward to the first occurrence inside the season.
-                # A schedule that can never land in one (every 12 months from January,
+                # The first occurrence inside the season. ``_clamp_season`` uses the
+                # same walk, so the calendar and ``next_due`` agree (B07-9). A
+                # schedule that can never land in one (every 12 months from January,
                 # with a March season) exhausts the bound and leaves the task off the
                 # calendar rather than inventing an out-of-season date for it — it is
                 # still in the panel and on the to-do list, which is where an
                 # impossible pairing gets noticed and corrected.
-                for _ in range(recurrence.MAX_EXPAND_ITERATIONS):
-                    if recurrence.in_season(occ, season):
-                        break
-                    occ = recurrence.next_task_occurrence(task, after=occ)
-                else:
+                found = recurrence.next_in_season_occurrence(task, season, after=after)
+                if found is None:
                     return None
+                occ = found
+            else:
+                occ = recurrence.next_task_occurrence(task, after=after)
         except ValueError:
             return None
         return _schedule_event(task, occ, moved_to.get(occ.timestamp(), occ))

@@ -33,9 +33,11 @@
  * context (reusing the auth state global-setup wrote) rather than the default
  * `page` fixture, then saves the video to a stable name we can transcode.
  */
+import * as fs from 'fs';
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import {
+  authToken,
   callService,
   gotoTab,
   openPanel,
@@ -45,6 +47,7 @@ import {
   openTaskTab,
 } from './tests/helpers';
 import { ASSET, PART, TASK } from './fixture-ids';
+import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
@@ -52,6 +55,35 @@ const STATE_PATH = resolve(__dirname, '.auth/state.json');
 
 /** A readable pause so motion in the recording is easy to follow. */
 const BEAT = 900;
+
+/**
+ * Pick *option* in an `ha-select` and wait until *effect* reads *text*, trying again
+ * until it does.
+ *
+ * The check is on the effect, never on the select: `ha-select` holds every option as a
+ * child, so its text contains each label whether or not the pick took. One open and
+ * one click is also not enough in a drawer that is still re-rendering from the last
+ * field: the click can land on an element the re-render then replaces. Each try opens
+ * the menu unless a missed try left it open, and picks again. No Escape: the drawer
+ * closes on Escape too.
+ */
+async function pickUntil(
+  page: Page,
+  select: Locator,
+  option: RegExp,
+  effect: Locator,
+  text: string,
+): Promise<void> {
+  await expect(async () => {
+    const item = page.getByRole('menuitem', { name: option }).first();
+    if (!(await item.isVisible().catch(() => false))) {
+      await select.scrollIntoViewIfNeeded();
+      await select.click();
+    }
+    await item.click({ timeout: 3_000 });
+    await expect(effect).toHaveText(text, { timeout: 3_000 });
+  }).toPass({ intervals: [500, 1_000, 2_000], timeout: 20_000 });
+}
 
 type Tour = {
   /** Names the test, and the variant ci/capture-video.sh transcodes. */
@@ -166,6 +198,28 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
+  // 1a. Preset suggestions. The container's one update entity matches the Firmware
+  //     update available preset, so after the intro the panel offers it once in a
+  //     dialog. Not now leaves a card above the list, and the card's Not now hides
+  //     it. global-setup marks every preset seen, so clear that first, and put it back
+  //     after, so no later beat meets either surface.
+  await suggestOnly(authToken(), FIRMWARE_PRESET);
+  try {
+    await openPanel(page);
+    const presetDialog = panel.locator('ha-dialog.hk-preset-dialog');
+    await expect(presetDialog.locator('label.hk-preset-pick')).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(BEAT * 2);
+    await presetDialog.locator('ha-button.hk-preset-dialog-later').click();
+    const presetCard = panel.locator('.hk-preset-nudge');
+    await expect(presetCard).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await presetCard.locator('ha-button.hk-preset-nudge-hide').click();
+    await expect(presetCard).toHaveCount(0);
+    await page.waitForTimeout(BEAT);
+  } finally {
+    await markAllPresetsSeen(authToken());
+  }
+
   // 1b. Put a part below its reorder point so there is a buy reminder to show. The
   //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
   //     is a beat that shows nothing.
@@ -257,6 +311,84 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('.hk-search-clear').click();
   await expect(searchBox).toHaveValue('');
   await page.waitForTimeout(BEAT);
+
+  // 1f. The Layout menu, beside Group by. Rows is the list this tour has walked so
+  //     far; Tiles redraws every task as a card, three to a row, and Board turns the
+  //     Group by sections into columns read across. The actions a row carries inline
+  //     have nowhere to go on a card that small, so a press opens them as a sheet —
+  //     which is the beat between the two layouts here. Back to Rows at the end,
+  //     because the choice is stored per user and every later beat is a list.
+  const layoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await layoutMenu.selectOption('tiles');
+  const firstTile = panel.locator('.hk-tile:visible').first();
+  await expect(firstTile).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await firstTile.click();
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-row[data-action="open"]')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
+  await layoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await layoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card .hk-card-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
+  // 1g. Task photos (#399). The fridge filter row carries its cover thumbnail, and
+  //     its page shows the cover beside the name and the strip first in the
+  //     Schedule tab. Back to the list after.
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-photo')).not.toHaveCount(0);
+  await expect(panel.locator('.hk-task-cover-img')).toHaveAttribute('src', /authSig=/, {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
+  // 1g2. Photos in the New task form (#399). Pick 2 photos under the notes, show
+  //      them as the cover and the strip, then Cancel: nothing is stored.
+  await panel.locator('#add-btn').click();
+  const formPhotos = panel.locator('#hk-task-form .hk-form-photos');
+  await expect(formPhotos).toBeVisible();
+  await panel
+    .locator('#hk-task-form ha-selector-text')
+    .first()
+    .locator('input, textarea')
+    .fill('Replace the under-sink filter');
+  await formPhotos.locator('.hk-staged-add + input[type="file"]').setInputFiles(
+    ['filter-housing', 'cartridge-label'].map((stem) => {
+      const dir = resolve(
+        __dirname,
+        '../integration/ha_config/home_keeper/task_photos',
+        TASK.fridgeFilter,
+      );
+      const file = fs.readdirSync(dir).find((f) => f.endsWith(`__${stem}.jpg`));
+      if (!file) throw new Error(`no seeded photo ${stem}`);
+      return { name: `${stem}.jpg`, mimeType: 'image/jpeg', buffer: fs.readFileSync(resolve(dir, file)) };
+    }),
+  );
+  await expect(formPhotos.locator('.hk-staged')).toHaveCount(2);
+  await formPhotos.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-task-form')).toHaveCount(0, { timeout: 10_000 });
+
+  // 1h. After photos (#399). The caret beside Done on a one-tap task offers "Done
+  //     with photo or note…", and a done one-off shows its after photo beside the
+  //     cover. Nothing is logged: the menu closes with Escape.
+  const furnaceSplit = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+  await furnaceSplit.scrollIntoViewIfNeeded();
+  await furnaceSplit.locator('.hk-split-caret').click();
+  await expect(furnaceSplit.locator('.hk-defer-details')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await page.keyboard.press('Escape');
+  await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
+  await expect(panel.locator('.hk-head-photos .hk-head-photo')).toHaveCount(2, { timeout: 15_000 });
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#hk-list')).toBeVisible();
 
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
@@ -576,14 +708,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const modeSelect = panel.locator('#hk-task-form ha-select').nth(1);
   await modeSelect.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT);
-  await modeSelect.click();
-  await page.getByRole('menuitem', { name: /^State$/ }).first().click();
-  // Asserted on the control itself first, so a menu click that misses says so here
-  // rather than as a summary that never rewrites.
-  await expect(modeSelect).toContainText('State');
   // The summary rewrites itself again, now describing a transition rather than a
-  // meter — the same strip, tracking a completely different kind of rule.
-  await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
+  // meter — the same strip, tracking a completely different kind of rule. It is also
+  // the proof the pick took, so `pickUntil` picks again until it reads so.
+  await pickUntil(
+    page,
+    modeSelect,
+    /^State$/,
+    panel.locator('#hk-form-summary-value'),
+    'When it changes to on',
+  );
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 3);
 
@@ -870,13 +1004,24 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT);
   await panel.locator('.hk-decl-preset').click();
   const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
-  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await expect(
+    presetPicker.locator('.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card'),
+  ).toHaveCount(3);
   await page.waitForTimeout(BEAT * 2);
+  // The integration presets: a search finds the ones for a brand or a part, each
+  // card with the tasks it makes. Cleared again to pick a general preset.
+  await presetPicker.locator('#hk-decl-preset-q').fill('filter');
+  await expect(presetPicker.locator('.hk-decl-preset-list[data-group="other"]')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  await presetPicker.locator('#hk-decl-preset-q').fill('');
   await presetPicker
     .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
     .click();
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
+  // The box at the top says what the preset does, in plain words.
+  await expect(declForm.locator('.hk-preset-summary-desc')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
 
   // 6b. The template trigger, in the dialog already open. The other four modes each
@@ -900,6 +1045,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 3);
+  // Back at the top, the preset box now says the trigger is not the preset's, and
+  // offers Reset to preset.
+  await declForm.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await expect(declForm.locator('.hk-preset-summary-chip')).toHaveText('Changed: Trigger');
+  await page.waitForTimeout(BEAT * 2);
 
   // More filters opens the other filters and the Exclusions block (#373), and
   // Exclude on a preview row leaves that entity out of the companion.
@@ -909,6 +1059,15 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
   await declForm.locator('.hk-decl-exclude').first().click();
   await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  // Entity keys, in the same More filters block: match the key the integration gives
+  // each entity, and give that key its own task name for `{{ task_name }}`.
+  const declKeys = declForm.locator('.hk-decl-keys');
+  await declKeys.scrollIntoViewIfNeeded();
+  await declKeys.locator('.hk-decl-key-add').click();
+  await declKeys.locator('.hk-decl-key').first().fill('filter_time_left');
+  await declKeys.locator('.hk-decl-key-name').first().fill('Replace filter');
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
   // Task labels at the foot of the Task template section: every task the companion
@@ -1185,6 +1344,17 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await overdue.click();
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await page.waitForTimeout(BEAT);
+
+  // 2b. The board on a phone, from the Layout menu. A column takes most of the
+  //     width and the next one is a swipe away — the desktop board's columns do not
+  //     fit side by side here, so this is the one beat the wide tour cannot carry.
+  const phoneLayout = panel.locator('select[data-seg-select="layout"]');
+  await phoneLayout.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await phoneLayout.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
 
   // 3. Add opens the drawer as a sheet rising from the bottom, over a list that goes

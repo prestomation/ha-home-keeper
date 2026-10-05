@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import datetime
 from typing import Any
 
@@ -48,6 +48,9 @@ from .const import (
     MAX_DECLARATIVE_NOTES_TEMPLATE_LEN,
     MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN,
     MAX_DECLARATIVE_SPEC_NAME_LEN,
+    MAX_DECLARATIVE_TASK_NAME_LEN,
+    MAX_DECLARATIVE_TRANSLATION_KEY_LEN,
+    MAX_DECLARATIVE_TRANSLATION_KEYS,
     REC_SENSOR,
     SENSOR_MODE_USAGE,
     TASK_SOURCE_DECLARATIVE_COMPANION,
@@ -158,7 +161,14 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
                 f"selection.entity_regex is not a valid regex: {err}"
             ) from err
         result["entity_regex"] = entity_regex
+    translation_keys = _clean_id_list(
+        data.get("translation_keys"), "selection.translation_keys"
+    )
+    _check_translation_keys(translation_keys, "selection.translation_keys")
+    if translation_keys:
+        result["translation_keys"] = translation_keys
     for field in (
+        "device_ids",
         "area_ids",
         "label_ids",
         "exclude_entity_ids",
@@ -168,6 +178,70 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
     ):
         result[field] = _clean_id_list(data.get(field), f"selection.{field}")
     return result
+
+
+def _check_translation_keys(keys: list[str], field: str) -> None:
+    """Refuse a key list longer, or a key longer, than the limits allow."""
+    if len(keys) > MAX_DECLARATIVE_TRANSLATION_KEYS:
+        raise DeclarativeCompanionValidationError(
+            f"{field} must have <= {MAX_DECLARATIVE_TRANSLATION_KEYS} entries"
+        )
+    for key in keys:
+        if len(key) > MAX_DECLARATIVE_TRANSLATION_KEY_LEN:
+            raise DeclarativeCompanionValidationError(
+                f"{field} entries must be <= "
+                f"{MAX_DECLARATIVE_TRANSLATION_KEY_LEN} characters"
+            )
+
+
+def _normalize_task_names(value: Any) -> dict[str, str]:
+    """Validate ``task_template.task_names``: entity key -> plain-text task name.
+
+    The table gives each matched entity its own ``{{ task_name }}``, looked up by the
+    entity's ``translation_key``. A blank name is dropped rather than stored, because
+    a blank name and a missing one mean the same thing: fall back to the entity name
+    (see :func:`task_name_for`).
+    """
+    if value in (None, "", {}):
+        return {}
+    if not isinstance(value, dict):
+        raise DeclarativeCompanionValidationError(
+            "task_template.task_names must be a mapping"
+        )
+    result: dict[str, str] = {}
+    for raw_key, raw_name in value.items():
+        if not isinstance(raw_key, str):
+            raise DeclarativeCompanionValidationError(
+                "task_template.task_names keys must be strings"
+            )
+        key = raw_key.strip()
+        if not key:
+            continue
+        name = _clean_str(
+            raw_name, "task_template.task_names value", MAX_DECLARATIVE_TASK_NAME_LEN
+        )
+        if name:
+            result[key] = name
+    _check_translation_keys(list(result), "task_template.task_names")
+    return result
+
+
+def task_name_for(
+    task_template: dict[str, Any], entry: dict[str, Any], fallback: str
+) -> str:
+    """The ``{{ task_name }}`` for one matched entity.
+
+    The template's ``task_names`` entry for the entity's ``translation_key``, else
+    *fallback* (the caller passes the entity's friendly name), so a template that
+    reads it never renders empty. *task_template* is passed rather than the spec so
+    the caller can hand in the localized copy (see
+    ``declarative_presets.localized_task_template``).
+    """
+    names = task_template.get("task_names") or {}
+    key = entry.get("translation_key")
+    if key and names.get(key):
+        return str(names[key])
+    return fallback
 
 
 def _normalize_task_template(data: Any) -> dict[str, Any]:
@@ -206,11 +280,14 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
         result["labels"] = []
     else:
         result["labels"] = _clean_id_list(labels_raw, "task_template.labels")
+    task_names = _normalize_task_names(data.get("task_names"))
+    if task_names:
+        result["task_names"] = task_names
     return result
 
 
 def normalize_declarative_companion(
-    data: Any, *, allow_missing_template: bool = False
+    data: Any, *, allow_missing_template: bool = False, draft: bool = False
 ) -> dict[str, Any]:
     """Validate and normalize a declarative-companion spec.
 
@@ -230,6 +307,11 @@ def normalize_declarative_companion(
     draft that has just switched to Template mode has an empty box by definition, and
     the preview is more useful showing the match list than refusing to answer. Every
     path that persists a spec leaves it ``False``.
+
+    ``draft`` is for the same preview (F06-3). It also accepts a blank ``name``, and
+    an empty trigger ``target``, ``value`` or ``state``. The Add dialog opens with a
+    blank name, and a switch of the trigger mode leaves the new box empty. The match
+    list depends on neither.
     """
     if not isinstance(data, dict):
         raise DeclarativeCompanionValidationError(
@@ -237,7 +319,7 @@ def normalize_declarative_companion(
         )
     spec_id = _clean_str(data.get("id"), "id", 100) or uuid.uuid4().hex
     name = _clean_str(
-        data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=True
+        data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=not draft
     )
     description = _clean_str(
         data.get("description"), "description", MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN
@@ -250,6 +332,7 @@ def normalize_declarative_companion(
         data.get("trigger"),
         allow_missing_entity=True,
         allow_missing_template=allow_missing_template,
+        allow_missing_value=draft,
     )
     task_template = _normalize_task_template(data.get("task_template"))
     # ``per_entity_overrides`` is a reserved v1 field — the panel UI is deferred, but
@@ -352,6 +435,9 @@ def _entity_matches(
             return False
     if regex is not None and not regex.fullmatch(entry["entity_id"]):
         return False
+    translation_keys = selection.get("translation_keys")
+    if translation_keys and entry.get("translation_key") not in translation_keys:
+        return False
     entity_id = entry["entity_id"]
     if entity_id in selection.get("exclude_entity_ids", []):
         return False
@@ -365,11 +451,87 @@ def _entity_matches(
         return False
     if _labels_intersect(entry.get("labels"), selection.get("exclude_label_ids", [])):
         return False
+    device_ids = selection.get("device_ids") or []
+    if device_ids and entry.get("device_id") not in device_ids:
+        return False
     area_ids = selection.get("area_ids") or []
     if area_ids and entry.get("area_id") not in area_ids:
         return False
     label_ids = selection.get("label_ids") or []
     return not (label_ids and not _labels_intersect(entry.get("labels"), label_ids))
+
+
+def summarize_keys(
+    registry_snapshot: dict[str, Any], integration: str, domain: str | None = None
+) -> dict[str, Any]:
+    """The entity keys of *integration*, for the key list in the companion dialog.
+
+    A person cannot see a ``translation_key`` anywhere in Home Assistant's own screens,
+    so the dialog lists the keys the integration's entities have. Returns::
+
+        {"keys": [{"key", "count", "example_entity_id", "example_name"}, ...],
+         "without_key": <entities of the integration that have no key>}
+
+    Sorted by key. The example is the first entity with the key, in registry order,
+    and its name is the one a person gave it, else the integration's. Disabled
+    entities are left out, as the selection pass leaves them out. *domain*, when set,
+    narrows the list to one entity domain, as the dialog's domain box does.
+    """
+    keys: dict[str, dict[str, Any]] = {}
+    without_key = 0
+    for entry in registry_snapshot.get("entities") or []:
+        if entry.get("disabled") or entry.get("platform") != integration:
+            continue
+        if domain and entry.get("domain") != domain:
+            continue
+        key = entry.get("translation_key")
+        if not key:
+            without_key += 1
+            continue
+        found = keys.get(key)
+        if found is None:
+            keys[key] = {
+                "key": key,
+                "count": 1,
+                "example_entity_id": entry["entity_id"],
+                "example_name": entry.get("name") or entry.get("original_name") or "",
+            }
+        else:
+            found["count"] += 1
+    return {
+        "keys": [keys[key] for key in sorted(keys)],
+        "without_key": without_key,
+    }
+
+
+def count_matches(
+    selections: dict[str, dict[str, Any]], registry_snapshot: dict[str, Any]
+) -> dict[str, int]:
+    """How many entities each selection in *selections* matches, by the same key.
+
+    The preset picker uses this to put first only the presets that would make a
+    task: an installed integration can have none of the entities a preset selects,
+    as a Tuya light has none of the parts of a Tuya vacuum. The entities are
+    grouped by integration once, so a selection with a target integration reads
+    only that integration's entities.
+    """
+    entities = registry_snapshot.get("entities") or []
+    by_platform: dict[str, list[dict[str, Any]]] = {}
+    # The grouping only saves work: ``_entity_matches`` checks the target integration
+    # again, so a mutant that breaks the lookup gives the same counts.
+    for entry in entities:
+        platform = entry.get("platform") or ""  # pragma: no mutate
+        by_platform.setdefault(platform, []).append(entry)
+    counts: dict[str, int] = {}
+    for name, selection in selections.items():
+        target = selection.get("target_integration")  # pragma: no mutate
+        pool = by_platform.get(target, []) if target else entities
+        pattern = selection.get("entity_regex")
+        regex = re.compile(pattern) if pattern else None
+        counts[name] = sum(
+            1 for entry in pool if _entity_matches(entry, selection, regex)
+        )
+    return counts
 
 
 def expand_spec(
@@ -385,7 +547,7 @@ def expand_spec(
             {"entity_registry_id": ..., "entity_id": ..., "platform": ...,
              "domain": ..., "device_class": ..., "original_device_class": ...,
              "device_id": ..., "area_id": ..., "labels": {...}, "disabled": bool,
-             "name": ..., "original_name": ...},
+             "name": ..., "original_name": ..., "translation_key": ...},
             ...
           ]
         }
@@ -418,6 +580,31 @@ def expand_spec(
                 f"{MAX_DECLARATIVE_MATCH_HARD} entities; narrow the selection"
             )
     return matches
+
+
+def dormant_keys(
+    spec: dict[str, Any], registry_snapshot: dict[str, Any]
+) -> set[tuple[str, str]]:
+    """The ``(spec_id, entity_registry_id)`` keys of disabled entities *spec* selects.
+
+    A disabled entity does not match (:func:`_entity_matches`), but its registry
+    entry is still there. Home Assistant disables every entity of a device or of an
+    integration that a person disables, often only for a short time. The reconcile
+    pass switches off the task of such an entity and keeps it with its history
+    (B12-1), as :func:`pause_spec_tasks` does for a disabled companion.
+    """
+    selection = spec.get("selection") or {}
+    pattern = selection.get("entity_regex")
+    regex = re.compile(pattern) if pattern else None
+    keys: set[tuple[str, str]] = set()
+    for entry in registry_snapshot.get("entities") or []:
+        if not entry.get("disabled"):
+            continue
+        if not _entity_matches({**entry, "disabled": False}, selection, regex):
+            continue
+        ent_reg_id = entry.get("entity_registry_id") or entry.get("entity_id")
+        keys.add((spec["id"], ent_reg_id))
+    return keys
 
 
 # --- Managed-by + reconcile -------------------------------------------------
@@ -595,6 +782,8 @@ def reconcile_declarative_tasks(
     config_entry_id: str,
     now: datetime,
     lang: str = "en",
+    dormant: Collection[tuple[str, str]] = (),
+    stale: Collection[tuple[str, str]] = (),
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Diff *spec*'s current match set against *tasks* and return the update plan.
 
@@ -608,7 +797,8 @@ def reconcile_declarative_tasks(
     * ``new_tasks`` — a fresh task map (non-declarative tasks and tasks from other
       specs are carried through untouched).
     * ``ops`` — ordered ``(kind, task)`` events the store must fire:
-      ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"``. A ``"resumed"``
+      ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"`` / ``"paused"``
+      (see *dormant* below). A ``"resumed"``
       task is an ordinary update that also counts as freshly made, because the companion
       that had paused it is on again (see :func:`pause_spec_tasks`). Arm/clear
       transitions are not handled here — the sensor watcher owns those on the
@@ -619,6 +809,17 @@ def reconcile_declarative_tasks(
     name/notes/device/area from template + entity registry), rename (task's
     ``sensor.entity_id`` follows the current entity_id under the same registry id,
     ``source`` echoes the fresh id), orphaned (delete).
+
+    *dormant* holds the keys of disabled entities the spec still selects
+    (:func:`dormant_keys`). Their tasks are not orphans: each one is switched off
+    with the ``paused`` marker and kept, with a ``"paused"`` op, and the update path
+    switches it on again when the entity matches again (B12-1).
+
+    A rendered name that is blank never becomes a task name (B12-2): the match
+    makes no task, and an existing task keeps its name. *stale* holds the keys whose
+    entity had no live state when the templates rendered, for example during Home
+    Assistant start. Their render is not trusted, so an existing task keeps its
+    name and notes (B12-3).
     """
     result = dict(tasks)
     ops: list[tuple[str, dict[str, Any]]] = []
@@ -634,16 +835,31 @@ def reconcile_declarative_tasks(
 
     # Orphan pass: registered entity vanished, was excluded, or the spec narrowed.
     for key, tid in list(existing_by_key.items()):
-        if key not in matches:
-            ops.append(("deleted", result.pop(tid)))
-            existing_by_key.pop(key, None)
-            changed = True
+        if key in matches:
+            continue
+        if key in dormant:
+            task = result[tid]
+            # Off already: this pass paused it before, or the person switched it off.
+            # A marker on the second would make it theirs no longer to undo.
+            if task.get("enabled", True):
+                task["enabled"] = False
+                # ``task_key`` proved the provenance block is a mapping.
+                task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
+                ops.append(("paused", task))
+                changed = True
+            continue
+        ops.append(("deleted", result.pop(tid)))
+        changed = True
 
     # Create / update pass.
     for key, match in matches.items():
         rendered_name, rendered_notes = rendered_by_key.get(key, ("", ""))
         existing_tid = existing_by_key.get(key)
         if existing_tid is None:
+            if not rendered_name.strip():
+                # No name, so no task: ``build_task`` refuses a blank name, and one
+                # entity must not stop the pass for every other one.
+                continue
             task = _build_task(
                 spec,
                 match,
@@ -682,10 +898,14 @@ def reconcile_declarative_tasks(
             },
         }
         task_changed = False
-        owned: list[tuple[str, Any]] = [("name", rendered_name)]
+        owned: list[tuple[str, Any]] = []
+        # A render without live state, or a blank name, keeps what the task has.
+        trusted = key not in stale
+        if trusted and rendered_name.strip():
+            owned.append(("name", rendered_name))
         # A spec with no notes template does not own the notes: the task keeps
         # whatever a person wrote there (see :func:`owns_notes`).
-        if owns_notes(spec):
+        if trusted and owns_notes(spec):
             owned.append(("notes", rendered_notes))
         owned += [
             ("device_id", entry.get("device_id")),

@@ -10,8 +10,9 @@ does this.
 - An armed triggered task is due now on the to-do list and the device's overdue
   sensor and the panel. A **Managed by** chip names the owning integration.
 - A completion in Home Keeper or in the owning integration records the event. The
-  task then leaves the to-do list and the calendar and is listed in the
-  **Monitored** section until it is armed again.
+  task then leaves the to-do list and is listed in the **Monitored** section until
+  it is armed again.
+- The calendar does not show a triggered task, armed or not.
 - The task persists across cycles and its completion history accumulates.
 
 ![Battery task detail: monitored, managed by Battery Notes, with replacement history](../../images/14-panel-battery-detail.png)

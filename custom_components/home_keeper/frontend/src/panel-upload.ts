@@ -26,6 +26,9 @@ import { setBtnWeight, toast } from './utils';
  *  different list the day one of them was edited alone. */
 export const UPLOAD_ACCEPT = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
 
+/** What a task photo control accepts: the image half of `UPLOAD_ACCEPT`. */
+export const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
+
 /** Set (or clear) the appliance-form error, plus an optional "Learn more" link. */
 export function setAssetError(p: PanelHost, message?: string, link?: string): void {
   p._assetEdit.error = message;
@@ -61,10 +64,11 @@ export function filePicker(
   p: PanelHost,
   button: HTMLElement,
   onFile: (file: File) => void,
+  accept: string = UPLOAD_ACCEPT,
 ): HTMLInputElement {
   const picker = document.createElement('input');
   picker.type = 'file';
-  picker.accept = UPLOAD_ACCEPT;
+  picker.accept = accept;
   picker.style.display = 'none';
   picker.addEventListener('change', () => {
     const file = picker.files?.[0];
@@ -79,15 +83,17 @@ export function filePicker(
 /**
  * Run an upload with a size pre-check, progress reporting and visible failures.
  *
- * Shared by the appliance-documents and part-file controls so both behave
+ * Shared by the appliance-documents, part-file and task photo controls so they behave
  * identically. Returns the upload's result, or `undefined` if it failed or was
- * cancelled — the caller only grafts its own state on success.
+ * cancelled — the caller only grafts its own state on success. *limit* is the size
+ * the backend takes for this kind of file.
  */
 export async function runUpload<T>(
   p: PanelHost,
   key: string,
   file: File,
   run: (opts: api.UploadOptions) => Promise<T>,
+  limit: number = MAX_DOCUMENT_BYTES,
 ): Promise<T | undefined> {
   // A previous failure is stale the moment a new upload starts.
   p._assetEdit.uploadError = undefined;
@@ -95,13 +101,16 @@ export async function runUpload<T>(
 
   // Refuse an oversized file *here*: uploading 30 MB just to have the backend 413 it
   // wastes minutes, and on a slow link looks like a hang.
-  const tooLarge = uploadSizeError(file);
+  const tooLarge = uploadSizeError(file, limit);
   if (tooLarge) {
-    failUpload(p, key, tooLarge);
+    failInline(p, key, tooLarge);
     return undefined;
   }
 
-  p._assetEdit.upload = {
+  // This run's own state, timer and controller. The finally block below clears only
+  // these: when the draft closed and a second upload started, the first run must not
+  // clear the state of the second (X12-8).
+  const state = {
     key,
     filename: file.name,
     loaded: 0,
@@ -110,21 +119,24 @@ export async function runUpload<T>(
     sent: false,
     visible: false,
   };
-  p._uploadAbort = new AbortController();
+  p._assetEdit.upload = state;
+  const abort = new AbortController();
+  p._uploadAbort = abort;
   // Small files finish before this fires, so they never flash a progress bar — the
   // disabled "Uploading…" button is the only affordance they need.
-  p._uploadShowTimer = setTimeout(() => {
-    if (p._assetEdit.upload) {
-      p._assetEdit.upload.visible = true;
+  const showTimer = setTimeout(() => {
+    if (p._assetEdit.upload === state) {
+      state.visible = true;
       p._render();
     }
   }, UPLOAD_BAR_DELAY_MS);
+  p._uploadShowTimer = showTimer;
   p._render();
 
   try {
     const result = await run({
       onProgress: (progress) => onUploadProgress(p, key, progress),
-      signal: p._uploadAbort.signal,
+      signal: abort.signal,
     });
     toast(p, t('doc.uploadComplete', { name: file.name }));
     return result;
@@ -133,25 +145,25 @@ export async function runUpload<T>(
     // A cancellation is the user's own doing — no error to report.
     if (!e?.aborted) {
       const { message, link } = uploadErrorMessage(e, file);
-      failUpload(p, key, message, link);
+      failInline(p, key, message, link);
     }
     return undefined;
   } finally {
-    if (p._uploadShowTimer) clearTimeout(p._uploadShowTimer);
-    p._uploadShowTimer = undefined;
-    p._uploadAbort = undefined;
-    p._assetEdit.upload = undefined;
+    clearTimeout(showTimer);
+    if (p._uploadShowTimer === showTimer) p._uploadShowTimer = undefined;
+    if (p._uploadAbort === abort) p._uploadAbort = undefined;
+    if (p._assetEdit.upload === state) p._assetEdit.upload = undefined;
     p._render();
   }
 }
 
-/** The pre-check message for a file over the shared ceiling, else undefined. */
-function uploadSizeError(file: File): string | undefined {
-  if (file.size <= MAX_DOCUMENT_BYTES) return undefined;
+/** The pre-check message for a file over *limit*, else undefined. */
+function uploadSizeError(file: File, limit: number): string | undefined {
+  if (file.size <= limit) return undefined;
   return t('doc.uploadTooLargeLocal', {
     name: file.name,
     size: formatBytes(file.size),
-    limit: formatBytes(MAX_DOCUMENT_BYTES),
+    limit: formatBytes(limit),
   });
 }
 
@@ -174,9 +186,10 @@ function uploadErrorMessage(e: api.UploadError, file: File): { message: string; 
   return { message: t('doc.uploadFailed', { error: String(e?.message ?? '') }) };
 }
 
-/** Report an upload failure where the user is actually looking: inline next to the
- *  control, plus HA's toast (viewport-fixed, so it can't scroll out of sight). */
-function failUpload(p: PanelHost, key: string, message: string, link?: string): void {
+/** Report a failure where the user is actually looking: inline next to the control
+ *  that *key* names, plus HA's toast (viewport-fixed, so it can't scroll out of
+ *  sight). Uploads use it, and so do the document and part-file changes (F08-1). */
+export function failInline(p: PanelHost, key: string, message: string, link?: string): void {
   p._assetEdit.uploadError = { key, message, link };
   toast(p, message);
   p._scrollToError = key;

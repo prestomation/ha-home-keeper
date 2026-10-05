@@ -6,6 +6,7 @@ import {
   HK_DOMAIN,
   areaName,
   deviceName,
+  endOfZonedDay,
   groupableDeviceId,
   isBuyTask,
   isUseTask,
@@ -52,6 +53,14 @@ export interface HomeKeeperCardConfig {
   sort?: CardSort;
   /** Collapsible section grouping. Default 'none'. */
   group_by?: CardGroupBy;
+  /** Start every group closed. A group the user opens or closes keeps that state. */
+  collapsed?: boolean;
+  /** Start these groups closed. A status group by its name (`overdue`, `today`), an area
+   *  or a device group by its id. The full key (`status:overdue`) also works. */
+  collapsed_groups?: string[];
+  /** Start a group closed when it shows more than this many tasks (0 = off). The count
+   *  is after `max_items`, so it is the number of rows the group would show. */
+  collapse_above?: number;
   /** Restrict to these areas (a task's own area, else its device's area). */
   areas?: string[];
   /** Restrict to tasks attached to these devices. */
@@ -84,6 +93,10 @@ export interface HomeKeeperCardConfig {
   show_area?: boolean;
   /** Show the task's own label chips. Default false. */
   show_labels?: boolean;
+  /** Show the schedule summary under the task name. Default true. */
+  show_schedule?: boolean;
+  /** Show the completion count under the task name. Default true. */
+  show_history_count?: boolean;
   /** Ask for confirmation before completing a task. Default false. */
   confirm_complete?: boolean;
   /** Hide the entire card (header included) instead of showing "No tasks match
@@ -91,6 +104,84 @@ export interface HomeKeeperCardConfig {
    *  built from several per-subject cards where only the ones with something due
    *  should show. */
   hide_when_empty?: boolean;
+}
+
+const CARD_FILTERS: readonly CardFilter[] = [
+  'all',
+  'overdue',
+  'soon',
+  'today',
+  'no_due',
+  'shopping',
+  'counted',
+];
+const CARD_SORTS: readonly CardSort[] = ['due', 'name', 'recent', 'area'];
+const CARD_GROUPS: readonly CardGroupBy[] = ['none', 'status', 'area', 'device'];
+const CARD_LIST_KEYS = [
+  'areas',
+  'devices',
+  'labels',
+  'recurrence_types',
+  'collapsed_groups',
+] as const;
+
+/**
+ * Check a card config and return a copy with each list option as a list (F05-8).
+ *
+ * In YAML, `areas: kitchen` gives a string, and `new Set('kitchen')` is a set of its
+ * letters, so no task matched and the card was empty with no error. A string becomes
+ * a list of one. Any other value that is not a list, and an unknown filter, sort or
+ * group_by value, is an error, so Home Assistant shows it as a config error.
+ */
+export function normalizeCardConfig(config: HomeKeeperCardConfig): HomeKeeperCardConfig {
+  const out: Record<string, unknown> = { ...config };
+  for (const key of CARD_LIST_KEYS) {
+    const value = out[key];
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string') out[key] = [value];
+    else if (!Array.isArray(value)) throw new Error(`Home Keeper card: ${key} must be a list`);
+  }
+  const enums: [string, readonly string[]][] = [
+    ['filter', CARD_FILTERS],
+    ['sort', CARD_SORTS],
+    ['group_by', CARD_GROUPS],
+  ];
+  for (const [key, allowed] of enums) {
+    const value = out[key];
+    if (value === undefined || value === null) continue;
+    if (!allowed.includes(value as string)) {
+      throw new Error(
+        `Home Keeper card: ${key} must be one of ${allowed.join(', ')}, not ${String(value)}`,
+      );
+    }
+  }
+  const collapsed = out.collapsed;
+  if (collapsed !== undefined && collapsed !== null && typeof collapsed !== 'boolean') {
+    throw new Error('Home Keeper card: collapsed must be true or false');
+  }
+  const above = out.collapse_above;
+  if (above !== undefined && above !== null) {
+    if (typeof above !== 'number' || !Number.isFinite(above) || above < 0) {
+      throw new Error('Home Keeper card: collapse_above must be a number of 0 or more');
+    }
+  }
+  return out as unknown as HomeKeeperCardConfig;
+}
+
+/**
+ * Whether a group starts closed under the card's own settings (#435). It reads only
+ * the 3 collapse options, so a group the user has opened or closed is not its concern:
+ * the card seeds its state from this once per group and then keeps the user's choice.
+ */
+export function startsCollapsed<T>(group: Group<T>, config: HomeKeeperCardConfig): boolean {
+  if (!group.key) return false;
+  if (config.collapsed === true) return true;
+  const above = Number(config.collapse_above) || 0;
+  if (above > 0 && group.items.length > above) return true;
+  // A key reads `prefix:name`. A name in the list matches the part after the first colon,
+  // so an id that has a colon of its own still matches. YAML can give an id as a number.
+  const name = group.key.slice(group.key.indexOf(':') + 1);
+  return (config.collapsed_groups ?? []).some((e) => String(e) === group.key || String(e) === name);
 }
 
 /**
@@ -118,11 +209,9 @@ export const DUE_SOON_DAYS = 3;
 /** One day in milliseconds — the unit every "due in N days" window is counted in. */
 export const DAY_MS = 86_400_000;
 
-/** End of the local calendar day containing `now` (23:59:59.999). */
+/** End of the calendar day containing `now` (23:59:59.999), in Home Assistant's zone. */
 function endOfToday(now: number): number {
-  const d = new Date(now);
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
+  return endOfZonedDay(now);
 }
 
 /**
@@ -307,8 +396,8 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
  * overdue, and drops back to `next_due: null` (excluded below) once the sensor clears.
  * Dropping the armed ones outright hid every synced problem from every Profile, under
- * every status (#248). Walk notifications still leave them out, but that is a delivery
- * rule in `notifications.is_walkable`, not part of the filter.
+ * every status (#248). Walk notifications keep them too, and
+ * `notifications.actions_for` gives them a Snooze button.
  */
 export function profileMatches(
   task: Task,
@@ -499,13 +588,19 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
       // therefore due now — but `filter: shopping` is how a card asks for those, and a
       // card set to `overdue` with `group_by: status` otherwise drew a Shopping section
       // under an Overdue filter. Matches the panel's own Overdue pill: the two describe
-      // one idea and must not disagree about which tasks it holds.
-      return dated && due <= now && !isBuyTask(task);
+      // one idea and must not disagree about which tasks it holds. A switched-off
+      // task is not late work either, also when `show_disabled` lets it into the
+      // card (F05-7): the panel pill leaves it out too.
+      return task.enabled !== false && dated && due <= now && !isBuyTask(task);
     case 'soon':
-      return statusBucket(task, now) === 'soon';
+      // No Today bucket here, the same as the panel's Due soon pill (PANEL_BUCKETS).
+      // With the card default a task due later today is 'today', so a Due soon card
+      // dropped it on its due day (F05-1).
+      return statusBucket(task, now, { today: false }) === 'soon';
     case 'today':
-      // Everything actionable today: overdue plus anything due before midnight.
-      return dated && due <= endOfToday(now);
+      // Everything actionable today: overdue plus anything due before midnight. A
+      // switched-off task is not actionable (F05-7).
+      return task.enabled !== false && dated && due <= endOfToday(now);
     case 'no_due':
       return !dated;
     case 'shopping':

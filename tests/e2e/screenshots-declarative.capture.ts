@@ -18,8 +18,17 @@
  *     SHOT_DIR=../../docs/images \
  *     npx playwright test --config=screenshots-declarative.config.ts
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { test, expect } from '@playwright/test';
-import { callService, listTasks, openPanel, openSettingsSection } from './tests/helpers';
+import {
+  authToken,
+  callService,
+  listTasks,
+  openPanel,
+  openSettingsSection,
+} from './tests/helpers';
+import { wsCommand } from './user-data';
 import { centre } from './shots';
 import { PHONE } from './viewports';
 
@@ -43,17 +52,39 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   await page.waitForTimeout(500);
   await companions.screenshot({ path: `${OUT}/21-panel-companions.png` });
 
-  // 21c. The preset picker: one card per bundled preset. Device Pulse is greyed out
-  // and says which integration it needs, because the e2e container does not have it.
+  // 21c. The preset picker. The Tuya Local stub's filter sensor puts that preset in
+  // For your devices, with its entity count. Device Pulse is greyed out and says which
+  // integration it needs, because the e2e container does not have it.
   await panel.locator('.hk-decl-preset').click();
   const picker = panel.locator('ha-dialog.hk-decl-picker');
   // `ha-dialog` portals its surface, so the host itself never reports visible —
   // wait on a node inside it, the way the specs do.
   await expect(picker.locator('.hk-decl-preset-card').first()).toBeVisible({ timeout: 20_000 });
-  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
-  await expect(picker.locator('.hk-decl-preset-card.hk-decl-preset-disabled')).toHaveCount(1);
+  const generalCards = picker.locator(
+    '.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card',
+  );
+  await expect(generalCards).toHaveCount(3);
+  await expect(generalCards.and(picker.locator('.hk-decl-preset-disabled'))).toHaveCount(1);
+  await expect(
+    picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-count'),
+  ).toHaveText('1 entity');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
+
+  // 21v. A search reaches the integration presets. The Tuya Local preset matches the
+  // stub's sensor and stays first. The others are for integrations this container does
+  // not have, so each of those cards is greyed out and names the integration it needs.
+  // Each card lists the tasks it makes.
+  await picker.locator('#hk-decl-preset-q').fill('filter');
+  await expect(picker.locator('.hk-decl-preset-list[data-group="other"]')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/21v-panel-declarative-preset-search.png` });
+  await page.setViewportSize(PHONE);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/21v-panel-mobile-preset-search.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await picker.locator('#hk-decl-preset-q').fill('');
 
   // 21d. The add dialog, seeded from Firmware update available (the one preset that
   // needs no upstream integration).
@@ -224,53 +255,77 @@ test('capture a declarative-companion task page', async ({ page }) => {
 });
 
 /**
- * The declarative companion row in Settings → Companions, at both widths (the
- * phone-layout fix).
+ * The declarative companion rows (21h desktop, 21i phone): the integration logo with
+ * its shape badge, the meta line under the name, the Custom chip, and Edit and Delete.
  *
- * The row is the surface the maintainer reported: below 700px it kept the desktop's
- * single-line layout, the status and preset chips came out of their box over the Edit
- * button, and Delete went past the right edge with nothing to scroll. Seeded from a
- * *preset* on purpose — `preset_id` is what puts the long "Preset: device_pulse"
- * badge on the name line, which is the chip that did the covering.
+ * 3 companions show the 3 kinds of row: 1 from an integration preset (Roborock, with
+ * its logo, badge and limit), 1 from a general preset (no integration, so the preset
+ * icon), and 1 made by hand for ZHA (its logo and the Custom chip). The integration
+ * preset is added from its own `default_spec`, so the trigger is the preset's and the
+ * row says the limit.
+ *
+ * The browser gets the logos from fixture files, not from brands.home-assistant.io,
+ * so the shots do not change with the network.
  *
  * Both shots come from here rather than the main capture because only this file
- * creates a companion, and it deletes it again so the container is left as it was found.
- * `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
+ * creates a companion, and it deletes them again so the container is left as it was
+ * found. `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
  */
 test('capture the declarative companion row at both widths', async ({ page }) => {
-  const created = await callService(
-    'home_keeper',
-    'add_declarative_companion',
+  await page.route('https://brands.home-assistant.io/**', (route) => {
+    const domain = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    const file = path.join(__dirname, 'brands', `${domain}.png`);
+    return fs.existsSync(file)
+      ? route.fulfill({ path: file, contentType: 'image/png' })
+      : route.fulfill({ status: 404 });
+  });
+  const presets: Array<{ id: string; default_spec: Record<string, unknown> }> = (
+    await wsCommand(authToken(), { type: 'home_keeper/list_declarative_presets' })
+  ).presets;
+  const roborock = presets.find((p) => p.id === 'roborock_life_low');
+  const firmware = presets.find((p) => p.id === 'firmware_update_available');
+  if (!roborock || !firmware) throw new Error('the presets this capture uses are gone');
+  const specs = [
+    roborock.default_spec,
+    firmware.default_spec,
     {
-      name: 'Device Pulse',
-      preset_id: 'device_pulse',
-      selection: { domain: 'binary_sensor', device_class: 'battery' },
-      trigger: { mode: 'availability', for_seconds: 3600, clear_on_recover: true },
+      name: 'Zigbee device offline',
+      preset_id: null,
+      selection: { target_integration: 'zha', domain: 'binary_sensor' },
+      trigger: { mode: 'availability', for_seconds: 21600, clear_on_recover: true },
       task_template: { name_template: 'Check on {{ device_name or friendly_name }}' },
     },
-    true,
-  );
-  const specId = created.companion.id as string;
+  ];
+  const specIds: string[] = [];
 
   try {
+    for (const spec of specs) {
+      const created = await callService('home_keeper', 'add_declarative_companion', spec, true);
+      specIds.push(created.companion.id as string);
+    }
     const panel = page.locator('home-keeper-panel').first();
 
-    // 21h. The desktop row, where Edit and Delete sit beside the text. Shot as the
+    // 21h. The desktop rows, with Edit and Delete beside the text. Shot as the
     // Companions card: the Settings page around it is four cards of other settings.
     await openPanel(page);
     await openSettingsSection(panel, 'companions');
     const companions = panel.locator('#hk-companions');
     await expect(companions).toBeVisible();
-    const row = companions.locator('.hk-decl-row').first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.hk-decl-preset-chip')).toBeVisible();
+    await expect(companions.locator('.hk-decl-row')).toHaveCount(3);
+    const row = companions.locator('.hk-decl-row', { hasText: 'Roborock' });
+    await expect(row.locator('img.hk-decl-logo')).toHaveJSProperty('complete', true);
+    await expect(row.locator('.hk-decl-shape')).toBeVisible();
+    await expect(row.locator('.hk-decl-meta')).toContainText('Roborock');
+    await expect(row.locator('.hk-decl-meta')).toContainText('24 hours');
+    const custom = companions.locator('.hk-decl-row', { hasText: 'Zigbee device offline' });
+    await expect(custom.locator('.hk-decl-custom')).toBeVisible();
     await expect(row.locator('.hk-decl-edit')).toBeVisible();
     await expect(row.locator('.hk-decl-delete')).toBeVisible();
-    await centre(row);
+    await centre(companions.locator('.hk-companion-group-decl'));
     await page.waitForTimeout(500);
     await companions.screenshot({ path: `${OUT}/21h-panel-declarative-row-actions.png` });
 
-    // 21i. The same row on a phone. The buttons take a line of their own under the
+    // 21i. The same rows on a phone. The buttons take a line of their own under the
     // name, and both are on the screen at a size a thumb can hit.
     await page.setViewportSize(PHONE);
     await openPanel(page);
@@ -278,15 +333,17 @@ test('capture the declarative companion row at both widths', async ({ page }) =>
     await expect(companions).toBeVisible();
     const phoneRow = companions.locator('.hk-decl-row').first();
     await expect(phoneRow.locator('.hk-decl-delete')).toBeVisible();
+    await expect(phoneRow.locator('.hk-decl-tile')).toBeVisible();
     // Scroll to the *buttons*, not the row: the row's own top is on screen while its
-    // action line is still under the bottom tab bar, which is exactly the half of the
-    // fix the shot exists to show.
+    // action line is still under the bottom tab bar.
     await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/21i-panel-mobile-declarative-row.png` });
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
-    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+    for (const id of specIds) {
+      await callService('home_keeper', 'delete_declarative_companion', { id });
+    }
   }
 });
 
@@ -714,4 +771,176 @@ test('capture task labels and the task Edit form at both widths', async ({ page 
       await ws({ type: 'config/label_registry/delete', label_id: label.label_id });
     }
   }
+});
+
+/**
+ * The Entity keys block under More filters, at both widths.
+ *
+ * The companion selects the Battery Notes stub's sensor by its key (`battery_level`)
+ * and gives that key a task name, which the name template reads as `{{ task_name }}`.
+ * A second key has no task name, so the shot shows the placeholder that says the
+ * entity name is used. The preview row carries the rendered name, which is the proof
+ * the key matched. The companion is added over the service and deleted again.
+ */
+test('capture the entity keys and task names at both widths', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Battery by key',
+      selection: {
+        target_integration: 'home_keeper_battery_notes',
+        translation_keys: ['battery_level', 'battery_low'],
+      },
+      trigger: { mode: 'threshold', comparison: '<=', value: 20, clear_on_recover: true },
+      task_template: {
+        name_template: '{{ task_name }}: {{ device_name }}',
+        task_names: { battery_level: 'Replace the battery' },
+      },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  const openCompanion = async () => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing 1 of 1/, {
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview')).toContainText('Replace the battery:');
+    await expect(dialog.locator('.hk-decl-keys .hk-decl-key')).toHaveCount(2);
+    // The key list under the rows, read from the live registry: the stub's one key,
+    // marked as added.
+    await expect(dialog.locator('.hk-decl-keyopt[data-key="battery_level"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+      { timeout: 20_000 },
+    );
+    return dialog;
+  };
+
+  try {
+    await page.setViewportSize({ width: 1280, height: 2600 });
+    const dialog = await openCompanion();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path: `${OUT}/21u-panel-declarative-entity-keys.png`,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+    await dialog.locator('.hk-decl-cancel').click();
+
+    // A phone. The key and its task name stack in one row; scroll the list into view.
+    await page.setViewportSize(PHONE);
+    const phoneDialog = await openCompanion();
+    await phoneDialog.locator('.hk-decl-keylist').scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/21u-panel-mobile-declarative-entity-keys.png` });
+    await phoneDialog.locator('.hk-decl-cancel').click();
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
+});
+
+/**
+ * The preset summary at the top of the Add dialog, at both widths.
+ *
+ * Seeded from the Tuya Local preset, the one integration preset the container's stub
+ * matches: the box says what it does and its limit, lists its task, and each preview
+ * row says what the entity reads now. A changed Value then shows the Changed chip and
+ * Reset to preset. Cancelled each time, so nothing is saved.
+ */
+test('capture the preset summary at both widths', async ({ page }) => {
+  const openFromPreset = async () => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await panel.locator('.hk-decl-preset').click();
+    const picker = panel.locator('ha-dialog.hk-decl-picker');
+    const card = picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-card');
+    await expect(card).toHaveCount(1, { timeout: 20_000 });
+    await card.click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('.hk-preset-summary')).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.locator('.hk-preset-summary-desc')).toContainText('Limit: below 10%');
+    await expect(dialog.locator('.hk-decl-reading').first()).toContainText('Now:', {
+      timeout: 20_000,
+    });
+    return dialog;
+  };
+  const changeValue = async (dialog: import('@playwright/test').Locator) => {
+    const value = dialog
+      .locator('[data-decl-section="trigger"] ha-selector-number')
+      .first()
+      .locator('input');
+    await value.fill('20');
+    await value.blur();
+    await expect(dialog.locator('.hk-preset-summary-chip')).toHaveText('Changed: Trigger');
+  };
+  const clipDialog = async (dialog: import('@playwright/test').Locator, path: string) => {
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+  };
+
+  // 78. The top of the dialog as the preset gives it.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let dialog = await openFromPreset();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await clipDialog(dialog, `${OUT}/78-panel-preset-summary.png`);
+
+  // 78a. The preview at the foot of the dialog: each row says what it reads now.
+  await dialog.locator('.hk-decl-reading').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await clipDialog(dialog, `${OUT}/78a-panel-preset-reading.png`);
+
+  // 78b. The top of the dialog after a change to the trigger.
+  await changeValue(dialog);
+  await dialog.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(500);
+  await clipDialog(dialog, `${OUT}/78b-panel-preset-summary-changed.png`);
+  await dialog.locator('.hk-decl-cancel').click();
+
+  // 78c/78d. A phone: the box after the change, then the preview rows with their
+  // readings.
+  await page.setViewportSize(PHONE);
+  dialog = await openFromPreset();
+  await changeValue(dialog);
+  await dialog.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/78c-panel-mobile-preset-summary.png` });
+  await dialog.locator('.hk-decl-reading').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/78d-panel-mobile-preset-reading.png` });
+  await dialog.locator('.hk-decl-cancel').click();
+  await page.setViewportSize({ width: 1280, height: 720 });
 });

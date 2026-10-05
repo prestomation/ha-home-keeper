@@ -29,6 +29,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# hass.data key set when the static path is registered. Home Assistant does not
+# raise when a directory static path is registered a second time. It adds one more
+# router resource, so each entry reload added one until the restart (B20-5).
+_STATIC_PATH_REGISTERED = "home_keeper_panel_static_path"
+
 
 def cache_token(path: Path) -> str:
     """A short content hash of a built asset for cache-busting its module URL.
@@ -55,13 +60,13 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     # `src/`, `test/`, `node_modules/` and `package*.json` to anyone who can reach
     # the port. rollup writes both bundles here (see rollup.config.mjs).
     frontend_dir = Path(__file__).parent / "frontend" / "dist"
-    try:
+    # Register the static path once for each Home Assistant run. The path stays
+    # registered while the entry reloads.
+    if not hass.data.get(_STATIC_PATH_REGISTERED):
         await hass.http.async_register_static_paths(
             [StaticPathConfig(PANEL_STATIC_URL, str(frontend_dir), False)]
         )
-    except RuntimeError:
-        # Already registered (e.g. on reload) — fine.
-        _LOGGER.debug("Static path %s already registered", PANEL_STATIC_URL)
+        hass.data[_STATIC_PATH_REGISTERED] = True
 
     # Don't double-register the sidebar panel across reloads.
     if PANEL_URL_PATH in hass.data.get("frontend_panels", {}):
@@ -81,7 +86,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         # and Developer tools (and every ``config/*`` websocket command). Usage is
         # unaffected: a non-admin household member still completes tasks through the
         # todo list, the calendar, the per-task device entities and the dashboard
-        # card. See docs/DESIGN.md → "Privilege model".
+        # card. See docs/design/architecture.md.
         require_admin=True,
         config={
             "_panel_custom": {

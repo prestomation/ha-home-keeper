@@ -12,6 +12,7 @@ split, and the same reason, as ``notifications.py`` (pure) and ``notifier.py``.
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -19,7 +20,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 
-from . import devices, transfer
+from . import device_compat, devices, transfer
 from .const import PANEL_VERSION
 from .coordinator import HomeKeeperCoordinator
 
@@ -27,7 +28,13 @@ from .coordinator import HomeKeeperCoordinator
 async def async_export_document(
     hass: HomeAssistant, coord: HomeKeeperCoordinator, data: dict[str, Any]
 ) -> dict[str, Any]:
-    """Build the portable document. Shared by the service and its websocket twin."""
+    """Build the portable document. Shared by the service and its websocket twin.
+
+    The YAML is written in the executor (B03-3). PyYAML is pure Python here, and a
+    household with a long history takes seconds to write, which would stop the event
+    loop for that time. The executor gets a deep copy, because the document can share
+    nested values with the live store, which the loop can change in the meantime.
+    """
     document = transfer.build_document(
         coord.store.list_tasks(),
         coord.store.list_assets(),
@@ -36,7 +43,10 @@ async def async_export_document(
         now=dt_util.now(),
         include=data.get("include"),
     )
-    return {"document": document, "yaml": transfer.document_to_yaml(document)}
+    text = await hass.async_add_executor_job(
+        transfer.document_to_yaml, copy.deepcopy(document)
+    )
+    return {"document": document, "yaml": text}
 
 
 async def async_import_document(
@@ -58,21 +68,36 @@ async def async_import_document(
     and only then are the tasks written with their placeholder device references
     resolved. One reconcile and one reload for the batch, not one per record.
     """
+    dry_run = bool(data.get("dry_run"))
+    document = data["document"]
+    if isinstance(document, str):
+        # Read the text in the executor (B03-3): PyYAML is pure Python here, and a
+        # large file takes seconds to read. The plan itself stays on the loop,
+        # because it reads the live store.
+        try:
+            document = await hass.async_add_executor_job(
+                transfer.parse_document, document
+            )
+        except transfer.DocumentSyntaxError as err:
+            return transfer.ImportPlan(problems=(err.as_problem(),)).as_report(
+                dry_run=dry_run
+            )
     registry = dr.async_get(hass)
+    area_ids = {area.name: area.id for area in ar.async_get(hass).async_list_areas()}
+    # A stated device_id is only kept when the device really is on this install. Ask
+    # the registry for each id rather than iterate ``devices``, which yields ids
+    # before Home Assistant 2026.9 and omits child devices from 2026.9 on (B04-1).
+    device_ids = device_compat.RegistryDeviceIds(registry)
+    match = data.get("match", "auto")
     plan = transfer.plan_import(
-        data["document"],
+        document,
         tasks=coord.store.get_tasks(),
         assets=coord.store.get_assets(),
-        area_ids={area.name: area.id for area in ar.async_get(hass).async_list_areas()},
-        # The registry's ids, not its entries: a stated device_id is only kept
-        # when the device really is on this install. ``devices`` iterates entries,
-        # so take each one's id rather than reaching for a mapping view that its
-        # ``Collection`` type does not promise.
-        device_ids=frozenset(device.id for device in registry.devices),
-        match=data.get("match", "auto"),
+        area_ids=area_ids,
+        device_ids=device_ids,
+        match=match,
         now=dt_util.now(),
     )
-    dry_run = bool(data.get("dry_run"))
     if dry_run or not plan.ok:
         return plan.as_report(dry_run=dry_run)
 
@@ -87,6 +112,22 @@ async def async_import_document(
         # Provisions a device for every virtual appliance and writes its id back onto
         # the asset — the only moment those ids come into existence.
         await devices.async_reconcile_assets(hass, coord.entry, coord.store)
+        # The 2 steps above wait for saves, and a task can change in that time. Plan
+        # the tasks again against the store as it is now, so that the write below
+        # loses no change (X03-6). Nothing between this and the write waits.
+        replanned = transfer.replan_tasks(
+            document,
+            plan,
+            tasks=coord.store.get_tasks(),
+            assets=coord.store.get_assets(),
+            area_ids=area_ids,
+            device_ids=device_ids,
+            match=match,
+            now=dt_util.now(),
+        )
+        # A new error (a name that a new task made ambiguous) keeps the first plan.
+        if replanned.ok:
+            plan = replanned
 
     planned_tasks = plan.for_section("tasks")
     unattached: list[transfer.Problem] = []

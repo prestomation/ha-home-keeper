@@ -1,246 +1,216 @@
+---
+title: Events reference
+summary: What each Home Keeper bus event means and how to automate on it, for automation authors and integrators.
+---
+
 # Home Keeper events & automation triggers
 
-Home Keeper fires a Home Assistant **bus event** for every state change:
-a task is created, edited, completed, deleted, or crosses into overdue or due-soon.
-It also fires on spare-part stock transitions (low stock, out of stock, restocked)
-and appliance changes (added, changed, removed). This is the surface automations and
-other integrations build on.
+Home Keeper fires a Home Assistant **bus event** for every state change: a task is
+created, edited, completed, deleted, or becomes overdue or due soon. It also fires on
+spare-part stock changes (low stock, out of stock, restocked) and appliance changes
+(added, changed, removed). Automations and other integrations use these events.
 
-You can react to these events two ways:
+You can react to the events in 2 ways:
 
 1. **Visual automation editor (device triggers).** On a Home Keeper **appliance**,
-   *Add automation → When* lists Home Keeper triggers like **“Task became overdue”**
-   or **“Spare part out of stock”**. No need to know the event name. These are scoped
-   to that device.
+   *Add automation → When* lists Home Keeper triggers such as **"Task became overdue"**
+   or **"Spare part out of stock"**. You do not need the event name. These triggers
+   apply only to that device.
 
-   Device triggers are offered on devices Home Keeper owns, meaning its appliances.
-   They are not offered on a device another integration owns that a task is merely
-   attached to. Home Assistant builds that menu from the integrations a device belongs
-   to, and since HA 2026.8 a device belongs to exactly one (see
-   [DESIGN.md](DESIGN.md) → "Device attachment"). For those tasks, automate on the
-   task's own entities (`binary_sensor.<task>_overdue`, `sensor.<task>_next_due`) or
-   use the event trigger below. Both reach the same events.
-2. **Event trigger (any automation).** For global automations (“*any* part low → add to
-   one shopping list”), use a plain `platform: event` trigger on the event name.
+   Home Keeper offers device triggers only on devices that it owns (its appliances),
+   not on a device of another integration that a task is attached to. In Home Assistant
+   2026.8 and later, a device belongs to 1 integration only (see
+   [device links](design/coordinator-entities.md#per-task-entities-and-device-links)).
+   For those tasks, automate on the task's entities (`binary_sensor.<task>_overdue`,
+   `sensor.<task>_next_due`) or use the event trigger below.
+2. **Event trigger (any automation).** For global automations ("*any* part low → add to
+   1 shopping list"), use a `platform: event` trigger on the event name.
 
-Which events exist, what each one's payload holds, and which are offered as device
-triggers are all generated from the integration itself and listed in the
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events).
-This document is the other half: what each event means in context, and what a
-restart does to it.
+The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events)
+lists each event with its payload and device trigger. Home Keeper generates that page
+from the integration. This page tells what each event means and what a restart does.
 
-> Integrators pushing tasks into Home Keeper should also read
+> Integrators that push tasks into Home Keeper must also read
 > [INTEGRATING.md](INTEGRATING.md).
 
 ## What the events mean
 
-All event names follow `home_keeper_<noun>_<verb>`. Task events share a common
-**spine**. Stock events share one shape and asset events share another. The
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events)
-lists every event with its payload. This section covers the behaviour a table
-can't express.
+All event names use the pattern `home_keeper_<noun>_<verb>`. Task events share a common
+**spine**. Stock events share 1 shape, and asset events share another.
 
 ### Task lifecycle
 
-Only `next_due` moves when a task is snoozed. The recurrence stays the same.
-Setting a task due today is the mirror image: `next_due` moves to now instead of
-later, with the same "recurrence untouched" guarantee.
+A snooze moves only `next_due`. The recurrence does not change. "Due today" is the
+opposite: `next_due` moves to now, and the recurrence does not change.
 
-A skip advances the schedule itself. The step depends on the kind of task:
+A skip advances the schedule. The step depends on the kind of task:
 
 * **floating** starts a new interval from now
 * **fixed** moves to the next scheduled occurrence
 * **one-off**, **triggered** and **sensor** tasks go dormant
 
-A snooze, a due-today and a skip all re-arm the edge-triggered overdue and
-due-soon announcements for the new date.
+A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.
 
-Use `move_occurrence` to move one date of a fixed task's RRULE schedule. The `home_keeper_task_occurrence_moved` payload has the date on
-the rule as `occurrence` and the new date as `to`. `previous_to` is where the date was before
-the call, or `null` when it had not moved. An undo moves the date back to itself, so
-`to` is then equal to `occurrence`. `next_due` changes only when the moved date is the
-one the task shows. A snoozed date stays where it is.
+`move_occurrence` moves 1 date of a fixed task's RRULE schedule and fires
+`home_keeper_task_occurrence_moved`. Its `occurrence` is the date on the rule and `to` is
+the new date. `previous_to` is the date before the call, or `null` if it had not moved. An
+undo moves the date back to itself, so `to` is equal to `occurrence`. `next_due` changes
+only if the moved date is the date that the task shows. A snoozed date stays.
 
-A skip is also recorded. It goes in a `skips` list, beside the `completions` list.
-A skip records an occurrence that was passed over. It never sets `last_completed`,
-and nothing derived from the completion log counts it.
+Home Keeper records a skip in a `skips` list, next to the `completions` list. A skip
+never sets `last_completed`, and nothing that uses the completion log counts it.
+`home_keeper_task_skipped` includes the `ts` of the new entry. `update_skip`,
+`move_skip`, and `delete_skip` use `ts` to find the entry, and the `_skip_updated` and
+`_skip_removed` events include it.
 
-`home_keeper_task_skipped` includes the new entry's `ts`. The `ts` value identifies
-that entry for these services:
+A skip on a **usage** task resets its meter, as a completion does. The next interval
+starts from the reading at the skip. The time backstop, `also_every`, starts from the
+same point. The default `combinator` is `"any"`, so the meter or the backstop can re-arm
+the task. If the backstop stays at its old point, it can re-arm the task soon after a
+skip. When a user edits the `reading` on the completion or skip that anchors the meter,
+Home Keeper re-anchors the meter, and the `_completion_updated` and `_skip_updated`
+events can add a `meter_baseline`.
 
-* `update_skip`
-* `move_skip`
-* `delete_skip`
+### Completion origins
 
-The `_skip_updated` and `_skip_removed` events use `ts` the same way.
+Many paths complete a task through the ordinary `home_keeper_task_completed` event. The
+`origin` tells you which path. No path adds a new event type.
 
-A skip on a **usage** task resets its meter, the same way a completion does. The
-next interval is then measured from the reading at the skip.
+| `origin` | Path |
+|---|---|
+| `home_keeper_tag_scan` | A scan of the NFC/RFID tag linked to the task. |
+| `home_keeper_sensor_recover` | A `threshold` or `state` binding with `clear_on_recover` sees its condition go away. |
+| `home_keeper_shopping_list` | A user ticks off a "Buy {part}" line on the synced shopping list. |
+| `home_keeper_todo_sync` | A user ticks off an item on a to-do list that a Profile syncs to. |
+| `home_keeper_problem_sensor_sync` | A synced `device_class: problem` sensor clears. |
 
-The time backstop, `also_every`, measures from that same point. The default
-`combinator` is `"any"`, so the meter or the backstop can re-arm the task on its
-own. A backstop left at its old point can re-arm the task soon after a skip.
+To complete a task whose **Require tag scan** toggle blocks every UI surface, an
+automation can pass `origin: home_keeper_tag_scan` to `complete_task`.
 
-When a user edits the `reading` on whichever completion or skip anchors the meter,
-Home Keeper re-anchors the meter. The `_completion_updated` and `_skip_updated`
-events can then add a `meter_baseline`.
+**Sensor tasks** use the triggered lifecycle. The watcher fires `home_keeper_task_triggered`
+when a bound entity meets the condition of the task. A usage meter that passes its target
+is one case. A `state` entity that enters its state is another. The task then becomes
+`home_keeper_task_overdue` as any due task does. A user completion clears it and resets
+the baseline of a usage meter. A usage meter with a **time backstop** (`also_every` in its
+`sensor` block) arms on the first half that is due, also while the entity is unavailable.
 
-**NFC/RFID tag scans** ride these same events: completing a task by scanning its
-linked tag fires an ordinary `home_keeper_task_completed` carrying
-`origin: home_keeper_tag_scan`. Match on that origin to tell a physical scan from a
-press of Done. Passing that origin to `complete_task` is also the escape hatch for
-automations that need to complete a task whose **Require tag scan** toggle blocks
-every UI surface.
+With `clear_on_recover`, the task completes itself. A task that a declarative companion
+with `clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task`
+refuses it, and its device page has no Mark done button. If the task is linked to a
+consumable, the auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock`
+or `home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a recovery.
+It counts as no reading and fires no event. A device that goes off the network never
+completes a task.
 
-**Sensor-based tasks** reuse the triggered lifecycle: <!-- vale ai-tells.ColonUsage = NO -->Home Keeper's<!-- vale ai-tells.ColonUsage = YES --> watcher fires
-`home_keeper_task_triggered` when a bound entity meets the task's condition (a
-usage meter passing its target, a threshold crossing, or a `state` binding's entity
-entering its state), the task then crosses to
-`home_keeper_task_overdue` like any due task, and a normal user `home_keeper_task_completed`
-clears it (resetting a usage meter's baseline). A usage meter carrying a **time backstop**
-(`sensor.also_every`) arms on whichever half lands first (including while the bound
-entity is unavailable) through the same `home_keeper_task_triggered`. No new event types
-are introduced.
-
-A `threshold` or `state` binding that sets **`clear_on_recover`** also clears itself when
-its condition goes away, and that path fires an ordinary `home_keeper_task_completed`
-with `origin: home_keeper_sensor_recover`. Match on that origin to tell a
-self-clearing sensor task from someone pressing Done. A task that a declarative
-companion with `clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task`
-refuses it, and it has no Mark done button on its device page. If the task is linked to a
-consumable, the auto-completion consumes one spare, potentially producing
-`home_keeper_part_low_stock` or `home_keeper_part_out_of_stock` the same as any other
-completion path. A bound entity going
-`unavailable`/`unknown` counts as no reading rather than a recovery, and fires nothing,
-so a device dropping off the network never completes a task.
-
-The watcher's own baseline bookkeeping (anchoring a fresh meter, re-anchoring after a
-meter reset) stays **silent**, because it is internal state, not a user action. A baseline moved
-by hand through the `set_task_meter` service does fire `home_keeper_task_updated` with
+The baseline bookkeeping of the watcher (a new meter anchor, a re-anchor after a meter
+reset) fires **no event**, because it is internal state. A baseline that a user moves
+with the `set_task_meter` service fires `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
 
-**Buy reminders ticked off on a synced shopping list** ride these same events too.
-When *Settings → Shopping list* points at a to-do list, each auto-created **"Buy
-{part}"** reminder is put on it. Ticking that line off there fires an ordinary
-`home_keeper_task_completed` carrying `origin: home_keeper_shopping_list` and
-`source: {"buy": {"asset_id": …, "part_id": …}}`. Match on that origin to tell "bought
-at the shop" from a press of Done. Like any buy-reminder completion it restocks the part
-by its restock quantity. A `home_keeper_part_restocked` normally follows. The reminder is
-then retired with a `home_keeper_task_deleted`. The sync's own bookkeeping
-(which line on which list stands for which reminder) stays **silent**, the same
-reasoning as the sensor watcher's baselines above.
+**Task photos.** A photo change is a task change. When a user adds a photo, removes a
+photo or makes a photo the cover, Home Keeper fires `home_keeper_task_updated` with
+`changed_fields: ["photos"]`. There is no separate photo event.
 
-**Tasks ticked off on a synced to-do list** ride these same events. When a Profile in
-*Settings → Profiles* names an external to-do list, the tasks it selects are put on that
-list while they qualify. Ticking an item off fires an ordinary
-`home_keeper_task_completed` carrying `origin: home_keeper_todo_sync` (so does an item
-that disappears from a list whose provider drops completed items, while the sync's
-*treat removed items as completed* toggle is on). Match on that origin to tell "checked
-off on the list" from a press of Done. Completing the task in Home Keeper instead ticks
-the synced item off and leaves it there as the record; when a recurring task next
-falls due, a fresh item is added beside it. The sync's bookkeeping (which item on
-which list stands for which task) stays **silent**, like the shopping list's.
+**Shopping list.** When *Settings → Shopping list* names a to-do list, each automatic
+"Buy {part}" reminder goes on it. The completion has
+`source: {"buy": {"asset_id": …, "part_id": …}}`. It restocks the part by its restock
+quantity, which usually fires `home_keeper_part_restocked`. Home Keeper then deletes the
+reminder with `home_keeper_task_deleted`.
 
-**Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
-events: a synced task is `created` for each `device_class: problem` sensor, `triggered`
-when the sensor reports a problem, and `completed` when it clears. The completion event
-carries `origin: home_keeper_problem_sensor_sync` and `source:
-{"problem_sensor": {"entity_id": …}}` so an automation can tell a self-clearing problem
-from a user-completed chore. (These tasks can’t be completed by hand. See the README.)
+**To-do sync.** When a Profile in *Settings → Profiles* names an external to-do list, its
+tasks go on that list while they qualify. An item that disappears from a list whose
+provider removes completed items also completes the task, while the *treat removed items
+as completed* toggle is on. A completion in Home Keeper ticks off the synced item and
+keeps it as the record. When a recurring task is due again, a new item goes next to it.
+
+**Problem sensors.** When *Sync problem sensors* is on, Home Keeper creates a task for
+each `device_class: problem` sensor. The task is `triggered` when the sensor reports a
+problem and `completed` when it clears. The completion has
+`source: {"problem_sensor": {"entity_id": …}}`. A user cannot complete these tasks by
+hand.
+
+The bookkeeping of each sync (which list item stands for which task) fires **no event**.
 
 ### Time-based transitions (edge-triggered)
 
-`home_keeper_task_overdue` fires when a task first crosses its due date
-(`now ≥ next_due`), and `home_keeper_task_due_soon` when it enters the three-day
-window before it. These are detected by the coordinator’s periodic refresh (every 5 minutes) and are
+`home_keeper_task_overdue` fires when a task first passes its due date
+(`now ≥ next_due`). `home_keeper_task_due_soon` fires when it enters the 3-day window
+before that date. The coordinator finds these on its refresh (every 5 minutes). They are
 **edge-triggered**: each fires **at most once per `next_due` value**. A task that stays
-overdue does not re-fire. Completing or rescheduling it re-arms the next announcement.
+overdue does not fire again. A completion or a new date re-arms the next event.
 
-**Restart behaviour.** On startup Home Keeper *baselines* the current state silently.
-A restart never replays an “overdue” storm for tasks that were already overdue. Only
-transitions observed while Home Assistant is running fire. (The per-task overdue
-`binary_sensor` always reflects the steady state regardless.)
+**Restart.** At startup Home Keeper records the current state with no events. A restart
+never sends "overdue" events for tasks that were already overdue. Only changes that occur
+while Home Assistant runs fire events. The per-task overdue `binary_sensor` always shows
+the current state.
 
 ### Stock transitions (edge-triggered)
 
-Spare stock crossing to **≤ `reorder_at`** fires `home_keeper_part_low_stock`.
-Reaching **0** fires `home_keeper_part_out_of_stock` instead. Recovering back above
-the threshold fires `home_keeper_part_restocked`.
+When spare stock falls to **≤ `reorder_at`**, `home_keeper_part_low_stock` fires. At
+**0**, `home_keeper_part_out_of_stock` fires instead. When stock goes back above the
+threshold, `home_keeper_part_restocked` fires.
 
-Edge-triggered the same way: one event per crossing, never on every step while already
-low. A part must track **both** `stock` and `reorder_at` to fire anything. A single
-change that drops an already-low part to zero fires **`out_of_stock`** (the more
-specific event), not `low_stock`.
+Each crossing fires 1 event, not 1 event for each step while the part is low. A part must
+track **both** `stock` and `reorder_at` to fire anything. If 1 change takes a low part to
+0, only **`out_of_stock`** fires.
 
-Stock is drawn down (and these events fire) whenever a task **linked to that part** is
-completed. Both an auto-generated wear-part replacement task and a task you **manually
-linked** to a consumable (via `home_keeper.set_task_consumable`) count. This is how a
-sensor-armed "replace the fridge filter" task draws down inventory and signals a reorder
-when you mark it done.
+Stock goes down, and these events fire, when a user completes a task **linked to that
+part**. This includes an automatic wear-part replacement task and a task linked by hand
+with `home_keeper.set_task_consumable`. Each completion removes the **Used per
+completion** amount of the part (1 spare if unset). With `0.33`, a bottle lasts 3 refills.
 
-Each completion takes off the part's **Used per completion** amount. A part that leaves
-it unset gives up one whole spare. A bottle that sets `0.33` lasts three refills.
+A deleted completion gives the stock back. The completion records the amount that it
+really took: if it found 1 of the 2 spares it needed, it gives back 1. The return fires
+`home_keeper_part_restocked` when it lifts the part above its reorder point.
 
-Deleting that completion gives the stock back. Home Keeper records on the completion
-how much it really took, so a completion that found only 1 of the 2 spares it wanted
-gives back 1. The return fires `home_keeper_part_restocked` when it lifts the part above
-its reorder point.
-
-A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
-threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)
-and restocking removes it (`home_keeper_task_deleted`). No new event type is involved,
-just the ordinary task lifecycle. Completing that buy task restocks the part by its
-`restock_quantity`, which fires `home_keeper_part_restocked` like any other restock.
+With **Auto-create buy task** on, a part that crosses the reorder threshold gets a
+one-off *"Buy {part}"* task (`home_keeper_task_created`). A restock removes the task
+(`home_keeper_task_deleted`). A completion of the buy task restocks the part by its
+`restock_quantity` and fires `home_keeper_part_restocked`. A deleted completion takes the
+restock back and fires `home_keeper_part_low_stock` or `home_keeper_part_out_of_stock`
+if the count crosses the threshold again.
 
 ### Asset (appliance) lifecycle
 
-Attaching or removing an appliance **document** (a manual/warranty/receipt link, or an
-uploaded file) is an appliance change, so it surfaces as `home_keeper_asset_updated`
-with `changed_fields: ["documents"]`. There is no separate document event. Attaching
-or removing a **part's** single file works the same way, with
-`changed_fields: ["parts"]`.
+A change to an appliance **document** (a manual, warranty, or receipt link, or an
+uploaded file) fires `home_keeper_asset_updated` with `changed_fields: ["documents"]`.
+There is no separate document event. A change to the file of a **part** fires the same
+event with `changed_fields: ["parts"]`.
 
-Deleting an entry from an appliance's **archived task history** (via
-`home_keeper.delete_archived_completion`) also surfaces as
-`home_keeper_asset_updated` with `changed_fields: ["archived_history"]`.
+A deleted entry in the **archived task history** of an appliance
+(`home_keeper.delete_archived_completion`) fires `home_keeper_asset_updated` with
+`changed_fields: ["archived_history"]`.
 
-Archiving (`home_keeper.archive_asset`) and restoring (`home_keeper.restore_asset`)
-an appliance fire their own dedicated events rather than `home_keeper_asset_updated`,
-since they're a distinct lifecycle action of their own. Archiving only hides the
-appliance from the panel's default list; its device, entities, and any attached
-tasks are left running untouched, and `home_keeper_asset_deleted` never fires for it.
+Archive (`home_keeper.archive_asset`) and restore (`home_keeper.restore_asset`) fire
+their own events, not `home_keeper_asset_updated`. An archive only hides the appliance
+from the default list in the panel. Its device, entities, and tasks continue to operate,
+and `home_keeper_asset_deleted` does not fire.
 
-### Companion discovery (edge-triggered, baselined on startup)
+### Companion discovery (edge-triggered)
 
-Home Keeper surfaces integrations that work with it (see the panel's **Settings →
-Companions** section, and [INTEGRATING.md](INTEGRATING.md) §7). Like the time-based
-transitions above, the current state is **baselined silently at startup** (companions
-already connected/suggested when HA starts do not fire), and an event fires only
-when a companion *changes* into that state while HA is running. A companion reaches
-that state by self-registering. The same event also fires when a glue is installed, or
-when a curated upstream is installed. State is
-re-detected on the coordinator's refresh cadence (~5 min), so installing an upstream
-surfaces a suggestion within one cycle. These never fire from a read (opening the
-panel or calling `list_companions` fires nothing).
+Home Keeper shows integrations that work with it in **Settings → Companions** (see
+[INTEGRATING.md §9](INTEGRATING.md#9-discovery-and-declarative-companions)).
+As with time-based transitions, Home Keeper records the state at startup with no events.
+An event fires only when a companion *changes* state at run time, as when it registers
+itself or when a user installs a glue. Home Keeper checks the state on each coordinator
+refresh (about 5 minutes). A read (the panel, or `list_companions`) fires nothing.
 
-A suggestion names the *glue* in its `domain` and the upstream it was detected from
-in `upstream_domain`.
+A suggestion names the *glue* in `domain` and the upstream that Home Keeper found in
+`upstream_domain`.
 
-There is also a fire-and-forget **request** event, `home_keeper_register_companions`,
-emitted at setup and on reload to ask companions to announce themselves again. Its
-data is empty. A companion answers it by calling `home_keeper.register_companion`.
+At setup and on reload, Home Keeper fires `home_keeper_register_companions` with empty
+data. It asks companions to announce themselves again. A companion answers with a call
+to `home_keeper.register_companion`.
 
 ### Declarative companion CRUD
 
-A **declarative companion** is a Home-Keeper-owned spec (target integration + entity
-filters + Jinja-templated task name/notes, described in [INTEGRATING.md](INTEGRATING.md) §7)
-that materializes one managed sensor task per matching entity. Spec-level CRUD fires
-its own bus events so an automation can react to the list of declarative companions
-changing. The materialized sensor tasks themselves emit the ordinary `home_keeper_task_created` /
-`_updated` / `_deleted` / `_triggered` / `_completed` events, so an automation that
-already listens to `home_keeper_task_completed` just works. Automations that want to
-filter to declarative tasks read `managed_by.integration == "home_keeper"` and
-`source.declarative_companion.spec_id`.
+A **declarative companion** is a spec that Home Keeper owns. It names a target integration
+and entity filters, with a Jinja template for the task name and notes (see
+[INTEGRATING.md §9](INTEGRATING.md#9-discovery-and-declarative-companions)). It makes 1 managed
+sensor task for each matching entity. Changes to a spec fire their own events. The
+sensor tasks fire the ordinary task events, so an automation on
+`home_keeper_task_completed` works with no change. To filter to declarative tasks, read
+`managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
 
 | Event | Fires when |
 |---|---|
@@ -250,18 +220,15 @@ filter to declarative tasks read `managed_by.integration == "home_keeper"` and
 
 ## Payloads
 
-Every field of every payload is generated from the builders that construct them, so
-the reference cannot describe a field the code doesn't send: see the
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#payloads).
+The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#payloads)
+lists every field of every payload. Home Keeper generates it from the builders that make
+the payloads.
 
-The stock numbers need a word here, though. `stock` and `reorder_at` can be
-fractional, so a bottle topped up a third at a time reports `0.67` at the precision it
-is really at. And `unit` is whatever the part counts itself in (`"ml"`, `"bottles"`),
-or `""` for one counted in whole spares, so a notification can read
-`{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}` and be right either way.
-
-A stock event also holds the appliance's `source` and `managed_by`, as the asset
-events do, so an integration that manages an appliance can find its own stock events.
+`stock` and `reorder_at` can be fractional: a bottle topped up a third at a time reports
+`0.67`. `unit` is the unit of the part (`"ml"`, `"bottles"`), or `""` for whole spares.
+A notification can use `{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}`
+for both. Like the asset events, a stock event holds the `source` and `managed_by` of the
+appliance. An integration that manages an appliance uses them to find its stock events.
 
 ## Example automations
 
@@ -301,8 +268,8 @@ automation:
 
 ### React only to a specific appliance (device trigger)
 
-In the automation editor, choose the appliance’s device and the **“Spare part low on
-stock”** trigger. The equivalent YAML:
+In the automation editor, select the device of the appliance and the **"Spare part low
+on stock"** trigger. The same automation in YAML:
 
 ```yaml
 automation:
@@ -315,23 +282,19 @@ automation:
     action: ...
 ```
 
-Device triggers filter to the chosen device automatically: an appliance/existing-device
-trigger matches the event’s `device_id`; a standalone task’s self-owned device matches
-its `task_id` (those task events carry `device_id: null`).
+A device trigger filters to the selected device. An appliance or existing-device trigger
+matches the `device_id` of the event. The self-owned device of a standalone task matches
+its `task_id`, because those task events have `device_id: null`.
 
 ## Notes for integrators
 
-- The `home_keeper_task_completed` payload now carries the full task spine as well as
-  its long-standing `completed_at`/`origin` fields. If you only read `task_id`,
-  `source`, `origin`, and `completed_at`, nothing changes for you.
-- Home Keeper never inspects `source`; use it (and the `origin` echo on completions) to
-  recognise and de-dupe your own tasks. See [INTEGRATING.md](INTEGRATING.md).
-- **An import fires one event per record, never one per completion.** A document read
-  by `home_keeper.import_data` can hold years of history, and that history is a record
-  of a decade rather than a decade of things happening now. So a backfilled completion
-  fires no `home_keeper_task_completed`. The history is folded onto the
-  task before it reaches the store, and the record arrives as a single
-  `home_keeper_task_created` or `home_keeper_task_updated` like any other write. An
-  update whose only change is added history still fires, with `completions` among its
-  `changed_fields`. If you mirror completions, read them from the task's history on
-  that event rather than counting completion events.
+- The `home_keeper_task_completed` payload has the full task spine and the
+  `completed_at` and `origin` fields.
+- Home Keeper never reads `source`. Use it, and the `origin` on completions, to find your
+  own tasks and remove duplicates. See [INTEGRATING.md](INTEGRATING.md).
+- **An import fires 1 event per record, not 1 per completion.** A document that
+  `home_keeper.import_data` reads holds old history, from before the import. A backfilled
+  completion fires no `home_keeper_task_completed`. The record arrives as 1
+  `home_keeper_task_created` or `home_keeper_task_updated`. An update that
+  only adds history still fires, with `completions` in its `changed_fields`. To mirror
+  completions, read the task history on that event. Do not count completion events.

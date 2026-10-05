@@ -95,7 +95,7 @@ export function renderAssetForm(p: PanelHost, host: HTMLElement): void {
     editing ? t('form.appliance.edit') : t('form.appliance.new'),
     String(x.name ?? ''),
     editing ? t('btn.save') : t('btn.create'),
-    () => void p._submitAssetForm(),
+    (b) => void p._submitAssetForm(b),
     () => p._closeAssetForm(),
     { save: 'a-save', cancel: 'a-cancel' },
   );
@@ -200,7 +200,7 @@ export function renderAssetForm(p: PanelHost, host: HTMLElement): void {
 
   // An upload failure is reported inline, but the control that failed can be well
   // below the fold in a long form — bring it into view. Driven by a one-shot flag
-  // set in `failUpload`, never by "an error exists": `mergeAsset` clears the error
+  // set in `failInline`, never by "an error exists": `mergeAsset` clears the error
   // on every keystroke, so a state check here would re-scroll on unrelated renders.
   if (p._scrollToError) {
     const key = p._scrollToError;

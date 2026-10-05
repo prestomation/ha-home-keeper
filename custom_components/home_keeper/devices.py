@@ -1,7 +1,7 @@
 """Registry-device provisioning for Home Keeper assets.
 
-This is the *virtual-device* half of the asset feature (see ``IDEAS.md`` /
-``docs/DESIGN.md``): when an appliance has no Home Assistant device to attach
+This is the *virtual-device* half of the asset feature (see
+``docs/design/appliances.md``): when an appliance has no Home Assistant device to attach
 maintenance tasks to, Home Keeper registers a real device-registry entry for it so
 tasks, future batteries, and asset metadata all converge on one device page.
 
@@ -12,7 +12,6 @@ idempotent: it can run on every setup and after every asset mutation.
 
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import Any
 
@@ -23,19 +22,29 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from . import assets as asset_model
+from . import options
 from .const import (
     ASSET_IDENTIFIER_PREFIX,
     ASSET_KIND_EXISTING,
     ASSET_KIND_VIRTUAL,
     DOMAIN,
     PANEL_URL_PATH,
-    SERVICE_DEVICE_IDENTIFIER,
 )
 
 # Every device-registry *read* goes through device_compat, never straight at the
 # registry: Home Assistant 2026.9 changed both what ``async_get`` can answer with and
-# what iterating ``registry.devices`` yields. Read that module before adding one here.
-from .device_compat import all_devices, device_connections, resolve_device
+# what iterating ``registry.devices`` yields. It also holds the version-safe form of
+# each call that 2026.9 deprecates. Read that module before adding one here.
+from .device_compat import (
+    all_devices,
+    device_config_entries,
+    device_connections,
+    find_devices,
+    remove_config_entry,
+    resolve_device,
+    supports_kwarg,
+    via_device_kwargs,
+)
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,29 +64,6 @@ def _asset_configuration_url(asset_id: str) -> str:
     bounces to the default dashboard.
     """
     return f"homeassistant://{PANEL_URL_PATH}/appliances/{asset_id}"
-
-
-def service_device_info() -> dr.DeviceInfo:
-    """The integration-level device the aggregate task-count sensors live on.
-
-    Those sensors count across tasks, so they belong to no one task and no appliance.
-    A ``SERVICE`` device gives them a home under **Settings, Devices and services,
-    Home Keeper** without pretending to be hardware.
-
-    Home Assistant creates the device from an entity's ``device_info`` when the
-    platform adds it, so nothing here calls ``async_get_or_create``: Home Assistant
-    owns the config-entry link and removes the device with the integration, and the
-    device can never exist with no entities on it. ``async_prune_orphaned_devices``
-    relies on that second property, since this device is not an asset device and is
-    therefore *not* skipped by the prune.
-    """
-    return dr.DeviceInfo(
-        identifiers={(DOMAIN, SERVICE_DEVICE_IDENTIFIER)},
-        name="Home Keeper",
-        manufacturer="Home Keeper",
-        entry_type=dr.DeviceEntryType.SERVICE,
-        configuration_url=f"homeassistant://{PANEL_URL_PATH}",
-    )
 
 
 def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
@@ -119,14 +105,6 @@ def _is_asset_device(device: dr.DeviceEntry) -> bool:
     )
 
 
-def _supports_kwarg(func: Any, name: str) -> bool:
-    try:
-        return name in inspect.signature(func).parameters
-    except (TypeError, ValueError):  # pragma: no cover - builtins without signatures
-        # Be conservative: if we can't confirm support, don't pass the kwarg.
-        return False
-
-
 async def async_apply_asset_change(
     hass: HomeAssistant, entry: ConfigEntry, store: HomeKeeperStore
 ) -> None:
@@ -164,19 +142,29 @@ async def async_reconcile_assets(
 
     # Provision parents before children so a subdevice's via_device parent already
     # has a resolved device id when we link it.
+    recovered: dict[str, str] = {}
     for asset in sorted(store.list_assets(), key=lambda a: _ancestor_depth(store, a)):
         if asset.get("kind") == ASSET_KIND_VIRTUAL:
             # _reconcile_virtual persists its own device_id write-back.
             await _reconcile_virtual(hass, entry, store, registry, asset)
             wanted_identifiers.add(asset_model.asset_device_identifier(asset["id"]))
-        elif _reconcile_existing(registry, asset):
+            continue
+        old_device_id = asset.get("device_id")
+        if _reconcile_existing(registry, asset):
             dirty = True
+            if old_device_id and asset.get("device_id") != old_device_id:
+                recovered[old_device_id] = asset["device_id"]
 
     # In-place edits to existing-device assets (recovered device_id, refreshed
     # identifiers/connections snapshot) must be flushed to disk or they're lost on
     # restart and snapshot recovery can never work.
     if dirty:
         await store.async_persist()
+    # The tasks on a recovered device move with the appliance (B17-5). The heal at
+    # the next setup finds no snapshot that names the old id after this pass, so it
+    # cannot move them later.
+    if recovered:
+        await store.async_repoint_device_ids(recovered)
 
     # Prune asset devices we own that no longer correspond to an asset. Guard
     # against ever removing a per-task self-owned device — those key on the bare
@@ -227,7 +215,7 @@ def _split_successor(
     resolve = getattr(registry, "async_get_devices_for_composite_device_id", None)
     if resolve is None:
         return None
-    splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
+    splits = [d for d in resolve(device_id) if entry_id not in device_config_entries(d)]
     if not splits:
         # An empty answer means one of two very different things: a collected
         # composite, or an ordinary id that was never split. Only the first is ours
@@ -245,7 +233,7 @@ def _split_successor(
         composite = registry.async_get(device_id)
         primary = getattr(composite, "primary_config_entry", None)
         if primary:
-            preferred = [d for d in splits if primary in d.config_entries]
+            preferred = [d for d in splits if primary in device_config_entries(d)]
             if preferred:
                 return preferred[0]
         # Three or more foreign splits with no primary named: nothing in the registry
@@ -318,17 +306,15 @@ async def async_heal_split_device_ids(
             # The asset dict doubles as the snapshot — ``_reconcile_existing`` keeps
             # its identifiers/connections refreshed from the live device.
             _record(asset.get("device_id"), asset)
-
-    if mapping:
-        changed_tasks = await store.async_repoint_device_ids(mapping)
-        changed_assets = await store.async_repoint_asset_device_ids(mapping)
-        _LOGGER.info(
-            "Repaired %s task and %s asset device reference(s) across %s device(s) "
-            "that Home Assistant 2026.8 split into one device per config entry",
-            changed_tasks,
-            changed_assets,
-            len(mapping),
-        )
+    # The other places that keep a device id (X03-8): the related devices of an
+    # appliance, and the options (problem-sensor exclusions and profile filters).
+    # None of them keeps a snapshot, so they come after the assets and use the
+    # answers the assets found.
+    for asset in store.list_assets():
+        for device_id in asset.get("related_device_ids") or []:
+            _record(device_id)
+    for device_id in sorted(options.device_ids_in_options(dict(entry.options))):
+        _record(device_id)
 
     # Healing the ids stops contributors duplicating from here on, but a duplicate
     # already created while the ids were broken is still sitting there, and the user
@@ -343,9 +329,32 @@ async def async_heal_split_device_ids(
         composite_id = getattr(device, "composite_device_id", None)
         if composite_id:
             canonical[device.id] = composite_id
+    # A dead id the heal resolved belongs to the same original as its successor. This
+    # also covers a composite Home Assistant already garbage-collected, which only an
+    # asset snapshot could resolve.
+    for dead_id, live_id in mapping.items():
+        canonical.setdefault(dead_id, canonical.get(live_id, live_id))
+    # Merge before the repoint (#417). The merge only joins copies that name 2
+    # different halves, and the repoint moves the old copy onto the same half as the
+    # new one. Run after it, the merge sees one half and keeps both copies.
     merged = await store.async_merge_split_duplicates(canonical)
     if merged:
         _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)
+
+    if mapping:
+        changed_tasks = await store.async_repoint_device_ids(mapping)
+        changed_assets = await store.async_repoint_asset_device_ids(mapping)
+        new_options = options.repoint_device_ids(dict(entry.options), mapping)
+        if new_options is not None:
+            # Setup has not added the update listener yet, so this does not reload.
+            hass.config_entries.async_update_entry(entry, options=new_options)
+        _LOGGER.info(
+            "Repaired %s task and %s asset device reference(s) across %s device(s) "
+            "that Home Assistant 2026.8 split into one device per config entry",
+            changed_tasks,
+            changed_assets,
+            len(mapping),
+        )
 
 
 async def async_detach_legacy_merged_devices(
@@ -368,7 +377,7 @@ async def async_detach_legacy_merged_devices(
     Deliberately limited to devices that have **another** config entry besides ours.
     Removing the last entry from a device deletes it, which would strand the entities
     sitting on it — that case is the already-split leftover, and repairing it needs the
-    entities re-pointed first (still open; see ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``).
+    entities re-pointed first (still open; see ``IDEAS.md``).
 
     That check and the update below are not atomic: nothing stops another integration
     removing its own entry in between, which would make ours the last one after all.
@@ -381,13 +390,13 @@ async def async_detach_legacy_merged_devices(
     for device in list(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)):
         if any(domain == DOMAIN for domain, _ in device.identifiers):
             continue  # one of ours (virtual asset or self-owned task device)
-        others = set(device.config_entries) - {entry.entry_id}
+        others = device_config_entries(device) - {entry.entry_id}
         if not others:
             continue  # sole owner: removing us would delete the device and its entities
         _LOGGER.debug(
             "Detaching Home Keeper from %s: linked, not owned (legacy merge)", device.id
         )
-        dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+        remove_config_entry(dev_reg, device, entry.entry_id)
 
 
 async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -421,9 +430,33 @@ async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) 
         )
         if not has_our_entity:
             _LOGGER.debug("Pruning Home Keeper from orphaned device %s", device.id)
-            dev_reg.async_update_device(
-                device.id, remove_config_entry_id=entry.entry_id
-            )
+            remove_config_entry(dev_reg, device, entry.entry_id)
+
+
+# hass.data key: the appliance area that the last reconcile of this Home Assistant
+# run saw, keyed by appliance id. It is kept across an entry reload.
+_AREA_SEEN = f"{DOMAIN}_asset_area_seen"
+
+
+def _area_to_push(
+    hass: HomeAssistant, asset_id: str, area_id: str | None, device_area: str | None
+) -> bool:
+    """Whether the reconcile writes the appliance area to its device (B17-9).
+
+    A user can set the area of the device on the device page of Home Assistant.
+    That area stays until the area of the appliance changes in Home Keeper. In
+    the first reconcile of a run, Home Keeper has no record of the last area, so
+    it fills only a device that has no area.
+    """
+    seen: dict[str, str | None] = hass.data.setdefault(_AREA_SEEN, {})
+    first = asset_id not in seen
+    changed = not first and seen[asset_id] != area_id
+    seen[asset_id] = area_id
+    if area_id == device_area:
+        return False
+    if first:
+        return device_area is None
+    return changed
 
 
 async def _reconcile_virtual(
@@ -435,14 +468,19 @@ async def _reconcile_virtual(
 ) -> None:
     identifier = asset_model.asset_device_identifier(asset["id"])
 
-    # Resolve the native via_device parent (only our own virtual subdevices).
+    # Resolve the native via_device parent (only our own virtual subdevices). A
+    # stored parent of another kind gives no link (B17-8): no device has its
+    # identifier, and its device belongs to another integration.
     parent_asset_id = asset.get("parent_asset_id") or None
+    parent = store.get_asset(parent_asset_id) if parent_asset_id else None
+    if parent is None or parent.get("kind") != ASSET_KIND_VIRTUAL:
+        parent_asset_id = None
+        parent = None
     via_device = (
         asset_model.asset_device_identifier(parent_asset_id)
         if parent_asset_id
         else None
     )
-    parent = store.get_asset(parent_asset_id) if parent_asset_id else None
     parent_device_id = parent.get("device_id") if parent else None
 
     configuration_url = _asset_configuration_url(asset["id"])
@@ -454,13 +492,7 @@ async def _reconcile_virtual(
         "model": asset.get("model") or None,
         "configuration_url": configuration_url,
     }
-    # serial_number reached DeviceInfo/async_get_or_create later than the others; only
-    # seed it on create when this HA version accepts it (the update loop below is
-    # likewise guarded), so an older core still provisions the device cleanly.
-    if _supports_kwarg(registry.async_get_or_create, "serial_number"):
-        create_kwargs["serial_number"] = asset.get("serial_number") or None
-    if via_device is not None:
-        create_kwargs["via_device"] = via_device
+    create_kwargs.update(via_device_kwargs(registry, via_device, parent_device_id))
     device = registry.async_get_or_create(**create_kwargs)
 
     # Keep the registry in sync with subsequent edits.
@@ -468,8 +500,12 @@ async def _reconcile_virtual(
     if device.name != asset["name"]:
         updates["name"] = asset["name"]
     for field in ("manufacturer", "model", "serial_number"):
-        desired = asset.get(field) or None
-        if getattr(device, field, None) != desired and _supports_kwarg(
+        # The serial number stays in the admin-only appliance record. Any signed-in
+        # user can list the device registry (``config/device_registry/list`` is not
+        # admin-only), so the device never carries it, and an older release's copy
+        # is cleared here.
+        desired = None if field == "serial_number" else asset.get(field) or None
+        if getattr(device, field, None) != desired and supports_kwarg(
             registry.async_update_device, field
         ):
             updates[field] = desired
@@ -480,14 +516,14 @@ async def _reconcile_virtual(
     area_id = asset.get("area_id") or None
     if area_id and not area_exists(hass, area_id):
         area_id = None
-    if area_id != device.area_id:
+    if _area_to_push(hass, asset["id"], area_id, device.area_id):
         updates["area_id"] = area_id
     if device.configuration_url != configuration_url:
         updates["configuration_url"] = configuration_url
     # Re-parent / un-parent after creation (via_device on create only applies the
     # first time). via_device_id is the parent's *device id*, which parents-first
     # ordering has already resolved.
-    if _supports_kwarg(registry.async_update_device, "via_device_id"):
+    if supports_kwarg(registry.async_update_device, "via_device_id"):
         if device.via_device_id != parent_device_id:
             updates["via_device_id"] = parent_device_id
     elif parent_asset_id and device.via_device_id is None:
@@ -568,20 +604,24 @@ def _resolve_by_snapshot(
             candidates.append(device)
 
     for ident in snapshot.get("identifiers", []):
-        _add(registry.async_get_device(identifiers={tuple(ident)}))
+        for device in find_devices(registry, identifiers={(ident[0], ident[1])}):
+            _add(device)
         # With no preference there is nothing a second candidate could change, so
         # stop at the first hit rather than finishing the sweep.
         if prefer_not_entry is None and candidates:
             return candidates[0]
     connections = {tuple(c) for c in snapshot.get("connections", [])}
     if connections:
-        _add(registry.async_get_device(connections=connections))
+        for device in find_devices(registry, connections=connections):
+            _add(device)
 
     if not candidates:
         return None
     if prefer_not_entry is None:
         return candidates[0]
-    foreign = [d for d in candidates if prefer_not_entry not in d.config_entries]
+    foreign = [
+        d for d in candidates if prefer_not_entry not in device_config_entries(d)
+    ]
     return sorted(foreign or candidates, key=lambda d: d.id)[0]
 
 
@@ -597,8 +637,8 @@ async def async_remove_asset_device(
         return None
     registry = dr.async_get(hass)
     identifier = asset_model.asset_device_identifier(asset["id"])
-    device = registry.async_get_device(identifiers={identifier})
-    if device is not None:
-        registry.async_remove_device(device.id)
-        return device.id
+    found = find_devices(registry, identifiers={identifier})
+    if found:
+        registry.async_remove_device(found[0].id)
+        return found[0].id
     return asset.get("device_id")

@@ -22,6 +22,13 @@ A task sets its capture mode in the **On completion** field:
 The dialog uploads a photo through Home Assistant's image store. The **who**
 field lists the `person` entities.
 
+A completion photo records the work on one date. For a photo that stays on the
+task, such as the place that needs work, use [task photos](task-photos.md). When
+the task has one, its cover shows at the top of the dialog.
+
+To add a photo to a one-tap task, select the arrow beside **Done**, then **Done with
+photo or note…**. See [after photos](task-photos.md#after-photos).
+
 The task's history shows each completion's:
 
 - note
@@ -35,10 +42,17 @@ The `home_keeper.complete_task` and `home_keeper.update_completion` services
 accept the same fields.
 
 The dialog's **Completed at** field defaults to now. A user can set it to log
-a completion for the time the work happened.
+a completion for the time the work happened. The date and time fields in the panel
+use the time zone of Home Assistant, not the time zone of the browser.
 
 The next due date of a **floating** task is measured from the completion date, so
-the completion date moves the schedule.
+the completion date moves the schedule. A completion that is older than the most
+recent one only adds an entry to the history. It does not move the due date.
+
+Only a change to the most recent completion moves the due date. A delete or a move
+of an older entry keeps the due date, and also keeps a snooze or a skip. A delete of
+the most recent completion of a fixed task puts back the due date that the task
+had before that completion.
 
 The **move date** button on a history row changes the date of that entry. The
 **edit** button changes the recorded details and not the date. The
@@ -62,3 +76,8 @@ The **move date** button on a history row changes the date of that entry. The
 ![The completion-details dialog (note, cost, who and photo captured when a task is marked done)](../../images/11-panel-completion-dialog.png)
 
 ![Task history annotated with per-completion cost and notes, each row editable](../../images/7c-panel-task-history-tab.png)
+
+## Undo a one-tap Done
+
+After a one-tap **Done** in the panel, a message names the task. Select **Undo** in
+the message to remove that completion. The task then has its previous due date again.

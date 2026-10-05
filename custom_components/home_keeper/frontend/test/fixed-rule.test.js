@@ -3,7 +3,7 @@
  * summary says, and the "A later date" helpers the snooze dialog uses.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   defaultMoveTo,
   emptySnoozeState,
@@ -24,7 +24,12 @@ import {
   taskSchemaSections,
 } from '../src/forms.ts';
 import { setLanguage, t } from '../src/i18n.ts';
-import { formatOccurrence, recurrenceSummary } from '../src/utils.ts';
+import {
+  formatOccurrence,
+  formatOccurrenceTime,
+  recurrenceSummary,
+  setTimeZone,
+} from '../src/utils.ts';
 
 const fixed = (over = {}) => ({
   id: 't1',
@@ -249,6 +254,8 @@ describe('the rule in words', () => {
 });
 
 describe('A later date', () => {
+  afterEach(() => setTimeZone(undefined));
+
   const row = { start: '2026-10-09T07:00:00-07:00', moved_from: null };
   const moved = { start: '2026-10-10T07:00:00-07:00', moved_from: '2026-10-09T07:00:00-07:00' };
 
@@ -264,8 +271,16 @@ describe('A later date', () => {
   });
 
   it('seeds the new date one day later at the same time', () => {
-    const next = new Date(defaultMoveTo('2026-10-09T14:00:00Z'));
-    expect(next.getTime() - new Date('2026-10-09T14:00:00Z').getTime()).toBe(86_400_000);
+    setTimeZone('UTC');
+    expect(defaultMoveTo('2026-10-09T14:00:00Z')).toBe('2026-10-10 14:00:00');
+    expect(defaultMoveTo('2026-12-31T14:00:00Z')).toBe('2027-01-01 14:00:00');
+    expect(defaultMoveTo('nope')).toBe('');
+  });
+
+  it('seeds the new date on the wall clock of the Home Assistant zone', () => {
+    // 07:00 EDT on Oct 31; the clocks go back that night, and 07:00 stays 07:00.
+    setTimeZone('America/New_York');
+    expect(defaultMoveTo('2026-10-31T11:00:00Z')).toBe('2026-11-01 07:00:00');
   });
 
   it('picks a row and resolves where it goes', () => {
@@ -282,6 +297,15 @@ describe('A later date', () => {
     expect(moveHintText(s, 'en')).toBe(t('defer.snoozePickDate'));
     s.moveTo = 'not a date';
     expect(moveTarget(s)).toBeNull();
+  });
+
+  it('labels a date in the Home Assistant zone, not the browser zone', () => {
+    setTimeZone('Asia/Tokyo');
+    // 22:00 UTC on Oct 9 is 07:00 on Oct 10 in Tokyo.
+    expect(formatOccurrence('2026-10-09T22:00:00Z', 'en')).toMatch(/Sat, Oct 10/);
+    const text = formatOccurrenceTime('2026-10-09T22:00:00Z', 'en');
+    expect(text).toMatch(/Sat, Oct 10/);
+    expect(text).toMatch(/7:00/);
   });
 
   it('labels a date short', () => {

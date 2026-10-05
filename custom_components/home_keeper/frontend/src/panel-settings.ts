@@ -47,6 +47,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { t, tlist, tn } from './i18n';
+import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES } from './limits';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import { indentGroup } from './panel-indent';
@@ -74,6 +75,8 @@ import {
   notifyRowChip,
   setBtnWeight,
   toast,
+  writeQueue,
+  type QueuedWrite,
   type SettingsSection,
 } from './utils';
 
@@ -301,6 +304,9 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       'settings.general_help',
       generalSchema(),
       opts,
+      // A number box sends a value on each keystroke, and each save reloads the entry
+      // and can delete completed one-offs. Typing "30" must not first save "3".
+      { commitOnLeave: true },
     ),
   );
   // Shopping list — where auto-buy reminders are mirrored, and how they read there.
@@ -316,11 +322,12 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       'settings.help',
       problemSyncToggleSchema(),
       opts,
-      undefined,
       {
-        schema: problemSyncExclusionsSchema(),
-        labelKey: 'settings.exclusions',
-        noteKey: 'settings.exclusions_note',
+        dependent: {
+          schema: problemSyncExclusionsSchema(),
+          labelKey: 'settings.exclusions',
+          noteKey: 'settings.exclusions_note',
+        },
       },
     ),
   );
@@ -338,9 +345,22 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
   );
 }
 
+/** How one Settings card saves, beyond its schema. */
+interface SettingsCardExtra {
+  /** Cleans the emitted value before it is saved, and returns only the card's own
+   *  keys. Without it, the card saves the fields of the form that changed. */
+  coerce?: (value: Record<string, unknown>) => Record<string, unknown>;
+  /** A second form, indented under the first, for fields that apply only while the
+   *  first one is on. */
+  dependent?: { schema: FormField[]; labelKey: string; noteKey: string };
+  /** Hold each change until focus leaves the form or the user presses Enter, for a
+   *  field whose partial values must not be saved (a number box). */
+  commitOnLeave?: boolean;
+}
+
 /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
- *  for *schema*, seeded with the full *opts* and saving on change. *coerce*, when
- *  given, cleans the emitted value before it is saved. */
+ *  for *schema*, seeded with the fields of *opts* that the form shows, and saving
+ *  on change. */
 function settingsCard(
   p: PanelHost,
   id: string,
@@ -348,9 +368,9 @@ function settingsCard(
   helpKey: string,
   schema: FormField[],
   opts: HomeKeeperOptions,
-  coerce?: (value: Record<string, unknown>) => Record<string, unknown>,
-  dependent?: { schema: FormField[]; labelKey: string; noteKey: string },
+  extra: SettingsCardExtra = {},
 ): HTMLElement {
+  const { coerce, dependent, commitOnLeave } = extra;
   const card = document.createElement('ha-card');
   card.className = 'hk-form-card hk-settings-card';
   card.id = id;
@@ -366,16 +386,31 @@ function settingsCard(
   // This card autosaves, so it says so beside its own name rather than through a toast.
   inner.querySelector('.hk-form-title')?.appendChild(saveStatusSlot(p, id));
 
-  const build = (fields: FormField[]): HTMLElement =>
-    p._makeForm(
+  const build = (fields: FormField[]): HTMLElement => {
+    // Changed but not saved yet: only a `commitOnLeave` form holds a value here.
+    let pending: Partial<HomeKeeperOptions> | null = null;
+    const commit = (): void => {
+      if (!pending) return;
+      const value = pending;
+      pending = null;
+      void saveOptions(p, id, value);
+    };
+    const form = p._makeForm(
       fields,
-      { ...opts },
+      // `ha-form` sends back its whole `data` on each change. Seeded with every
+      // option, each card sent a copy of the other cards, the profiles and the
+      // notifications as they were when the page was drawn, and that copy replaced
+      // what was saved since (F03-1). Seeded with its own fields only, a form sends
+      // only those, and the options endpoint merges them onto the rest.
+      pickFormData(opts as unknown as Record<string, unknown>, fields),
       (raw) => {
-        const value = coerce ? coerce(raw) : raw;
-        // Each form carries only its own fields, which is exactly what the options
-        // endpoint wants: it merges partial updates, so a change to the toggle never
-        // has to restate the exclusions to leave them alone.
-        void saveOptions(p, id, value as Partial<HomeKeeperOptions>);
+        const own = coerce ? coerce(raw) : pickFormData(raw, fields);
+        const value = own as Partial<HomeKeeperOptions>;
+        if (commitOnLeave) {
+          pending = value;
+          return;
+        }
+        void saveOptions(p, id, value);
       },
       {
         computeLabel: (s) => (s.name ? t('settings.' + s.name) : ''),
@@ -391,6 +426,16 @@ function settingsCard(
         },
       },
     );
+    if (commitOnLeave) {
+      // `focusout` and `keydown` are composed, so they reach the form from the input
+      // inside its shadow roots. A native `change` event does not.
+      form.addEventListener('focusout', commit);
+      form.addEventListener('keydown', (e: Event) => {
+        if ((e as KeyboardEvent).key === 'Enter') commit();
+      });
+    }
+    return form;
+  };
 
   inner.appendChild(build(schema));
   if (dependent) {
@@ -508,11 +553,20 @@ function shoppingCard(p: PanelHost, opts: HomeKeeperOptions): HTMLElement {
   let form: HaFormElement | null = null;
   let preview: HTMLElement | null = null;
   let card: HTMLElement | null = null;
+  // The two keys this card owns, and no other key (F03-1). The style stays in the
+  // data while the schema hides it, so picking a list keeps a saved style.
+  // Clearing an entity picker emits `undefined`, which JSON drops on the way to the
+  // backend, so the key never reaches the partial-update merge and "turn the mirror
+  // off" does not stick. Send the empty string the backend reads as off.
+  const own = (value: Partial<HomeKeeperOptions>): Partial<HomeKeeperOptions> => ({
+    shopping_list_entity: String(value.shopping_list_entity ?? ''),
+    shopping_line_style: normalizeLineStyle(value.shopping_line_style),
+  });
   const refresh = (value: Partial<HomeKeeperOptions>): void => {
     const entity = String(value.shopping_list_entity ?? '');
     if (form) {
       form.schema = shoppingSchema(p._ownTodoEntities, entity);
-      form.data = { ...value };
+      form.data = own(value);
     }
     const summary = card?.querySelector('.hk-settings-value');
     if (summary) summary.textContent = settingsSummary(p, 'hk-settings-shopping', value as HomeKeeperOptions);
@@ -525,23 +579,16 @@ function shoppingCard(p: PanelHost, opts: HomeKeeperOptions): HTMLElement {
     'settings.shopping_help',
     shoppingSchema(p._ownTodoEntities, opts.shopping_list_entity),
     opts,
-    (raw) => {
-      // Clearing an entity picker emits `undefined`, which JSON drops on the way
-      // to the backend — so the key never reaches the partial-update merge and
-      // "turn the mirror off" silently wouldn't stick. Send the empty string the
-      // backend reads as off. (The other settings are multi-selects, which emit
-      // `[]`, which is why nothing has needed this before.)
-      const value = {
-        ...raw,
-        shopping_list_entity: String(raw.shopping_list_entity ?? ''),
-        shopping_line_style: normalizeLineStyle(raw.shopping_line_style),
-      };
-      refresh(value as Partial<HomeKeeperOptions>);
-      return value;
+    {
+      coerce: (raw) => {
+        const value = own(raw as Partial<HomeKeeperOptions>);
+        refresh(value);
+        return value;
+      },
     },
   );
   form = card.querySelector('ha-form') as HaFormElement | null;
-  if (form) form.data = { ...opts, shopping_line_style: normalizeLineStyle(opts.shopping_line_style) };
+  if (form) form.data = own(opts);
   preview = document.createElement('div');
   preview.className = 'hk-shopping-preview';
   card.querySelector('.hk-form-inner')?.appendChild(preview);
@@ -685,6 +732,32 @@ function paintSaveStatus(p: PanelHost, cardId: string): void {
   if (el) applyStatus(p, cardId, el);
 }
 
+/** Per host: the queue every options write goes through. Weakly held for the same
+ *  reasons as `saveSeq`. */
+const optionWrites = new WeakMap<PanelHost, QueuedWrite>();
+
+/**
+ * Send an options write through the host's queue (X12-2).
+ *
+ * Each write that changes an option reloads the config entry, and the backend
+ * answers `not_loaded` to a write that arrives during that reload. Without the
+ * queue, a second change made within a second of the first failed, and the card
+ * then disagreed with what was stored. The queue sends each write after the one
+ * before it has answered, and tries a `not_loaded` write again.
+ */
+function queuedSetOptions(
+  p: PanelHost,
+  hass: NonNullable<PanelHost['_hass']>,
+  value: Partial<HomeKeeperOptions>,
+): Promise<HomeKeeperOptions> {
+  let queue = optionWrites.get(p);
+  if (!queue) {
+    queue = writeQueue(api.isNotLoaded);
+    optionWrites.set(p, queue);
+  }
+  return queue(() => api.setOptions(hass, value));
+}
+
 async function saveOptions(
   p: PanelHost,
   cardId: string,
@@ -696,7 +769,7 @@ async function saveOptions(
   p._options = { ...(p._options as HomeKeeperOptions), ...value };
   markSaving(p, cardId);
   try {
-    await api.setOptions(p._hass, value);
+    await queuedSetOptions(p, p._hass, value);
     // setOptions resolves only once the backend has reloaded and reconciled the
     // synced problem-sensor tasks for the new exclusions. Refresh our cached
     // tasks (without re-rendering — that would tear down the form the user is
@@ -1033,7 +1106,7 @@ async function persistOptionList(
   const previous = (p._options as HomeKeeperOptions | null)?.[key];
   p._options = { ...(p._options as HomeKeeperOptions), [key]: list };
   try {
-    const merged = await api.setOptions(p._hass, {
+    const merged = await queuedSetOptions(p, p._hass, {
       [key]: list,
     } as Partial<HomeKeeperOptions>);
     // Stale answer: a newer save has already put its own value in `p._options`.
@@ -1328,8 +1401,11 @@ function addProfile(p: PanelHost): Promise<void> {
     // carry the defaults the backend normalizer would fill in.
     sync: { entity_id: '', two_way: true, vanish_as_completed: true },
   };
+  // A failed add puts the list back. Kept, the blank row is off screen but rides on
+  // every later save of the list, and a second Add sends 2 blanks (F03-2).
   return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, {
     expandLast: true,
+    rollbackOnFailure: true,
   });
 }
 
@@ -1705,8 +1781,20 @@ async function testNotification(
 ): Promise<void> {
   const hass = p._hass;
   if (!hass) return;
+  // A notification with no device has no place to send to, and the service refuses
+  // it. Its error comes back through `call_service` in English, with advice about a
+  // service field the panel does not show. Say it here in the panel language, and
+  // send nothing (X09-2).
+  if (!current().targets?.length) {
+    toast(p, t('notify.test_no_target', { field: t('notify.targets') }));
+    return;
+  }
+  // Test saves the row itself, so the armed autosave of the row has no work left.
+  // Left armed, it fired during the reload that this save starts, and reported Not
+  // saved for a value that was saved (X12-2).
+  p._cancelDebounce(`notifications:${current().id}`);
   try {
-    p._options = await api.setOptions(hass, { notifications: listWith(current()) });
+    p._options = await queuedSetOptions(p, hass, { notifications: listWith(current()) });
     const { matched } = await api.runNotification(hass, current().id, run);
     toast(p, matched > 0 ? t('notify.test_sent') : t('notify.test_all_clear_sent'));
   } catch (err) {
@@ -1736,7 +1824,8 @@ function addNotification(p: PanelHost): Promise<void> {
     'notifications',
     [...(p._options?.notifications ?? []), blank],
     true,
-    { expandLast: true },
+    // Rolled back on failure, as a profile add is (F03-2).
+    { expandLast: true, rollbackOnFailure: true },
   );
 }
 
@@ -2053,13 +2142,33 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
     const file = picker.files?.[0];
     picker.value = '';
     if (!file) return;
-    void file.text().then((contents) => {
-      p._transfer.text = contents;
-      p._transfer.filename = file.name;
-      p._transfer.report = null;
-      p._transfer.error = '';
+    p._transfer.report = null;
+    // Check the size before the read. A file over the limit can never be sent, and
+    // reading a large one into the text box can stop the tab (F03-4).
+    if (file.size > MAX_IMPORT_WS_BYTES) {
+      p._transfer.error = t('transfer.tooLarge', {
+        mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
+        max: MAX_IMPORT_BYTES / (1024 * 1024),
+      });
       p._render();
-    });
+      return;
+    }
+    file.text().then(
+      (contents) => {
+        p._transfer.text = contents;
+        p._transfer.filename = file.name;
+        p._transfer.error = '';
+        p._render();
+      },
+      // A read can fail (the file moved, or the browser refused it). Say so, rather
+      // than leave the card as it was with no message (F03-4).
+      (err: unknown) => {
+        p._transfer.error = t('transfer.readFailed', {
+          error: String((err as { message?: string })?.message || err),
+        });
+        p._render();
+      },
+    );
   });
   root.appendChild(picker);
   root.querySelector('#transfer-pick')?.addEventListener('click', () => picker.click());
@@ -2072,7 +2181,7 @@ async function dismissCompanion(p: PanelHost, domain: string): Promise<void> {
   if (current.includes(domain)) return;
   const dismissed_companions = [...current, domain];
   try {
-    await api.setOptions(p._hass, { dismissed_companions });
+    await queuedSetOptions(p, p._hass, { dismissed_companions });
     await p._refresh();
   } catch (err) {
     toast(p, String((err as { message?: string })?.message || err));

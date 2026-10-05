@@ -33,3 +33,5 @@ Set **One-off retention (days)** in the panel's **Settings** tab, or with the
 `home_keeper.set_options` service, to delete a completed one-off task
 automatically. A completed one-off task is deleted that many days after
 completion. The default, `0`, keeps a completed one-off task forever.
+The largest value is `3650` (10 years). Home Keeper applies a lower value at the
+next periodic check, approximately 5 minutes after the change.

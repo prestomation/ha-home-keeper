@@ -5,7 +5,8 @@ These are deliberately *pure* functions: they take and return timezone-aware
 That keeps the product's core logic trivially unit-testable in isolation (the
 caller is responsible for passing an aware ``now`` from ``homeassistant.util.dt``).
 
-Two recurrence models are supported:
+The task has 6 recurrence types (``const.RECURRENCE_TYPES``). The 2 clock-based ones
+are below; ``docs/design/recurrence.md`` covers all 6.
 
 * **floating** — the next due date is measured from the last completion:
   ``next_due = last_completed + interval·unit``. A task that has *never* been
@@ -25,7 +26,7 @@ Two recurrence models are supported:
 from __future__ import annotations
 
 import calendar as _calendar
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta, tzinfo
 
 from dateutil import rrule as _dateutil_rrule
@@ -52,6 +53,22 @@ from .const import (
     UNIT_MONTHS,
     UNIT_WEEKS,
 )
+
+PRIOR_DUE = "prior_due"
+"""Completion entry key: the ``next_due`` of a fixed task before that completion.
+
+Store bookkeeping like ``meter_start``, not metadata. :func:`remove_completion` puts
+it back when the completion is undone. It does not travel in an export, because
+``next_due`` does not travel either.
+"""
+
+DEFERRED_FROM = "deferred_from"
+"""Task key: the grid occurrence that a snooze or a due-today moved on a fixed task.
+
+:func:`defer` writes it. :func:`_advance_fixed_schedule` reads it only while
+``next_due`` is off the grid, so a value that stays after the schedule moves on has
+no effect.
+"""
 
 
 def add_months(dt: datetime, months: int) -> datetime:
@@ -167,8 +184,33 @@ def _clamp_season(next_due: datetime, task: dict) -> datetime:
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FIXED:
         after = season_start - timedelta(seconds=1)
+        # The first occurrence after the season start can fall after the season end
+        # too, for a sparse schedule and a short season. Walk on to the first one in
+        # season, the same walk as the calendar (B07-9). A schedule that never meets
+        # the season keeps the first occurrence after the season start.
+        found = next_in_season_occurrence(task, season, after=after)
+        if found is not None:
+            return found
         return next_task_occurrence(task, after=after)
     return season_start
+
+
+def next_in_season_occurrence(
+    task: dict, season: dict | list, *, after: datetime
+) -> datetime | None:
+    """First occurrence of a fixed *task* after *after* that is inside *season*.
+
+    Bounded by ``MAX_EXPAND_ITERATIONS`` steps. ``None`` means that the schedule does
+    not meet the season inside the bound, for example every 12 months from January
+    with a March season. ``_clamp_season`` and the calendar both use this walk, so
+    ``next_due`` and the calendar show the same date.
+    """
+    occ = next_task_occurrence(task, after=after)
+    for _ in range(MAX_EXPAND_ITERATIONS):
+        if in_season(occ, season):
+            return occ
+        occ = next_task_occurrence(task, after=occ)
+    return None
 
 
 def compute_floating_next_due(
@@ -574,6 +616,31 @@ def expand_fixed_occurrences(
     return sorted(unique.values(), key=_instant)[:MAX_EXPAND_ITERATIONS]
 
 
+# How far before a moment :func:`_on_schedule` asks the schedule. It must be more
+# than a daylight-saving shift.
+_OCCURRENCE_PROBE = timedelta(hours=3)
+
+
+def _on_schedule(next_after: Callable[[datetime], datetime], moment: datetime) -> bool:
+    """Whether *moment* is a date that *next_after* gives.
+
+    The probe starts some hours before *moment*, not 1 microsecond before. The rule
+    expands on wall time, and an occurrence in the hour that a spring-forward skips
+    has the wall clock 02:30 but reads back from storage as 03:30 EDT. A probe at
+    03:29 already passed it (B07-8). A moved date can be less than 3 hours from
+    another date, so the walk goes on until it reaches *moment*. The dates are
+    compared as instants, because 02:30 and 03:30 EDT are one instant here.
+    """
+    target = _instant(moment)
+    try:
+        found = next_after(moment - _OCCURRENCE_PROBE)
+        while _instant(found) < target:
+            found = next_after(found)
+    except ValueError:
+        return False
+    return _instant(found) == target
+
+
 def is_rule_occurrence(
     anchor: datetime, rule: str, moment: datetime, *, tz: tzinfo | None = None
 ) -> bool:
@@ -586,11 +653,9 @@ def is_rule_occurrence(
     """
     if tz is not None:
         moment = moment.astimezone(tz)
-    probe = moment - timedelta(microseconds=1)
-    try:
-        return next_fixed_occurrence(anchor, rule, after=probe) == moment
-    except ValueError:
-        return False
+    return _on_schedule(
+        lambda after: next_fixed_occurrence(anchor, rule, after=after), moment
+    )
 
 
 def task_moves(task: dict) -> list[tuple[datetime, datetime]]:
@@ -786,13 +851,54 @@ def _parse(value: str | datetime | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
+def _local(value: datetime | None, now: datetime) -> datetime | None:
+    """*value* moved into the zone of *now*, which is Home Assistant's zone.
+
+    A stored ISO string keeps only a UTC offset. Interval and season arithmetic on
+    that offset gives a wall clock that is 1 hour wrong across a daylight-saving
+    change, and a date that is 1 day wrong near midnight (B07-4). The live path
+    already does its arithmetic in the zone of ``now``, so every path does the same.
+    """
+    if value is None:
+        return None
+    return value.astimezone(now.tzinfo)
+
+
+def _latest_ts(entries: Iterable[dict]) -> datetime | None:
+    """The latest ``ts`` in a completion or skip log, compared as instants."""
+    stamps = [_parse(entry["ts"]) for entry in entries if entry.get("ts")]
+    return max((when for when in stamps if when is not None), default=None)
+
+
+def latest_completion(completions: Iterable[dict]) -> dict | None:
+    """The completion with the latest ``ts``, compared as instants, else ``None``.
+
+    The text of two ``ts`` values with different UTC offsets does not sort in time
+    order, so each one is parsed (B15-7). An entry with no ``ts``, or a ``ts`` that is
+    not ISO 8601, is skipped. If two entries have the same instant, the first wins.
+    """
+    latest: dict | None = None
+    latest_at: datetime | None = None
+    for entry in completions:
+        ts = entry.get("ts")
+        if not isinstance(ts, str):
+            continue
+        try:
+            when = datetime.fromisoformat(ts)
+        except ValueError:
+            continue
+        if latest_at is None or when > latest_at:
+            latest, latest_at = entry, when
+    return latest
+
+
 def compute_next_due(task: dict, *, now: datetime) -> datetime:
     """Compute next_due for *task* from its current state (no mutation)."""
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
         return _clamp_season(
             compute_floating_next_due(
-                _parse(task.get("last_completed")),
+                _local(_parse(task.get("last_completed")), now),
                 int(task["interval"]),
                 task["unit"],
                 now=now,
@@ -862,11 +968,11 @@ def _is_occurrence(task: dict, anchor: datetime, moment: datetime) -> bool:
     so a clamped ``next_due`` passes here, and a raw grid date that the season would
     reject is still a date the schedule owns.
     """
-    probe = moment - timedelta(microseconds=1)
-    try:
-        return next_task_occurrence(task, after=probe) == moment
-    except ValueError:
-        return False
+    rule, moves = task_rule(task), task.get("moved_occurrences")
+    return _on_schedule(
+        lambda after: next_fixed_occurrence(anchor, rule, after=after, moves=moves),
+        moment,
+    )
 
 
 def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
@@ -910,10 +1016,18 @@ def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
         # instant after a snooze or a due-today, and neither of those is a date the
         # user dealt with — advancing past a snooze target threw away every occurrence
         # between the task's own one and the target, so snoozing a Monday task a week
-        # and then doing it anyway lost the Monday in between. A deferred date reads as
-        # "no occurrence on the board", which is the ``now``-only branch below.
+        # and then doing it anyway lost the Monday in between.
+        #
+        # The occurrence that the deferral moved is in ``deferred_from`` (see
+        # :func:`defer`). That is the occurrence the user deals with, so the
+        # schedule moves past it. Without it, a due-today and then Done gave back the
+        # occurrence the user just did (B07-5). When there is no such record, or the
+        # record is not on the grid, a deferred date reads as "no occurrence on the
+        # board", which is the ``now``-only branch below.
         if not _is_occurrence(task, anchor, current):
-            current = None
+            current = _local(_parse(task.get(DEFERRED_FROM)), now)
+            if current is not None and not _is_occurrence(task, anchor, current):
+                current = None
     after = max(now, current) if current is not None else now
     # Moves fully before the date being dealt with change nothing any more.
     prune_moves(task, before=min(after, now) - timedelta(days=1))
@@ -956,17 +1070,32 @@ def apply_completion(
     if completed_at.tzinfo is None:
         completed_at = completed_at.replace(tzinfo=now.tzinfo)
     ts_iso = completed_at.isoformat()
+    rec_type = task.get("recurrence_type", REC_FLOATING)
+    latest = _latest_ts(task.get("completions", []))
+    # A completion older than the latest one fills in the log. It does not tell us
+    # when the task was last done, so it does not move ``last_completed`` or the
+    # schedule (B07-3). A later completion already did that.
+    backfill = latest is not None and completed_at < latest
     entry: dict = {"ts": ts_iso}
     if metadata:
         entry.update(metadata)
+    if not backfill and _keeps_prior_due(task, rec_type, now=now):
+        # Keep the due date this completion replaces, so that an undo can put it
+        # back (B07-1).
+        entry[PRIOR_DUE] = task.get("next_due")
     task["completions"] = _record_entry(task.get("completions", []), entry)
-    task["last_completed"] = completed_at.isoformat()
+    if backfill and rec_type in (REC_FLOATING, REC_FIXED):
+        return task
+    if not backfill:
+        task["last_completed"] = ts_iso
 
-    rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
         task["next_due"] = _clamp_season(
-            compute_floating_next_due(
-                completed_at, int(task["interval"]), task["unit"], now=now
+            # The interval counts on Home Assistant's wall clock (see ``_local``).
+            add_interval(
+                completed_at.astimezone(now.tzinfo),
+                int(task["interval"]),
+                task["unit"],
             ),
             task,
         ).isoformat()
@@ -1044,6 +1173,39 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
     return task
 
 
+def snooze_from(task: dict, now: datetime) -> datetime:
+    """Return the instant that a snooze length counts from: *now* or the due date.
+
+    Snooze moves the due date later. A length counted from *now* moved a task that
+    is due in 30 days to 7 days from now, which is earlier (F10-2). So the length
+    counts from the due date when that is later than *now*. For a task that is due
+    or overdue, it counts from *now*, so the task is not due again at once.
+    """
+    due = _parse(task.get("next_due"))
+    return now if due is None else max(due, now)
+
+
+def defer(task: dict, until: datetime, *, now: datetime) -> dict:
+    """Return *task* with ``next_due`` moved to *until* by a snooze or a due-today.
+
+    No completion or skip is recorded, and the schedule does not change. On a fixed
+    task the occurrence that the task showed goes in ``deferred_from``, so that a
+    completion or a skip on the deferred date moves the schedule past that
+    occurrence (B07-5). A second deferral keeps the first record, because the first
+    one moved the occurrence off the grid.
+    """
+    if task.get("recurrence_type") == REC_FIXED:
+        current = _parse(task.get("next_due"))
+        anchor = _parse(task["anchor"])
+        assert anchor is not None
+        if current is not None and _is_occurrence(
+            task, anchor, current.astimezone(now.tzinfo)
+        ):
+            task[DEFERRED_FROM] = task["next_due"]
+    task["next_due"] = until.isoformat()
+    return task
+
+
 def record_skip(
     task: dict, skipped_at: datetime, *, metadata: dict | None = None
 ) -> dict:
@@ -1068,30 +1230,78 @@ def record_skip(
     return task
 
 
+def _rewinds(task: dict, previous: str | None, moment: datetime) -> bool:
+    """Whether a log edit at *moment* must calculate ``next_due`` again.
+
+    Only an edit that changes ``last_completed`` can change the due date that the
+    log gives. An edit to an older row must not calculate it again, because the due
+    date can hold a later skip, snooze, due-today or early completion that the log
+    does not show (B07-2). A skip that is later than the edit keeps its due date
+    for the same reason.
+    """
+    if task.get("last_completed") == previous:
+        return False
+    skipped = _latest_ts(task.get("skips", []))
+    return skipped is None or skipped < moment
+
+
+def _keeps_prior_due(task: dict, rec_type: str, *, now: datetime) -> bool:
+    """Whether a completion must record the due date it replaces.
+
+    A fixed schedule cannot calculate that date again from the log, so it always
+    records it. A floating task can, except after a snooze, a due today or a moved
+    date: the log does not show those. So a floating task records the date only
+    when it is not the one that the log gives.
+    """
+    due = _parse(task.get("next_due"))
+    if due is None:
+        return False
+    if rec_type == REC_FIXED:
+        return True
+    if rec_type != REC_FLOATING:
+        return False
+    return compute_next_due(task, now=now) != due
+
+
 def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     """Return *task* with the completion at ISO timestamp *ts* removed.
 
     Undoes an accidental completion: drops the first matching history entry,
     re-derives ``last_completed`` from the remaining history (the latest, or None),
-    and recomputes ``next_due`` from that state. For a floating task this rewinds
-    the clock to the prior completion; for a fixed task ``next_due`` stays
-    schedule-driven; for a triggered task ``next_due`` is left untouched (its
-    armed/dormant state is condition-driven, not history-driven — editing the
-    replacement log must not arm a dormant task). A no-op when *ts* is not present.
+    and recomputes ``next_due`` from that state. A fixed or floating completion that
+    recorded the due date it replaced puts that date back. Else a floating task
+    rewinds the clock to the prior completion. For a triggered task ``next_due`` is
+    left untouched (its armed/dormant state is condition-driven, not
+    history-driven — editing the replacement log must not arm a dormant task). A
+    no-op when *ts* is not present.
     """
     history = list(task.get("completions", []))
+    removed: dict | None = None
     for index, entry in enumerate(history):
         if entry.get("ts") == ts:
-            del history[index]
+            removed = history.pop(index)
             break
     task["completions"] = history
+    previous = task.get("last_completed")
     if history:
         latest = max(history, key=lambda entry: datetime.fromisoformat(entry["ts"]))
         task["last_completed"] = latest["ts"]
     else:
         task["last_completed"] = None
     rec_type = task.get("recurrence_type")
-    if rec_type == REC_ONE_OFF:
+    if removed is None or not _rewinds(
+        task, previous, datetime.fromisoformat(removed["ts"])
+    ):
+        # The log changed below the latest decision, so the due date that the
+        # latest completion, skip, snooze or due-today set stays (B07-2).
+        return task
+    prior_due = removed.get(PRIOR_DUE)
+    if rec_type in (REC_FIXED, REC_FLOATING) and prior_due:
+        # Put back the due date this completion replaced. An overdue occurrence
+        # comes back as overdue (B07-1), and a snoozed or moved date comes back as
+        # it was.
+        task["next_due"] = prior_due
+    elif rec_type == REC_ONE_OFF:
         # Undoing the (final) completion of a do-once task re-arms it to its ``due``
         # date so it returns to every time surface; if any completion remains it
         # stays dormant. Unlike a triggered task, a one-off's armed/dormant state is
@@ -1203,10 +1413,17 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
     # Unlike remove_completion, history can never be empty here: removing old_ts
     # always re-inserts (or collapses) exactly one entry, so there's always a
     # latest to derive last_completed from.
+    previous = task.get("last_completed")
     latest = max(history, key=lambda e: datetime.fromisoformat(e["ts"]))
     task["last_completed"] = latest["ts"]
 
     rec_type = task.get("recurrence_type")
+    # *old_ts* matched a stored entry, and a stored ``ts`` is always aware.
+    old_dt = datetime.fromisoformat(old_ts)
+    if not _rewinds(task, previous, max(old_dt, new_dt)):
+        # The moved entry was not the latest and did not become the latest, so the
+        # due date stays where the latest decision put it (B07-2).
+        return task
     if rec_type == REC_ONE_OFF:
         # A moved completion is still a completion: history is never empty here
         # (see above), so a one-off always stays dormant post-move — it only
@@ -1254,8 +1471,25 @@ def remove_skip(task: dict, ts: str) -> dict:
     guesswork about a schedule the user may have since moved on from. Restoring a
     usage meter's baseline *is* real state and is the store's job (it holds the
     ``meter_start`` the skip recorded). A no-op when *ts* is not present.
+
+    A one-off is the exception. Its due date is known, and a skip sends it dormant
+    with no completion. So when the last skip of a one-off that has no completion is
+    removed, the task is due again at its ``due`` date. Otherwise it stays dormant
+    and is never auto-deleted (B07-7).
     """
-    task["skips"] = [e for e in task.get("skips", []) if e.get("ts") != ts]
+    before = task.get("skips", [])
+    task["skips"] = [e for e in before if e.get("ts") != ts]
+    if (
+        len(task["skips"]) < len(before)
+        and not task["skips"]
+        and task.get("recurrence_type") == REC_ONE_OFF
+        and not task.get("next_due")
+        and not task.get("last_completed")
+        and task.get("due")
+    ):
+        due = _parse(task["due"])
+        if due is not None:
+            task["next_due"] = due.isoformat()
     return task
 
 

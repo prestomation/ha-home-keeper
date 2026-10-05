@@ -193,6 +193,19 @@ add_task:
         Needs a tag.
       selector:
         boolean:
+    snooze_hours:
+      name: Snooze length
+      description: >-
+        Hours that Snooze moves this task. The snooze dialog starts on this length,
+        and the Snooze button on a notification uses it. Leave empty to use the usual
+        lengths.
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 8760
+          unit_of_measurement: h
+          mode: box
     active_season:
       name: Active season
       description: >-
@@ -391,6 +404,18 @@ update_task:
         Only let the linked tag complete this task. Needs a tag.
       selector:
         boolean:
+    snooze_hours:
+      name: Snooze length
+      description: >-
+        Hours that Snooze moves this task. Send an empty value to use the usual
+        lengths again.
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 8760
+          unit_of_measurement: h
+          mode: box
     active_season:
       name: Active season
       description: >-
@@ -411,8 +436,9 @@ update_task:
     source:
       name: Source
       description: >-
-        Opaque provenance owned by the integration that created the task. See
-        docs/INTEGRATING.md.
+        Opaque provenance owned by the integration that created the task. Each
+        namespace replaces the stored namespace of the same name. A namespace with the
+        value null is removed. See docs/INTEGRATING.md.
       selector:
         object:
     completion_detail:
@@ -460,6 +486,13 @@ delete_task:
       default: false
       selector:
         boolean:
+
+delete_orphaned_tasks:
+  name: Delete orphaned tasks
+  description: >-
+    Delete every task that an integration manages when that integration is not
+    loaded (removed, disabled or not set up). Admin-only. Returns the IDs of the
+    deleted tasks under "deleted".
 
 complete_task:
   name: Complete task
@@ -716,7 +749,9 @@ snooze_task:
         text:
     hours:
       name: Hours
-      description: How many hours to defer the task (defaults to 24). Ignored when Until is set.
+      description: >-
+        How many hours to defer the task (defaults to 24). Do not set Hours and Until
+        in the same call.
       selector:
         number:
           min: 1
@@ -727,8 +762,8 @@ snooze_task:
     until:
       name: Until
       description: >-
-        Defer the task to this exact date and time instead of a number of hours. If
-        this field is set, Home Keeper does not use Hours.
+        Defer the task to this exact date and time instead of a number of hours. Do not
+        set Hours and Until in the same call.
       selector:
         datetime:
     origin:
@@ -1457,6 +1492,69 @@ sign_part_file_url:
       selector:
         text:
 
+remove_task_photo:
+  name: Remove task photo
+  description: >-
+    Remove a photo from a task and delete its file. Add photos in the panel. A
+    service call cannot send a file.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+set_task_photo_cover:
+  name: Set task photo cover
+  description: >-
+    Make a photo the cover of its task. The cover is the first photo. It shows
+    on the task list, the task page and the completion dialog.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+sign_task_photo_url:
+  name: Sign task photo URL
+  description: >-
+    Mint a short-lived URL (no auth header needed) that gives the bytes of a task
+    photo. Use it to show the photo in a notification.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+    thumbnail:
+      name: Thumbnail
+      description: Sign the URL of the small copy, at most 256 pixels on its long side.
+      default: false
+      selector:
+        boolean:
+
 export_appliance_report:
   name: Export appliance report
   description: >-
@@ -1615,9 +1713,12 @@ add_declarative_companion:
     task for each entity that its target integration and entity filters match,
     with a Jinja template for the task name and notes. Fields on the payload:
     name, description, enabled, preset_id, selection ({target_integration,
-    domain, device_class, entity_regex, area_ids, label_ids, exclude_*}), trigger
-    (same shape as sensor task binding, including the availability and template
-    modes), and task_template ({name_template, notes_template, labels}).
+    domain, device_class, entity_regex, translation_keys, device_ids, area_ids,
+    label_ids, exclude_*}), trigger (same shape as sensor task binding, including the
+    availability and template modes), and task_template ({name_template,
+    notes_template, labels, task_names}). translation_keys matches the key that
+    the integration gives each entity. task_names maps each key to the text
+    that the name and notes templates read as task_name.
     Admin-only.
 
 update_declarative_companion:

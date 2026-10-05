@@ -8,7 +8,7 @@ to the right task (Mark done → ``complete_task``, Snooze → ``snooze_task``, 
 task. The pure filter/queue live in :mod:`profiles`, the payload/decoding in
 :mod:`notifications`; this is the thin Home Assistant boundary.
 
-See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md``.
+See ``docs/design/profiles-notifications.md``.
 """
 
 from __future__ import annotations
@@ -142,15 +142,39 @@ def _verb_allowed(coord: HomeKeeperCoordinator, verb: str) -> bool:
     return True
 
 
+# The notify targets whose last send failed. A target that fails logs 1 warning, and
+# then only debug lines until a send to it works again (B16-9).
+_FAILED_TARGETS: set[str] = set()
+
+
 async def _send_payload(
     hass: HomeAssistant, targets: list[str], payload: dict[str, Any]
-) -> None:
-    """Best-effort fan-out of *payload* to each notify target (failures logged)."""
+) -> int:
+    """Send *payload* to each notify target, and return how many accepted it.
+
+    A failure does not stop the other targets. A removed or renamed ``mobile_app``
+    service raises at once, also with ``blocking=False``, so that failure is a
+    warning: else every send to the phone fails with no line in the log (B16-9).
+    """
+    delivered = 0
     for target in targets:
         try:
             await hass.services.async_call("notify", target, payload, blocking=False)
         except Exception as err:  # a bad/renamed target must not break the send loop
-            _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            if target in _FAILED_TARGETS:
+                _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            else:
+                _FAILED_TARGETS.add(target)
+                _LOGGER.warning(
+                    "Home Keeper could not send to notify.%s: %s. Check the 'Send "
+                    "to' devices in Settings → Notifications.",
+                    target,
+                    err,
+                )
+            continue
+        _FAILED_TARGETS.discard(target)
+        delivered += 1
+    return delivered
 
 
 async def _build_payload(
@@ -217,6 +241,7 @@ async def _send(
     *,
     reason: str,
     when_empty: str = notifications.WHEN_EMPTY_SKIP,
+    exclude_task_id: str | None = None,
 ) -> tuple[int, str | None]:
     """Send *notification* for what's due under *profile*'s filter.
 
@@ -228,9 +253,21 @@ async def _send(
     every existing automation are unaffected. ``all_clear`` is what the panel's Test
     button asks for: it delivers the "All caught up" card instead of nothing, so the
     target, channel and urgency can be checked before any task is due.
+
+    *exclude_task_id* keeps one task out of the queue. The walk-advance sets it to the
+    task the user just acted on: under a ``due_soon`` or ``all`` status that task can
+    still be in the queue, and to send it again with new buttons lets a second tap act
+    on it again (B16-5).
     """
     now = dt_util.now()
-    tasks = effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
+    tasks = effective_filter_tasks(
+        hass,
+        [
+            task
+            for task in coord.store.get_tasks().values()
+            if exclude_task_id is None or task.get("id") != exclude_task_id
+        ],
+    )
     queue = profiles.due_queue(tasks, profile["filter"], now=now)
     if not queue and not notifications.sends_when_empty(when_empty):
         return 0, None
@@ -263,7 +300,9 @@ async def _send(
         allow_snooze=bool(opts[OPTION_ALLOW_SNOOZE]),
         allow_skip=bool(opts[OPTION_ALLOW_SKIP]),
     )
-    await _send_payload(hass, notification["targets"], payload)
+    if not await _send_payload(hass, notification["targets"], payload):
+        # No target accepted the card, so no task was sent (B16-9).
+        return len(queue), None
     # The payload itself, not only a summary of it: the ``data`` block is where the
     # channel and the urgency live, and it is the only place a report of "the channel
     # did nothing on my phone" can be settled. Home Keeper builds that block, the
@@ -288,6 +327,7 @@ async def async_send_for_notification(
     *,
     reason: str = "manual",
     when_empty: str = notifications.WHEN_EMPTY_SKIP,
+    exclude_task_id: str | None = None,
 ) -> tuple[int, str | None]:
     """Resolve *notification*'s profile and send what's due.
 
@@ -304,26 +344,58 @@ async def async_send_for_notification(
         return 0, None
     assert profile is not None  # not misconfigured => resolved or the all-due profile
     return await _send(
-        hass, coord, notification, profile, reason=reason, when_empty=when_empty
+        hass,
+        coord,
+        notification,
+        profile,
+        reason=reason,
+        when_empty=when_empty,
+        exclude_task_id=exclude_task_id,
     )
 
 
 async def async_send_auto(
-    hass: HomeAssistant, coord: HomeKeeperCoordinator, fired_kinds: set[str]
+    hass: HomeAssistant,
+    coord: HomeKeeperCoordinator,
+    crossed: list[tuple[str, str]],
 ) -> None:
     """Send every notification whose automatic trigger matches a fired transition.
 
-    *fired_kinds* is a subset of ``{"overdue", "due_soon"}`` for the transitions that
-    fired this refresh. Each matching notification sends once (its profile's filter
-    decides the content), so a burst of crossings collapses to one push per
-    notification rather than one per task.
+    *crossed* holds one ``(kind, task_id)`` pair for each transition that fired this
+    refresh, where *kind* is ``"overdue"`` or ``"due_soon"``. A notification sends
+    only when a task that crossed a kind it listens for also passes its profile's
+    filter. A crossing outside the profile does not send it again (B16-1). Each
+    matching notification sends once (its profile's filter decides the content), so a
+    burst of crossings collapses to one push per notification rather than one per
+    task.
     """
-    for notification in _notifications(coord.entry):
+    notifications_list = _notifications(coord.entry)
+    if not notifications_list or not crossed:
+        return
+    task_map = coord.store.get_tasks()
+    crossed_ids = {task_id for _, task_id in crossed}
+    enriched = {
+        task["id"]: task
+        for task in effective_filter_tasks(
+            hass, [task_map[tid] for tid in crossed_ids if tid in task_map]
+        )
+    }
+    now = dt_util.now()
+    for notification in notifications_list:
         auto = notification["auto"]
-        if ("overdue" in fired_kinds and auto["overdue"]) or (
-            "due_soon" in fired_kinds and auto["due_soon"]
+        ids = {task_id for kind, task_id in crossed if auto.get(kind)}
+        if not ids:
+            continue
+        profile, misconfigured = _notification_profile(coord.entry, notification)
+        if misconfigured or profile is None:
+            continue
+        if not any(
+            profiles.matches_filter(enriched[tid], profile["filter"], now=now)
+            for tid in ids
+            if tid in enriched
         ):
-            await async_send_for_notification(hass, coord, notification, reason="auto")
+            continue
+        await async_send_for_notification(hass, coord, notification, reason="auto")
 
 
 async def async_run_notify(
@@ -419,6 +491,16 @@ async def async_run_notify(
         # profile (or a saved notification with no 'Send to') would match tasks but push
         # nowhere, which reads as "the service did nothing". Fail loudly instead.
         return {}, {"key": "notify_no_targets", "placeholders": {}}
+    # A send to targets that no saved notification holds gets a route id. The tag is
+    # then the same on each call, so a new card replaces the old one, and a tap can
+    # go on with the walk at those targets (B16-7, B16-8).
+    if base_notif is None:
+        base_id = notifications.adhoc_base(base_profile["id"] if base_profile else None)
+        notification["id"] = notifications.route_id(base_id, notification["targets"])
+    elif notification["targets"] != base_notif["targets"]:
+        notification["id"] = notifications.route_id(
+            base_notif["id"], notification["targets"]
+        )
 
     matched, sent = await _send(
         hass,
@@ -431,56 +513,91 @@ async def async_run_notify(
     return {"matched": matched, "sent": sent}, None
 
 
-def async_setup_notifications(
-    hass: HomeAssistant, entry: ConfigEntry, coord: HomeKeeperCoordinator
-) -> CALLBACK_TYPE:
-    """Subscribe to mobile-app action events; returns the unsubscribe callback."""
+async def _async_live_coordinator(hass: HomeAssistant) -> Any:
+    """The loaded coordinator, after a wait during a reload (lazy: no import cycle)."""
+    from .coordinator import async_wait_for_coordinator
+
+    return await async_wait_for_coordinator(hass)
+
+
+def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
+    """Subscribe to mobile-app action events; returns the unsubscribe callback.
+
+    ``async_setup`` calls this once for the Home Assistant run (X02-5). A listener
+    of the config entry stopped at each unload, and a tap during the reload that
+    followed reached no handler. Each tap now finds the loaded coordinator, and
+    waits for it while the entry sets up.
+    """
 
     async def _handle(
-        verb: str, task_id: str, notification_id: str, due_token: str | None
+        coord: HomeKeeperCoordinator,
+        verb: str,
+        task_id: str,
+        notification_id: str,
+        due_token: str | None,
     ) -> None:
-        notification = notifications.resolve_notification(
+        entry = coord.entry
+        # A route id (a send with a target override, or with no saved
+        # notification) gives the notification back with the targets it was sent
+        # to, so the walk goes on at that device (B16-7, B16-8).
+        notification = notifications.resolve_tap_notification(
             _notifications(entry), notification_id
         )
         now = dt_util.now()
+        if verb not in (
+            notifications.ACTION_COMPLETE,
+            notifications.ACTION_SNOOZE,
+            notifications.ACTION_SKIP,
+        ):
+            return  # ACTION_OPEN — the URI deep-link is handled on the device
         try:
-            if verb == notifications.ACTION_COMPLETE:
-                # Gate a "Mark done" tap on the button still reflecting the task's
-                # current schedule, so a stale card — tapped after the task was
-                # completed/snoozed/skipped elsewhere, or a second card for the same
-                # task whose twin was already actioned — is a silent no-op rather than
-                # a double-advance (each completion advances next_due a full interval).
-                # A missing task (deleted) is likewise a no-op.
-                #
-                # NOTE: this check and the mutation it guards are atomic, and must
-                # stay that way. Everything from get_task() through complete_task()'s
-                # ``self._tasks[task_id] = updated`` runs without a yield point
-                # (awaiting a coroutine runs its body inline until *it* suspends, and
-                # complete_task's first suspension is the later ``await self._save()``),
-                # so two simultaneous taps — two phones on one card, or two cards for
-                # one task — cannot both read the pre-completion next_due. Introducing
-                # an await above that assignment would open that race.
-                task = coord.store.get_task(task_id)
-                if task is None:
-                    _LOGGER.debug(
-                        "Home Keeper notification action complete on %s ignored: "
-                        "task no longer exists",
-                        task_id,
-                    )
-                    return
-                if not notifications.is_current_action(
-                    task,
+            # Gate every mutating tap on the button still reflecting the task's
+            # current schedule, so a stale card — tapped after the task was
+            # completed/snoozed/skipped elsewhere, or a second card for the same
+            # task whose twin was already actioned — is a silent no-op. A stale
+            # "Mark done" would advance next_due a full interval again, a stale
+            # Snooze would bring a done task back early, and a stale Skip would drop
+            # one more occurrence (B16-2). A missing task (deleted) is likewise a
+            # no-op.
+            #
+            # NOTE: this check and the mutation it guards are atomic, and must stay
+            # that way. Everything from get_task() through the store method's
+            # ``self._tasks[task_id] = ...`` runs without a yield point (awaiting a
+            # coroutine runs its body inline until *it* suspends, and the first
+            # suspension of complete_task, snooze_task and skip_task is the later
+            # ``await self._save()``), so two simultaneous taps — two phones on one
+            # card, or two cards for one task — cannot both read the old next_due.
+            # Introducing an await above that assignment would open that race.
+            task = coord.store.get_task(task_id)
+            if task is None:
+                _LOGGER.debug(
+                    "Home Keeper notification action %s on %s ignored: "
+                    "task no longer exists",
+                    verb,
+                    task_id,
+                )
+                return
+            # A legacy button carries no token. Mark done then needs the task to be
+            # overdue. Snooze and Skip are also offered on a due-soon walk card, so a
+            # legacy tap of those is accepted.
+            tokenless_ok = (
+                recurrence.is_overdue(task, now=now)
+                if verb == notifications.ACTION_COMPLETE
+                else True
+            )
+            if not notifications.is_current_action(
+                task, due_token, tokenless_ok=tokenless_ok
+            ):
+                _LOGGER.debug(
+                    "Home Keeper notification action %s on %s ignored: "
+                    "stale tap (button carried next_due %s, task is now at %s)",
+                    verb,
+                    task_id,
                     due_token,
-                    tokenless_ok=recurrence.is_overdue(task, now=now),
-                ):
-                    _LOGGER.debug(
-                        "Home Keeper notification action complete on %s ignored: "
-                        "stale tap (button carried next_due %s, task is now at %s)",
-                        task_id,
-                        due_token,
-                        task.get("next_due"),
-                    )
-                    return
+                    task.get("next_due"),
+                )
+                return
+            if verb == notifications.ACTION_COMPLETE:
                 await coord.store.complete_task(
                     task_id, origin=ORIGIN_NOTIFICATION_ACTION
                 )
@@ -488,27 +605,29 @@ def async_setup_notifications(
                 # A card already on someone's phone keeps whatever buttons it was
                 # built with, so a verb switched off since then can still be tapped.
                 # Ignore it the same way a stale completion tap is ignored, rather
-                # than honouring a button the setting has withdrawn. The exception in
-                # ``actions_for`` doesn't apply here: it exists so a *walk* can
-                # advance, and by this point the tap has already advanced it.
-                if not _verb_allowed(coord, notifications.ACTION_SNOOZE):
+                # than honouring a button the setting has withdrawn. A
+                # completion-blocked task is the exception, as in ``actions_for``:
+                # its card offers Snooze even with the switch off, because nothing
+                # else can move the walk past it, so that tap must work (B16-3).
+                if not _verb_allowed(
+                    coord, notifications.ACTION_SNOOZE
+                ) and not notifications.is_completion_blocked(task):
                     return
-                hours = (
-                    notification["snooze_hours"]
-                    if notification
-                    else notifications.DEFAULT_SNOOZE_HOURS
+                # The task's own snooze length wins over the notification's.
+                hours = notifications.snooze_hours_for(
+                    coord.store.get_task(task_id), notification
                 )
+                # Count from the due date when that is later than now, the same as
+                # the service and the panel (F10-2).
                 await coord.store.snooze_task(
                     task_id,
-                    now + timedelta(hours=hours),
+                    recurrence.snooze_from(task, now) + timedelta(hours=hours),
                     origin=ORIGIN_NOTIFICATION_ACTION,
                 )
-            elif verb == notifications.ACTION_SKIP:
+            else:  # ACTION_SKIP
                 if not _verb_allowed(coord, notifications.ACTION_SKIP):
                     return
                 await coord.store.skip_task(task_id, origin=ORIGIN_NOTIFICATION_ACTION)
-            else:  # ACTION_OPEN — the URI deep-link is handled on the device
-                return
         except (KeyError, TaskValidationError) as err:
             _LOGGER.debug(
                 "Home Keeper notification action %s on %s ignored: %s",
@@ -526,31 +645,43 @@ def async_setup_notifications(
             await coord.async_settle_buy_tasks()
         else:
             await coord.async_request_refresh()
-        # Advance the walk: the just-actioned task has left the due set, so re-sending
-        # the notification's next due task replaces it in place; an empty queue closes
-        # with an "all caught up" note. (Only for a saved walk notification.)
+        # Advance the walk: re-send the notification's next due task, which replaces
+        # the card in place; an empty queue closes with an "all caught up" note. (Only
+        # for a saved walk notification.) The task just acted on is kept out: under a
+        # ``due_soon`` or ``all`` status it can still be due, and to send it again
+        # with new buttons lets a second tap act on it again (B16-5). If the profile
+        # of the notification is gone, the send does nothing. It does not send the
+        # "all caught up" note, because the queue is not known (B16-12).
         if notification is not None and (
             notification["style"] == notifications.STYLE_WALK
         ):
-            matched, _ = await async_send_for_notification(
-                hass, coord, notification, reason="walk-advance"
+            await async_send_for_notification(
+                hass,
+                coord,
+                notification,
+                reason="walk-advance",
+                when_empty=notifications.WHEN_EMPTY_ALL_CLEAR,
+                exclude_task_id=task_id,
             )
-            if matched == 0:
-                all_clear = await hass.async_add_executor_job(
-                    functools.partial(
-                        notifications.build_all_clear,
-                        notification,
-                        lang=hass.config.language,
-                    )
-                )
-                await _send_payload(hass, notification["targets"], all_clear)
 
     @callback
     def _on_action(event: Event) -> None:
         decoded = notifications.decode_action(event.data.get("action"))
         if decoded is None:
             return
-        verb, task_id, notification_id, due_token = decoded
-        hass.async_create_task(_handle(verb, task_id, notification_id, due_token))
+        hass.async_create_task(_route(*decoded))
+
+    async def _route(
+        verb: str, task_id: str, notification_id: str, due_token: str | None
+    ) -> None:
+        coord = await _async_live_coordinator(hass)
+        if coord is None:
+            _LOGGER.debug(
+                "Home Keeper notification action %s on %s ignored: not loaded",
+                verb,
+                task_id,
+            )
+            return
+        await _handle(coord, verb, task_id, notification_id, due_token)
 
     return hass.bus.async_listen(EVENT_MOBILE_APP_ACTION, _on_action)

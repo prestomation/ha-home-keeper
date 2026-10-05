@@ -1,10 +1,13 @@
+---
+title: Security model
+summary: What admins and non-admin users can do in Home Keeper, for maintainers and admins.
+---
+
 # Security model
 
 Home Keeper has one rule: only an admin can manage the home. Any signed-in user
 can use it. Admins control the configuration and the appliance costs. Any user can
 see due tasks and complete them.
-
-This page shows what a non-admin user can and cannot do.
 
 ## Why this rule exists
 
@@ -12,9 +15,9 @@ A Home Assistant instance usually has 1 or 2 admins and a few users, such as
 a partner, older children, a housemate, or a guest account on a wall tablet.
 
 Home Assistant reserves Settings and Developer tools for admins. Home
-Assistant also restricts its own `config/*` commands, such as the device
-registry, the entity registry, and config entries, to admins. Home Keeper
-follows the same rule.
+Assistant also restricts the changes that its own `config/*` commands make,
+such as changes to the device registry and the entity registry, and to config
+entries, to admins. Home Keeper follows the same rule.
 
 The risks are small. A guest account must not:
 
@@ -24,25 +27,31 @@ The risks are small. A guest account must not:
 
 ## Admin only
 
-The Home Keeper panel is admin-only. It is in the Home Assistant sidebar. A non-admin user does not see
-the panel.
+The Home Keeper panel in the Home Assistant sidebar is admin-only. A non-admin user does
+not see the panel.
 
 Home Keeper gates each admin operation in 2 places: the websocket API the
 panel uses, and the matching `home_keeper.*` service.
 
 | Operation | Services |
 | --- | --- |
-| Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
-| Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file` |
+| Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `update_managed_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
+| Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
+| Delete an archived completion from an appliance's history | `delete_archived_completion` |
+| Delete every orphaned task (a task whose managing integration is not loaded) | `delete_orphaned_tasks` |
 | Spare-part stock adjustments | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
+| Declarative companions (they read entities with templates) | `add_declarative_companion`, `update_declarative_companion`, `delete_declarative_companion` |
 
-Home Keeper creates a Home Assistant device for each appliance, and removes
-the device when it deletes the appliance. Home Assistant reserves the
-device registry for admins, so appliance changes are admin-only for this
-reason too.
+Home Keeper creates a Home Assistant device for each appliance and removes it with the
+appliance. Home Assistant reserves device registry changes for admins, so this is a second
+reason that appliance changes are admin-only.
+
+Any signed-in user can read the device registry, which shows the name, make,
+model and area of each appliance. For this reason, Home Keeper keeps the serial
+number only in the appliance record and does not copy it to the device.
 
 A websocket command and its service twin share one authenticated
 connection. If Home Keeper gates only the websocket command, `call_service`
@@ -58,17 +67,24 @@ Any signed-in user can use these surfaces:
 
 - The to-do list, the calendar, and the per-task device-page entities.
 - The dashboard task card, with its document and product links.
-- Complete, snooze, skip and create tasks.
+- Create, edit, delete, complete, snooze and skip tasks.
+- Add, remove and reorder the photos of a task, from the panel or the card. A photo is
+  task data, so it follows the task.
 - Read tasks and profiles.
 
-The card reads appliance data, so a non-admin user gets a narrowed view: the
-appliance's documents, its link-type custom fields, and each part's name,
+The card reads appliance data, so a non-admin user gets a narrowed view. It holds the
+appliance's documents and its link-type custom fields. For each part it holds the name,
 product URL, stock count, reorder point and stock unit. Stock is not private: the
 spares `number` entity of each part shows the count to every user.
 
+For a counted wear item, the narrowed view also has the replacement target, the
+name of the uses, and the count that came in with an import. The card uses these
+fields to show the progress, such as "17 of 25 wears". The user who records the
+uses can then see the count.
+
 The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
-serial numbers, warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
-developer adds it to the allowlist.
+serial numbers, warranty dates, and free-text custom fields. The narrowed view is an
+allowlist. A new appliance field stays private until a developer adds it.
 
 ## Notifications
 
@@ -90,8 +106,8 @@ Home Keeper serves uploaded manuals, receipts and photos through an
 authenticated Home Assistant view.
 
 To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
-for the panel, and 15 minutes for the `sign_document_url` and
-`sign_part_file_url` services. A service result can leave the panel, so it
+for the panel, and 15 minutes for the `sign_document_url`,
+`sign_part_file_url` and `sign_task_photo_url` services. A service result can leave the panel, so it
 gets the shorter lifetime.
 
 A signed URL is a bearer credential. Anyone who has the link can get the
@@ -102,13 +118,20 @@ Home Assistant accepts a signature on `GET` and `HEAD` requests only. The
 upload endpoints also require a real authenticated user, so a link that can
 read a file can never replace it.
 
-A signed URL is not admin-only. The card needs one to open a document on a task
+A signed URL is not admin-only. The card needs one to open a document or a photo on a task
 that any user can complete.
 
 Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
 and a document id learns whether that pair exists, from whether the request
-succeeds. The narrowed appliance view only lists documents already shown on
-a card.
+succeeds. The same applies to a task id and a photo id. The narrowed appliance view
+only lists documents already shown on a card.
+
+Home Keeper reads the whole image of a task photo to make its thumbnail. It refuses
+a file that is not a readable PNG, JPEG, WebP or GIF image.
+
+The pixel limit is 50 million. A baseline RGB or greyscale JPEG is decoded at 1/8 of
+its size or less, so it gets the higher limit of Pillow itself: about 179 million. That
+limit is shared by all of Home Assistant, and Home Keeper leaves it as it is.
 
 Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
 Assistant serves static paths before authentication, so Home Keeper does
@@ -128,6 +151,8 @@ runs at render time even if the stored value was already validated.
   page does not help if an account is shared or a long-lived token leaks.
 - **A non-admin user can create and complete tasks.** Home Keeper has no
   read-only user. Use Home Assistant's own user model for that.
+- **Any user can fill the disk with photos.** A task holds up to 6 photos of up to
+  25 MB each, and any user can create tasks. Home Keeper has no quota for each user.
 
 ## Report a problem
 

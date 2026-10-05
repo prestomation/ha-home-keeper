@@ -63,6 +63,7 @@ def _entity(entity_id, *, platform="device_pulse", domain="sensor", **over):
         "disabled": over.get("disabled", False),
         "name": over.get("name"),
         "original_name": over.get("original_name"),
+        "translation_key": over.get("translation_key"),
     }
     entry.update({k: v for k, v in over.items() if k in entry})
     return entry
@@ -289,6 +290,204 @@ def test_expand_matches_target_integration_and_regex():
     assert match["sensor"]["entity_id"] == "sensor.hub_total_failed_pings"
     # Sensor block carries the trigger template + stamped entity_id.
     assert match["sensor"]["mode"] == "threshold"
+
+
+# --- Selection by translation key -------------------------------------------
+
+
+def _keyed_spec(keys, **selection):
+    return _normalized_spec(
+        selection={
+            "target_integration": "roborock",
+            **selection,
+            "translation_keys": keys,
+        }
+    )
+
+
+def test_translation_keys_normalize_to_a_trimmed_deduped_list():
+    spec = _keyed_spec([" filter_time_left ", "filter_time_left", "", "side_brush"])
+    assert spec["selection"]["translation_keys"] == ["filter_time_left", "side_brush"]
+
+
+def test_translation_keys_accept_a_single_string():
+    spec = _keyed_spec("filter_time_left")
+    assert spec["selection"]["translation_keys"] == ["filter_time_left"]
+
+
+def test_empty_translation_keys_are_not_stored():
+    spec = _keyed_spec([])
+    assert "translation_keys" not in spec["selection"]
+
+
+def test_translation_keys_refuse_a_non_list():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys must be a list",
+    ):
+        _keyed_spec({"a": 1})
+
+
+def test_translation_keys_refuse_too_many_entries():
+    keys = [f"k{i}" for i in range(101)]
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys must have <= 100 entries",
+    ):
+        _keyed_spec(keys)
+    # 100 is the limit, not past it.
+    assert len(_keyed_spec(keys[:100])["selection"]["translation_keys"]) == 100
+
+
+def test_translation_keys_refuse_a_key_that_is_too_long():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys entries must be <= 100 characters",
+    ):
+        _keyed_spec(["k" * 101])
+    assert _keyed_spec(["k" * 100])["selection"]["translation_keys"] == ["k" * 100]
+
+
+def test_expand_matches_translation_key_whatever_the_entity_id():
+    spec = _keyed_spec(["filter_time_left", "side_brush_time_left"])
+    entities = _snapshot(
+        # A German install and a renamed entity: the ids say nothing about the key.
+        _entity(
+            "sensor.s7_filter_verbleibende_zeit",
+            platform="roborock",
+            translation_key="filter_time_left",
+        ),
+        _entity(
+            "sensor.kitchen_vacuum_brush",
+            platform="roborock",
+            translation_key="side_brush_time_left",
+        ),
+        _entity(
+            "sensor.s7_battery", platform="roborock", translation_key="battery"
+        ),  # other key
+        _entity("sensor.s7_status", platform="roborock"),  # no key at all
+        _entity(
+            "sensor.other_filter_time_left",
+            platform="ecovacs",
+            translation_key="filter_time_left",
+        ),  # other integration
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {
+        "sensor.s7_filter_verbleibende_zeit",
+        "sensor.kitchen_vacuum_brush",
+    }
+
+
+def test_translation_keys_combine_with_the_regex():
+    spec = _keyed_spec(["filter_time_left"], entity_regex=r"sensor\.s7_.*")
+    entities = _snapshot(
+        _entity(
+            "sensor.s7_filter", platform="roborock", translation_key="filter_time_left"
+        ),
+        _entity(
+            "sensor.q5_filter", platform="roborock", translation_key="filter_time_left"
+        ),
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {"sensor.s7_filter"}
+
+
+# --- Task names -------------------------------------------------------------
+
+
+def _named_spec(task_names):
+    return _normalized_spec(
+        task_template={
+            "name_template": "{{ task_name }}",
+            "notes_template": "",
+            "task_names": task_names,
+        }
+    )
+
+
+def test_task_names_are_trimmed_and_blank_names_dropped():
+    spec = _named_spec(
+        {" filter_time_left ": " Replace filter ", "side": "  ", " ": "x"}
+    )
+    assert spec["task_template"]["task_names"] == {"filter_time_left": "Replace filter"}
+
+
+def test_empty_task_names_are_not_stored():
+    assert "task_names" not in _named_spec({})["task_template"]
+    assert "task_names" not in _named_spec(None)["task_template"]
+
+
+def test_an_empty_string_for_task_names_stores_nothing():
+    assert "task_names" not in _named_spec("")["task_template"]
+
+
+def test_task_names_refuse_a_non_string_key():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names keys must be strings",
+    ):
+        _named_spec({1: "Replace filter"})
+
+
+def test_a_blank_key_is_skipped_and_the_keys_after_it_are_kept():
+    spec = _named_spec({"  ": "Orphan", "filter_time_left": "Replace filter"})
+    assert spec["task_template"]["task_names"] == {"filter_time_left": "Replace filter"}
+
+
+def test_task_names_refuse_a_non_mapping():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names must be a mapping",
+    ):
+        _named_spec(["Replace filter"])
+
+
+def test_task_names_refuse_a_non_string_name():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names value must be a string",
+    ):
+        _named_spec({"filter_time_left": 3})
+
+
+def test_task_names_refuse_a_name_that_is_too_long():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names value must be <= 100 characters",
+    ):
+        _named_spec({"filter_time_left": "x" * 101})
+    assert _named_spec({"k": "x" * 100})["task_template"]["task_names"] == {
+        "k": "x" * 100
+    }
+
+
+def test_task_names_refuse_too_many_entries():
+    names = {f"k{i}": "Name" for i in range(101)}
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names must have <= 100 entries",
+    ):
+        _named_spec(names)
+
+
+def test_task_name_for_reads_the_entry_key():
+    template = {"task_names": {"filter_time_left": "Replace filter"}}
+    entry = _entity("sensor.a", translation_key="filter_time_left")
+    assert dc.task_name_for(template, entry, "Filter time left") == "Replace filter"
+
+
+def test_task_name_for_falls_back_when_the_key_has_no_name():
+    template = {"task_names": {"filter_time_left": "Replace filter"}}
+    other = _entity("sensor.a", translation_key="side_brush_time_left")
+    keyless = _entity("sensor.b")
+    assert dc.task_name_for(template, other, "Side brush") == "Side brush"
+    assert dc.task_name_for(template, keyless, "Sensor B") == "Sensor B"
+    assert dc.task_name_for({}, other, "Side brush") == "Side brush"
 
 
 def test_expand_filters_by_device_class():
@@ -1034,10 +1233,30 @@ def test_preset_by_id_lookup():
     assert presets.preset_by_id("nonexistent") is None
 
 
-def test_device_pulse_preset_uses_threshold_mode():
-    """Device Pulse rides on the existing threshold mode, not availability."""
-    preset = presets.preset_by_id("device_pulse")
-    assert preset["default_spec"]["trigger"]["mode"] == "threshold"
+def test_device_pulse_preset_watches_the_ping_status():
+    """Device Pulse watches the per-device connectivity sensor, off for an hour.
+
+    Not the failed-ping counter: ``*_total_failed_pings`` counts every failed ping
+    until someone resets it by hand, so a task on it never closed.
+    """
+    spec = presets.preset_by_id("device_pulse")["default_spec"]
+    assert spec["selection"]["target_integration"] == "device_pulse"
+    assert spec["selection"]["domain"] == "binary_sensor"
+    assert spec["selection"]["device_class"] == "connectivity"
+    assert "entity_regex" not in spec["selection"]
+    assert spec["trigger"] == {
+        "mode": "state",
+        "state": "off",
+        "for_seconds": 3600,
+        "clear_on_recover": True,
+    }
+
+
+def test_stopped_reporting_preset_reads_timestamp_sensors_two_days_stale():
+    spec = presets.preset_by_id("device_stopped_reporting")["default_spec"]
+    assert spec["selection"]["device_class"] == "timestamp"
+    assert spec["selection"]["entity_regex"] == r".*_last_seen$"
+    assert "timedelta(hours=48)" in spec["trigger"]["template"]
 
 
 def test_firmware_has_no_integration_gate():
@@ -1103,7 +1322,7 @@ def test_managed_by_keeps_completion_for_a_usage_meter():
 
 
 def test_every_auto_clearing_preset_blocks_completion():
-    # Both shipped presets set clear_on_recover, so neither should offer Done.
+    # Every shipped preset sets clear_on_recover, so none of them offers Done.
     for preset in presets.CATALOG_PRESETS:
         spec = dc.normalize_declarative_companion(dict(preset["default_spec"]))
         managed_by = dc.build_managed_by(spec, ENTRY)
@@ -1249,19 +1468,213 @@ def test_created_task_has_no_labels_when_the_template_sets_none():
     assert ops[0][1]["labels"] == []
 
 
-def test_reconcile_rejects_an_unrendered_match_rather_than_inventing_a_name():
+def test_reconcile_makes_no_task_for_an_unrendered_match():
     # The HA-bound caller renders every match, so a missing key is a bug on that
-    # side. The `("", "")` default keeps this from being a bare KeyError, and the
-    # empty name then fails `build_task`'s own validation — which is the point:
-    # the reconciler must not invent a name and materialize a task nobody asked
-    # for. A default that supplied real text would sail straight past this.
+    # side. The `("", "")` default then gives a blank name, and the reconciler must
+    # not invent a name and materialize a task nobody asked for. A default that
+    # supplied real text would sail straight past this.
     spec = _normalized_spec()
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
 
-    with raises_exactly(TaskValidationError, "missing required field: 'name'"):
-        dc.reconcile_declarative_tasks(
-            spec, {key: m}, {}, rendered_by_key={}, config_entry_id=ENTRY, now=NOW
-        )
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, rendered_by_key={}, config_entry_id=ENTRY, now=NOW
+    )
+    assert (new_tasks, ops, changed) == ({}, [], False)
+
+
+# --- B12-2: a blank rendered name -------------------------------------------
+
+
+def test_b12_2_a_blank_name_skips_that_entity_and_not_the_others():
+    # A name template that renders empty for one entity raised out of the whole pass,
+    # so no entity of the spec got a task, and at setup Home Keeper failed to load.
+    spec = _normalized_spec()
+    blank_key, blank = _match("sensor.hub_total_failed_pings", spec["id"])
+    good_key, good = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {blank_key: ("  ", "notes"), **_rendered(good_key)}
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {blank_key: blank, good_key: good},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    assert changed is True
+    assert [(kind, task["name"]) for kind, task in ops] == [
+        ("created", "Rendered reg_lab_total_failed_pings")
+    ]
+    assert [dc.task_key(t) for t in new_tasks.values()] == [good_key]
+
+
+def test_b12_2_a_blank_name_keeps_the_stored_name():
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("", "Notes for x")},
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    assert new_tasks[tid]["name"] == "Rendered reg_hub_total_failed_pings"
+    assert (ops, changed) == ([], False)
+
+
+# --- B12-3: a render without live state --------------------------------------
+
+
+def test_b12_3_a_stale_render_keeps_the_stored_name_and_notes():
+    # At Home Assistant start the entity has no state yet, so the render reads the
+    # registry name and a None state. That render must not rename the task.
+    spec = _normalized_spec(
+        task_template={
+            "name_template": "Check on {{ friendly_name }}",
+            "notes_template": "{{ state }}",
+        }
+    )
+    stored, tid, key, m = _stored_task(spec)
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("Check on Firmware", "None")},
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={key},
+    )
+    assert new_tasks[tid]["name"] == "Rendered reg_hub_total_failed_pings"
+    assert new_tasks[tid]["notes"] == "Notes for reg_hub_total_failed_pings"
+    assert (ops, changed) == ([], False)
+
+
+def test_b12_3_a_live_render_still_renames_the_task():
+    spec = _normalized_spec(
+        task_template={
+            "name_template": "Check on {{ friendly_name }}",
+            "notes_template": "{{ state }}",
+        }
+    )
+    stored, tid, key, m = _stored_task(spec)
+    other_key, _other = _match("sensor.lab_total_failed_pings", spec["id"])
+
+    new_tasks, ops, _changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("New name", "12")},
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={other_key},
+    )
+    assert new_tasks[tid]["name"] == "New name"
+    assert new_tasks[tid]["notes"] == "12"
+    assert [kind for kind, _task in ops] == ["updated"]
+
+
+def test_b12_3_a_stale_render_still_makes_a_new_task():
+    # The initial pass has to make tasks before the platforms set up, so a new match
+    # takes the render it has.
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+
+    _new, ops, _changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        {},
+        _rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={key},
+    )
+    assert [kind for kind, _task in ops] == ["created"]
+
+
+# --- B12-1: a disabled entity ------------------------------------------------
+
+
+def test_b12_1_dormant_keys_are_the_disabled_entities_the_spec_selects():
+    spec = _normalized_spec()
+    snapshot = _snapshot(
+        _entity("sensor.hub_total_failed_pings", disabled=True),
+        _entity("sensor.lab_total_failed_pings"),  # enabled: a match, not dormant
+        _entity("sensor.router_temperature", disabled=True),  # regex miss
+        _entity("sensor.x_total_failed_pings", platform="mqtt", disabled=True),
+    )
+    assert dc.dormant_keys(spec, snapshot) == {
+        (spec["id"], "reg_hub_total_failed_pings")
+    }
+    assert dc.dormant_keys(spec, {}) == set()
+
+
+def test_b12_1_dormant_keys_fall_back_to_the_entity_id():
+    spec = _normalized_spec()
+    entry = _entity("sensor.hub_total_failed_pings", disabled=True)
+    entry["entity_registry_id"] = None
+    assert dc.dormant_keys(spec, _snapshot(entry)) == {
+        (spec["id"], "sensor.hub_total_failed_pings")
+    }
+
+
+def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history():
+    # Disabling the entity (or its device or integration) deleted the task and its
+    # completions, and enabling it again made a new, empty task.
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["completions"] = [{"ts": NOW.isoformat()}]
+
+    paused, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert changed is True
+    assert [(kind, task["id"]) for kind, task in ops] == [("paused", tid)]
+    assert paused[tid]["enabled"] is False
+    assert paused[tid]["source"]["declarative_companion"]["paused"] is True
+    assert paused[tid]["completions"] == [{"ts": NOW.isoformat()}]
+
+    # A second pass while the entity stays disabled changes nothing.
+    again, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, paused, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert (ops, changed) == ([], False)
+    assert again[tid]["enabled"] is False
+
+    # Enabling the entity brings the same task back.
+    resumed, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, again, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert [(kind, task["id"]) for kind, task in ops] == [("resumed", tid)]
+    assert resumed[tid]["enabled"] is True
+    assert resumed[tid]["completions"] == [{"ts": NOW.isoformat()}]
+
+
+def test_b12_1_a_task_the_person_switched_off_gets_no_marker():
+    spec = _normalized_spec()
+    stored, tid, key, _m = _stored_task(spec)
+    stored[tid]["enabled"] = False
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert (ops, changed) == ([], False)
+    assert "paused" not in new_tasks[tid]["source"]["declarative_companion"]
+
+
+def test_b12_1_an_entity_that_is_gone_still_removes_its_task():
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    other_key, _other = _match("sensor.lab_total_failed_pings", spec["id"])
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={other_key}
+    )
+    assert changed is True
+    assert [(kind, task["id"]) for kind, task in ops] == [("deleted", tid)]
+    assert new_tasks == {}
 
 
 def test_reconcile_indexes_every_task_of_this_spec_past_a_foreign_one():
@@ -1317,7 +1730,9 @@ def test_every_translation_keeps_the_jinja_variables():
     import re
 
     for texts in presets.PRESET_TASK_TEXT.values():
-        for variants in texts.values():
+        for field, variants in texts.items():
+            if field == "task_names":
+                continue  # plain text, no Jinja; see the task-name tests below
             english = set(re.findall(r"\{\{ ([a-z_.]+)", variants["en"]))
             for lang, text in variants.items():
                 assert set(re.findall(r"\{\{ ([a-z_.]+)", text)) == english, lang
@@ -1343,6 +1758,27 @@ def test_an_edited_template_is_rendered_as_written():
     assert template["name_template"] == "Flash {{ friendly_name }}"
     # The other field was not edited, so it still follows the language.
     assert template["notes_template"].startswith("Neueste Version")
+
+
+def test_old_device_pulse_notes_still_follow_the_language():
+    """A companion saved from the failed-ping preset keeps its own notes text.
+
+    That text is no longer the preset's, but it is still Home Keeper's text, so it
+    still follows the household language rather than freezing in the one it was
+    saved in.
+    """
+    spec = _preset_spec(
+        "device_pulse",
+        notes_template="Device Pulse reports {{ state }} failed pings "
+        "for {{ friendly_name }}.",
+    )
+    template = presets.localized_task_template(spec, "de")
+    assert template["notes_template"] == (
+        "Device Pulse meldet {{ state }} fehlgeschlagene Pings für {{ friendly_name }}."
+    )
+    # The current text still wins over the old one.
+    current = presets.localized_task_template(_preset_spec("device_pulse"), "de")
+    assert current["notes_template"].startswith("Device Pulse hat seit einer Stunde")
 
 
 def test_a_companion_without_a_preset_is_rendered_as_written():
@@ -1634,3 +2070,1008 @@ def test_the_label_diff_reaches_a_task_past_one_that_needs_no_change():
     assert [task["id"] for _kind, task in ops] == [second_tid]
     assert new_tasks[second_tid]["labels"] == ["urgent"]
     assert new_tasks[first_tid]["labels"] == ["urgent"]
+
+
+# --- Localized task names ---------------------------------------------------
+
+
+def test_unchanged_preset_task_names_follow_the_language(monkeypatch):
+    texts = {
+        "name_template": {"en": "{{ task_name }}", "de": "{{ task_name }}"},
+        "notes_template": {"en": "", "de": ""},
+        "task_names": {
+            "en": {"filter_time_left": "Replace filter"},
+            "de": {"filter_time_left": "Filter ersetzen"},
+        },
+    }
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", texts)
+    spec = {
+        "preset_id": "demo_keys",
+        "task_template": {
+            "name_template": "{{ task_name }}",
+            "notes_template": "",
+            "task_names": {"filter_time_left": "Replace filter"},
+        },
+    }
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"filter_time_left": "Filter ersetzen"}
+    # An edited table is the user's and stays as written.
+    spec["task_template"]["task_names"] = {"filter_time_left": "Swap the filter"}
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"filter_time_left": "Swap the filter"}
+
+
+def _demo_texts():
+    return {
+        "name_template": {"en": "{{ task_name }}", "de": "{{ task_name }}"},
+        "notes_template": {"en": "", "de": ""},
+        "task_names": {
+            "en": {"filter_time_left": "Replace filter", "brush": "Replace brush"},
+            "de": {"filter_time_left": "Filter ersetzen", "brush": "Bürste ersetzen"},
+        },
+    }
+
+
+def _demo_spec(task_names):
+    return {
+        "preset_id": "demo_keys",
+        "task_template": {"name_template": "{{ task_name }}", "task_names": task_names},
+    }
+
+
+def test_b13_3_task_names_follow_the_language_one_entry_at_a_time(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    # Saved before the catalog added "brush", with one entry the user changed.
+    spec = _demo_spec({"filter_time_left": "Replace filter", "old": "My own name"})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {
+        "filter_time_left": "Filter ersetzen",
+        "old": "My own name",
+    }
+    # And back again, from the German text.
+    spec = _demo_spec({"filter_time_left": "Filter ersetzen", "brush": "Mine"})
+    localized = presets.localized_task_template(spec, "en")
+    assert localized["task_names"] == {
+        "filter_time_left": "Replace filter",
+        "brush": "Mine",
+    }
+
+
+def test_b13_3_a_key_the_catalog_dropped_follows_its_duty_name(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    duty = presets.DUTY_NAMES["replace_filter"]
+    spec = _demo_spec({"gone_key": duty["fr"]})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"gone_key": duty["de"]}
+
+
+def test_b13_3_the_result_is_a_new_table(monkeypatch):
+    texts = _demo_texts()
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", texts)
+    stored = dict(texts["task_names"]["en"])
+    localized = presets.localized_task_template(_demo_spec(stored), "de")
+    assert localized["task_names"] == texts["task_names"]["de"]
+    assert localized["task_names"] is not texts["task_names"]["de"]
+    localized["task_names"]["brush"] = "changed"
+    assert texts["task_names"]["de"]["brush"] == "Bürste ersetzen"
+
+
+def test_b13_3_a_shipped_preset_default_spec_does_not_share_its_table():
+    preset = next(p for p in presets.CATALOG_PRESETS if p["id"] == "qnap_reading_high")
+    spec = presets.localized_default_spec(preset, "de", "Q")
+    table = presets.PRESET_TASK_TEXT["qnap_reading_high"]["task_names"]["de"]
+    assert spec["task_template"]["task_names"] == table
+    assert spec["task_template"]["task_names"] is not table
+
+
+def test_a_preset_without_task_names_leaves_the_table_alone():
+    spec = {
+        "preset_id": "firmware_update_available",
+        "task_template": {
+            "name_template": "Update {{ friendly_name }}",
+            "notes_template": "",
+            "task_names": {"k": "Mine"},
+        },
+    }
+    assert presets.localized_task_template(spec, "de")["task_names"] == {"k": "Mine"}
+
+
+# --- Integration presets -----------------------------------------------------
+
+_INTEGRATION_PRESETS = [p for p in presets.CATALOG_PRESETS if "name_args" in p]
+_LANGS = sorted(
+    path.stem
+    for path in (
+        __import__("pathlib").Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "backend_strings"
+    ).glob("*.json")
+)
+
+
+def test_the_integration_presets_are_built_from_the_catalog():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    assert len(catalog) > 50
+    built = {p["requires_integration"] for p in _INTEGRATION_PRESETS}
+    assert built == {entry["domain"] for entry in catalog}
+    # The 3 general presets stay first, so the picker lists them the same way.
+    assert [p["id"] for p in presets.CATALOG_PRESETS[:3]] == [
+        "device_pulse",
+        "firmware_update_available",
+        "device_stopped_reporting",
+    ]
+
+
+def test_preset_ids_are_unique_and_fit_the_field():
+    ids = [p["id"] for p in presets.CATALOG_PRESETS]
+    assert len(ids) == len(set(ids))
+    assert all(len(i) <= 100 for i in ids)
+
+
+def test_every_catalog_key_reaches_exactly_one_preset_with_a_task_name():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    names = __import__("hk_declarative_preset_text").DUTY_NAMES
+    for entry in catalog:
+        mine = [
+            p
+            for p in _INTEGRATION_PRESETS
+            if p["requires_integration"] == entry["domain"]
+        ]
+        for duty in entry["duties"]:
+            for key in duty["keys"]:
+                owners = [
+                    p
+                    for p in mine
+                    if key in p["default_spec"]["selection"]["translation_keys"]
+                ]
+                platform = duty.get("platform", "sensor")
+                owners = [
+                    p
+                    for p in owners
+                    if p["default_spec"]["selection"]["domain"] == platform
+                ]
+                assert len(owners) == 1, (entry["domain"], key)
+                spec = owners[0]["default_spec"]
+                assert spec["selection"]["target_integration"] == entry["domain"]
+                assert (
+                    spec["task_template"]["task_names"][key]
+                    == names[duty["duty"]]["en"]
+                )
+
+
+def test_every_integration_preset_selects_by_key_and_never_by_regex():
+    for preset in _INTEGRATION_PRESETS:
+        selection = preset["default_spec"]["selection"]
+        assert "entity_regex" not in selection, preset["id"]
+        assert selection["translation_keys"], preset["id"]
+
+
+def test_every_duty_has_a_name_in_every_language():
+    names = __import__("hk_declarative_preset_text").DUTY_NAMES
+    for duty, table in names.items():
+        assert sorted(table) == _LANGS, duty
+        assert all(text.strip() for text in table.values()), duty
+
+
+def test_every_integration_preset_ships_its_task_names_in_every_language():
+    for preset in _INTEGRATION_PRESETS:
+        tables = presets.PRESET_TASK_TEXT[preset["id"]]["task_names"]
+        assert sorted(tables) == _LANGS, preset["id"]
+        english = preset["default_spec"]["task_template"]["task_names"]
+        assert tables["en"] == english
+        for lang, table in tables.items():
+            assert set(table) == set(english), (preset["id"], lang)
+
+
+def _per_instance_keys() -> set[str]:
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    return {
+        (entry["domain"], key)
+        for entry in catalog
+        for duty in entry["duties"]
+        if duty.get("per_instance")
+        for key in duty["keys"]
+    }
+
+
+def test_a_preset_names_the_entity_when_two_keys_share_a_task_name():
+    per_instance = _per_instance_keys()
+    for preset in _INTEGRATION_PRESETS:
+        template = preset["default_spec"]["task_template"]
+        names = list(template["task_names"].values())
+        domain = preset["requires_integration"]
+        by_entity = len(set(names)) < len(names) or any(
+            (domain, key) in per_instance for key in template["task_names"]
+        )
+        expected = "{{ friendly_name }}" if by_entity else "device_name"
+        assert expected in template["name_template"], preset["id"]
+
+
+def test_b13_2_a_per_instance_key_names_the_entity():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    qnap = by_id["qnap_reading_high"]["default_spec"]["task_template"]
+    assert qnap["name_template"] == presets._NAME_BY_ENTITY
+    assert ("qnap", "volume_percentage_used") in _per_instance_keys()
+    # Synology makes one device for each volume, so the device name is enough.
+    synology = by_id["synology_dsm_reading_high"]["default_spec"]["task_template"]
+    assert synology["name_template"] == presets._NAME_BY_DEVICE
+    assert presets.PRESET_TASK_TEXT["qnap_reading_high"]["name_template"]["de"] == (
+        presets._NAME_BY_ENTITY
+    )
+
+
+def test_b13_1_the_lg_thinq_alert_selects_only_the_enum_sensor():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    selection = by_id["lg_thinq_alert_replace"]["default_spec"]["selection"]
+    assert selection["device_class"] == "enum"
+    assert selection["translation_keys"] == ["fresh_air_filter"]
+    # The other LG ThinQ presets select every device class, as before.
+    others = [
+        p
+        for p in _INTEGRATION_PRESETS
+        if p["requires_integration"] == "lg_thinq"
+        and p["id"] != "lg_thinq_alert_replace"
+    ]
+    assert others
+    assert all("device_class" not in p["default_spec"]["selection"] for p in others)
+    # The spec still normalizes, with the class kept.
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    assert spec["selection"]["device_class"] == "enum"
+
+
+def test_b13_1_the_alert_matches_the_enum_entity_and_not_the_percentage_one():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    snapshot = _snapshot(
+        _entity(
+            "sensor.fridge_fresh_air_filter",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+            original_device_class="enum",
+        ),
+        _entity(
+            "sensor.fridge_fresh_air_filter_2",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+        ),
+    )
+    matched = dc.expand_spec(spec, snapshot)
+    assert [m["entity"]["entity_id"] for m in matched.values()] == [
+        "sensor.fridge_fresh_air_filter"
+    ]
+
+
+def test_b13_1_a_device_class_duty_gets_its_own_group(monkeypatch):
+    entry = {
+        "domain": "demo",
+        "brand": "Demo",
+        "icon": "mdi:x",
+        "duties": [
+            {"duty": "replace_filter", "shape": "alert", "keys": ["a"], "state": "on"},
+            {
+                "duty": "replace_filter",
+                "shape": "alert",
+                "keys": ["b"],
+                "state": "on",
+                "device_class": "enum",
+            },
+        ],
+    }
+    monkeypatch.setattr(presets, "INTEGRATIONS", [entry])
+    built, _texts = presets._integration_presets()
+    selections = [p["default_spec"]["selection"] for p in built]
+    assert [s["translation_keys"] for s in selections] == [["a"], ["b"]]
+    assert [s.get("device_class") for s in selections] == [None, "enum"]
+
+
+def test_the_english_preset_name_matches_the_backend_string():
+    for preset in _INTEGRATION_PRESETS:
+        assert preset["default_spec"]["name"] == backend_i18n.resolve_string(
+            "en", preset["name_key"], **preset["name_args"]
+        )
+
+
+def test_every_shape_string_exists_in_every_language():
+    for preset in _INTEGRATION_PRESETS:
+        for lang in _LANGS:
+            for key in (preset["name_key"], preset["description_key"]):
+                text = backend_i18n.resolve_string(lang, key, **preset["name_args"])
+                assert text != key, (lang, key)
+                assert preset["name_args"]["integration"] in text, (lang, key)
+
+
+def test_a_single_limit_is_a_threshold_and_mixed_limits_look_up_the_key():
+    one = [{"keys": ["a"], "limit": 10}, {"keys": ["b"], "limit": 10}]
+    assert presets._trigger("percent_low", one) == {
+        "mode": "threshold",
+        "comparison": "<",
+        "value": 10,
+        "clear_on_recover": True,
+    }
+    assert presets._trigger("reading_high", one)["comparison"] == ">"
+    mixed = [{"keys": ["a", "b"], "limit": 10}, {"keys": ["c"], "limit": 5}]
+    trigger = presets._trigger("reading_low", mixed)
+    assert trigger == {
+        "mode": "template",
+        "template": "{{ state | float < {'a': 10, 'b': 10, 'c': 5}[translation_key] }}",
+        "clear_on_recover": True,
+    }
+
+
+def test_the_time_triggers_compare_in_hours():
+    life = presets._trigger("life_low", [{"keys": ["a"], "limit": 24}])
+    assert life["template"] == (
+        "{{ state | float < 10 if attributes.unit_of_measurement == '%' "
+        "else state | float * "
+        + presets._TIME_FACTORS
+        + "[attributes.unit_of_measurement]"
+        " < 24 }}"
+    )
+    wear = presets._trigger("wear_high", [{"keys": ["a"], "limit": 100}])
+    assert wear["template"] == (
+        "{{ state | float * "
+        + presets._TIME_FACTORS
+        + ".get(attributes.get('unit_of_measurement'), 1) > 100 }}"
+    )
+    assert wear["clear_on_recover"] is True
+
+
+def test_an_alert_watches_its_state():
+    assert presets._trigger("alert", [{"keys": ["a"], "state": "present"}]) == {
+        "mode": "state",
+        "state": "present",
+        "clear_on_recover": True,
+    }
+
+
+def test_the_time_table_reads_every_spelling_of_a_time_unit():
+    # The table is Jinja, and as a Python expression it is a plain dict literal.
+    factors = eval(presets._TIME_FACTORS, {"__builtins__": {}})
+    hours = {"h": 1, "hr": 1, "hrs": 1, "hours": 1}
+    assert {unit: factors[unit] for unit in hours} == hours
+    assert factors["minutes"] == factors["mins"] == factors["min"] == 1 / 60
+    assert factors["seconds"] == factors["sec"] == factors["s"] == 1 / 3600
+    assert factors["days"] == factors["day"] == factors["d"] == 24
+    assert factors["weeks"] == factors["week"] == factors["w"] == 168
+    assert factors["ms"] == 1 / 3600000
+    # Every shipped trigger still fits the template field.
+    for preset in presets.CATALOG_PRESETS:
+        assert len(preset["default_spec"]["trigger"].get("template", "")) <= 1000
+
+
+# --- Only these devices -----------------------------------------------------
+
+
+def test_device_ids_keep_only_the_entities_of_those_devices():
+    spec = _normalized_spec(
+        selection={"target_integration": "roborock", "device_ids": ["dev_a", " dev_a "]}
+    )
+    assert spec["selection"]["device_ids"] == ["dev_a"]
+    entities = _snapshot(
+        _entity("sensor.a_filter", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b_filter", platform="roborock", device_id="dev_b"),
+        _entity("sensor.no_device", platform="roborock"),
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {"sensor.a_filter"}
+
+
+def test_no_device_ids_keeps_every_device():
+    spec = _normalized_spec(selection={"target_integration": "roborock"})
+    assert spec["selection"]["device_ids"] == []
+    entities = _snapshot(
+        _entity("sensor.a", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b", platform="roborock"),
+    )
+    assert len(dc.expand_spec(spec, entities)) == 2
+
+
+# --- The key list -----------------------------------------------------------
+
+
+def test_summarize_keys_counts_each_key_and_names_one_example():
+    snapshot = _snapshot(
+        _entity(
+            "sensor.kitchen_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Kitchen vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.upstairs_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Upstairs vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.kitchen_brush",
+            platform="roborock",
+            translation_key="main_brush_time_left",
+            name="Brush left",
+            original_name="Kitchen vacuum Main brush time left",
+        ),
+        _entity("sensor.kitchen_raw", platform="roborock"),  # no key
+        _entity(
+            "sensor.off", platform="roborock", translation_key="off", disabled=True
+        ),
+        _entity("sensor.other", platform="ecovacs", translation_key="filter_time_left"),
+    )
+    assert dc.summarize_keys(snapshot, "roborock") == {
+        "keys": [
+            {
+                "key": "filter_time_left",
+                "count": 2,
+                "example_entity_id": "sensor.kitchen_filter",
+                "example_name": "Kitchen vacuum Filter time left",
+            },
+            {
+                "key": "main_brush_time_left",
+                "count": 1,
+                "example_entity_id": "sensor.kitchen_brush",
+                # The name a person gave the entity wins over the integration's.
+                "example_name": "Brush left",
+            },
+        ],
+        "without_key": 1,
+    }
+
+
+def test_summarize_keys_narrows_to_a_domain_and_handles_no_name():
+    snapshot = _snapshot(
+        _entity("sensor.a", platform="demo", translation_key="level"),
+        _entity(
+            "binary_sensor.b",
+            platform="demo",
+            domain="binary_sensor",
+            translation_key="low",
+        ),
+    )
+    only_binary = dc.summarize_keys(snapshot, "demo", "binary_sensor")
+    assert [k["key"] for k in only_binary["keys"]] == ["low"]
+    assert only_binary["keys"][0]["example_name"] == ""
+    assert only_binary["without_key"] == 0
+    assert dc.summarize_keys(snapshot, "nothing") == {"keys": [], "without_key": 0}
+
+
+_SHIPPED_IDS = __import__("pathlib").Path(__file__).with_name("shipped_preset_ids.txt")
+
+
+def test_shipped_preset_ids_never_change():
+    # A saved companion keeps its preset_id, and the panel and the task text use it
+    # to find the preset. A renamed or removed id breaks every companion that has it.
+    shipped = {
+        line.strip()
+        for line in _SHIPPED_IDS.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    current = {p["id"] for p in presets.CATALOG_PRESETS}
+    assert shipped - current == set(), "a shipped preset id changed or went away"
+    assert current - shipped == set(), "add the new preset id to shipped_preset_ids.txt"
+
+
+def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    for entry in catalog:
+        for duty in entry["duties"]:
+            where = (entry["domain"], duty["duty"])
+            assert duty["shape"] in presets.SHAPES, where
+            assert duty.get("platform", "sensor") in {"sensor", "binary_sensor"}, where
+            assert duty["keys"], where
+            for key in duty["keys"]:
+                assert isinstance(key, str) and key and key == key.strip(), where
+            if duty["shape"] == "alert":
+                assert duty.get("limit") is None, where
+                state = duty.get("state")
+                assert isinstance(state, str) and state, where
+                assert state == state.strip(), where
+            else:
+                limit = duty["limit"]
+                assert isinstance(limit, int | float), where
+                assert not isinstance(limit, bool), where
+                assert limit > 0, where
+                if duty["shape"] == "percent_low":
+                    assert limit < 100, where
+
+
+def _ent(entity_id, platform, key=None, **over):
+    return {
+        "entity_id": entity_id,
+        "entity_registry_id": "r-" + entity_id,
+        "platform": platform,
+        "domain": entity_id.split(".")[0],
+        "translation_key": key,
+        "disabled": False,
+        **over,
+    }
+
+
+_COUNT_SNAPSHOT = {
+    "entities": [
+        # A Tuya light: the integration is installed, but it has no vacuum parts.
+        _ent("light.desk", "tuya", "light"),
+        _ent("sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.vac_brush", "roborock", "main_brush_time_left"),
+        _ent("sensor.vac_old", "roborock", "filter_time_left", disabled=True),
+        _ent("binary_sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.other_filter", "ecovacs", "filter_time_left"),
+    ]
+}
+
+
+def test_count_matches_counts_each_selection_by_its_own_filters():
+    counts = dc.count_matches(
+        {
+            "tuya_vacuum": {
+                "target_integration": "tuya",
+                "domain": "sensor",
+                "translation_keys": ["filter_life"],
+            },
+            "roborock": {
+                "target_integration": "roborock",
+                "domain": "sensor",
+                "translation_keys": ["filter_time_left", "main_brush_time_left"],
+            },
+            "roborock_filter_any_domain": {
+                "target_integration": "roborock",
+                "translation_keys": ["filter_time_left"],
+            },
+            "missing": {"target_integration": "nothing_here"},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    # The disabled entity and the other integration's entity with the same key do
+    # not count; the binary sensor counts only where no domain is set.
+    assert counts == {
+        "tuya_vacuum": 0,
+        "roborock": 2,
+        "roborock_filter_any_domain": 2,
+        "missing": 0,
+    }
+
+
+def test_count_matches_without_a_target_reads_every_integration_and_the_regex():
+    counts = dc.count_matches(
+        {
+            "any_filter": {"translation_keys": ["filter_time_left"]},
+            "regex": {"entity_regex": r"sensor\.vac_.*"},
+            "everything": {},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    assert counts == {"any_filter": 3, "regex": 2, "everything": 5}
+
+
+def test_count_matches_handles_an_empty_registry():
+    assert dc.count_matches({"a": {"target_integration": "x"}}, {}) == {"a": 0}
+    assert dc.count_matches({}, _COUNT_SNAPSHOT) == {}
+
+
+def test_b12_1_dormant_keys_read_past_an_enabled_and_a_missed_entity():
+    spec = _normalized_spec()
+    snapshot = _snapshot(
+        _entity("sensor.lab_total_failed_pings"),
+        _entity("sensor.router_temperature", disabled=True),
+        _entity("sensor.hub_total_failed_pings", disabled=True),
+    )
+    assert dc.dormant_keys(spec, snapshot) == {
+        (spec["id"], "reg_hub_total_failed_pings")
+    }
+
+
+def test_b12_1_a_task_with_no_enabled_key_is_on_and_gets_paused():
+    spec = _normalized_spec()
+    stored, tid, key, _m = _stored_task(spec)
+    del stored[tid]["enabled"]
+    paused, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert [kind for kind, _task in ops] == ["paused"]
+    assert paused[tid]["enabled"] is False
+
+
+def test_b12_1_the_orphan_pass_reads_past_a_matched_task():
+    spec = _normalized_spec()
+    kept_key, kept = _match("sensor.hub_total_failed_pings", spec["id"])
+    gone_key, gone = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {**_rendered(kept_key), **_rendered(gone_key)}
+    stored, _ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {kept_key: kept, gone_key: gone},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    _new, ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {kept_key: kept},
+        stored,
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+        dormant={gone_key},
+    )
+    assert [(kind, dc.task_key(task)) for kind, task in ops] == [("paused", gone_key)]
+
+
+def test_b12_1_a_paused_orphan_does_not_stop_the_orphan_pass():
+    spec = _normalized_spec()
+    off_key, off = _match("sensor.hub_total_failed_pings", spec["id"])
+    gone_key, gone = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {**_rendered(off_key), **_rendered(gone_key)}
+    stored, _ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {off_key: off, gone_key: gone},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    new_tasks, ops, _ = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={off_key}
+    )
+    assert [(kind, dc.task_key(task)) for kind, task in ops] == [
+        ("paused", off_key),
+        ("deleted", gone_key),
+    ]
+    assert [dc.task_key(t) for t in new_tasks.values()] == [off_key]
+
+
+# --- The general presets on the shared counter --------------------------------
+#
+# The Tasks-tab suggestions count every preset with ``count_matches``, the general
+# ones too, so these pin what the three general presets match now.
+
+
+def _general_counts(snapshot):
+    general = {
+        p["id"]: p["default_spec"]["selection"]
+        for p in presets.CATALOG_PRESETS
+        if "name_args" not in p
+    }
+    return dc.count_matches(general, snapshot)
+
+
+def test_general_presets_count_what_they_select():
+    snapshot = _snapshot(
+        _entity("update.router", platform="unifi", domain="update"),
+        _entity("update.hacs", platform="hacs", domain="update"),
+        _entity("update.off", platform="hacs", domain="update", disabled=True),
+        _entity("sensor.plug_last_seen", platform="mqtt", device_class="timestamp"),
+        # A last-seen sensor that is not a timestamp (a phone, a text state).
+        _entity("sensor.phone_last_seen", platform="mobile_app"),
+        # Device Pulse: the ping status counts; its counters and its summary do not.
+        _entity(
+            "binary_sensor.nas_ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        ),
+        _entity("sensor.nas_total_failed_pings"),
+        _entity(
+            "binary_sensor.all_devices_online",
+            domain="binary_sensor",
+            device_class="problem",
+        ),
+        # A connectivity sensor of another integration is not a Device Pulse one.
+        _entity(
+            "binary_sensor.other_ping",
+            platform="ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        ),
+    )
+    assert _general_counts(snapshot) == {
+        "device_pulse": 1,
+        "firmware_update_available": 2,
+        "device_stopped_reporting": 1,
+    }
+
+
+def test_general_presets_count_zero_without_their_entities():
+    snapshot = _snapshot(
+        _entity(
+            "binary_sensor.other_ping",
+            platform="ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        )
+    )
+    assert _general_counts(snapshot) == {
+        "device_pulse": 0,
+        "firmware_update_available": 0,
+        "device_stopped_reporting": 0,
+    }
+
+
+# --- Preset limits in the description -----------------------------------------
+
+
+def _fake_resolve(lang, key, **params):
+    """A resolver that shows what it was asked, so a test reads the call itself."""
+    return f"{lang}:{key}:" + ",".join(f"{k}={params[k]}" for k in sorted(params))
+
+
+def test_preset_limits_follow_the_trigger_shape():
+    by_id = {p["id"]: p for p in presets.CATALOG_PRESETS}
+    assert by_id["zha_wear_high"]["limit"] == {
+        "kind": "hours",
+        "value": 4320,
+        "above": True,
+    }
+    assert by_id["dreo_percent_low"]["limit"] == {
+        "kind": "percent",
+        "value": 10,
+        "above": False,
+    }
+    assert by_id["dantherm_life_low"]["limit"] == {
+        "kind": "hours",
+        "value": 168,
+        "above": False,
+    }
+    assert by_id["synology_dsm_reading_high"]["limit"] == {
+        "kind": "number",
+        "value": 85,
+        "above": True,
+    }
+    assert by_id["ondilo_ico_reading_low"]["limit"] == {
+        "kind": "number",
+        "value": 2700,
+        "above": False,
+    }
+    # The Roborock tub counter counts washes, so its limit is not hours.
+    assert by_id["roborock_wear_high"]["limit"]["kind"] == "number"
+
+
+def test_a_preset_with_no_one_limit_has_none():
+    by_id = {p["id"]: p for p in presets.CATALOG_PRESETS}
+    # Its keys have different limits, so no one number describes it.
+    assert "limit" not in by_id["tplink_life_low"]
+    assert "limit" not in by_id["connectlife_wear_high"]
+    # An alert compares with a state, not a number.
+    alerts = [p for p in _INTEGRATION_PRESETS if ".alert." in p["description_key"]]
+    assert alerts
+    assert all("limit" not in p for p in alerts)
+    # The general presets have their own text.
+    assert all("limit" not in p for p in presets.CATALOG_PRESETS[:3])
+
+
+@pytest.mark.parametrize(
+    ("limit", "expected"),
+    [
+        ({"kind": "percent", "value": 10, "above": False}, "10%"),
+        ({"kind": "number", "value": 2700, "above": False}, "2700"),
+        ({"kind": "number", "value": 1.5, "above": False}, "1.5"),
+        (
+            {"kind": "hours", "value": 24, "above": False},
+            "en:declarative_preset.unit.hours:n=24",
+        ),
+        (
+            {"kind": "hours", "value": 36, "above": False},
+            "en:declarative_preset.unit.hours:n=36",
+        ),
+        (
+            {"kind": "hours", "value": 48, "above": False},
+            "en:declarative_preset.unit.days:n=2",
+        ),
+        (
+            {"kind": "hours", "value": 4320, "above": True},
+            "en:declarative_preset.unit.days:n=180",
+        ),
+        (
+            {"kind": "hours", "value": 4380, "above": True},
+            "en:declarative_preset.unit.hours:n=4380",
+        ),
+    ],
+)
+def test_format_limit(limit, expected):
+    assert presets.format_limit(limit, "en", _fake_resolve) == expected
+
+
+def test_format_limit_says_days_only_from_two():
+    # 24 hours is 1 day, and "1 days" is wrong in every language, so it stays hours.
+    one_day = {"kind": "hours", "value": 24, "above": False}
+    assert presets.format_limit(one_day, "en", backend_i18n.resolve_string) == (
+        "24 hours"
+    )
+    week = {"kind": "hours", "value": 168, "above": False}
+    assert presets.format_limit(week, "de", backend_i18n.resolve_string) == "7 Tage"
+
+
+def test_the_zha_preset_says_its_limit():
+    zha = presets.preset_by_id("zha_wear_high")
+    assert zha is not None
+    text = presets.preset_description(zha, "en", backend_i18n.resolve_string)
+    assert text == (
+        "Opens a task when a wear counter of a Zigbee (ZHA) device passes its "
+        "service limit. Home Keeper completes the task when you reset the counter on "
+        "the device. "
+        "Limit: above 180 days."
+    )
+    assert presets.preset_description(zha, "de", backend_i18n.resolve_string).endswith(
+        "Grenze: über 180 Tage."
+    )
+
+
+def test_each_shape_adds_its_own_limit_sentence():
+    def call(preset_id):
+        preset = presets.preset_by_id(preset_id)
+        assert preset is not None
+        return presets.preset_description(preset, "en", _fake_resolve)
+
+    assert call("dreo_percent_low").startswith(
+        "en:declarative_preset.limit.below:description=en:"
+        "declarative_preset.shape.percent_low.description:integration=Dreo,limit=10%"
+    )
+    assert call("dantherm_life_low").startswith("en:declarative_preset.limit.life:")
+    assert call("zha_wear_high").startswith("en:declarative_preset.limit.above:")
+    assert call("ondilo_ico_reading_low").startswith(
+        "en:declarative_preset.limit.below:"
+    )
+    assert call("synology_dsm_reading_high").startswith(
+        "en:declarative_preset.limit.above:"
+    )
+    # No limit: the shape's own description, as it was.
+    assert call("tplink_life_low") == (
+        "en:declarative_preset.shape.life_low.description:"
+        "integration=TP-Link Tapo vacuum"
+    )
+    assert call("device_pulse") == "en:declarative_preset.device_pulse.description:"
+
+
+def test_a_limit_on_a_shape_with_no_limit_sentence_is_not_said():
+    preset = dict(presets.CATALOG_PRESETS[3])
+    preset["description_key"] = "declarative_preset.shape.alert.description"
+    preset["shape"] = "alert"
+    preset["limit"] = {"kind": "number", "value": 5, "above": True}
+    assert presets.preset_description(preset, "en", _fake_resolve) == (
+        "en:declarative_preset.shape.alert.description:"
+        f"integration={preset['name_args']['integration']}"
+    )
+
+
+@pytest.mark.parametrize("lang", _LANGS)
+def test_every_preset_description_resolves_in_every_language(lang):
+    for preset in presets.CATALOG_PRESETS:
+        text = presets.preset_description(preset, lang, backend_i18n.resolve_string)
+        assert "{" not in text, (lang, preset["id"], text)
+        assert "declarative_preset." not in text, (lang, preset["id"], text)
+        limit = preset.get("limit")
+        if limit is not None:
+            said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
+            assert said in text, (lang, preset["id"], text)
+
+
+def test_each_integration_preset_names_its_shape_and_brand():
+    dreo = presets.preset_by_id("dreo_percent_low")
+    assert dreo is not None
+    assert (dreo["shape"], dreo["brand"]) == ("percent_low", "Dreo")
+    for preset in presets.CATALOG_PRESETS:
+        if "name_args" in preset:
+            assert preset["shape"] in presets.SHAPES, preset["id"]
+            assert preset["brand"] == preset["name_args"]["integration"]
+            assert preset["description_key"] == (
+                f"declarative_preset.shape.{preset['shape']}.description"
+            )
+        else:
+            assert "shape" not in preset and "brand" not in preset, preset["id"]
+
+
+def test_limit_text_says_the_limit_in_a_short_phrase():
+    def call(preset_id):
+        preset = presets.preset_by_id(preset_id)
+        assert preset is not None
+        return presets.limit_text(preset, "en", _fake_resolve)
+
+    assert call("dreo_percent_low") == (
+        "en:declarative_preset.limit_short.below:limit=10%"
+    )
+    assert call("dantherm_life_low").startswith(
+        "en:declarative_preset.limit_short.life:"
+    )
+    assert call("zha_wear_high") == (
+        "en:declarative_preset.limit_short.above:"
+        "limit=en:declarative_preset.unit.days:n=180"
+    )
+    assert call("ondilo_ico_reading_low").startswith(
+        "en:declarative_preset.limit_short.below:"
+    )
+    assert call("synology_dsm_reading_high").startswith(
+        "en:declarative_preset.limit_short.above:"
+    )
+    # No limit, or a general preset: nothing to say.
+    assert call("tplink_life_low") is None
+    assert call("device_pulse") is None
+    assert call("firmware_update_available") is None
+
+
+def test_limit_text_reads_well_in_english_and_german():
+    roborock = presets.preset_by_id("roborock_life_low")
+    synology = presets.preset_by_id("synology_dsm_reading_high")
+    zha = presets.preset_by_id("zha_wear_high")
+    assert roborock is not None and synology is not None and zha is not None
+    resolve = backend_i18n.resolve_string
+    assert presets.limit_text(roborock, "en", resolve) == "less than 24 hours left"
+    assert presets.limit_text(synology, "en", resolve) == "above 85"
+    assert presets.limit_text(zha, "de", resolve) == "über 180 Tage"
+
+
+def test_limit_text_is_none_for_a_shape_with_no_limit_sentence():
+    preset = dict(presets.CATALOG_PRESETS[3])
+    preset["shape"] = "alert"
+    preset["limit"] = {"kind": "number", "value": 5, "above": True}
+    assert presets.limit_text(preset, "en", _fake_resolve) is None
+
+
+@pytest.mark.parametrize("lang", _LANGS)
+def test_every_limit_text_resolves_in_every_language(lang):
+    for preset in presets.CATALOG_PRESETS:
+        text = presets.limit_text(preset, lang, backend_i18n.resolve_string)
+        limit = preset.get("limit")
+        if limit is None:
+            assert text is None, (lang, preset["id"])
+            continue
+        assert text is not None, (lang, preset["id"])
+        assert "{" not in text and "declarative_preset." not in text, (lang, text)
+        said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
+        assert said in text, (lang, preset["id"], text)
+
+
+# ── F06-3: the preview reads a draft ─────────────────────────────────────────
+def test_f06_3_a_draft_accepts_a_blank_name():
+    spec = dc.normalize_declarative_companion(_spec(name=""), draft=True)
+    assert spec["name"] == ""
+
+
+def test_f06_3_a_draft_accepts_an_empty_trigger_value():
+    draft = _spec(trigger={"mode": "threshold", "comparison": ">", "value": ""})
+    spec = dc.normalize_declarative_companion(draft, draft=True)
+    assert spec["trigger"] == {"mode": "threshold", "comparison": ">"}
+
+
+def test_f06_3_a_draft_still_caps_the_name():
+    with raises_exactly(TaskValidationError, "name must be <= 100 characters"):
+        dc.normalize_declarative_companion(_spec(name="x" * 101), draft=True)
+
+
+@pytest.mark.parametrize(
+    ("over", "message"),
+    [
+        ({"name": ""}, "name is required"),
+        (
+            {"trigger": {"mode": "usage", "target": ""}},
+            "sensor.target must be a number",
+        ),
+    ],
+)
+def test_f06_3_a_save_still_needs_the_name_and_value(over, message):
+    with raises_exactly(TaskValidationError, message):
+        dc.normalize_declarative_companion(_spec(**over))
+
+
+def test_f06_3_the_preview_reads_the_spec_as_a_draft():
+    import ast
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "websocket_api.py"
+    ).read_text()
+    preview = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "ws_preview_declarative_companion"
+    )
+    assert (
+        "dc.normalize_declarative_companion(msg['companion'], "
+        "allow_missing_template=True, draft=True)"
+    ) in ast.unparse(preview)

@@ -47,7 +47,7 @@ the next true reading starts the clock again (:func:`_evaluate_indeterminate`).
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
 
 from . import recurrence
@@ -122,9 +122,12 @@ def parse_reading(raw: Any) -> float | None:
     if raw is None:
         return None
     try:
-        return float(raw)
+        value = float(raw)
     except (TypeError, ValueError):
         return None
+    # A NaN or an infinity is not a reading (B14-9). It compares as false or true to
+    # every limit, so it is indeterminate, the same as ``unavailable``.
+    return value if math.isfinite(value) else None
 
 
 def compare(reading: float, comparison: str, value: float) -> bool:
@@ -179,7 +182,9 @@ def latest_decision_ts(task: dict[str, Any]) -> str | None:
     return max(parsed)[1] if parsed else None
 
 
-def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
+def backstop_due(
+    task: dict[str, Any], cfg: dict[str, Any], *, tz: tzinfo | None = None
+) -> datetime | None:
     """When a usage task's time backstop comes due, or ``None`` if it has none.
 
     The backstop measures time since the last decision about the task (see
@@ -200,6 +205,10 @@ def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
         return None
     if anchor is None:
         return None
+    if tz is not None:
+        # Count the interval on Home Assistant's wall clock, not in the stored UTC
+        # offset, so a daylight-saving change does not move it by 1 hour (B07-4).
+        anchor = anchor.astimezone(tz)
     return recurrence.add_interval(
         anchor, int(also_every["interval"]), str(also_every["unit"])
     )
@@ -398,7 +407,7 @@ def evaluate_usage(
         and raw_baseline is not None
         and (reading - float(raw_baseline)) >= target
     )
-    due_at = backstop_due(task, cfg)
+    due_at = backstop_due(task, cfg, tz=now.tzinfo)
     time_met = due_at is not None and now >= due_at
     if due_at is None:
         met = usage_met
@@ -463,12 +472,19 @@ def hold_due_at(
     cfg = sensor_config(task)
     if cfg is None or crossed_at is None or task.get("next_due") is not None:
         return None
-    due = crossed_at + timedelta(seconds=int(cfg.get("for_seconds") or 0))
+    # Add in UTC (X04-8). Python adds to a datetime in its own zone as wall-clock
+    # time, so a hold across a DST change gets 1 hour shorter or longer.
+    due = _utc(crossed_at) + timedelta(seconds=int(cfg.get("for_seconds") or 0))
     return due if due > now else None
 
 
+def _utc(moment: datetime) -> datetime:
+    """*moment* in UTC, so that subtraction and addition count real seconds."""
+    return moment.astimezone(UTC)
+
+
 def _evaluate_indeterminate(
-    *, condition_met_prev: bool, crossed_at: datetime | None
+    *, condition_met_prev: bool | None, crossed_at: datetime | None
 ) -> dict[str, Any]:
     """The decision for a reading that says nothing: decide nothing, break the hold.
 
@@ -511,7 +527,7 @@ def _evaluate_edge(
     cfg: dict[str, Any],
     *,
     met: bool,
-    condition_met_prev: bool,
+    condition_met_prev: bool | None,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:
@@ -534,6 +550,10 @@ def _evaluate_edge(
     crossing arms it again. ``condition_met``/``crossed_at`` are the caller's carried
     edge state (in coordinator memory, baselined on startup so an already-true sensor
     at boot — recorded as ``condition_met=True, crossed_at=None`` — does not arm).
+    ``condition_met_prev=None`` means the baseline is unknown: the entity had no
+    reading when the caller took it. The first definite reading then becomes the
+    baseline and does not arm. A task that is armed does not keep a crossing, so a
+    completion made while the condition is still true does not arm it again.
 
     When the binding sets ``clear_on_recover``, a *falling* edge on an armed task also
     clears it (problem-sensor-mirror behaviour), so "fill the water tank" resolves
@@ -541,6 +561,18 @@ def _evaluate_edge(
     """
     for_seconds = int(cfg.get("for_seconds") or 0)
     armed = task.get("next_due") is not None
+
+    if met and condition_met_prev is None:
+        # The first definite reading after an unknown baseline is a baseline too, not
+        # a crossing (B14-1). An entity that was not loaded yet when the watcher took
+        # its baseline reports its real state later, and a condition that was true
+        # all along must not read as a new crossing on each restart.
+        return {
+            "action": None,
+            "condition_met": True,
+            "crossed_at": None,
+            "hold_due_at": None,
+        }
 
     if not met:
         # Condition false: clear the hold so the next crossing starts fresh. An armed
@@ -557,8 +589,13 @@ def _evaluate_edge(
     # continuation keeps whatever timer we had (``None`` once consumed/baselined).
     new_crossed_at = now if not condition_met_prev else crossed_at
     action = None
-    if not armed and new_crossed_at is not None:
-        held = (now - new_crossed_at).total_seconds()
+    if armed:
+        # The armed state already stands for the condition, so a crossing seen now is
+        # consumed at once (B14-5). If it stays, a completion made while the
+        # condition is still true arms the task again on the next pass.
+        new_crossed_at = None
+    elif new_crossed_at is not None:
+        held = (_utc(now) - _utc(new_crossed_at)).total_seconds()
         if held >= for_seconds:
             action = ACTION_ARM
             new_crossed_at = None  # consume this crossing so we don't re-arm on it
@@ -574,7 +611,7 @@ def evaluate_threshold(
     task: dict[str, Any],
     *,
     reading: float | None,
-    condition_met_prev: bool,
+    condition_met_prev: bool | None,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:
@@ -608,7 +645,7 @@ def evaluate_state(
     task: dict[str, Any],
     *,
     state: str | None,
-    condition_met_prev: bool,
+    condition_met_prev: bool | None,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:
@@ -653,7 +690,7 @@ def evaluate_availability(
     task: dict[str, Any],
     *,
     status: str,
-    condition_met_prev: bool,
+    condition_met_prev: bool | None,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:
@@ -689,7 +726,7 @@ def evaluate_template(
     task: dict[str, Any],
     *,
     result: bool | None,
-    condition_met_prev: bool,
+    condition_met_prev: bool | None,
     crossed_at: datetime | None,
     now: datetime,
 ) -> dict[str, Any]:

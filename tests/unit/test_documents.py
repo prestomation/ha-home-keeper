@@ -7,9 +7,11 @@ exercised by the Docker integration tests.
 """
 
 import os
+import uuid
 from pathlib import Path
 
 import hk_documents as d
+import pytest
 from asserts import raises_exactly
 from hk_assets import AssetValidationError
 
@@ -185,3 +187,129 @@ def test_document_path_composes_id_and_filename(tmp_path: Path):
     assert p.parent.name == "asset-1"
     assert p.name == "doc-9__manual.pdf"
     assert p.is_relative_to(root.resolve())
+
+
+_FREE = "3f2b8c1e-6d4a-4b7e-9c2d-1a5e7f9b0c3d"
+_TAKEN = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+
+
+def _is_fresh_uuid(value: str) -> bool:
+    return str(uuid.UUID(value)) == value and value not in (_FREE, _TAKEN)
+
+
+@pytest.mark.parametrize("requested", [_FREE, _FREE.upper(), _FREE.replace("-", "")])
+def test_b06_2_a_free_uuid_is_kept(requested):
+    """B06-2: the id the panel mints (or a hex uuid a script sends) is kept."""
+    assert d.upload_document_id(requested, [_TAKEN]) == requested
+    assert d.upload_document_id(requested, iter([])) == requested
+
+
+def test_b06_2_a_taken_id_gets_a_new_uuid_before_the_file_is_written():
+    """B06-2: a re-used id must never name the path of an existing document."""
+    new_id = d.upload_document_id(_TAKEN, (i for i in [_FREE, _TAKEN]))
+    assert _is_fresh_uuid(new_id)
+
+
+@pytest.mark.parametrize(
+    "requested",
+    [
+        "A__B",  # the "__" delimiter: aliases another id's file name
+        "part_p1",  # a part's file key
+        "{" + _FREE + "}",  # a uuid to the parser, but not only hex and hyphens
+        "urn:uuid:" + _FREE,
+        "abc",  # hex, but not a uuid
+        "-" * 36,
+        "",
+        None,
+    ],
+)
+def test_b06_2_an_id_that_is_not_a_plain_uuid_is_replaced(requested):
+    new_id = d.upload_document_id(requested, [])
+    assert _is_fresh_uuid(new_id)
+    assert new_id != requested
+
+
+@pytest.mark.parametrize(
+    ("raw", "shown"),
+    [
+        ("Инструкция.pdf", "Инструкция.pdf"),
+        ("说明书.pdf", "说明书.pdf"),
+        # NFD (a combining umlaut, as macOS sends it) becomes NFC.
+        ("Ku\u0308hlschrank.pdf", "K\u00fchlschrank.pdf"),
+        ("C:\\Users\\me\\Garantie.pdf", "Garantie.pdf"),
+        ("../../etc/manual.pdf", "manual.pdf"),
+        ("  bad\x00\nname\u200b.pdf  ", "badname.pdf"),
+        ("", ""),
+    ],
+)
+def test_b06_6_display_filename_keeps_the_real_name(raw, shown):
+    assert d.display_filename(raw) == shown
+    # The key on disk stays ASCII only.
+    if raw:
+        assert d.safe_filename(raw, "application/pdf").isascii()
+
+
+def test_b06_6_display_filename_is_capped():
+    assert d.display_filename("Ж" * 300 + ".pdf") == "Ж" * 200
+
+
+def test_b06_6_content_disposition_without_a_display_name():
+    assert d.content_disposition("manual.pdf") == 'inline; filename="manual.pdf"'
+    assert d.content_disposition("manual.pdf", " ") == 'inline; filename="manual.pdf"'
+
+
+def test_b06_6_content_disposition_carries_the_utf8_name():
+    assert d.content_disposition("__________.pdf", "Инструкция.pdf") == (
+        'inline; filename="__________.pdf"; '
+        "filename*=UTF-8''%D0%98%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%86%D0%B8%D1%8F.pdf"
+    )
+
+
+def test_b06_6_content_disposition_adds_the_missing_extension():
+    assert d.content_disposition("w.PDF", "My warranty") == (
+        "inline; filename=\"w.PDF\"; filename*=UTF-8''My%20warranty.PDF"
+    )
+    # An extension in another case is not added twice.
+    assert d.content_disposition("w.pdf", "Scan.PDF").endswith("''Scan.PDF")
+    # A stored name with no extension adds none.
+    assert d.content_disposition("w", "Scan").endswith("''Scan")
+
+
+def test_b06_9_manuals_resolves_paths_only_off_the_event_loop():
+    """``Path.resolve`` reads the file system, so no coroutine may call it.
+
+    ``_document_path`` and ``resolve_under_root`` resolve the path. In
+    ``manuals.py`` they must run only in a plain function (an executor job), never
+    directly in an ``async def`` body.
+    """
+    import ast
+
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "manuals.py"
+    ).read_text(encoding="utf-8")
+    blocking = {"_document_path", "resolve_under_root"}
+    offenders: list[str] = []
+
+    def visit(node: ast.AST, in_async: bool, scope: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.AsyncFunctionDef):
+                visit(child, True, child.name)
+            elif isinstance(child, (ast.FunctionDef, ast.Lambda)):
+                visit(child, False, getattr(child, "name", "lambda"))
+            else:
+                if isinstance(child, ast.Call):
+                    func = child.func
+                    name = (
+                        func.attr
+                        if isinstance(func, ast.Attribute)
+                        else (func.id if isinstance(func, ast.Name) else "")
+                    )
+                    if name in blocking and in_async:
+                        offenders.append(f"{scope}:{child.lineno}")
+                visit(child, in_async, scope)
+
+    visit(ast.parse(source), False, "<module>")
+    assert offenders == []

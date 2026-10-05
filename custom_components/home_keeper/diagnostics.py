@@ -3,9 +3,10 @@
 Provides a downloadable snapshot (from a device or the config entry) of the tasks
 and assets Home Keeper manages, to make support/debugging easier. Diagnostics are
 routinely attached to public GitHub issues, so potentially personal fields are
-redacted: appliance serial numbers, free-form notes/metadata, and per-completion
-``who`` (a person entity id) / ``photo`` (an image reference). Schedules and
-structural data are kept so the dump is still useful for debugging.
+redacted: appliance serial numbers, costs, vendors, part numbers, links, custom
+fields, the task ``notes``, every completion or skip ``note``, and the
+per-completion ``who`` (a person entity id) / ``photo`` (an image reference).
+Schedules and structural data are kept so the dump is still useful for debugging.
 """
 
 from __future__ import annotations
@@ -24,8 +25,27 @@ from .coordinator import HomeKeeperCoordinator
 # Redacted by key anywhere in the tasks/assets structure (recursively) before the
 # snapshot leaves the instance — these can carry personal or identifying data.
 # Structural/schedule fields (recurrence, due dates, thresholds) are kept so the
-# dump stays useful for debugging.
-TO_REDACT = {"serial_number", "notes", "who", "photo"}
+# dump stays useful for debugging. ``async_redact_data`` matches keys exactly, so a
+# completion's ``note`` needs its own entry next to a task's ``notes``.
+TO_REDACT = {
+    # Free text a person wrote.
+    "notes",
+    "note",
+    # Who did it, and a picture of it.
+    "who",
+    "photo",
+    # A task's own photos (#399): their names are what a person typed or the
+    # file was called on their phone.
+    "photos",
+    # The appliance record: the same fields the card's narrowed view withholds.
+    "serial_number",
+    "cost",
+    "vendor",
+    "part_number",
+    "metadata",
+    # Document and product links can carry a private share token.
+    "url",
+}
 
 
 async def async_get_config_entry_diagnostics(

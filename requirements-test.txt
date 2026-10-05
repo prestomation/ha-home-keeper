@@ -14,6 +14,9 @@ PyYAML  # ci/generate_api_docs.py parses services.yaml; transfer.py writes the d
 # Property-based tests (tests/unit/test_*_properties.py). Without it those
 # files skip at collection and the rest of the suite still runs.
 hypothesis
+# photo_thumbs.py makes the task photo thumbnails. Home Assistant depends on it, so
+# the integration needs no requirement for it, but a bare unit lane does.
+Pillow
 requests
 websockets
 

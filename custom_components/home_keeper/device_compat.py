@@ -31,11 +31,19 @@ genuinely lacks gets an explicit answer here instead of an ``AttributeError`` (o
 Home Assistant imports are ``TYPE_CHECKING``-only, which keeps this module pure Python
 and unit-testable in isolation — the ``recurrence.py``/``models.py`` contract. Keep it
 that way: it means the two registry shapes can be exercised with plain fakes.
+
+Home Assistant 2026.9 also deprecates four device-registry calls, and 2027.8 removes
+them: ``async_get_device``, the ``via_device`` argument of ``async_get_or_create``,
+the ``remove_config_entry_id`` argument of ``async_update_device``, and
+``DeviceEntry.config_entries``. Each one has a replacement that older cores do not
+have. The helpers below use the replacement when the registry has it, else the old
+call. Keep every use of those four calls in this module.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import inspect
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -88,3 +96,111 @@ def device_connections(device: dr.DeviceEntry) -> set[tuple[str, str]]:
     if getattr(device, "parent_device_id", None) is not None:
         return set()
     return device.connections
+
+
+class RegistryDeviceIds:
+    """The ids of every device on this install, main and child, for ``in`` only.
+
+    ``device_id in RegistryDeviceIds(registry)`` asks the registry for that one id.
+    Iterating ``DeviceRegistry.devices`` cannot give this answer: before Home
+    Assistant 2026.9 it yields ids and not entries, and from 2026.9 it lists main
+    devices only, so a child device would read as not on this install (B04-1).
+    """
+
+    def __init__(self, registry: dr.DeviceRegistry) -> None:
+        self._registry = registry
+
+    def __contains__(self, device_id: object) -> bool:
+        return (
+            isinstance(device_id, str)
+            and resolve_device(self._registry, device_id) is not None
+        )
+
+
+def supports_kwarg(func: Callable[..., Any], name: str) -> bool:
+    """Whether *func* declares a parameter called *name*.
+
+    A ``**kwargs`` catch-all does not count: on Home Assistant 2026.9
+    ``async_get_or_create`` takes the deprecated ``via_device`` through it.
+    """
+    try:
+        return name in inspect.signature(func).parameters
+    except (TypeError, ValueError):  # pragma: no cover - builtins without signatures
+        # If we cannot confirm support, do not pass the argument.
+        return False
+
+
+def device_config_entries(device: dr.DeviceEntry) -> set[str]:
+    """The config entries *device* belongs to.
+
+    From Home Assistant 2026.8 a device belongs to one config entry, which it names
+    in ``config_entry_id``. ``config_entries`` is then a deprecated shim, and 2027.8
+    removes it. An older core has only ``config_entries``.
+    """
+    entry_id = getattr(device, "config_entry_id", None)
+    if isinstance(entry_id, str):
+        return {entry_id}
+    return set(getattr(device, "config_entries", None) or ())
+
+
+def find_devices(
+    registry: dr.DeviceRegistry,
+    *,
+    identifiers: set[tuple[str, str]] | None = None,
+    connections: set[tuple[str, str]] | None = None,
+) -> list[dr.DeviceEntry]:
+    """Every main device that has one of *identifiers* or *connections*.
+
+    Home Assistant 2026.9 has ``async_get_devices``, which gives all the devices
+    that match. ``async_get_device`` gives one device, and 2027.8 removes it, so it
+    is used only on a core that has no ``async_get_devices``.
+    """
+    lookup: Any = getattr(registry, "async_get_devices", None)
+    if lookup is not None:
+        return list(
+            lookup(identifiers=identifiers or None, connections=connections or None)
+        )
+    device: Any = registry.async_get_device(
+        identifiers=identifiers, connections=connections
+    )
+    return [] if device is None else [device]
+
+
+def via_device_kwargs(
+    registry: dr.DeviceRegistry,
+    parent_identifier: tuple[str, str] | None,
+    parent_device_id: str | None,
+) -> dict[str, Any]:
+    """The ``async_get_or_create`` argument that links a device to its parent.
+
+    Home Assistant 2026.9 takes the parent's device id as ``via_device_id``, and
+    2027.8 removes ``via_device`` (the parent's identifier). The two must never go
+    together: Home Assistant refuses the call. An unknown ``via_device_id`` also
+    stops the call, so it is given only when the parent device exists. The next
+    ``async_update_device`` sets the link when the parent comes later.
+    """
+    if parent_identifier is None:
+        return {}
+    if supports_kwarg(registry.async_get_or_create, "via_device_id"):
+        if resolve_device(registry, parent_device_id) is None:
+            return {}
+        return {"via_device_id": parent_device_id}
+    return {"via_device": parent_identifier}
+
+
+def remove_config_entry(
+    registry: dr.DeviceRegistry, device: dr.DeviceEntry, entry_id: str
+) -> None:
+    """Take config entry *entry_id* off *device*.
+
+    Before Home Assistant 2026.8 a device can belong to several config entries, and
+    ``remove_config_entry_id`` removes one of them (the device goes when none is
+    left). From 2026.8 a device belongs to one config entry, so the device of
+    *entry_id* is removed, and a device of another config entry is left alone.
+    """
+    owner = getattr(device, "config_entry_id", None)
+    if isinstance(owner, str):
+        if owner == entry_id:
+            registry.async_remove_device(device.id)
+        return
+    registry.async_update_device(device.id, remove_config_entry_id=entry_id)

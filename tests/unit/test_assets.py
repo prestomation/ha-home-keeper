@@ -497,6 +497,73 @@ def test_update_document_file_renames_but_keeps_blob_fields():
     assert "url" not in updated
 
 
+def test_f08_5_link_document_needs_a_url():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    for url in ("", None):
+        with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+            a.append_document(
+                asset, {"kind": "link", "name": "M", "url": url}, created=""
+            )
+    assert asset["documents"] == []
+    entry = a.append_document(
+        asset, {"kind": "link", "name": "M", "url": "https://ex.com/m"}, created=""
+    )
+    with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+        a.update_document(asset, entry["id"], {"name": "M", "url": ""})
+    # The failed edit leaves the stored link as it was.
+    assert asset["documents"][0]["url"] == "https://ex.com/m"
+    # A rename without a url, and a file, still pass.
+    assert (
+        a.update_document(asset, entry["id"], {"name": "N"})["url"]
+        == "https://ex.com/m"
+    )
+    doc = a.append_document(
+        asset,
+        {"kind": "file", "filename": "m.pdf", "content_type": "application/pdf"},
+        created="",
+    )
+    assert doc["kind"] == "file"
+    assert a.update_document(asset, doc["id"], {"name": "Manual"})["name"] == "Manual"
+    # The list normalizer keeps a link stored empty before this check, so an
+    # unrelated save of that appliance still works.
+    kept = a.build_asset(
+        {"name": "Old", "documents": [{"kind": "link", "name": "x", "url": ""}]},
+        now=NOW,
+    )
+    assert kept["documents"][0]["url"] == ""
+
+
+def test_f08_5_single_document_writes_keep_the_list_whole():
+    # An asset with no documents list yet takes the first one in a new list.
+    asset = {"name": "Furnace"}
+    first = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/1"}, created=""
+    )
+    assert asset == {"name": "Furnace", "documents": [first]}
+    assert first["id"] == "d1"
+    # A colliding id is replaced with a fresh uuid; a new id is kept.
+    second = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/2"}, created=""
+    )
+    assert second["id"] not in ("d1", "None")
+    assert len(second["id"]) == 36
+    third = a.append_document(
+        asset, {"id": "d3", "kind": "link", "url": "https://ex.com/3"}, created=""
+    )
+    assert third["id"] == "d3"
+    assert [d["id"] for d in asset["documents"]] == ["d1", second["id"], "d3"]
+    # An edit writes back the same list and adds no key.
+    a.update_document(asset, "d3", {"name": "Three"})
+    assert set(asset) == {"name", "documents"}
+    assert asset["documents"][2]["name"] == "Three"
+    # The cap names its limit.
+    full = {"documents": [{"id": str(i)} for i in range(50)]}
+    with raises_exactly(
+        a.AssetValidationError, "an appliance can have at most 50 documents"
+    ):
+        a.append_document(full, {"kind": "link", "url": "https://ex.com/x"}, created="")
+
+
 def test_update_document_rejects_bad_url_and_missing_id():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
     entry = a.append_document(
@@ -758,6 +825,86 @@ def test_merge_update_cannot_inject_or_clear_part_file():
         now=NOW,
     )
     assert injected["parts"][0]["file_name"] is None
+
+
+_RECEIPT = {"filename": "receipt.pdf", "content_type": "application/pdf", "size": 64}
+
+
+def _asset_with_part_file(**extra):
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "stock": 2}], **extra},
+        now=NOW,
+    )
+    a.set_part_file(asset, asset["parts"][0]["id"], _RECEIPT)
+    return asset
+
+
+@pytest.mark.parametrize(
+    "update",
+    [{"notes": "Check in May"}, {"name": "Gas furnace"}, {"area_id": "basement"}],
+)
+def test_b05_1_an_update_without_parts_keeps_the_part_file(update):
+    """B05-1: an edit that does not send ``parts`` keeps every part as stored."""
+    asset = _asset_with_part_file()
+    updated = a.merge_update(asset, update, now=NOW)
+    part = updated["parts"][0]
+    assert (part["file_name"], part["file_content_type"], part["file_size"]) == (
+        "receipt.pdf",
+        "application/pdf",
+        64,
+    )
+    assert updated["parts"] == asset["parts"]
+    # A copy, not the stored list: changing the result leaves the old record alone.
+    assert updated["parts"] is not asset["parts"]
+    assert updated["parts"][0] is not asset["parts"][0]
+
+
+def test_b05_1_a_managed_appliance_keeps_the_part_file_on_a_notes_edit():
+    asset = _asset_with_part_file(
+        managed_by={
+            "integration": "battery_notes",
+            "config_entry_id": "entry1",
+            "locked_fields": ["name", "parts"],
+        }
+    )
+    updated = a.merge_update(asset, {"notes": "Spare pack in the drawer"}, now=NOW)
+    assert updated["notes"] == "Spare pack in the drawer"
+    assert updated["parts"][0]["file_name"] == "receipt.pdf"
+
+
+def test_b05_1_an_update_without_parts_does_not_validate_them_again():
+    """A stored value the validator now refuses does not block a rename."""
+    asset = _asset_with_part_file()
+    asset["parts"][0]["stock"] = const.MAX_INTERVAL + 500
+    updated = a.merge_update(asset, {"name": "Gas furnace"}, now=NOW)
+    assert updated["name"] == "Gas furnace"
+    assert updated["parts"][0]["stock"] == const.MAX_INTERVAL + 500
+
+
+def test_b06_3_dropped_part_files_names_each_removed_part_with_a_file():
+    """B06-3: a part left out of the update has its file listed for deletion."""
+    before = [
+        {"id": "p1", "file_name": "one.pdf"},
+        {"id": "p2", "file_name": "two.pdf"},
+        {"id": "p3", "file_name": None},
+        {"id": "p4", "file_name": "four.pdf"},
+    ]
+    # p2 is kept (even with no file on the incoming copy), p3 had no file.
+    after = [{"id": "p2"}, {"id": "p5", "file_name": "new.pdf"}]
+    assert a.dropped_part_files(before, after) == [
+        ("p1", "one.pdf"),
+        ("p4", "four.pdf"),
+    ]
+    assert a.dropped_part_files(before, before) == []
+    assert a.dropped_part_files([], after) == []
+    assert a.dropped_part_files(before, []) == [
+        ("p1", "one.pdf"),
+        ("p2", "two.pdf"),
+        ("p4", "four.pdf"),
+    ]
+    # Junk entries and a part with no id are skipped, not raised on.
+    assert a.dropped_part_files(["junk", {"file_name": "x.pdf"}], []) == []
+    assert a.dropped_part_files(None, None) == []
 
 
 def test_part_notes_edit_preserves_backend_managed_fields():
@@ -1415,6 +1562,29 @@ def test_adjust_part_stock_restock_and_clamp():
     assert part["stock"] == 0
 
 
+def test_b15_3_adjust_part_stock_clamps_at_the_spares_maximum():
+    """B15-3: a restock cannot store a count the validator refuses."""
+    part = {"stock": 9500, "reorder_at": 100}
+    assert a.adjust_part_stock(part, 1000) == a.STOCK_NONE
+    assert part["stock"] == const.MAX_INTERVAL
+    # Exactly at the limit is kept as is, and a further restock stays there.
+    a.adjust_part_stock(part, 0.5)
+    assert part["stock"] == const.MAX_INTERVAL
+    # The stored count still passes the validator, so the appliance stays editable.
+    asset = a.build_asset({"name": "Kettle", "parts": [{"name": "Descaler"}]}, now=NOW)
+    asset["parts"][0]["stock"] = part["stock"]
+    parts = [{"id": asset["parts"][0]["id"], "name": "Descaler", "stock": 10000}]
+    assert a.merge_update(asset, {"parts": parts}, now=NOW)["parts"][0]["stock"] == (
+        const.MAX_INTERVAL
+    )
+
+
+def test_b15_3_adjust_part_stock_below_the_maximum_is_not_clamped():
+    part = {"stock": 9000}
+    a.adjust_part_stock(part, 999.5)
+    assert part["stock"] == 9999.5
+
+
 def test_adjust_part_stock_begins_tracking_from_zero():
     part = {"stock": None, "reorder_at": None}
     a.adjust_part_stock(part, 2)
@@ -1609,8 +1779,43 @@ def test_card_projection_keeps_what_the_card_renders():
             "stock": 2,
             "reorder_at": 1,
             "stock_unit": "",
+            "replace_interval": None,
+            "use_noun": "",
+            "carried_uses": 0,
         }
     ]
+
+
+def test_card_projection_f09_2_keeps_counted_wear_progress_fields():
+    # F09-2: the card reads the target, the noun and the carried count to show
+    # "17 of 25 wears". Without them a non-admin sees "Counting" for ever.
+    asset = a.build_asset(
+        {
+            "name": "Rain jacket",
+            "parts": [
+                {
+                    "name": "Shell",
+                    "part_type": "wear",
+                    "replace_unit": "uses",
+                    "replace_interval": 25,
+                    "use_noun": "wears",
+                    "carried_uses": 4,
+                    "cost": 120.0,
+                    "vendor": "Outdoor Co",
+                }
+            ],
+        },
+        now=NOW,
+    )
+    part = a.card_projection([asset])[0]["parts"][0]
+    assert (part["replace_interval"], part["use_noun"], part["carried_uses"]) == (
+        25,
+        "wears",
+        4,
+    )
+    assert "cost" not in part
+    assert "vendor" not in part
+    assert "replace_unit" not in part
 
 
 def test_card_projection_drops_report_value_data():
@@ -2233,3 +2438,31 @@ def test_stock_report_after_a_clamped_adjustment():
         "unit": "roll",
         "status": "out",
     }
+
+
+# ── B21-3: has_archived_completion ──────────────────────────────────────────
+_ARCHIVED = {
+    "task_history": [
+        {"task_id": "old-1", "completions": [{"ts": "2026-01-01T00:00:00+00:00"}]},
+        {"task_id": "old-2", "completions": [{"ts": "2026-02-01T00:00:00+00:00"}]},
+        {"task_id": "old-3"},
+    ]
+}
+
+
+def test_b21_3_has_archived_completion_finds_the_pair():
+    assert a.has_archived_completion(_ARCHIVED, "old-2", "2026-02-01T00:00:00+00:00")
+
+
+@pytest.mark.parametrize(
+    ("asset", "task_id", "ts"),
+    [
+        (_ARCHIVED, "old-1", "2026-02-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-9", "2026-01-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-3", "2026-01-01T00:00:00+00:00"),
+        ({}, "old-1", "2026-01-01T00:00:00+00:00"),
+        ({"task_history": None}, "old-1", "2026-01-01T00:00:00+00:00"),
+    ],
+)
+def test_b21_3_has_archived_completion_rejects_another_pair(asset, task_id, ts):
+    assert a.has_archived_completion(asset, task_id, ts) is False

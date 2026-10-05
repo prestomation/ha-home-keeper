@@ -115,6 +115,10 @@
           "name": "Kræv scanning af tag",
           "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Alle andre måder at markere den som udført på afvises. Kræver et tag."
         },
+        "snooze_hours": {
+          "name": "Udsættelseslængde",
+          "description": "Timer, som Udsæt flytter denne opgave. Udsæt-dialogen starter på denne længde, og Udsæt-knappen i en notifikation bruger den. Lad feltet være tomt for at bruge de sædvanlige længder."
+        },
         "source": {
           "name": "Kilde",
           "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Home Keeper gemmer og gengiver den ordret og inspicerer den aldrig. Se docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Kræv scanning af tag",
           "description": "Lad kun det tilknyttede tag fuldføre denne opgave. Kræver et tag."
         },
+        "snooze_hours": {
+          "name": "Udsættelseslængde",
+          "description": "Timer, som Udsæt flytter denne opgave. Send en tom værdi for at bruge de sædvanlige længder igen."
+        },
         "source": {
           "name": "Kilde",
-          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Se docs/INTEGRATING.md."
+          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Hvert navnerum erstatter det gemte navnerum med samme navn. Et navnerum med værdien null fjernes. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Fuldførelsesdetaljer",
@@ -252,6 +260,10 @@
           "description": "Omgå sletningsbeskyttelse for en opgave, der administreres af en anden integration. Brug dette til at rydde op i en opgave, hvis administrerende integration er blevet afinstalleret eller opfører sig forkert og ikke selv kan fjerne den."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Slet forældreløse opgaver",
+      "description": "Sletter hver opgave, som en integration administrerer, når denne integration ikke er indlæst (fjernet, deaktiveret eller ikke sat op). Kun for administratorer. Returnerer id'erne for de slettede opgaver under \"deleted\"."
     },
     "complete_task": {
       "name": "Fuldfør opgave",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Ignoreres, når Indtil er angivet."
+          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Angiv ikke både Timer og Indtil i samme kald."
         },
         "until": {
           "name": "Indtil",
-          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiver du den, bruges feltet Timer ikke."
+          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiv ikke både Timer og Indtil i samme kald."
         },
         "origin": {
           "name": "Oprindelse",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Fjern opgavefoto",
+      "description": "Fjerner et foto fra en opgave og sletter filen. Tilføj fotos i panelet, da et servicekald ikke kan bære en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Angiv opgavens forsidefoto",
+      "description": "Gør et foto til forsidefoto for dets opgave. Forsidefotoet er det første foto. Det vises på opgavelisten, på opgavesiden og i udført-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer URL til opgavefoto",
+      "description": "Opretter en kortlivet URL (ingen auth-header nødvendig), der giver et opgavefotos bytes, for eksempel for at vise fotoet i en notifikation.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        },
+        "thumbnail": {
+          "name": "Miniature",
+          "description": "Signer URL'en til den lille kopi, højst 256 pixel på den lange side."
+        }
+      }
+    },
     "update_skip": {
       "name": "Opdater overspringning",
       "description": "Ret detaljerne i en registreret overspringning, identificeret ved dens tidsstempel. Overspringningen beholder sin dato, og planen røres ikke.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} reservedele"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Opgaver"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommende opgaver"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Ukendt dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Ukendt foto: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Kun en opgave med en forbrugssensor har en måler."
+    },
+    "meter_has_no_reading": {
+      "message": "Den tilknyttede sensor har ingen numerisk værdi lige nu. Angiv en startværdi i kaldet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparatet har ingen arkiveret udførelse af {task_id} kl. {ts}."
     },
     "unknown_part_file": {
       "message": "Ukendt reservedel eller ingen vedhæftet fil."

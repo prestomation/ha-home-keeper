@@ -115,6 +115,10 @@
           "name": "Exigeix escanejar l'etiqueta",
           "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Es rebutja qualsevol altra manera de marcar-la com a feta. Cal una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Durada de Posposa",
+          "description": "Hores que Posposa mou aquesta tasca. El diàleg de Posposa comença amb aquesta durada, i el botó Posposa d'una notificació la fa servir. Deixa-ho buit per fer servir les durades habituals."
+        },
         "source": {
           "name": "Origen",
           "description": "Procedència opaca propietat de la integració que ha creat la tasca. Home Keeper l'emmagatzema i la retorna literalment i mai la inspecciona. Vegeu docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Exigeix escanejar l'etiqueta",
           "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Cal una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Durada de Posposa",
+          "description": "Hores que Posposa mou aquesta tasca. Envia un valor buit per tornar a les durades habituals."
+        },
         "source": {
           "name": "Origen",
-          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Vegeu docs/INTEGRATING.md."
+          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Cada espai de noms substitueix l'espai de noms desat amb el mateix nom. Un espai de noms amb el valor null s'elimina. Vegeu docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detall de la realització",
@@ -252,6 +260,10 @@
           "description": "Omet la protecció d'eliminació d'una tasca gestionada per una altra integració. Useu-ho per netejar una tasca la integració gestora de la qual s'ha desinstal·lat o funciona malament i no la pot eliminar ella mateixa."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Elimina les tasques òrfenes",
+      "description": "Elimina cada tasca gestionada per una integració quan aquesta integració no està carregada (eliminada, desactivada o sense configurar). Només per a administradors. Retorna els ID de les tasques eliminades a \"deleted\"."
     },
     "complete_task": {
       "name": "Completar tasca",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Hores",
-          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). S'ignora si s'indica Fins a."
+          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). No indiqueu Hores i Fins a en la mateixa crida."
         },
         "until": {
           "name": "Fins a",
-          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Si l'indiqueu, el camp Hores no s'utilitza."
+          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. No indiqueu Hores i Fins a en la mateixa crida."
         },
         "origin": {
           "name": "Origen",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Treu la foto de la tasca",
+      "description": "Treu una foto d'una tasca i n'elimina el fitxer. Afegeix fotos des del tauler, perquè una crida de servei no pot portar un fitxer.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Estableix la portada de la tasca",
+      "description": "Converteix una foto en la portada de la seva tasca. La portada és la primera foto. Apareix a la llista de tasques, a la pàgina de la tasca i al diàleg de completat.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signa l'URL d'una foto de tasca",
+      "description": "Genera un URL de curta durada (sense capçalera d'autenticació) que dona els bytes d'una foto de tasca, per exemple per mostrar la foto en una notificació.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Signa l'URL de la còpia petita, de 256 píxels com a màxim al costat llarg."
+        }
+      }
+    },
     "update_skip": {
       "name": "Actualitza l'omissió",
       "description": "Modifica el detall d'una omissió registrada, identificada per la seva marca de temps. L'omissió conserva la data i la planificació no es toca.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part}: recanvis"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tasques"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Tasques pròximes"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Document desconegut: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Foto desconeguda: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Només una tasca vinculada a un sensor d'ús té un comptador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculat no té cap lectura numèrica ara. Indiqueu un valor inicial a la crida."
+    },
+    "archived_completion_not_found": {
+      "message": "L'electrodomèstic no té cap compleció arxivada de {task_id} a {ts}."
     },
     "unknown_part_file": {
       "message": "Peça desconeguda o sense fitxer adjunt."

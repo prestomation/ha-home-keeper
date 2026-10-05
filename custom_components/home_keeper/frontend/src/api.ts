@@ -6,6 +6,7 @@ import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
   DeclarativeCompanionPreviewResult,
+  EntityKeyList,
   Hass,
   HassLabel,
   ImportReport,
@@ -18,6 +19,8 @@ import type {
   Task,
   UpcomingOccurrence,
 } from './types';
+import { parseNudgeState, type PresetNudgeState } from './preset-nudge';
+import { parseTaskLayout, type TaskLayout } from './task-layout';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
@@ -166,6 +169,47 @@ export async function setIntroDismissed(hass: Hass): Promise<void> {
   });
 }
 
+const PRESET_NUDGE_KEY = 'home_keeper_preset_nudge';
+
+/** Which preset suggestions this user has seen and hidden — per-user, like the intro. */
+export async function getPresetNudge(hass: Hass): Promise<PresetNudgeState> {
+  const res = await hass.callWS<{ value: unknown }>({
+    type: 'frontend/get_user_data',
+    key: PRESET_NUDGE_KEY,
+  });
+  return parseNudgeState(res?.value);
+}
+
+export async function setPresetNudge(hass: Hass, state: PresetNudgeState): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: PRESET_NUDGE_KEY,
+    value: state,
+  });
+}
+
+const TASK_LAYOUT_KEY = 'home_keeper_task_layout';
+
+/** Which layout the current user reads the task list in — rows, tiles or board.
+ *  Stored the same way as the intro banner's dismissal, so the choice follows the
+ *  user across browsers and devices instead of being pinned to one of them.
+ *  A value this panel does not know reads as `rows` (see `parseTaskLayout`). */
+export async function getTaskLayout(hass: Hass): Promise<TaskLayout> {
+  const res = await hass.callWS<{ value: unknown }>({
+    type: 'frontend/get_user_data',
+    key: TASK_LAYOUT_KEY,
+  });
+  return parseTaskLayout(res.value);
+}
+
+export async function setTaskLayout(hass: Hass, value: TaskLayout): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: TASK_LAYOUT_KEY,
+    value,
+  });
+}
+
 export async function addTask(hass: Hass, task: Partial<Task>): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/add_task',
@@ -189,6 +233,14 @@ export async function updateTask(
 
 export async function deleteTask(hass: Hass, taskId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_task', task_id: taskId });
+}
+
+/** Delete every orphaned managed task in one call; returns the deleted ids. */
+export async function deleteOrphanedTasks(hass: Hass): Promise<string[]> {
+  const res = await hass.callWS<{ deleted: string[] }>({
+    type: 'home_keeper/delete_orphaned_tasks',
+  });
+  return res?.deleted ?? [];
 }
 
 /**
@@ -864,6 +916,73 @@ export async function signPartFileUrl(
   return res.url;
 }
 
+/**
+ * Upload a photo to a task (#399) via the Home Keeper HTTP view. *photoId* is a
+ * client-minted uuid that becomes the photo's id. Returns the updated task.
+ */
+export async function uploadTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+  file: File,
+  opts?: UploadOptions,
+): Promise<Task> {
+  const res = await postUploadAuthed<{ task: Task }>(
+    hass,
+    `/api/home_keeper/task_photo/${taskId}/${photoId}`,
+    uploadBody(file),
+    opts,
+  );
+  return res.task;
+}
+
+/** Remove a photo from a task; its files are deleted. Returns the updated task. */
+export async function removeTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/remove_task_photo',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** Make a photo the cover (the first photo) of its task. Returns the updated task. */
+export async function setTaskPhotoCover(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/set_task_photo_cover',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** One photo to sign: the original, or with `thumb` the small copy. */
+export interface TaskPhotoRef {
+  task_id: string;
+  photo_id: string;
+  thumb: boolean;
+}
+
+/** Sign many task photo URLs in one round trip. A gone photo gets `url: null`. */
+export async function signTaskPhotoUrls(
+  hass: Hass,
+  photos: TaskPhotoRef[],
+): Promise<Array<TaskPhotoRef & { url: string | null }>> {
+  const res = await hass.callWS<{ urls: Array<TaskPhotoRef & { url: string | null }> }>({
+    type: 'home_keeper/sign_task_photo_urls',
+    photos,
+  });
+  return res.urls;
+}
+
 /** Fetch the portable document plus a ready-to-save YAML file. */
 export async function exportData(
   hass: Hass,
@@ -1011,6 +1130,24 @@ export async function previewDeclarativeCompanion(
     type: 'home_keeper/preview_declarative_companion',
     companion,
   });
+}
+
+/**
+ * The entity keys of one integration, with a count and an example entity for each.
+ * Home Assistant shows no `translation_key` on any screen, so the companion dialog
+ * lists these for the user to pick from.
+ */
+export async function listEntityKeys(
+  hass: Hass,
+  integration: string,
+  domain?: string,
+): Promise<EntityKeyList> {
+  const res = await hass.callWS<EntityKeyList>({
+    type: 'home_keeper/list_entity_keys',
+    integration,
+    domain: domain || null,
+  });
+  return { keys: res?.keys ?? [], without_key: res?.without_key ?? 0 };
 }
 
 /**

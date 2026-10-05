@@ -1,6 +1,6 @@
 """Unit tests for task construction / validation / updates."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_models as m
 import pytest
@@ -2029,3 +2029,250 @@ def test_a_sensor_task_keeps_its_binding_across_a_rename():
     assert (
         m.merge_update(task, {"name": "Renamed"}, now=NOW)["sensor"] == task["sensor"]
     )
+
+
+# --- B08-1: the panel sends the same instant as UTC text ----------------------
+
+_PDT = timezone(timedelta(hours=-7))
+
+
+def _panel_iso(stored: str) -> str:
+    """What `haDateTimeToIso(stored)` sends: UTC, millisecond precision, a `Z`."""
+    when = datetime.fromisoformat(stored).astimezone(UTC)
+    return when.strftime("%Y-%m-%dT%H:%M:%S.") + f"{when.microsecond // 1000:03d}Z"
+
+
+def test_b08_1_a_panel_rename_keeps_a_completed_one_off_done():
+    created = datetime(2026, 9, 28, 14, 23, 45, 123456, tzinfo=_PDT)
+    task = m.build_task(
+        {"name": "Take out bins", "recurrence_type": "one-off"}, now=created
+    )
+    stored_due = task["due"]
+    assert stored_due == "2026-09-28T14:23:45.123456-07:00"
+    task["next_due"] = None  # completed
+    task["last_completed"] = created.isoformat()
+    payload = {
+        "name": "Take out the bins",
+        "recurrence_type": "one-off",
+        "due": _panel_iso(stored_due),
+    }
+    assert payload["due"] == "2026-09-28T21:23:45.123Z"
+    merged = m.merge_update(task, payload, now=created + timedelta(days=2))
+    assert merged["next_due"] is None
+    assert merged["due"] == stored_due  # the stored text stays
+
+
+def test_b08_1_a_panel_rename_keeps_an_early_fixed_completion():
+    anchor = datetime(2026, 9, 1, 9, tzinfo=_PDT)
+    now = datetime(2026, 9, 30, 8, 5, tzinfo=_PDT)
+    task = m.build_task(
+        {
+            "name": "Meds",
+            "recurrence_type": "fixed",
+            "freq": "DAILY",
+            "interval": 1,
+            "anchor": anchor.isoformat(),
+        },
+        now=now,
+    )
+    tomorrow = datetime(2026, 10, 1, 9, tzinfo=_PDT).isoformat()
+    task["next_due"] = tomorrow  # done early today
+    payload = {
+        "name": "Morning meds",
+        "recurrence_type": "fixed",
+        "freq": "DAILY",
+        "interval": 1,
+        "anchor": _panel_iso(task["anchor"]),
+    }
+    merged = m.merge_update(task, payload, now=now)
+    assert merged["next_due"] == tomorrow
+    assert merged["anchor"] == anchor.isoformat()
+
+
+def test_b08_1_seconds_are_the_precision_of_a_schedule():
+    """The panel selector drops the fraction, so under 1 second is not a change."""
+    due = "2026-09-28T14:23:45.999999-07:00"
+    task = m.build_task(
+        {"name": "Bins", "recurrence_type": "one-off", "due": due}, now=NOW
+    )
+    task["next_due"] = None
+    merged = m.merge_update(
+        task, {"recurrence_type": "one-off", "due": "2026-09-28T21:23:45Z"}, now=NOW
+    )
+    assert merged["next_due"] is None
+
+
+def test_b08_1_a_real_change_of_due_still_reschedules():
+    due = "2026-09-28T14:23:45-07:00"
+    task = m.build_task(
+        {"name": "Bins", "recurrence_type": "one-off", "due": due}, now=NOW
+    )
+    task["next_due"] = None
+    merged = m.merge_update(
+        task, {"recurrence_type": "one-off", "due": "2026-09-28T21:23:46Z"}, now=NOW
+    )
+    assert merged["next_due"] == "2026-09-28T21:23:46+00:00"
+
+
+def test_b08_1_a_season_in_another_form_is_not_a_change():
+    task = m.build_task(
+        {
+            "name": "Mow",
+            "interval": 1,
+            "unit": "weeks",
+            "active_season": {"start": "4-1", "end": "10-31"},
+        },
+        now=NOW,
+    )
+    snoozed = datetime(2026, 6, 20, 9, tzinfo=TZ).isoformat()
+    task["next_due"] = snoozed
+    merged = m.merge_update(
+        task, {"active_season": [{"start": "04-01", "end": "10-31"}]}, now=NOW
+    )
+    assert merged["next_due"] == snoozed
+    assert merged["active_season"] == [{"start": "4-1", "end": "10-31"}]
+    changed = m.merge_update(
+        task, {"active_season": [{"start": "04-02", "end": "10-31"}]}, now=NOW
+    )
+    assert changed["next_due"] != snoozed
+
+
+def test_b08_1_adding_a_season_is_a_change():
+    task = m.build_task({"name": "Mow", "interval": 1, "unit": "weeks"}, now=NOW)
+    snoozed = datetime(2026, 6, 20, 9, tzinfo=TZ).isoformat()
+    task["next_due"] = snoozed
+    merged = m.merge_update(
+        task, {"active_season": [{"start": "12-01", "end": "12-31"}]}, now=NOW
+    )
+    assert merged["next_due"] == datetime(2026, 12, 1, tzinfo=TZ).isoformat()
+
+
+def test_b08_1_same_schedule_value_compares_text_that_does_not_parse():
+    assert m._same_schedule_value("anchor", None, None)
+    assert not m._same_schedule_value("anchor", "x", None)
+    assert m._same_schedule_value("due", "2026-01-01T00:00:00Z", "2026-01-01T00:00Z")
+    assert m._season_key(None) == []
+
+
+# ── snooze_hours ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, None),
+        ("", None),
+        (1, 1),
+        (720, 720),
+        (4.0, 4),
+        ("6", 6),
+        (" 12 ", 12),
+    ],
+)
+def test_normalize_snooze_hours(value, expected):
+    assert m.normalize_snooze_hours(value) == expected
+
+
+@pytest.mark.parametrize("value", [1.5, "1.5", "soon", True, False, [1], {}])
+def test_normalize_snooze_hours_rejects_a_value_that_is_not_whole_hours(value):
+    with raises_exactly(
+        m.TaskValidationError, "snooze_hours must be a whole number of hours"
+    ):
+        m.normalize_snooze_hours(value)
+
+
+@pytest.mark.parametrize("value", [0, -1, "0", "-3", 0.0])
+def test_normalize_snooze_hours_rejects_less_than_one_hour(value):
+    with raises_exactly(m.TaskValidationError, "snooze_hours must be at least 1"):
+        m.normalize_snooze_hours(value)
+
+
+def test_build_task_stores_snooze_hours():
+    task = m.build_task({"name": "Take medicine", "snooze_hours": "1"}, now=NOW)
+    assert task["snooze_hours"] == 1
+
+
+def test_build_task_without_snooze_hours_stores_none():
+    task = m.build_task({"name": "Mop"}, now=NOW)
+    assert "snooze_hours" in task
+    assert task["snooze_hours"] is None
+
+
+def test_build_task_rejects_a_bad_snooze_hours():
+    with raises_exactly(m.TaskValidationError, "snooze_hours must be at least 1"):
+        m.build_task({"name": "Mop", "snooze_hours": 0}, now=NOW)
+
+
+def test_merge_update_sets_and_clears_snooze_hours():
+    task = m.build_task({"name": "Take medicine"}, now=NOW)
+    set_ = m.merge_update(task, {"snooze_hours": 4}, now=NOW)
+    assert set_["snooze_hours"] == 4
+    cleared = m.merge_update(set_, {"snooze_hours": None}, now=NOW)
+    assert cleared["snooze_hours"] is None
+
+
+def test_merge_update_keeps_snooze_hours_when_not_sent():
+    # A plain rename must not clear the snooze length.
+    task = m.build_task({"name": "Take medicine", "snooze_hours": 1}, now=NOW)
+    renamed = m.merge_update(task, {"name": "Take pills"}, now=NOW)
+    assert renamed["snooze_hours"] == 1
+    # A task stored before the field existed stays without it.
+    old = {k: v for k, v in task.items() if k != "snooze_hours"}
+    assert "snooze_hours" not in m.merge_update(old, {"name": "X"}, now=NOW)
+
+
+def test_merge_update_rejects_a_bad_snooze_hours():
+    task = m.build_task({"name": "Take medicine"}, now=NOW)
+    with raises_exactly(
+        m.TaskValidationError, "snooze_hours must be a whole number of hours"
+    ):
+        m.merge_update(task, {"snooze_hours": "often"}, now=NOW)
+
+
+# ── B02-4: merge_source ──────────────────────────────────────────────────────
+_RESERVED = ("part", "buy")
+
+
+def test_b02_4_merge_source_replaces_only_the_named_namespace():
+    existing = {"acme": {"v": 1}, "part": {"asset_id": "a1"}}
+    merged = m.merge_source(existing, {"acme": {"v": 2}}, reserved=_RESERVED)
+    assert merged == {"acme": {"v": 2}, "part": {"asset_id": "a1"}}
+    assert existing == {"acme": {"v": 1}, "part": {"asset_id": "a1"}}
+
+
+def test_b02_4_merge_source_adds_a_namespace_to_no_source():
+    assert m.merge_source(None, {"acme": {"v": 1}}, reserved=_RESERVED) == {
+        "acme": {"v": 1}
+    }
+
+
+def test_b02_4_merge_source_removes_a_namespace_set_to_none():
+    existing = {"acme": {"v": 1}, "other": {"x": 1}}
+    assert m.merge_source(existing, {"acme": None}, reserved=_RESERVED) == {
+        "other": {"x": 1}
+    }
+    assert (
+        m.merge_source({"acme": {"v": 1}}, {"acme": None}, reserved=_RESERVED) is None
+    )
+    assert m.merge_source(None, {"gone": None}, reserved=_RESERVED) is None
+
+
+@pytest.mark.parametrize("update", [None, {}])
+def test_b02_4_merge_source_with_no_update_keeps_the_source(update):
+    existing = {"acme": {"v": 1}}
+    assert m.merge_source(existing, update, reserved=_RESERVED) is existing
+    assert m.merge_source("junk", update, reserved=_RESERVED) is None
+
+
+def test_b02_4_merge_source_rejects_a_reserved_namespace():
+    with raises_exactly(
+        m.TaskValidationError,
+        "source keys ['buy', 'part'] are reserved for Home Keeper's own task "
+        "reconcilers and cannot be set via update_task",
+    ):
+        m.merge_source(None, {"part": {}, "buy": None, "acme": {}}, reserved=_RESERVED)
+
+
+def test_b02_4_merge_source_rejects_a_non_mapping():
+    with raises_exactly(m.TaskValidationError, "source must be a mapping"):
+        m.merge_source(None, "acme", reserved=_RESERVED)

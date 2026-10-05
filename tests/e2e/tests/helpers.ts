@@ -23,6 +23,11 @@ function token(): string {
   return cachedToken;
 }
 
+/** The same token, for a spec that talks to the websocket (see `user-data.ts`). */
+export function authToken(): string {
+  return token();
+}
+
 async function api(path: string, init: RequestInit = {}): Promise<unknown> {
   const r = await fetch(`${HA_URL}${path}`, {
     ...init,
@@ -103,6 +108,35 @@ export async function listStates(): Promise<Array<Record<string, any>>> {
 export async function todoSummaries(): Promise<string[]> {
   const resp = await callService('todo', 'get_items', { entity_id: TODO_ENTITY }, true);
   return resp[TODO_ENTITY].items.map((i: { summary: string }) => i.summary);
+}
+
+/**
+ * Write the task list layout straight into Home Assistant's per-user frontend
+ * data store — the same key the Layout menu writes (`home_keeper_task_layout`).
+ *
+ * Arriving in a layout rather than pressing into it is what a phone assertion and
+ * a screenshot step want: the control row is not what they are about, and a
+ * reload then proves the panel reads the stored value on its own.
+ *
+ * The value is a string (`rows`, `tiles`, `board`), never a boolean, so the key
+ * can grow another layout without a migration. An unknown value is the panel's
+ * problem, not this helper's: `parseTaskLayout` falls back to rows.
+ *
+ * Goes through the live `hass` object, which lives on the `<home-assistant>`
+ * element — a brand-new blank page has not mounted it yet. Throws rather than
+ * silently doing nothing, since a swallowed failure here means the layout was
+ * never written and every assertion after it fails somewhere confusing instead.
+ */
+export async function setTaskLayout(page: Page, value: string): Promise<void> {
+  await page.evaluate(async (v) => {
+    const hass = (
+      document.querySelector('home-assistant') as unknown as {
+        hass?: { callWS: (m: unknown) => Promise<unknown> };
+      }
+    )?.hass;
+    if (!hass) throw new Error('setTaskLayout: no `hass` yet — open an HA page first');
+    await hass.callWS({ type: 'frontend/set_user_data', key: 'home_keeper_task_layout', value: v });
+  }, value);
 }
 
 /**

@@ -99,3 +99,35 @@ def detect_transitions(
         }
 
     return fired, next_state
+
+
+#: The ``auto`` trigger kind of a notification that each fired event matches.
+AUTO_KINDS = {EVENT_TASK_OVERDUE: "overdue", EVENT_TASK_DUE_SOON: "due_soon"}
+
+
+def auto_crossings(
+    prev: StateMap, fired: list[tuple[str, dict[str, Any]]]
+) -> list[tuple[str, str]]:
+    """The ``(kind, task_id)`` pairs that can send an automatic notification.
+
+    *prev* is the edge state before the pass that returned *fired*. Every fired event
+    still goes on the bus. But a ``due_soon`` event for a task that had already
+    announced its old ``next_due`` does not send a notification (B16-6). A user who
+    snoozes or completes a due task moves ``next_due``, and the new date is often
+    inside the window. A push at that moment answers the action that the user just
+    did. The ``overdue`` event of the new date still sends.
+    """
+    crossed: list[tuple[str, str]] = []
+    for name, payload in fired:
+        kind = AUTO_KINDS.get(name)
+        task_id = payload.get("task_id")
+        if kind is None or not task_id:
+            continue
+        # A due_soon event fires only for a next_due that has not announced it, so a
+        # prior flag that is set belongs to the old next_due.
+        prior = prev.get(str(task_id)) or {}
+        announced = prior.get("due_soon_fired") or prior.get("overdue_fired")
+        if kind == "due_soon" and announced:
+            continue
+        crossed.append((kind, str(task_id)))
+    return crossed

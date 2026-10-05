@@ -24,9 +24,11 @@
 
 import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
+import type { TaskPhotoUrlCache } from './task-photos';
 import type { FormField, HaFormElement } from './forms';
 import type { MarkdownPreview } from './markdown';
 import type {
+  ActionSheetState,
   AssetEditState,
   AssetFilter,
   AssetView,
@@ -36,9 +38,11 @@ import type {
   GroupBy,
   MoveCompletionDialogState,
   NoteTarget,
+  PresetDialogState,
   TaskFilter,
   TransferState,
 } from './panel-types';
+import type { PresetNudgeState } from './preset-nudge';
 import type {
   Asset,
   Companion,
@@ -48,10 +52,13 @@ import type {
   HomeKeeperOptions,
   Task,
 } from './types';
+import type { TaskLayout } from './task-layout';
 import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
+  /** The action sheet a task tile or a board card opens on a press. */
+  _actionSheet: ActionSheetState;
   _archiveAsset(asset: Asset): Promise<void>;
   /** The appliance edit drawer's state. `collapsibleSection` remembers a section's
    *  open/closed choice on `openSections`; see also the in-place mutation hazard
@@ -114,19 +121,27 @@ export interface PanelHost extends HTMLElement {
    *  `position:fixed` resolves against the viewport). */
   _confirmScrim: HTMLElement | null;
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
-  _complete(task: Task): Promise<void>;
+  _complete(task: Task, button?: Element | null): Promise<void>;
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
+  /** Drop the pending call under *key* (a save that another write already made). */
+  _cancelDebounce(key: string): void;
   /** The declarative-companion dialogs' state: the preset picker, or the add/edit
    *  form with the companion it is editing. */
   _declDialog: DeclarativeDialogState;
   /** Declarative companions stored on the config entry, listed under
    *  Settings → Companions. */
   _declarativeCompanions: DeclarativeCompanion[];
-  /** The bundled presets the "Add from preset" picker offers. Fetched on the first
-   *  open and kept; null until then. */
+  /** The bundled presets, with how many entities each matches now. Loaded with the
+   *  rest (the Tasks tab suggests the ones that match); null until the first load. */
   _declarativePresets: DeclarativeCompanionPreset[] | null;
+  /** Which preset suggestions this user has seen and hidden; null until it loads. */
+  _presetNudge: PresetNudgeState | null;
+  /** The one-time "Presets you can use" dialog. */
+  _presetDialog: PresetDialogState;
+  /** The last queued write of `_presetNudge`, so the writes land in order. */
+  _presetNudgeSaving: Promise<void>;
   /** Delete a task outright (already confirmed). */
   /** Switch a task back on. The panel offers no way to switch one off — that is a
    *  service call — so this is the way back from one aimed at the wrong task. */
@@ -177,8 +192,9 @@ export interface PanelHost extends HTMLElement {
    *  live in is replaced — a region that reset it would stop feeding `hass` to
    *  everything an earlier pass registered. */
   _liveHassEls: Array<{ hass?: Hass }>;
-  /** config entry ids currently loaded, for managed-task orphan detection. */
-  _loadedEntryIds: Set<string>;
+  /** config entry ids currently loaded, for managed-task orphan detection. Null when
+   *  the lookup failed, so that no task reads as orphaned (F07-5). */
+  _loadedEntryIds: Set<string> | null;
   /** Build one live `ha-form`, registered for `hass` updates. The panel's only
    *  `ha-form` constructor; *labelling* is for a form whose fields are not named from
    *  `field.<name>` (see the panel's own doc comment). */
@@ -262,6 +278,8 @@ export interface PanelHost extends HTMLElement {
   /** Set the text filter. Patches the list in place instead of re-rendering, because
    *  a rebuilt shadow tree replaces the box the reader is typing in. */
   _setQuery(value: string): void;
+  /** Pick the layout the task list is drawn in, and remember it for this user. */
+  _setTaskLayout(value: TaskLayout): void;
   /** Which Settings section the URL names, or null for the section index. */
   _settingsSection: SettingsSection | null;
   /** Settings sections (and profile sync groups) the user has collapsed this session. */
@@ -274,14 +292,19 @@ export interface PanelHost extends HTMLElement {
   /** The snooze dialog's state. */
   _snooze: SnoozeState;
   /** Save the open appliance drawer (validates, then creates or updates). */
-  _submitAssetForm(): Promise<void>;
+  _submitAssetForm(button?: Element | null): Promise<void>;
   /** Save the open task drawer (validates, then creates or updates). */
-  _submitForm(): Promise<void>;
+  _submitForm(button?: Element | null): Promise<void>;
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;
+  _signedPhotos: TaskPhotoUrlCache;
+  /** The signed URL for a `data-sign` key, from whichever cache owns that kind. */
+  _signedUrl(key: string): string | undefined;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
+  /** Which layout the task list is drawn in: rows, tiles or board. */
+  _taskLayout: TaskLayout;
   /** Which sub-tab the open task detail is showing. */
   _taskTab(): TaskTab;
   _tasks: Task[];

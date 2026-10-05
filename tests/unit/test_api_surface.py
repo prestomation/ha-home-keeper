@@ -18,8 +18,10 @@ source says and not what it computes. A service registered with a name built at
 runtime rather than written out, a websocket command whose decorator ``type`` is
 not a string constant, or an ``HomeAssistantView`` whose ``url`` is not the
 ``PREFIX + "/…"`` shape ``_view_classes`` expects would each pass unnoticed.
-``test_admin_only_services_verify_admin`` matches the text of the call, so a
-``_verify_admin`` behind a condition that never runs still reads as gated. Every
+``test_admin_only_services_verify_admin`` requires ``await _verify_admin(call)`` as
+the first statement of an admin-only handler, so a gate placed later or behind a
+condition fails it. That a gate refuses a real non-admin at runtime is
+``tests/integration/test_admin_gates.py``'s job, for every admin-only service. Every
 one of those is a departure from how the component is written today, which is why
 literal-reading is enough; if you introduce one, the runtime test is the backstop
 and this file needs widening rather than trusting.
@@ -94,6 +96,16 @@ def _handler_bodies() -> dict[str, str]:
     }
 
 
+def _handler_nodes() -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """The AST node of every ``handle_*`` function, nested ones included."""
+    return {
+        node.name: node
+        for node in ast.walk(_INIT_TREE)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name.startswith("handle_")
+    }
+
+
 def _websocket_commands() -> list[tuple[str, str, bool]]:
     """``(command type, function name, requires admin)`` per decorated handler."""
     found: list[tuple[str, str, bool]] = []
@@ -126,14 +138,17 @@ def _websocket_commands() -> list[tuple[str, str, bool]]:
 
 
 def _view_classes() -> dict[str, dict[str, Any]]:
-    """Class-level ``url`` / ``name`` / ``requires_auth`` per ``HomeAssistantView``."""
+    """Class-level ``url`` / ``name`` / ``requires_auth`` per ``HomeAssistantView``.
+
+    Also the HTTP methods and which of them carry ``@require_admin``.
+    """
     found: dict[str, dict[str, Any]] = {}
     for node in ast.walk(_MANUALS_TREE):
         if not isinstance(node, ast.ClassDef):
             continue
         if not any("HomeAssistantView" in ast.unparse(b) for b in node.bases):
             continue
-        attrs: dict[str, Any] = {"methods": []}
+        attrs: dict[str, Any] = {"methods": [], "admin_methods": []}
         for statement in node.body:
             if isinstance(statement, ast.Assign) and isinstance(
                 statement.targets[0], ast.Name
@@ -143,6 +158,10 @@ def _view_classes() -> dict[str, dict[str, Any]]:
                 statement, ast.FunctionDef | ast.AsyncFunctionDef
             ) and statement.name in ("get", "post", "put", "delete"):
                 attrs["methods"].append(statement.name.upper())
+                if any(
+                    ast.unparse(d) == "require_admin" for d in statement.decorator_list
+                ):
+                    attrs["admin_methods"].append(statement.name.upper())
         found[node.name] = attrs
     return found
 
@@ -166,13 +185,20 @@ def test_service_names_are_unique() -> None:
     assert len(names) == len(set(names)), "duplicate ServiceSpec name"
 
 
-def test_service_teardown_iterates_the_model() -> None:
-    """``async_unload_entry`` removes every modelled service, not a second list.
+def _init_function(name: str) -> ast.AsyncFunctionDef:
+    return next(
+        node
+        for node in ast.walk(_INIT_TREE)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+    )
 
-    ``set_task_meter`` was registered for releases while a hand-maintained
-    ``_SERVICES`` tuple beside it went one short, so it was never removed on
-    unload. A derived list can't be one short; this keeps the literal from
-    coming back.
+
+def test_services_register_once_in_async_setup() -> None:
+    """B02-1: the services live for the Home Assistant run, not for the entry.
+
+    Registered in ``async_setup_entry`` and removed in ``async_unload_entry``, they
+    went away on every reload, so a call during a reload failed with "action not
+    found". Home Assistant's ``action-setup`` rule puts them in ``async_setup``.
     """
     source = (_COMPONENT / "__init__.py").read_text(encoding="utf-8")
     assert "_SERVICES = (" not in source, (
@@ -180,12 +206,11 @@ def test_service_teardown_iterates_the_model() -> None:
         "Iterate api_surface.SERVICE_NAMES instead — a list nobody derives is a "
         "list somebody forgets."
     )
-    unload = next(
-        node
-        for node in ast.walk(_INIT_TREE)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_unload_entry"
-    )
-    assert "SERVICE_NAMES" in ast.unparse(unload)
+    assert "_register_services(hass)" in ast.unparse(_init_function("async_setup"))
+    assert "_register_services" not in ast.unparse(_init_function("async_setup_entry"))
+    unload = ast.unparse(_init_function("async_unload_entry"))
+    assert "services.async_remove" not in unload
+    assert "SERVICE_NAMES" not in unload
 
 
 def test_service_response_kind_matches_source() -> None:
@@ -213,19 +238,57 @@ def test_admin_only_services_verify_admin() -> None:
     gate that actually runs.
     """
     bodies = _handler_bodies()
+    nodes = _handler_nodes()
     modelled = {spec.name: spec for spec in api_surface.SERVICES}
     wrong: dict[str, str] = {}
     for name, handler, _ in _service_registrations():
         if name not in modelled:
             continue  # reported by test_every_registered_service_is_modelled
-        gated = "_verify_admin" in bodies.get(handler, "")
-        if gated != modelled[name].admin_only:
-            wrong[name] = (
-                "handler verifies admin but the model doesn't say admin_only"
-                if gated
-                else "model says admin_only but the handler never calls _verify_admin"
-            )
+        mentioned = "_verify_admin" in bodies.get(handler, "")
+        if modelled[name].admin_only:
+            node = nodes.get(handler)
+            if node is None or not _gates_first(node):
+                # X07-4: the text check passed a gate placed after the store call,
+                # inside a branch, or only in a comment. The gate must run first.
+                wrong[name] = (
+                    "model says admin_only but the handler's first statement is not "
+                    "'await _verify_admin(call)'"
+                )
+        elif mentioned:
+            wrong[name] = "handler verifies admin but the model doesn't say admin_only"
     assert not wrong, {"admin_gate_mismatch": wrong, "fix": _FIX}
+
+
+def _gates_first(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Whether *node*'s first statement, after a docstring, awaits the admin gate."""
+    body = list(node.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    return bool(body) and ast.unparse(body[0]) == "await _verify_admin(call)"
+
+
+def test_x07_4_gates_first_rejects_a_late_or_conditional_gate() -> None:
+    """X07-4: only an unconditional first-statement gate counts as gated."""
+
+    def first(source: str) -> bool:
+        fn = ast.parse(source).body[0]
+        assert isinstance(fn, ast.AsyncFunctionDef)
+        return _gates_first(fn)
+
+    assert first("async def h(call):\n    await _verify_admin(call)\n    x()\n")
+    assert first('async def h(call):\n    """Doc."""\n    await _verify_admin(call)\n')
+    assert not first("async def h(call):\n    x()\n    await _verify_admin(call)\n")
+    assert not first(
+        "async def h(call):\n    if a:\n        await _verify_admin(call)\n"
+    )
+    assert not first("async def h(call):\n    _verify_admin(call)\n")
+    assert not first("async def h(call):\n    # _verify_admin(call)\n    x()\n")
+    assert not first('async def h(call):\n    """Doc."""\n')
 
 
 def test_services_yaml_matches_model() -> None:
@@ -581,6 +644,37 @@ def test_transition_extras_match_the_model() -> None:
         }
 
 
+def test_b18_7_transition_extras_have_the_modelled_type() -> None:
+    """The type the reference publishes is the type the payload carries."""
+    now = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+    tasks = {
+        "overdue": {
+            "id": "overdue",
+            "name": "Overdue",
+            "enabled": True,
+            "next_due": (now - timedelta(days=2)).isoformat(),
+        },
+        "soon": {
+            "id": "soon",
+            "name": "Soon",
+            "enabled": True,
+            "next_due": (now + timedelta(hours=23, minutes=54)).isoformat(),
+        },
+    }
+    fired, _ = transitions.detect_transitions({}, tasks, now=now)
+    python_types = {"int": int, "float": float}
+    checked = 0
+    for name, payload in fired:
+        spec = next(s for s in api_surface.EVENTS if s.name == name)
+        for field in spec.extra:
+            value = payload[field.name]
+            assert type(value) is python_types[field.type], (name, field, value)
+            checked += 1
+    assert checked == 2
+    soon = next(p for n, p in fired if n == const.EVENT_TASK_DUE_SOON)
+    assert soon["due_in_hours"] == 23.9
+
+
 # ── Device triggers ──────────────────────────────────────────────────────────
 
 
@@ -741,6 +835,21 @@ def test_websocket_commands_name_a_real_service() -> None:
     assert not dangling, {"websocket_points_at_no_such_service": dangling}
 
 
+def test_websocket_admin_matches_service_twin() -> None:
+    """A command and its service twin are 1 operation, so they have 1 privilege.
+
+    A gate on 1 half only is no gate: ``call_service`` goes around a gated command, and
+    the websocket goes around a gated service.
+    """
+    services = {spec.name: spec.admin_only for spec in api_surface.SERVICES}
+    wrong = {
+        spec.type: {"websocket": spec.admin_only, "service": services[spec.service]}
+        for spec in api_surface.WEBSOCKET_COMMANDS
+        if spec.service in services and spec.admin_only != services[spec.service]
+    }
+    assert not wrong, {"admin_only_differs_from_service_twin": wrong}
+
+
 def test_http_views_match_source() -> None:
     """Each ``HomeAssistantView``'s url, name, auth and methods are modelled."""
     modelled = {spec.name: spec for spec in api_surface.HTTP_VIEWS}
@@ -771,6 +880,12 @@ def test_http_views_match_source() -> None:
                 **wrong.get(name, {}),
                 "source_methods": sorted(attrs["methods"]),
                 "model_methods": sorted(spec.methods),
+            }
+        if set(attrs["admin_methods"]) != set(spec.admin_methods):
+            wrong[name] = {
+                **wrong.get(name, {}),
+                "source_admin_methods": sorted(attrs["admin_methods"]),
+                "model_admin_methods": sorted(spec.admin_methods),
             }
     assert not wrong, {"http_view_mismatch": wrong, "fix": _FIX}
 

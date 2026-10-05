@@ -33,14 +33,13 @@ container's store is the committed seed fixture, so a leak is a permanent additi
 to it.
 """
 
-import importlib.util
-import sys
 import time
-from pathlib import Path
 
 import pytest
 import requests
 from conftest import HA_URL, call_service, list_states, poll_state
+from ha_registry import ws_send
+from presets_loader import load_declarative_presets
 
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
@@ -51,7 +50,6 @@ FIRMWARE = "update.hk_demo_router_firmware"
 # The one entity in the container that has a real device AND is not Home Keeper's own.
 DEVICE_BATTERY = "sensor.e2e_battery_device_battery"
 
-_ROOT = Path(__file__).resolve().parents[2]
 
 # How long a reconcile pass may take to show up in the task list. The store fires a
 # dispatcher signal, the reconciler schedules a task, and the coordinator refresh
@@ -59,24 +57,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 SETTLE = 45
 
 
-def _declarative_presets():
-    """Load the shipped preset catalog straight from the component source.
-
-    ``declarative_presets.py`` imports nothing but ``typing``, so it loads by path
-    with no package dance. Reading it here rather than restating a preset means the
-    test exercises what actually ships — the same defaults the panel's preset picker
-    hands the Add dialog.
-    """
-    path = _ROOT / "custom_components" / "home_keeper" / "declarative_presets.py"
-    spec = importlib.util.spec_from_file_location("hk_declarative_presets", path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-declarative_presets = _declarative_presets()
+declarative_presets = load_declarative_presets()
 
 
 # ── service helpers ──────────────────────────────────────────────────────────
@@ -606,6 +587,130 @@ def test_a_device_backed_companion_arms_on_a_condition_that_is_already_true(ha, 
     assert armed["id"] == task["id"], "arming must not replace the task"
 
 
+def _rename_entity(ha, entity_id, new_entity_id):
+    """Change an entity id in the registry, as a person does in the entity settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def test_a_companion_matches_by_translation_key_and_keeps_the_task_on_a_rename(
+    ha, specs
+):
+    """The key the integration sets is what matches, not the entity id.
+
+    The stub's battery sensor carries ``translation_key = "battery_level"``. The spec
+    names no domain and no regex, only the key, and its ``task_names`` table gives the
+    task its name through ``{{ task_name }}``. Renaming the entity id must leave the
+    same task in place, bound to the new id: that is the whole reason to match on the
+    key.
+    """
+    spec = specs(
+        _device_battery_spec(
+            selection={
+                "target_integration": "home_keeper_battery_notes",
+                "translation_keys": ["battery_level"],
+            },
+            task_template={
+                "name_template": "{{ task_name }} on {{ device_name }}",
+                "notes_template": "Key {{ translation_key }}",
+                "task_names": {"battery_level": "Swap the battery"},
+            },
+        )
+    )
+    assert spec["selection"]["translation_keys"] == ["battery_level"]
+    task = _one_task(ha, spec["id"])
+    assert task["source"]["declarative_companion"]["entity_id"] == DEVICE_BATTERY
+    assert task["name"].startswith("Swap the battery on "), task["name"]
+    assert task["notes"] == "Key battery_level"
+
+    renamed = "sensor.e2e_battery_renamed_for_test"
+    _rename_entity(ha, DEVICE_BATTERY, renamed)
+    try:
+        moved = _poll_task(
+            ha,
+            spec["id"],
+            lambda t: t["source"]["declarative_companion"]["entity_id"] == renamed,
+        )
+        assert moved["id"] == task["id"], "a rename must not replace the task"
+        assert moved["sensor"]["entity_id"] == renamed
+    finally:
+        _rename_entity(ha, renamed, DEVICE_BATTERY)
+
+
+def test_the_key_list_names_the_keys_of_an_integration(ha):
+    """The dialog's key list reads the real entity registry.
+
+    The Battery Notes stub's one sensor has ``translation_key = "battery_level"``, so
+    the list for that integration holds that key, once, with the sensor as example.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+        },
+    )
+    assert reply.get("success"), reply
+    keys = reply["result"]["keys"]
+    assert [k["key"] for k in keys] == ["battery_level"], keys
+    assert keys[0]["count"] == 1
+    assert keys[0]["example_entity_id"] == DEVICE_BATTERY
+    # A domain the stub has no entity in gives an empty list, not an error.
+    reply = ws_send(
+        token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+            "domain": "binary_sensor",
+        },
+    )
+    assert reply["result"] == {"keys": [], "without_key": 0}
+
+
+def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha):
+    """The picker puts an integration preset first only when an entity matches it.
+
+    The Tuya Local stub has one sensor with the ``filter_life`` key, so its preset
+    matches 1 entity. The container has no device for the other integration presets,
+    so each of those counts 0. A general preset carries its count too, for the Tasks
+    tab's suggestions (see the test below); the picker does not sort by it.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    presets = reply["result"]["presets"]
+    integration = [p for p in presets if p["group"] == "integration"]
+    general = [p for p in presets if p["group"] == "general"]
+    assert len(integration) > 50
+    counted = {p["id"]: p["matches"] for p in integration}
+    assert counted.pop("tuya_local_percent_low") == 1
+    assert set(counted.values()) == {0}
+    assert general and all(isinstance(p["matches"], int) for p in general)
+
+
+def test_only_these_devices_selects_the_entities_of_one_device(ha, specs):
+    first = specs(_device_battery_spec())
+    device_id = _one_task(ha, first["id"])["device_id"]
+    assert device_id
+    spec = specs(
+        _device_battery_spec(
+            name="Only one device",
+            selection={"domain": "sensor", "device_ids": [device_id]},
+        )
+    )
+    task = _one_task(ha, spec["id"])
+    assert task["source"]["declarative_companion"]["entity_id"] == DEVICE_BATTERY
+
+
 def test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met(
     ha, specs
 ):
@@ -900,3 +1005,100 @@ def test_a_shipped_preset_installs_and_materializes_as_the_picker_installs_it(
 
     armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
     assert armed["id"] == task["id"]
+
+
+# ── (f) lifecycle: disabled entities and a deleted device-backed companion ─────
+
+
+def _set_entity_disabled(ha, entity_id, disabled):
+    """Disable or enable an entity in the registry, as a person does in its settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "disabled_by": "user" if disabled else None,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def _wait_for_state(ha, entity_id, timeout=120):
+    """Wait until *entity_id* has a state again (its integration reloads on enable)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(s["entity_id"] == entity_id for s in list_states(ha)):
+            return
+        time.sleep(2)
+    raise AssertionError(f"{entity_id} did not come back after it was enabled")
+
+
+def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history(ha, specs):
+    """Disabling the matched entity switches its task off; it does not delete it.
+
+    Home Assistant disables every entity of a device or integration that a person
+    disables. The reconcile pass treated the disabled entity as gone, so it deleted
+    the task and its history, and enabling the entity made a new, empty task.
+    """
+    spec = specs(_device_battery_spec(name="HK battery disable"))
+    task = _one_task(ha, spec["id"])
+
+    _set_entity_disabled(ha, DEVICE_BATTERY, True)
+    try:
+        off = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is False)
+        assert off["id"] == task["id"], "a disabled entity must not delete the task"
+        assert off["source"]["declarative_companion"].get("paused") is True
+    finally:
+        _set_entity_disabled(ha, DEVICE_BATTERY, False)
+    back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True)
+    assert back["id"] == task["id"], "enabling the entity must bring the same task back"
+    _wait_for_state(ha, DEVICE_BATTERY)
+
+
+def test_b03_2_deleting_a_device_backed_companion_removes_its_entities(ha, specs):
+    """The next-due sensor of a removed task goes at once, not at the next reload.
+
+    The store reported that the entity set changed, and the delete did not reload,
+    so the device page kept a Next due sensor and a Mark done button for a task
+    that no longer existed.
+    """
+    spec = specs(_device_battery_spec(name="HK battery delete"))
+    task = _one_task(ha, spec["id"])
+    _next_due_sensor(ha, task["id"])
+
+    _delete_spec(ha, spec["id"])
+
+    deadline = time.monotonic() + SETTLE
+    while time.monotonic() < deadline:
+        left = [
+            s["entity_id"]
+            for s in list_states(ha)
+            if s.get("attributes", {}).get("task_id") == task["id"]
+        ]
+        if not left:
+            return
+        time.sleep(2)
+    raise AssertionError(f"entities of the deleted task are still there: {left}")
+
+
+def test_the_preset_list_counts_the_entities_each_preset_matches(ha):
+    """``list_declarative_presets`` counts each preset's matches from the registry.
+
+    The Tasks tab suggests a preset only when it matches something, so the count has
+    to come from Home Assistant's real entity registry, for the general presets as
+    well as the integration ones. The container has one update entity, no Device
+    Pulse and no ``_last_seen`` sensor.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    general = ("device_pulse", "firmware_update_available", "device_stopped_reporting")
+    counts = {
+        p["id"]: p["matches"] for p in reply["result"]["presets"] if p["id"] in general
+    }
+    assert counts == {
+        "device_pulse": 0,
+        "firmware_update_available": 1,
+        "device_stopped_reporting": 0,
+    }

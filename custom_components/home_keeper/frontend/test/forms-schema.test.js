@@ -7,6 +7,8 @@ import {
   profileSchema,
   buildTaskPayload,
   duplicateTaskSeed,
+  snoozeHoursFromForm,
+  snoozeHoursOptions,
   formRecurrenceSummary,
   hexToRgb,
   mergePartForm,
@@ -148,7 +150,7 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
       'require_tag_scan',
       'labels',
     ]);
-    expect(byKey.completion).toEqual(['completion_detail']);
+    expect(byKey.completion).toEqual(['completion_detail', 'snooze_hours']);
   });
 
   it('keeps a triggered task to the two sections it can actually edit', () => {
@@ -258,6 +260,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -279,6 +282,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -296,6 +300,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -2686,7 +2691,14 @@ describe('a locked sensor binding', () => {
     const got = names(
       taskSchema(sensorTask(['name', 'recurrence_type', 'device_id', 'area_id', 'sensor'])),
     );
-    expect(got).toEqual(['notes', 'tag_id', 'require_tag_scan', 'labels', 'completion_detail']);
+    expect(got).toEqual([
+      'notes',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+      'completion_detail',
+      'snooze_hours',
+    ]);
   });
 });
 
@@ -2798,5 +2810,223 @@ describe('companionOptions for Home Keeper sources', () => {
       'Leak sensors (declarative companion)',
       'Problem sensors',
     ]);
+  });
+});
+
+describe('task snooze length', () => {
+  beforeEach(() => setLanguage('en'));
+
+  it('offers the usual length, then each fixed preset valued in hours', () => {
+    expect(snoozeHoursOptions()).toEqual([
+      { value: '', label: 'Usual length' },
+      { value: '1', label: '1 hour' },
+      { value: '4', label: '4 hours' },
+      { value: '24', label: '1 day' },
+      { value: '168', label: '1 week' },
+      { value: '720', label: '1 month' },
+    ]);
+  });
+
+  it('adds a choice for a stored length no preset has, so a save keeps it', () => {
+    const options = snoozeHoursOptions(3);
+    expect(options).toHaveLength(7);
+    expect(options[6]).toEqual({ value: '3', label: '3 hours' });
+    expect(snoozeHoursOptions('1')).toHaveLength(6);
+    expect(snoozeHoursOptions(24)).toHaveLength(6);
+  });
+
+  it('reads a form value as whole hours or null', () => {
+    expect(snoozeHoursFromForm('4')).toBe(4);
+    expect(snoozeHoursFromForm(' 720 ')).toBe(720);
+    expect(snoozeHoursFromForm(24)).toBe(24);
+    for (const v of ['', '0', '-3', '1.5', 'soon', 0, 1.5, null, undefined]) {
+      expect(snoozeHoursFromForm(v)).toBeNull();
+    }
+  });
+
+  it('seeds the select from the stored length', () => {
+    expect(taskFormData({ name: 'T', recurrence_type: 'floating', snooze_hours: 1 }).snooze_hours).toBe('1');
+    expect(taskFormData({ name: 'T', recurrence_type: 'floating' }).snooze_hours).toBe('');
+  });
+
+  it('sends the chosen length, and null to clear it', () => {
+    const base = { name: 'T', recurrence_type: 'floating' };
+    expect(buildTaskPayload({ ...base, snooze_hours: '4' }).snooze_hours).toBe(4);
+    expect(buildTaskPayload({ ...base, snooze_hours: 720 }).snooze_hours).toBe(720);
+    expect(buildTaskPayload({ ...base, snooze_hours: '' }).snooze_hours).toBeNull();
+    expect(buildTaskPayload(base).snooze_hours).toBeNull();
+    // A triggered task shows no field, and a save sends its stored length back.
+    expect(
+      buildTaskPayload({ name: 'T', recurrence_type: 'triggered', snooze_hours: 3 }).snooze_hours,
+    ).toBe(3);
+  });
+
+  it('is left out of the form when the managing integration locks it', () => {
+    const locked = { name: 'T', recurrence_type: 'floating', managed_by: { locked_fields: ['snooze_hours'] } };
+    expect(names(taskSchema(locked))).not.toContain('snooze_hours');
+  });
+
+  it('carries the length into a duplicate', () => {
+    const seed = duplicateTaskSeed({ id: 'a', name: 'T', recurrence_type: 'floating', snooze_hours: 1 });
+    expect(seed.snooze_hours).toBe(1);
+    expect(duplicateTaskSeed({ id: 'a', name: 'T', recurrence_type: 'floating' }).snooze_hours).toBeNull();
+  });
+});
+
+describe('task form payload: low findings', () => {
+  const field = (task, name) => taskSchema(task).find((f) => f.name === name);
+
+  it('F02-1: a new one-off never sends a hidden last-completed value', () => {
+    const task = {
+      name: 'Register the warranty',
+      recurrence_type: 'one-off',
+      due: '2026-10-07 09:00:00',
+      last_completed: '2026-09-23 09:00:00',
+    };
+    expect(names(taskSchema(task))).not.toContain('last_completed');
+    expect(buildTaskPayload(task)).not.toHaveProperty('last_completed');
+    // The types that show the field still send it.
+    const floating = { ...task, recurrence_type: 'floating', interval: 1, unit: 'weeks' };
+    expect(buildTaskPayload(floating).last_completed).toMatch(/^2026-09-23T/);
+  });
+
+  const usage = {
+    id: 't1',
+    name: 'Clean the plug',
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.plug_1_energy', mode: 'usage', target: 50, baseline: 12.3 },
+  };
+  const edit = (patch) => {
+    const t = { ...usage, ...patch };
+    return { ...t, ...taskFormData(t), ...patch };
+  };
+
+  it('F02-3: an edit omits the stored baseline, so a new entity re-baselines', () => {
+    const swapped = edit({ sensor_entity_id: 'sensor.plug_2_energy' });
+    expect(swapped.sensor_baseline).toBe(12.3);
+    expect(buildTaskPayload(swapped).sensor).toEqual({
+      entity_id: 'sensor.plug_2_energy',
+      mode: 'usage',
+      target: 50,
+    });
+    // An unchanged box is omitted too, so a completion that re-stamped the baseline
+    // while the form was open is not reverted.
+    expect(buildTaskPayload(edit({}))).not.toHaveProperty('sensor.baseline');
+  });
+
+  it('F02-3: a baseline the user changed, or a new task, still sends it', () => {
+    expect(buildTaskPayload(edit({ sensor_baseline: 0 })).sensor.baseline).toBe(0);
+    expect(buildTaskPayload(edit({ sensor_baseline: 99.5 })).sensor.baseline).toBe(99.5);
+    const created = { ...usage, id: undefined, sensor_baseline: 12.3 };
+    expect(buildTaskPayload(created).sensor.baseline).toBe(12.3);
+    // A blank or cleared box sends no baseline, on create and on edit.
+    const bare = { ...usage, id: undefined, sensor: { ...usage.sensor, baseline: undefined } };
+    expect(buildTaskPayload({ ...bare, sensor_baseline: null }).sensor).not.toHaveProperty(
+      'baseline',
+    );
+    expect(buildTaskPayload({ ...bare, sensor_baseline: '' }).sensor).not.toHaveProperty(
+      'baseline',
+    );
+    // A task changed to sensor on edit has no stored binding yet.
+    const converted = {
+      id: 't9',
+      name: 'Converted',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.plug_1_energy',
+      sensor_mode: 'usage',
+      sensor_target: 5,
+      sensor_baseline: 3,
+    };
+    expect(buildTaskPayload(converted).sensor.baseline).toBe(3);
+  });
+
+  it('F02-4: a copy of a seasonal task keeps its season', () => {
+    const windows = [
+      { start: '04-01', end: '10-31' },
+      { start: '12-01', end: '12-24' },
+    ];
+    const task = {
+      id: 't2',
+      name: 'Mow lawn',
+      recurrence_type: 'floating',
+      interval: 1,
+      unit: 'weeks',
+      active_season: windows,
+    };
+    const seed = duplicateTaskSeed(task);
+    expect(seed.active_season).toEqual(windows);
+    expect(seed.active_season[0]).not.toBe(windows[0]);
+    expect(buildTaskPayload(seed).active_season).toEqual(windows);
+    // A task with no season gives a copy with no season.
+    const plain = duplicateTaskSeed({ ...task, active_season: null });
+    expect(plain.active_season).toEqual([]);
+    expect(buildTaskPayload(plain).active_season).toBeNull();
+  });
+
+  const many = (n) =>
+    Array.from({ length: n }, (_, i) => ({
+      start: `${String(i + 1).padStart(2, '0')}-01`,
+      end: `${String(i + 1).padStart(2, '0')}-10`,
+    }));
+  const vent = {
+    id: 't3',
+    name: 'Vent',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'days',
+    active_season: many(MAX_SEASON_WINDOWS + 2),
+  };
+
+  it('F02-5: a save that does not touch the season keeps windows past the cap', () => {
+    const state = { ...vent, ...taskFormData(vent), name: 'Vent the room' };
+    expect(state.season_count).toBe(MAX_SEASON_WINDOWS);
+    expect(buildTaskPayload(state)).not.toHaveProperty('active_season');
+  });
+
+  it('F02-5: an edit to a window, or a list at the cap, still sends the list', () => {
+    const changed = { ...vent, ...taskFormData(vent), season_1_end_day: 20 };
+    const sent = buildTaskPayload(changed).active_season;
+    expect(sent).toHaveLength(MAX_SEASON_WINDOWS);
+    expect(sent[0]).toEqual({ start: '01-01', end: '01-20' });
+    const lastChanged = { ...vent, ...taskFormData(vent), season_6_end_day: 20 };
+    expect(buildTaskPayload(lastChanged).active_season[5]).toEqual({
+      start: '06-01',
+      end: '06-20',
+    });
+    const atCap = { ...vent, active_season: many(MAX_SEASON_WINDOWS) };
+    expect(buildTaskPayload({ ...atCap, ...taskFormData(atCap) }).active_season).toEqual(
+      many(MAX_SEASON_WINDOWS),
+    );
+  });
+
+  it('F02-7: threshold value and usage target accept a decimal', () => {
+    const threshold = { recurrence_type: 'sensor', sensor_mode: 'threshold' };
+    expect(field(threshold, 'sensor_value')).toEqual({
+      name: 'sensor_value',
+      required: true,
+      selector: { number: { mode: 'box', step: 'any' } },
+    });
+    const target = field({ recurrence_type: 'sensor', sensor_mode: 'usage' }, 'sensor_target');
+    expect(target.selector.number.step).toBe('any');
+    expect(target.selector.number.min).toBe(0);
+  });
+
+  it('F02-8: a new fixed task defaults its first occurrence, and a blank one sends now', () => {
+    const before = Date.now();
+    expect(taskFormData({ recurrence_type: 'fixed' }).anchor).not.toBe('');
+    expect(taskFormData({ id: 't', recurrence_type: 'fixed' }).anchor).toBe('');
+    const payload = buildTaskPayload({
+      name: 'Bins out',
+      recurrence_type: 'fixed',
+      interval: 1,
+      freq: 'WEEKLY',
+      anchor: '',
+    });
+    expect(Date.parse(payload.anchor)).toBeGreaterThanOrEqual(before - 1000);
+    expect(Date.parse(payload.anchor)).toBeLessThanOrEqual(Date.now() + 1000);
+    // A filled box is sent as it is.
+    expect(
+      buildTaskPayload({ recurrence_type: 'fixed', anchor: '2026-03-02 18:00:00' }).anchor,
+    ).toMatch(/^2026-03-02T/);
   });
 });

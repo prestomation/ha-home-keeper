@@ -62,6 +62,15 @@ def test_panel_upload_limit_matches_backend() -> None:
     )
 
 
+def test_panel_task_photo_limits_match_backend() -> None:
+    """The photo size and count the panel checks are the ones the backend enforces."""
+    for name in ("MAX_TASK_PHOTO_BYTES", "MAX_TASK_PHOTOS"):
+        assert _typescript_limit(name) == _python_limit(name), (
+            f"frontend/src/limits.ts {name} has drifted from const.py"
+        )
+    assert _python_limit("MAX_TASK_PHOTO_BYTES") % (1024 * 1024) == 0
+
+
 def test_upload_limit_is_a_whole_number_of_megabytes() -> None:
     """The limit is rendered as '{mb} MB' in both the backend error (strings.json
     ``file_too_large``) and the panel's pre-check message, so a fractional value would
@@ -113,3 +122,27 @@ def test_both_import_ceilings_are_whole_megabytes() -> None:
     would round to a number that is not the one enforced."""
     for name in ("MAX_IMPORT_BYTES", "MAX_IMPORT_WS_BYTES"):
         assert _python_limit(name) % (1024 * 1024) == 0, name
+
+
+# ── The one-off retention ceiling (B19-1) ────────────────────────────────────
+
+
+def test_b19_1_panel_retention_ceiling_matches_backend() -> None:
+    """The General card's number box stops where the backend clamps."""
+    assert _typescript_limit("MAX_ONE_OFF_RETENTION_DAYS") == _python_limit(
+        "MAX_ONE_OFF_RETENTION_DAYS"
+    )
+
+
+def test_b19_1_every_write_path_names_the_retention_ceiling() -> None:
+    """The service schema, the options flow and the service UI selector agree."""
+    ceiling = _python_limit("MAX_ONE_OFF_RETENTION_DAYS")
+    init_py = (_COMPONENT / "__init__.py").read_text("utf-8")
+    assert "vol.Range(min=0, max=MAX_ONE_OFF_RETENTION_DAYS)" in init_py
+    flow_py = (_COMPONENT / "config_flow.py").read_text("utf-8")
+    assert "max=MAX_ONE_OFF_RETENTION_DAYS" in flow_py
+    services = (_COMPONENT / "services.yaml").read_text("utf-8")
+    block = services.split("    one_off_retention_days:", 1)[1].split(
+        "\n    shopping", 1
+    )[0]
+    assert f"max: {ceiling}" in block

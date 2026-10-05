@@ -210,14 +210,17 @@ def registry():
     """
     entries: dict[str, object] = {}
     sibling = sys.modules["hk.shopping_sync"]
-    original = sibling.er
-    sibling.er = types.SimpleNamespace(
+    # The shared driver reads the registry too, to tell a list that is gone
+    # from one that is only down (B10-2).
+    driver = sys.modules["hk.todo_sync_driver"]
+    original, original_driver = sibling.er, driver.er
+    sibling.er = driver.er = types.SimpleNamespace(
         async_get=lambda _hass: types.SimpleNamespace(entities=entries)
     )
     try:
         yield entries
     finally:
-        sibling.er = original
+        sibling.er, driver.er = original, original_driver
 
 
 @pytest.fixture(autouse=True)
@@ -358,13 +361,15 @@ def _config_entry(synced=None):
     )
 
 
-def _build(hass, store, *, synced=None):
-    """A driver over the fakes, plus the coordinator it will settle through."""
+def _build(hass, store, *, synced=None, started=True):
+    """A driver over the fakes, plus the coordinator it will settle through.
+
+    *started* stands for the initial pass after Home Assistant has started.
+    """
     coordinator = _FakeCoordinator(store)
-    return (
-        todo_list_sync.TodoListSync(hass, _config_entry(synced), coordinator),
-        coordinator,
-    )
+    sync = todo_list_sync.TodoListSync(hass, _config_entry(synced), coordinator)
+    sync._started = started
+    return sync, coordinator
 
 
 def _sync(hass, store, *, synced=None, force=True):
@@ -384,6 +389,26 @@ def _services(hass, service):
 
 
 # ── the happy path ────────────────────────────────────────────────────────────
+
+
+def test_b10_2_a_list_with_no_state_and_no_registry_entry_is_gone(registry):
+    # B10-2: only a list that has neither is gone. One that is down, or not
+    # loaded yet at startup, keeps its registry entry.
+    hass = _FakeHass({LIST: [], OTHER: []}, missing=(OTHER,))
+    sync, _ = _build(hass, _FakeStore())
+    assert sync._gone_lists([LIST, OTHER, "todo.old"]) == {OTHER, "todo.old"}
+    registry["todo.old"] = object()
+    assert sync._gone_lists([LIST, OTHER, "todo.old"]) == {OTHER}
+
+
+def test_b10_2_a_sync_moved_off_a_list_that_is_gone_reaches_the_new_one():
+    hass = _FakeHass({LIST: []})
+    store = _FakeStore(
+        tasks={T1: _task()}, items=_tracked(_entry(entity_id="todo.old"))
+    )
+    _sync(hass, store)
+    assert [call["entity_id"] for call in _services(hass, "add_item")] == [LIST]
+    assert store.get_todo_list_items()[KEY]["entity_id"] == LIST
 
 
 def test_a_due_task_lands_on_the_list_with_its_date_and_notes():
@@ -639,6 +664,67 @@ def test_a_task_deleted_mid_pass_drops_its_entry_without_a_word(caplog):
     assert caplog.records == []  # nothing to tell anyone about
 
 
+def test_398_a_date_moved_on_the_list_snoozes_the_task_to_it():
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    # A profile that lists every scheduled task, so the moved task stays on it.
+    sync, coordinator = _build(
+        hass, store, synced=[_synced_profile(filt={"status": "all"})]
+    )
+    again = _once(sync)
+    # Same time of day, on the date they picked.
+    until = datetime(2026, 6, 20, 9, 0, tzinfo=NOW.tzinfo)
+    assert store.snoozed == [(T1, until, ORIGIN)]
+    assert hass.services.calls == []  # their date is not written over
+    assert store.get_todo_list_items() == _tracked(_entry(due="2026-06-20"))
+    assert coordinator.refreshes == 1
+    assert coordinator.settles == 0
+    assert again is False
+    # The task now says what the list says, so the next pass has nothing to do.
+    _once(sync)
+    assert hass.services.calls == []
+    assert store.snoozed == [(T1, until, ORIGIN)]
+
+
+def test_398_a_task_moved_out_of_its_profile_leaves_the_list_until_due():
+    # The default profile lists overdue tasks only. A task moved into the future
+    # is not overdue now, so its item comes off, the same as after a snooze.
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store)
+    _once(sync)
+    _once(sync)
+    assert hass.services.calls == [("remove_item", {"entity_id": LIST, "item": ["i1"]})]
+
+
+def test_398_a_task_that_will_not_move_says_so_and_gets_its_date_back(caplog):
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    store.snooze_error = TaskValidationError("dormant")
+    sync, coordinator = _build(hass, store)
+    with caplog.at_level("WARNING"):
+        _once(sync)
+    assert store.snoozed == []
+    assert coordinator.refreshes == 0
+    assert caplog.text.count("could not move task") == 1
+    # The next pass writes the task's own date back, and does not try again.
+    with caplog.at_level("WARNING"):
+        _once(sync)
+    assert _services(hass, "update_item") == [
+        {"entity_id": LIST, "item": "i1", "due_date": DUE}
+    ]
+    assert caplog.text.count("could not move task") == 1
+
+
+def test_398_a_task_deleted_mid_pass_is_not_moved():
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store)
+    plan = tm.TodoListPlan(reschedule=[tm.RescheduleOp(KEY, "gone", "2026-06-20")])
+    assert asyncio.run(sync._reschedule_tasks(plan, now=NOW)) is False
+    assert store.snoozed == []
+
+
 # ── guards ────────────────────────────────────────────────────────────────────
 
 
@@ -851,6 +937,46 @@ def test_a_list_edit_forces_a_pass_while_a_task_event_does_not():
     sync._handle_state_change(None)
     sync._handle_task_event(None)
     assert forced == [True, False]
+
+
+def test_b10_8_no_pass_runs_before_home_assistant_has_started():
+    # A list of another integration has no state until Home Assistant starts, so
+    # a pass then logs a false "does not exist" warning and latches it.
+    hass = _FakeHass({LIST: []})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store, started=False)
+    sync.async_schedule_sweep()
+    sync._handle_task_event(None)
+    assert hass.tasks == []
+    # The initial pass opens the gate.
+    asyncio.run(sync.async_initial_sync())
+    assert sync._started is True
+    sync.async_schedule_sweep()
+    sync._handle_task_event(None)
+    assert len(hass.tasks) == 2
+
+
+def test_x08_3_a_task_event_runs_no_pass_when_no_sync_has_work():
+    hass = _FakeHass({LIST: []})
+    idle, _ = _build(hass, _FakeStore(tasks={T1: _task()}), synced=[])
+    idle._handle_task_event(None)
+    assert hass.tasks == []
+
+    # A configured sync, or an item left on a list, still gets its pass.
+    configured, _ = _build(hass, _FakeStore(), synced=[_synced_profile()])
+    configured._handle_task_event(None)
+    assert len(hass.tasks) == 1
+    leftover, _ = _build(hass, _FakeStore(items=_tracked()), synced=[])
+    leftover._handle_task_event(None)
+    assert len(hass.tasks) == 2
+
+
+def test_x08_3_a_task_event_after_unload_runs_no_pass():
+    hass = _FakeHass({LIST: []})
+    sync, _ = _build(hass, _FakeStore(items=_tracked()))
+    sync._async_stop()
+    sync._handle_task_event(None)
+    assert hass.tasks == []
 
 
 # ── the store's bookkeeping trio ──────────────────────────────────────────────

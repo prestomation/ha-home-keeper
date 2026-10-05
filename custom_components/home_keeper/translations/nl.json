@@ -115,6 +115,10 @@
           "name": "Scan van de tag vereisen",
           "description": "Alleen de gekoppelde tag mag deze taak afronden. Elke andere manier om hem als gedaan te markeren wordt geweigerd. Vereist een tag."
         },
+        "snooze_hours": {
+          "name": "Uitstelduur",
+          "description": "Uren waarmee Uitstellen deze taak verschuift. Het venster Uitstellen begint op deze duur, en de knop Uitstellen in een melding gebruikt hem. Laat leeg voor de gewone duren."
+        },
         "source": {
           "name": "Bron",
           "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Home Keeper slaat deze letterlijk op en geeft deze letterlijk terug en inspecteert deze nooit. Zie docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Scan van de tag vereisen",
           "description": "Alleen de gekoppelde tag mag deze taak afronden. Vereist een tag."
         },
+        "snooze_hours": {
+          "name": "Uitstelduur",
+          "description": "Uren waarmee Uitstellen deze taak verschuift. Stuur een lege waarde om weer de gewone duren te gebruiken."
+        },
         "source": {
           "name": "Bron",
-          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Zie docs/INTEGRATING.md."
+          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Elke naamruimte vervangt de opgeslagen naamruimte met dezelfde naam. Een naamruimte met de waarde null wordt verwijderd. Zie docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Voltooiingsdetail",
@@ -252,6 +260,10 @@
           "description": "Omzeil de verwijderbeveiliging voor een taak die door een andere integratie wordt beheerd. Gebruik dit om een taak op te ruimen waarvan de beherende integratie is verwijderd of zich misdraagt en de taak niet zelf kan verwijderen."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Verweesde taken verwijderen",
+      "description": "Verwijdert elke taak die een integratie beheert wanneer die integratie niet geladen is (verwijderd, uitgeschakeld of niet ingesteld). Alleen voor beheerders. Geeft de ID's van de verwijderde taken terug onder \"deleted\"."
     },
     "complete_task": {
       "name": "Taak voltooien",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Uren",
-          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Genegeerd als Tot is ingevuld."
+          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Vul Uren en Tot niet in dezelfde aanroep in."
         },
         "until": {
           "name": "Tot",
-          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul je dit in, dan wordt het veld Uren niet gebruikt."
+          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul Uren en Tot niet in dezelfde aanroep in."
         },
         "origin": {
           "name": "Oorsprong",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Taakfoto verwijderen",
+      "description": "Verwijdert een foto van een taak en wist het bestand. Voeg foto's toe in het paneel, omdat een serviceaanroep geen bestand kan meesturen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Omslagfoto van taak instellen",
+      "description": "Maakt een foto de omslagfoto van zijn taak. De omslagfoto is de eerste foto. Hij staat in de takenlijst, op de taakpagina en in het afrondvenster.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "URL van taakfoto ondertekenen",
+      "description": "Maakt een kortlevende URL (geen auth-header nodig) die de bytes van een taakfoto geeft, bijvoorbeeld om de foto in een melding te tonen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        },
+        "thumbnail": {
+          "name": "Miniatuur",
+          "description": "Ondertekent de URL van de kleine kopie, maximaal 256 pixels aan de lange zijde."
+        }
+      }
+    },
     "update_skip": {
       "name": "Overslaan bijwerken",
       "description": "Past de gegevens van een vastgelegd overslaan aan, aangeduid met het tijdstempel. Het overslaan houdt zijn datum en het schema blijft ongemoeid.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} reserveonderdelen"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Taken"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Komende taken"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Onbekend document: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Onbekende foto: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Alleen een taak met een gebruikssensor heeft een meter."
+    },
+    "meter_has_no_reading": {
+      "message": "De gekoppelde sensor heeft nu geen numerieke waarde. Geef een beginwaarde op in de aanroep."
+    },
+    "archived_completion_not_found": {
+      "message": "Het apparaat heeft geen gearchiveerde voltooiing van {task_id} op {ts}."
     },
     "unknown_part_file": {
       "message": "Onbekend onderdeel of geen bijgevoegd bestand."

@@ -2,8 +2,10 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  normalizeCardConfig,
   profileMatches,
   sortTasks,
+  startsCollapsed,
   type CardFilter,
   type CardGroupBy,
   type CardSort,
@@ -29,7 +31,13 @@ import {
 } from './forms';
 import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
-import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
+import {
+  deferRowActions,
+  deferVerbs,
+  emptySkipState,
+  emptySnoozeState,
+  snoozeStateFor,
+} from './defer';
 import { LATER_DATES_STYLES, renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
@@ -38,13 +46,26 @@ import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import { taskChipsList } from './panel-chips';
 import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
-import type { Asset, Hass, HassLabel, Profile, Task } from './types';
+import {
+  STAGED_PHOTO_ACCEPT,
+  type StagedPhoto,
+  rejectionMessage,
+  releaseStaged,
+  stageFiles,
+  stagedTilesHtml,
+  unstage,
+  uploadStaged,
+} from './photo-staging';
+import { TaskPhotoUrlCache, coverOf, taskPhotoKey } from './task-photos';
+import { MAX_TASK_PHOTOS } from './limits';
+import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
   deviceName,
   dueLabel,
   escapeHTML,
   isBuyTask,
+  isCompletedOneOff,
   isHttpUrl,
   isMonitoredDormant,
   isOverdue,
@@ -57,6 +78,9 @@ import {
   setBtnWeight,
   statusChipHtml,
   toast,
+  guardWrite,
+  setTimeZone,
+  hkStateSignal,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -118,6 +142,9 @@ const S: Record<string, string> = {
   filter: 'Filter',
   sort: 'Sort by',
   group_by: 'Group by',
+  collapsed: 'Start groups closed',
+  collapsed_groups: 'Start these groups closed',
+  collapse_above: 'Start a group closed above (tasks, 0 = off)',
   areas: 'Limit to areas',
   devices: 'Limit to devices',
   labels: 'Limit to labels',
@@ -129,18 +156,22 @@ const S: Record<string, string> = {
   show_notes: 'Show notes',
   show_area: 'Show area / device',
   show_labels: 'Show labels',
+  show_schedule: 'Show schedule',
+  show_history_count: 'Show completion count',
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
   hide_when_empty: 'Hide card when empty',
 };
 
-const FILTER_OPTS: { value: CardFilter; label: string }[] = [
+export const FILTER_OPTS: { value: CardFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'overdue', label: 'Overdue' },
   { value: 'today', label: 'Due by today (incl. overdue)' },
   { value: 'soon', label: 'Due soon' },
   { value: 'no_due', label: 'No due date' },
+  { value: 'shopping', label: 'Shopping (buy reminders)' },
+  { value: 'counted', label: 'Counted wear (use tasks)' },
 ];
 const SORT_OPTS: { value: CardSort; label: string }[] = [
   { value: 'due', label: 'Next due' },
@@ -148,18 +179,36 @@ const SORT_OPTS: { value: CardSort; label: string }[] = [
   { value: 'recent', label: 'Recently completed' },
   { value: 'area', label: 'Area' },
 ];
+// The status names for `collapsed_groups`. An area or a device is typed by its id.
+const COLLAPSE_STATUS_OPTS: { value: string; label: string }[] = [
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'shopping', label: 'Shopping' },
+  { value: 'counted', label: 'Counted' },
+  { value: 'today', label: 'Today' },
+  { value: 'soon', label: 'Soon' },
+  { value: 'later', label: 'Later' },
+  { value: 'monitored', label: 'Monitored' },
+  { value: 'none', label: 'No schedule, area or device' },
+  { value: 'disabled', label: 'Disabled' },
+];
+/** One string for the 3 collapse options, to tell when a new config changes them. A group
+ *  key has its own prefix per grouping mode, so `group_by` is not part of it. */
+function collapseSignature(c: HomeKeeperCardConfig): string {
+  return JSON.stringify([c.collapsed, c.collapsed_groups, c.collapse_above]);
+}
 const GROUP_OPTS: { value: CardGroupBy; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'status', label: 'Status' },
   { value: 'area', label: 'Area' },
   { value: 'device', label: 'Device' },
 ];
-const RECURRENCE_OPTS = [
+export const RECURRENCE_OPTS: { value: RecurrenceType; label: string }[] = [
   { value: 'floating', label: 'Floating' },
   { value: 'fixed', label: 'Fixed' },
   { value: 'triggered', label: 'Triggered (monitored)' },
   { value: 'one-off', label: 'One-off' },
   { value: 'sensor', label: 'Sensor (usage / threshold)' },
+  { value: 'use', label: 'Use (counted wear)' },
 ];
 const LABEL_MATCH_OPTS = [
   { value: 'any', label: 'Any selected label' },
@@ -182,7 +231,7 @@ const STYLES = `
     border-bottom: 1px solid var(--divider-color);
   }
   .hk-row:last-child { border-bottom: none; }
-  .hk-row .grow { flex: 1; min-width: 0; }
+  .hk-row .grow { flex: 1; min-width: 0; display: flow-root; }
   .hk-row.overdue { box-shadow: inset 3px 0 0 0 var(--error-color); }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -326,6 +375,30 @@ const STYLES = `
   .hk-form { padding: 8px 16px 16px; border-bottom: 1px solid var(--divider-color); }
   .hk-form-title { font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .hk-form-photos { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hk-photo { position: relative; width: 64px; }
+  .hk-photo-link {
+    display: block; width: 64px; height: 64px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--divider-color);
+  }
+  .hk-photo-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .hk-photo-badge {
+    position: absolute; left: 3px; top: 3px; padding: 0 4px; border-radius: 3px;
+    font-size: 0.65rem; color: #fff; background: rgba(0, 0, 0, 0.6); pointer-events: none;
+  }
+  .hk-photo-actions { position: absolute; right: -6px; top: -6px; }
+  .hk-photo-actions ha-icon-button {
+    --mdc-icon-button-size: 28px; --ha-icon-button-size: 28px; --mdc-icon-size: 16px;
+    border-radius: 50%; color: #fff; background: rgba(0, 0, 0, 0.6);
+  }
+  /* Floats in the name block, so the phone layout, which gives the block a full
+     line, keeps the cover beside the name. */
+  .hk-cover {
+    float: inline-start; display: block; width: 40px; height: 40px; margin-inline-end: 8px;
+    border-radius: 6px; overflow: hidden; border: 1px solid var(--divider-color);
+  }
+  .hk-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .hk-form-actions .spacer { flex: 1; }
 `;
 
@@ -333,6 +406,12 @@ interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Photos picked in the form. They upload after Create (#399). */
+  photos?: StagedPhoto[];
+  /** The last refusal of a picked photo, so a clean pick clears only that error. */
+  photoError?: string;
+  /** Set while Create runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
 }
 
 /** A resolved "show on card" document chip — always a plain anchor. `url` is the
@@ -342,6 +421,19 @@ interface DocumentChip {
   name: string;
   url: string;
   icon: string;
+}
+
+/**
+ * The entity id of the Home Keeper to-do list. The registry entry gives the id
+ * also after the user renamed it; the default id is the fallback.
+ */
+export function todoEntityId(hass: Hass | undefined): string {
+  for (const entry of Object.values(hass?.entities ?? {})) {
+    if (entry.platform === 'home_keeper' && entry.entity_id.startsWith('todo.')) {
+      return entry.entity_id;
+    }
+  }
+  return 'todo.home_keeper_tasks';
 }
 
 export class HomeKeeperCard extends HTMLElement {
@@ -362,6 +454,7 @@ export class HomeKeeperCard extends HTMLElement {
       makeForm(this._hass, schema, data, onChange, (form) => this._liveHassEls.push(form)),
     rerender: () => this._render(),
     refresh: () => this._refresh(),
+    notify: (message) => toast(this, message),
   };
 
   private _config: HomeKeeperCardConfig = { type: '' };
@@ -375,6 +468,9 @@ export class HomeKeeperCard extends HTMLElement {
   // async window.open). The caching/expiry rules are shared with the panel; see
   // `SignedUrlCache` in documents.ts.
   private _signedDocs = new SignedUrlCache();
+  // Signed URLs of the task covers (#399): the thumbnail on the row, and the original
+  // that a tap opens.
+  private _photoUrls = new TaskPhotoUrlCache();
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -390,7 +486,11 @@ export class HomeKeeperCard extends HTMLElement {
   // The note quick-view dialog: read-only, so it carries only which task it is
   // showing, unlike `_edit` (which also carries the form's draft).
   private _noteView: { open: boolean; task: Task | null } = { open: false, task: null };
+  // The keys of the closed groups. `_seeded` holds the keys already decided from the
+  // collapse options (#435): each group is decided once, so a refresh never closes a
+  // group the user is reading and a toggle by the user always wins.
   private _collapsed = new Set<string>();
+  private _seeded = new Set<string>();
   private _liveHassEls: Array<{ hass?: Hass }> = [];
   private _unsub?: () => void;
   private _subscribing = false;
@@ -402,6 +502,16 @@ export class HomeKeeperCard extends HTMLElement {
   // The websocket connection our event subscription is bound to, so we can
   // re-subscribe if HA hands us a fresh connection after a reconnect.
   private _subConn?: Hass['connection'];
+  // The connection that refused our subscription (F09-1). We do not try again on
+  // that connection: each refusal is one more ERROR line in the Home Assistant log.
+  private _refusedConn?: Hass['connection'];
+  // The `todo/item/subscribe` subscription (F09-3). Home Assistant sends the to-do
+  // items each time the Home Keeper data changes, for every user, so this is the
+  // refresh signal for a rename, a note edit or a snooze too.
+  private _itemsUnsub?: () => void;
+  private _itemsConn?: Hass['connection'];
+  private _itemsSubscribing = false;
+  private _itemsRefusedConn?: Hass['connection'];
 
   // ── Lovelace lifecycle ──────────────────────────────────────────────────────
   static getConfigElement(): HTMLElement {
@@ -416,7 +526,19 @@ export class HomeKeeperCard extends HTMLElement {
     if (!config || typeof config !== 'object') {
       throw new Error('Invalid Home Keeper card configuration');
     }
-    this._config = { ...config };
+    const profileBefore = this._config.profile;
+    const collapseBefore = collapseSignature(this._config);
+    this._config = normalizeCardConfig(config);
+    // A change to a collapse option starts the groups over from the new options.
+    if (collapseSignature(this._config) !== collapseBefore) {
+      this._collapsed.clear();
+      this._seeded.clear();
+    }
+    // A newly chosen profile needs the profile list, or the card cannot apply it
+    // until the next refresh (F05-4).
+    if (this._loaded && this._config.profile && this._config.profile !== profileBefore) {
+      void this._loadProfiles().then(() => this._render());
+    }
     if (this._loaded) this._render();
   }
 
@@ -436,6 +558,7 @@ export class HomeKeeperCard extends HTMLElement {
   set hass(hass: Hass) {
     const first = !this._hass;
     setLanguage(hass.language);
+    setTimeZone(hass.config?.time_zone);
     this._hass = hass;
     for (const el of this._liveHassEls) el.hass = hass;
     // (Re)subscribe — picks up a fresh connection after a websocket reconnect.
@@ -471,6 +594,11 @@ export class HomeKeeperCard extends HTMLElement {
       this._unsub = undefined;
       this._subConn = undefined;
     }
+    if (this._itemsUnsub) {
+      this._itemsUnsub();
+      this._itemsUnsub = undefined;
+      this._itemsConn = undefined;
+    }
   }
 
   /** One-time first paint: wait for lazy HA components, then render + load. */
@@ -499,32 +627,32 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   /**
-   * Cheap fingerprint that drives live updates. The integration's two singleton
-   * `CoordinatorEntity`s — `todo.home_keeper_tasks` and
-   * `calendar.home_keeper_upcoming_tasks` — re-write their state (bumping
-   * `last_updated`) on every coordinator refresh, which fires on any task
-   * mutation (complete/add/edit/delete/trigger). Watching every Home
-   * Keeper-named entity's count + newest stamp therefore changes whenever the
-   * task set does; completions also arrive instantly via the event subscription.
+   * Cheap fingerprint of the Home Keeper entities, shared with the panel (see
+   * `hkStateSignal`). It is a fallback signal only. Home Assistant changes
+   * `last_updated` only when a state or an attribute changes, so a rename, a note
+   * edit or a snooze often leaves it the same (F09-3). The to-do item subscription
+   * (`_subscribeItems`) is the main signal.
    */
   private _stateSignal(hass: Hass): string {
-    const states = hass.states;
-    if (!states) return '';
-    let n = 0;
-    let max = 0;
-    for (const id in states) {
-      if (!id.includes('home_keeper')) continue;
-      n++;
-      const ts = Date.parse(states[id].last_updated);
-      if (ts > max) max = ts;
-    }
-    return `${n}:${max}`;
+    return hkStateSignal(hass.states);
   }
 
-  /** Subscribe to the task-completed event for instant cross-surface updates. */
+  /**
+   * Subscribe to the task-completed event for instant cross-surface updates.
+   *
+   * Only an admin can subscribe. Home Assistant lets a non-admin subscribe only to
+   * the core events in its allowlist, and it logs an ERROR for each refusal. The
+   * card calls this on each `hass` update, so an attempt for a non-admin would
+   * write one error for each state push. A non-admin card refreshes through the
+   * state signal only. If a subscription fails on a connection, we do not try it
+   * again on that connection.
+   */
   private async _subscribe(): Promise<void> {
+    void this._subscribeItems();
     const conn = this._hass?.connection;
     if (!conn) return;
+    if (this._hass?.user?.is_admin === false) return;
+    if (this._refusedConn === conn) return;
     // Drop a stale subscription if HA reconnected with a new connection object.
     if (this._unsub && this._subConn && this._subConn !== conn) {
       this._unsub();
@@ -547,8 +675,54 @@ export class HomeKeeperCard extends HTMLElement {
       this._subConn = conn;
     } catch {
       // Subscription unavailable — the state-signal path still keeps us current.
+      // Remember the refusal, so the next `hass` update does not send it again.
+      this._refusedConn = conn;
     } finally {
       this._subscribing = false;
+    }
+  }
+
+  /**
+   * Subscribe to the items of the Home Keeper to-do list (F09-3).
+   *
+   * The to-do entity is a coordinator entity, so Home Assistant pushes its items to
+   * this subscription on each coordinator update, which follows each change to the
+   * task data. Any user can send `todo/item/subscribe`. The first message is the
+   * current list, which the card has already loaded, so the card ignores it.
+   */
+  private async _subscribeItems(): Promise<void> {
+    const conn = this._hass?.connection;
+    if (!conn?.subscribeMessage) return;
+    if (this._itemsRefusedConn === conn) return;
+    if (this._itemsUnsub && this._itemsConn !== conn) {
+      this._itemsUnsub();
+      this._itemsUnsub = undefined;
+    }
+    if (this._itemsUnsub || this._itemsSubscribing) return;
+    this._itemsSubscribing = true;
+    let first = true;
+    try {
+      const unsub = await conn.subscribeMessage(
+        () => {
+          if (first) {
+            first = false;
+            return;
+          }
+          if (this._loaded) void this._refresh();
+        },
+        { type: 'todo/item/subscribe', entity_id: todoEntityId(this._hass) },
+      );
+      if (this._disconnected) {
+        unsub();
+        return;
+      }
+      this._itemsUnsub = unsub;
+      this._itemsConn = conn;
+    } catch {
+      // No to-do entity (for example, it is disabled). The state signal stays.
+      this._itemsRefusedConn = conn;
+    } finally {
+      this._itemsSubscribing = false;
     }
   }
 
@@ -562,9 +736,7 @@ export class HomeKeeperCard extends HTMLElement {
       // rather than the caret silently vanishing from every row.
       this._options = (await api.getOptions(this._hass).catch(() => null))?.options ?? this._options;
       // Profiles are only needed when the card filters by one; fetch best-effort.
-      if (this._config.profile) {
-        this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
-      }
+      if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
       // explicit card_links or a linked part's product URL); fetch best-effort and
       // only when a task actually references one.
@@ -573,6 +745,7 @@ export class HomeKeeperCard extends HTMLElement {
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
       await this._signDocuments();
+      await this._signCovers();
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -586,7 +759,64 @@ export class HomeKeeperCard extends HTMLElement {
       this._loaded = true;
       this._refreshing = false;
     }
+    this._renderAfterRefresh();
+  }
+
+  /**
+   * Fetch the saved profiles. A failed fetch keeps the last list (F05-4): an empty
+   * list would make the configured profile look deleted.
+   */
+  private async _loadProfiles(): Promise<void> {
+    if (!this._hass) return;
+    const profiles = await api.getProfiles(this._hass).catch(() => null);
+    if (profiles) this._profiles = profiles;
+  }
+
+  /** The configured profile, or undefined when the card has none or it is gone. */
+  private _profile(): Profile | undefined {
+    const wanted = this._config.profile;
+    if (!wanted) return undefined;
+    return this._profiles.find((p) => p.id === wanted || p.name === wanted);
+  }
+
+  /** Whether the card names a profile that does not exist (F05-4). */
+  private _profileMissing(): boolean {
+    return !!this._config.profile && !this._profile();
+  }
+
+  /** Whether the create form or a dialog is open on the card. */
+  private _overlayOpen(): boolean {
+    return this._edit.open || this._snooze.open || this._skip.open || this._noteView.open;
+  }
+
+  /**
+   * Show the result of a refresh (X11-3).
+   *
+   * A refresh can come from any Home Keeper change, also while the user types in
+   * the create form or uses a dialog. A full render replaces the whole shadow tree,
+   * so the focused field goes away and focus falls to the page body. The next keys
+   * then go to the global hotkeys of Home Assistant. While an overlay is open, we
+   * replace only the list. The form and the dialogs stay in the DOM.
+   *
+   * An open note is for a task that can be gone now. Then the full render closes
+   * the note (see `_renderNoteDialog`).
+   */
+  private _renderAfterRefresh(): void {
+    const noteGone =
+      this._noteView.open && !this._tasks.some((x) => x.id === this._noteView.task?.id);
+    if (this._overlayOpen() && !noteGone && this._patchBody()) return;
     this._render();
+  }
+
+  /** Replace only the list body. Returns false when there is no body to patch. */
+  private _patchBody(): boolean {
+    const body = this.shadowRoot?.querySelector<HTMLElement>('.hk-body');
+    if (!body) return false;
+    this._applyHiddenEmpty();
+    this._ensureMarkdown();
+    body.innerHTML = this._bodyHtml();
+    this._hydrateList(body);
+    return true;
   }
 
   // ── data shaping ──────────────────────────────────────────────────────────
@@ -595,11 +825,9 @@ export class HomeKeeperCard extends HTMLElement {
     const devices = this._hass?.devices;
     const areas = this._hass?.areas;
     // A configured profile defines the task set; otherwise use the card's own filters.
-    const profile = this._config.profile
-      ? this._profiles.find(
-          (p) => p.id === this._config.profile || p.name === this._config.profile,
-        )
-      : undefined;
+    // A profile that is gone shows no rows, not every task (F05-4).
+    if (this._profileMissing()) return [];
+    const profile = this._profile();
     const filtered = profile
       ? this._tasks.filter((t) => profileMatches(t, profile.filter, devices, areas, now))
       : filterTasks(this._tasks, this._config, devices, now, areas);
@@ -618,7 +846,13 @@ export class HomeKeeperCard extends HTMLElement {
    *  rather than calling `_visibleCount()` itself so callers that already
    *  computed it (getCardSize, _render) don't re-run `_shaped()`. */
   private _isHiddenEmpty(n: number): boolean {
-    return !!this._config.hide_when_empty && this._loaded && !this._error && n === 0;
+    return (
+      !!this._config.hide_when_empty &&
+      this._loaded &&
+      !this._error &&
+      !this._profileMissing() &&
+      n === 0
+    );
   }
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
@@ -658,6 +892,8 @@ export class HomeKeeperCard extends HTMLElement {
       await api.completeTask(this._hass, task.id);
     } catch (err) {
       console.error('home-keeper-card: complete failed', err);
+      // Tell the user that the completion was not recorded (F05-5).
+      toast(this, t('error.actionFailed'));
     } finally {
       this._completing.delete(task.id);
     }
@@ -691,6 +927,7 @@ export class HomeKeeperCard extends HTMLElement {
     this._render();
   }
   private _closeForm(): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = { open: false, task: null };
     this._render();
   }
@@ -709,24 +946,44 @@ export class HomeKeeperCard extends HTMLElement {
     this._render();
   }
 
-  private async _submitForm(): Promise<void> {
-    if (!this._hass || !this._edit.task) return;
-    const task = this._edit.task;
+  private async _submitForm(button?: Element | null): Promise<void> {
+    const hass = this._hass;
+    const edit = this._edit;
+    const task = edit.task;
+    if (!hass || !task) return;
     if (!task.name || !String(task.name).trim()) {
-      this._edit.error = t('error.nameRequired');
+      edit.error = t('error.nameRequired');
       this._render();
       return;
     }
     // The card only *creates* tasks (the header "+" button). Editing and deleting
-    // live in the sidebar panel, so there's no update/delete path here.
-    try {
-      await api.addTask(this._hass, buildTaskPayload(task));
-      this._closeForm();
-      await this._refresh();
-    } catch (err) {
-      this._edit.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
+    // live in the sidebar panel, so there's no update/delete path here. A second
+    // press while the add runs (a device-linked add waits for a reload) must not
+    // create a second task (X12-4).
+    await guardWrite(
+      edit,
+      async () => {
+        try {
+          const created = await api.addTask(hass, buildTaskPayload(task));
+          // The photos upload now that the task has an id. A failed photo does not
+          // undo the task, and the form closes, so a second Create cannot make a
+          // second task. A toast says how many photos failed.
+          const staged = edit.photos ?? [];
+          const { failed } = staged.length
+            ? await uploadStaged(staged, (photoId, file) =>
+                api.uploadTaskPhoto(hass, created.id, photoId, file),
+              )
+            : { failed: [] };
+          this._closeForm();
+          if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
+          await this._refresh();
+        } catch (err) {
+          edit.error = String((err as { message?: string })?.message || err);
+          this._render();
+        }
+      },
+      button,
+    );
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -746,20 +1003,12 @@ export class HomeKeeperCard extends HTMLElement {
     // Collapse the whole card out of masonry/grid layouts when configured to
     // hide on an empty result (see getCardSize) — re-evaluated on every render
     // so the card reappears as soon as a task matches again.
-    this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
+    this._applyHiddenEmpty();
     this._ensureMarkdown();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
-
-    let body: string;
-    if (!this._loaded) {
-      body = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
-    } else if (this._error) {
-      body = `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(t('card.loadError'))}</ha-alert></div>`;
-    } else {
-      body = this._listHtml();
-    }
+    const body = this._bodyHtml();
 
     const header =
       title || showAdd
@@ -779,8 +1028,28 @@ export class HomeKeeperCard extends HTMLElement {
     this._hydrate();
   }
 
+  /** Collapse the card when `hide_when_empty` applies (see getCardSize). */
+  private _applyHiddenEmpty(): void {
+    this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
+  }
+
+  /** The markup inside `.hk-body`: the spinner, the load error, or the list. */
+  private _bodyHtml(): string {
+    if (!this._loaded) {
+      return `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    }
+    if (this._error) {
+      return `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(t('card.loadError'))}</ha-alert></div>`;
+    }
+    return this._listHtml();
+  }
+
   private _listHtml(): string {
     const now = Date.now();
+    if (this._profileMissing()) {
+      const msg = t('card.profileMissing', { name: this._config.profile ?? '' });
+      return `<div class="hk-empty"><ha-alert alert-type="warning">${escapeHTML(msg)}</ha-alert></div>`;
+    }
     const shaped = this._shaped(now);
     if (!shaped.length) {
       const empty = this._tasks.length ? t('tasks.noMatch') : t('card.empty');
@@ -811,6 +1080,10 @@ export class HomeKeeperCard extends HTMLElement {
     }
     return groups
       .map((g) => {
+        if (!this._seeded.has(g.key)) {
+          this._seeded.add(g.key);
+          if (startsCollapsed(g, this._config)) this._collapsed.add(g.key);
+        }
         const open = this._collapsed.has(g.key) ? '' : 'open';
         return `
           <details class="hk-group" data-group-key="${escapeHTML(g.key)}" ${open}>
@@ -846,6 +1119,39 @@ export class HomeKeeperCard extends HTMLElement {
       }
     }
     await this._signedDocs.ensure(this._hass, needed);
+  }
+
+  /**
+   * Pre-mint the URLs of each task's cover, in 1 batch: the thumbnail for the row and
+   * the original for the link around it. Best-effort, like `_signDocuments`: a row
+   * shows no cover until its URLs are signed.
+   */
+  private async _signCovers(): Promise<void> {
+    if (!this._hass) return;
+    const refs = this._tasks.flatMap((task) => {
+      const cover = coverOf(task);
+      return cover
+        ? [
+            { taskId: task.id, photoId: cover.id, thumb: true },
+            { taskId: task.id, photoId: cover.id, thumb: false },
+          ]
+        : [];
+    });
+    await this._photoUrls.ensure(this._hass, refs).catch(() => false);
+  }
+
+  /** The cover of *task* as a link to the original, or '' until both URLs are signed. */
+  private _coverHtml(task: Task): string {
+    const cover = coverOf(task);
+    if (!cover) return '';
+    const thumb = this._photoUrls.getByKey(taskPhotoKey({ taskId: task.id, photoId: cover.id, thumb: true }));
+    const full = this._photoUrls.getByKey(taskPhotoKey({ taskId: task.id, photoId: cover.id, thumb: false }));
+    if (!thumb || !full) return '';
+    return `<a class="hk-cover" href="${safeFileHref(full)}" target="_blank" rel="noopener" aria-label="${escapeHTML(
+      t('photos.open', { name: cover.name }),
+    )}"><img src="${safeFileHref(thumb)}" alt="${escapeHTML(
+      t('photos.coverAlt', { task: task.name }),
+    )}" loading="lazy" decoding="async" /></a>`;
   }
 
   /**
@@ -926,7 +1232,8 @@ export class HomeKeeperCard extends HTMLElement {
     // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
     // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge
     // that says this work is late.
-    const overdue = isOverdue(task) && !isBuyTask(task);
+    // A switched-off task gets no overdue rail, the same as the panel row (F05-7).
+    const overdue = task.enabled !== false && isOverdue(task) && !isBuyTask(task);
     const statusChip = statusChipHtml(task, this._hass, {
       counted: countedProgress(task, this._assets, this._tasks),
     });
@@ -974,8 +1281,15 @@ export class HomeKeeperCard extends HTMLElement {
         )
         .join('');
     }
+    // The line under the name: the schedule and the completion count. Each part has
+    // its own row setting (#432). If both are off, the line is not rendered.
     const n = task.completions?.length ?? 0;
-    const meta = `${escapeHTML(recurrenceSummary(task))}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
+    const metaParts: string[] = [];
+    if (this._config.show_schedule !== false) metaParts.push(escapeHTML(recurrenceSummary(task)));
+    if (n && this._config.show_history_count !== false) {
+      metaParts.push(escapeHTML(tn('history.count', n)));
+    }
+    const meta = metaParts.length ? `<div class="hk-meta">${metaParts.join(' · ')}</div>` : '';
     const notes =
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
@@ -996,8 +1310,7 @@ export class HomeKeeperCard extends HTMLElement {
     // *disabled* mark-done that, on tap, explains its source clears it.
     const dormant = isMonitoredDormant(task);
     // A completed one-off (do-once, now dormant) is also nothing to complete — hide Done.
-    const completedOneOff =
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+    const completedOneOff = isCompletedOneOff(task);
     // A scan-locked task greys its mark-done the same way a source-cleared one does:
     // tapping it explains that the tag is the only way in.
     const blocked = Boolean(task.managed_by?.completion_blocked) || scanRequired(task);
@@ -1008,8 +1321,9 @@ export class HomeKeeperCard extends HTMLElement {
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
         <div class="grow">
+          ${this._coverHtml(task)}
           <div class="hk-name">${escapeHTML(task.name)}</div>
-          <div class="hk-meta">${meta}</div>
+          ${meta}
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${noteChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
@@ -1027,10 +1341,6 @@ export class HomeKeeperCard extends HTMLElement {
     const root = this.shadowRoot;
     if (!root) return;
 
-    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
-    // has to be assigned after the markup lands in the DOM.
-    wireMarkdown(root);
-
     const add = root.getElementById('hk-add');
     if (add) {
       (add as HTMLElement & { path?: string }).path = MDI_PLUS;
@@ -1039,6 +1349,33 @@ export class HomeKeeperCard extends HTMLElement {
 
     const host = root.getElementById('hk-form-host');
     if (host && this._edit.open) this._renderForm(host);
+
+    const body = root.querySelector<HTMLElement>('.hk-body');
+    if (body) this._hydrateList(body);
+
+    if (host && this._snooze.open) {
+      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
+        this._snooze = emptySnoozeState();
+        this._render();
+      });
+    }
+    if (host && this._skip.open) {
+      renderSkipDialog(this._deferHost, this._skip, host, () => {
+        this._skip = emptySkipState();
+        this._render();
+      });
+    }
+    if (host && this._noteView.open) this._renderNoteDialog(host);
+  }
+
+  /**
+   * Wire the rows in *root* (the `.hk-body`). A refresh while an overlay is open
+   * replaces only the body, so this part must run without the header and the form.
+   */
+  private _hydrateList(root: HTMLElement): void {
+    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
+    // has to be assigned after the markup lands in the DOM.
+    wireMarkdown(root);
 
     root.querySelectorAll<HTMLElement>('.hk-done').forEach((b) => {
       (b as HTMLElement & { path?: string }).path = MDI_CHECK;
@@ -1110,7 +1447,7 @@ export class HomeKeeperCard extends HTMLElement {
       });
     };
     wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
-      this._snooze = { ...emptySnoozeState(), open: true, task };
+      this._snooze = snoozeStateFor(task);
       this._render();
     });
     wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
@@ -1126,19 +1463,6 @@ export class HomeKeeperCard extends HTMLElement {
       'defer.dueTodayPress',
     );
 
-    if (host && this._snooze.open) {
-      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
-        this._snooze = emptySnoozeState();
-        this._render();
-      });
-    }
-    if (host && this._skip.open) {
-      renderSkipDialog(this._deferHost, this._skip, host, () => {
-        this._skip = emptySkipState();
-        this._render();
-      });
-    }
-
     root.querySelectorAll<HTMLElement>('.hk-note-chip').forEach((chip) => {
       chip.addEventListener('click', (e) => {
         // The row has no click handler of its own, but stop anyway, so a future
@@ -1148,7 +1472,6 @@ export class HomeKeeperCard extends HTMLElement {
         if (task) this._openNote(task);
       });
     });
-    if (host && this._noteView.open) this._renderNoteDialog(host);
 
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {
@@ -1198,6 +1521,60 @@ export class HomeKeeperCard extends HTMLElement {
     wireMarkdown(body);
   }
 
+  /**
+   * The photos of the new task: the picked photos with Remove, and Add photo. The
+   * first photo is the cover. The card has no Make cover; the panel has it.
+   */
+  private _formPhotos(): HTMLElement {
+    const list = this._edit.photos ?? [];
+    const box = document.createElement('div');
+    box.className = 'hk-form-photos';
+    const add =
+      list.length < MAX_TASK_PHOTOS
+        ? `<ha-button class="hk-photo-add" appearance="plain"><ha-icon slot="start" icon="mdi:camera-plus-outline"></ha-icon>${escapeHTML(
+            t('photos.add'),
+          )}</ha-button>`
+        : '';
+    box.innerHTML = `${list.length ? `<div class="hk-photo-strip">${stagedTilesHtml(list, false)}</div>` : ''}${add}`;
+    box.querySelectorAll<HTMLElement>('.hk-staged-remove').forEach((btn) => {
+      btn.innerHTML = '<ha-icon icon="mdi:close"></ha-icon>';
+      btn.addEventListener('click', () => {
+        this._edit.photos = unstage(this._edit.photos ?? [], btn.dataset.stagedKey ?? '', (u) =>
+          URL.revokeObjectURL(u),
+        );
+        this._render();
+      });
+    });
+    const addBtn = box.querySelector<HTMLElement>('.hk-photo-add');
+    if (addBtn) {
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = STAGED_PHOTO_ACCEPT;
+      picker.multiple = true;
+      picker.style.display = 'none';
+      picker.addEventListener('change', () => {
+        const res = stageFiles(this._edit.photos ?? [], Array.from(picker.files ?? []), (f) =>
+          URL.createObjectURL(f),
+        );
+        picker.value = '';
+        this._edit.photos = res.list;
+        // A refused file shows on the form's error line. A clean pick clears only a
+        // refusal from an earlier pick, never another error such as "Name required".
+        const first = res.rejected[0];
+        if (first) {
+          this._edit.error = rejectionMessage(first.file, first.reason);
+          this._edit.photoError = this._edit.error;
+        } else if (this._edit.error && this._edit.error === this._edit.photoError) {
+          this._edit.error = undefined;
+        }
+        this._render();
+      });
+      addBtn.addEventListener('click', () => picker.click());
+      box.appendChild(picker);
+    }
+    return box;
+  }
+
   /** Render the card's *create* form (the header "+"). Editing/deleting lives in
    *  the sidebar panel, so this is always a new-task form. */
   private _renderForm(host: HTMLElement): void {
@@ -1233,6 +1610,7 @@ export class HomeKeeperCard extends HTMLElement {
     });
     this._liveHassEls.push(form);
     wrap.appendChild(form);
+    wrap.appendChild(this._formPhotos());
 
     if (this._edit.error) {
       const err = document.createElement('ha-alert');
@@ -1244,9 +1622,10 @@ export class HomeKeeperCard extends HTMLElement {
     const actions = document.createElement('div');
     actions.className = 'hk-form-actions';
     const save = document.createElement('ha-button');
+    save.id = 'hk-create';
     save.setAttribute('raised', '');
     save.textContent = t('btn.create');
-    save.addEventListener('click', () => void this._submitForm());
+    save.addEventListener('click', () => void this._submitForm(save));
     const cancel = document.createElement('ha-button');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());
@@ -1309,6 +1688,26 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'group_by', selector: selSelect(GROUP_OPTS) },
         ],
       },
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          { name: 'collapsed', selector: selBool() },
+          { name: 'collapse_above', selector: selNumber(0) },
+        ],
+      },
+      {
+        name: 'collapsed_groups',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: COLLAPSE_STATUS_OPTS,
+            multiple: true,
+            custom_value: true,
+            sort: false,
+          },
+        },
+      },
       { name: 'areas', selector: selArea(true) },
       { name: 'devices', selector: selDevice(true) },
       { name: 'labels', selector: selLabel(true) },
@@ -1330,6 +1729,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'show_notes', selector: selBool() },
           { name: 'show_area', selector: selBool() },
           { name: 'show_labels', selector: selBool() },
+          { name: 'show_schedule', selector: selBool() },
+          { name: 'show_history_count', selector: selBool() },
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },

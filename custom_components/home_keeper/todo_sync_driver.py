@@ -54,6 +54,7 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
+from homeassistant.helpers import entity_registry as er
 
 from .shopping import normalize_items
 from .todo_items import (
@@ -109,6 +110,9 @@ class TodoSyncDriver(ABC):
         self._running = False
         self._pending = False
         self._stopped = False
+        # Set by the first pass after Home Assistant has started. A pass before then
+        # reads lists that other integrations have not set up yet (B10-8).
+        self._started = False
         # Reasons already logged at warning level, so a permanently misconfigured
         # target says its piece once instead of on every event that pokes a pass.
         self._warned: set[str] = set()
@@ -121,6 +125,7 @@ class TodoSyncDriver(ABC):
         write to belong to other integrations, which may not have set up yet, and
         a target that reads as missing would have us do nothing.
         """
+        self._started = True
         await self.async_sync(force=True)
 
     @callback
@@ -231,6 +236,20 @@ class TodoSyncDriver(ABC):
                 continue
             snapshots[entity_id] = items
         return snapshots
+
+    def _gone_lists(self, entity_ids: list[str]) -> frozenset[str]:
+        """The lists in *entity_ids* that do not exist at all any more.
+
+        No state *and* no entity registry entry: the entity was renamed, or the
+        integration behind it was removed. A list that is only down, or not
+        loaded yet at startup, still has its registry entry, so it is not gone.
+        """
+        registered = er.async_get(self._hass).entities
+        return frozenset(
+            entity_id
+            for entity_id in entity_ids
+            if self._hass.states.get(entity_id) is None and entity_id not in registered
+        )
 
     # ── writing ──────────────────────────────────────────────────────────────
     async def _call(

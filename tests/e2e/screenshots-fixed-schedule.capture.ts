@@ -22,13 +22,16 @@ import { DESKTOP, PHONE } from './viewports';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
-/** The next Tuesday at 07:00 local, at least 2 days out. */
-function nextTuesday(): string {
+/**
+ * 07:00 on the next Tuesday that is at least 2 days out, plus *days*. The time has no
+ * offset, so Home Assistant reads it in its own zone and the shots show 7:00 AM.
+ */
+function nextTuesday(days = 0): string {
   const d = new Date();
-  d.setDate(d.getDate() + 2);
-  while (d.getDay() !== 2) d.setDate(d.getDate() + 1);
-  d.setHours(7, 0, 0, 0);
-  return d.toISOString();
+  d.setUTCDate(d.getUTCDate() + 2);
+  while (d.getUTCDay() !== 2) d.setUTCDate(d.getUTCDate() + 1);
+  d.setUTCDate(d.getUTCDate() + days);
+  return `${d.toISOString().slice(0, 10)}T07:00:00`;
 }
 
 /** Clip a dialog to its own surface, as the card capture does. */
@@ -143,14 +146,10 @@ test('capture fixed schedules and moving one date', async ({ page }) => {
   });
   try {
     // Move the third date (the second Tuesday) a day later, as the city might.
-    const second = new Date(nextTuesday());
-    second.setDate(second.getDate() + 7);
-    const wednesday = new Date(second);
-    wednesday.setDate(wednesday.getDate() + 1);
     await callService('home_keeper', 'move_occurrence', {
       task_id: id,
-      occurrence: second.toISOString(),
-      to: wednesday.toISOString(),
+      occurrence: nextTuesday(7),
+      to: nextTuesday(8),
     });
 
     await page.setViewportSize(DESKTOP);

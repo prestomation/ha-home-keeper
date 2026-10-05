@@ -376,3 +376,18 @@ def test_area_is_looked_up_by_id_not_carried_through():
     )
     assert report["assets"][0]["area"] == "Garage"
     assert report["assets"][0].get("area_id") is None
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), "-inf"])
+def test_b06_7_non_finite_cost_reads_as_zero_in_the_totals(bad):
+    # One stored NaN or infinity made total_cost and grand_total NaN.
+    good = _asset(id="a1", cost=100.0, parts=[{"name": "p", "cost": 10.0, "stock": 2}])
+    poisoned = _asset(id="a2", cost=bad, parts=[{"name": "q", "cost": bad, "stock": 3}])
+    report = report_mod.build_report([good, poisoned])
+    assert report["totals"] == {
+        "asset_count": 2,
+        "total_cost": 100.0,
+        "spares_value": 20.0,
+        "grand_total": 120.0,
+    }
+    assert report["assets"][1]["spares_value"] == 0.0

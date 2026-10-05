@@ -24,13 +24,13 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from . import notifier, profiles, sensor_tasks, task_counts
+from . import notifier, profiles, recurrence, sensor_tasks, task_counts
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
@@ -38,10 +38,10 @@ from .const import (
     SENSOR_MODE_USAGE,
 )
 from .coordinator import HomeKeeperCoordinator
-from .devices import service_device_info
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .options import current_options
 from .sensor_watcher import read_sensor_value
+from .service_device import service_device_info
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
 _DATE_ICON = "mdi:calendar-clock"
@@ -208,10 +208,10 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
         # rather than a local literal, so a new completion field lands here too — this
         # loop silently skipped ``reading`` for exactly that reason. Keys are only
         # present when that completion recorded them.
-        if completions:
-            # Match ``last_completed`` (the chronologically latest), not merely the
-            # last appended, so an out-of-order seed can't shadow a real completion.
-            latest = max(completions, key=lambda c: c.get("ts") or "")
+        # Match ``last_completed`` (the chronologically latest), not merely the last
+        # appended, so an out-of-order seed can't shadow a real completion.
+        latest = recurrence.latest_completion(completions)
+        if latest is not None:
             for key in COMPLETION_ENTRY_FIELDS:
                 if key in latest:
                     attrs[f"last_completion_{key}"] = latest[key]
@@ -247,7 +247,9 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
             attrs["usage_consumed"] = round(consumed, 3)
             attrs["usage_remaining"] = round(target - consumed, 3)
             attrs["usage_percent"] = round(min(100.0, consumed / target * 100), 1)
-        due_at = sensor_tasks.backstop_due(task, cfg)
+        due_at = sensor_tasks.backstop_due(
+            task, cfg, tz=dt_util.get_default_time_zone()
+        )
         if due_at is not None:
             attrs["backstop_due"] = due_at.isoformat()
         # How much use each past service interval actually ran, summarized. The
@@ -323,13 +325,28 @@ class HomeKeeperTaskCountSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         )
         return task_counts.count_tasks(tasks, self._filter, now=dt_util.now())
 
-    @property
-    def native_value(self) -> int:
-        return int(self._counts()["state"])
+    def _update_counts(self) -> None:
+        """Count once and keep the result for the state and the attributes.
 
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        return {key: value for key, value in self._counts().items() if key != "state"}
+        Home Assistant reads both on each state write. If each one counts, every
+        write does 2 full passes over the task map (X08-4).
+        """
+        counts = self._counts()
+        self._attr_native_value = int(counts["state"])
+        self._attr_extra_state_attributes = {
+            key: value for key, value in counts.items() if key != "state"
+        }
+
+    async def async_added_to_hass(self) -> None:
+        """Count before the first state write."""
+        await super().async_added_to_hass()
+        self._update_counts()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Count again on each coordinator update, then write the state."""
+        self._update_counts()
+        super()._handle_coordinator_update()
 
 
 class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], SensorEntity):

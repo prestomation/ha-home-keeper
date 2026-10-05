@@ -74,12 +74,12 @@ A record also takes these fields:
 | Field | Applies to | What it does |
 | --- | --- | --- |
 | `external_id` | both | Your own name for the record. See below. |
-| `area` | both | An area name. A stated `area_id` wins. |
+| `area` | both | An area name. A stated `area_id` wins, if that area is on this Home Assistant. |
 | `appliance` | tasks | Which appliance the task belongs to, by `external_id`, name, or id. A stated `device_id` wins, if that device is on this Home Assistant. |
 | `history` | tasks | Past completions. Each entry needs `completed_at`, and can add `note`, `cost`, `who`, `photo`. A usage or threshold task can also add `reading`. |
 | `skips` | tasks | Past skips. Each entry needs `skipped_at`. |
 | `parent_asset_id` | appliances | The appliance this one sits under, by `external_id`, name, or id. List a parent before its children. An appliance cannot sit under itself, through one link or a chain of them. |
-| `archived` | appliances | `true` for an archived appliance. |
+| `archived` | appliances | `true` for an archived appliance. On an update, `false` restores an archived appliance. |
 
 A `reading` on any other task is an error. Preview names any entry field it does not
 read, then ignores it.
@@ -105,6 +105,8 @@ steps, and stops at the first that matches:
    yourself, because it makes a second run update the same records instead of making
    a copy of everything. An `external_id` names one record, so 2 records in one file
    cannot share one. If they do, you get an error that names both.
+   An `id` also names one record. If you copy a record to make a second one, remove
+   the `id` from the copy.
 3. **`name`**, an exact match first, then one that ignores case and spaces.
 
 Home Keeper creates a record that matches no stored record. When a name matches 2
@@ -114,6 +116,15 @@ you meant. To create every record and match no stored record, pass `match: none`
 
 An update only changes the fields the file states. Fields it leaves out keep the
 value they have.
+
+An update adds the `history` and `skips` of the file to the entries the task has, in
+date order. When the task was done after the last date in the file, the task keeps
+its last completion and its due date. So an import of the same file again does not
+move a task back.
+
+When 2 appliances have the same name, an `appliance` or `parent_asset_id` that
+gives this name is an error. Use the `external_id` or the id of the appliance. An
+export names such an appliance by its id.
 
 #### Import/Export Limitations
 
@@ -131,6 +142,9 @@ on the way back in.
   A counted wear item keeps its count. The count is on the part, because the 2
   tasks that use it are not in the file.
 - **Tasks created by companions.**
+- **The link from a task to a consumable.** The task is in the file, but its link is
+  not. The `home_keeper` block counts these links. Link the tasks again after an
+  import.
 - **Appliances that a companion manages**, with their stock counts. The companion
   builds the appliance again after an import. Enter the counts again.
 - **Settings, profiles, notifications and declarative companions.** These stay in the

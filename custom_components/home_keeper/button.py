@@ -4,9 +4,9 @@ Tasks linked to an existing device get a button on that device's page so the
 maintenance action lives right next to the device it concerns. Pressing it
 completes the task and advances its recurrence.
 
-A task that nothing in Home Keeper can mark done gets no button: a problem-sensor
-task, and a declarative companion task that clears itself when its condition
-recovers (#377).
+A task that the button cannot mark done gets no button: a problem-sensor task, a
+declarative companion task that clears itself when its condition recovers (#377),
+and a task that only a tag scan can complete.
 """
 
 from __future__ import annotations
@@ -14,13 +14,15 @@ from __future__ import annotations
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
-from .notifications import is_completion_blocked
-from .problem_tasks import problem_source
+from .models import TaskValidationError
+from .recurrence import one_off_completed
+from .task_entities import has_mark_done_button
 
 
 async def async_setup_entry(
@@ -30,19 +32,16 @@ async def async_setup_entry(
 ) -> None:
     """Create a mark-done button for each device-attached task.
 
-    A task that can't be completed in Home Keeper is skipped, so its button would
-    only ever error: a problem-sensor-synced task (the originating integration
-    clears it) and a declarative companion task that clears itself when its
-    condition recovers (``managed_by.completion_blocked``). Their next-due sensor and
-    overdue binary sensor still appear on the device.
+    A task that the button cannot complete is skipped, so its button would only
+    ever error (see :func:`task_entities.has_mark_done_button`). Its next-due sensor
+    and overdue binary sensor still appear on the device.
     """
     coordinator: HomeKeeperCoordinator = entry.runtime_data
 
     button_ids = [
         task_id
         for task_id in coordinator.device_attached_task_ids()
-        if problem_source(coordinator.data[task_id]) is None
-        and not is_completion_blocked(coordinator.data[task_id])
+        if has_mark_done_button(coordinator.data[task_id])
     ]
 
     # Remove entity-registry entries for per-task buttons whose task no longer
@@ -75,7 +74,29 @@ class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
         self._attr_unique_id = f"{DOMAIN}_{task_id}_done"
 
     async def async_press(self) -> None:
-        await self.coordinator.store.complete_task(self._task_id)
+        """Complete the task. Show a translated error if the store refuses it.
+
+        A press on a completed do-once task does nothing. The task is done, so a
+        second completion only adds a false record and fires the completed event
+        again (B15-4). The to-do entity ignores the same case.
+        """
+        task = self.coordinator.store.get_task(self._task_id)
+        if task is not None and one_off_completed(task):
+            return
+        try:
+            await self.coordinator.store.complete_task(self._task_id)
+        except KeyError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="task_not_found",
+                translation_placeholders={"task_id": self._task_id},
+            ) from err
+        except TaskValidationError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="complete_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         # Completing an auto-buy task bumps stock (restocked) → its reminder is removed;
         # settle so those device entities are (un)registered (else a plain refresh).
         await self.coordinator.async_settle_buy_tasks()

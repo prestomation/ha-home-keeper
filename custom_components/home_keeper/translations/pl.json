@@ -115,6 +115,10 @@
           "name": "Wymagaj zeskanowania znacznika",
           "description": "To zadanie może zakończyć tylko powiązany znacznik. Każdy inny sposób oznaczenia go jako wykonanego zostanie odrzucony. Wymaga znacznika."
         },
+        "snooze_hours": {
+          "name": "Czas odłożenia",
+          "description": "Liczba godzin, o które Odłóż przesuwa to zadanie. Okno Odłóż zaczyna od tego czasu, a przycisk Odłóż w powiadomieniu go używa. Zostaw puste, aby używać zwykłych czasów."
+        },
         "source": {
           "name": "Źródło",
           "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Home Keeper przechowuje je i zwraca dosłownie oraz nigdy ich nie sprawdza. Zobacz docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Wymagaj zeskanowania znacznika",
           "description": "To zadanie może zakończyć tylko powiązany znacznik. Wymaga znacznika."
         },
+        "snooze_hours": {
+          "name": "Czas odłożenia",
+          "description": "Liczba godzin, o które Odłóż przesuwa to zadanie. Wyślij pustą wartość, aby wrócić do zwykłych czasów."
+        },
         "source": {
           "name": "Źródło",
-          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Zobacz docs/INTEGRATING.md."
+          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Każda przestrzeń nazw zastępuje zapisaną przestrzeń nazw o tej samej nazwie. Przestrzeń nazw z wartością null zostaje usunięta. Zobacz docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Szczegóły ukończenia",
@@ -252,6 +260,10 @@
           "description": "Pomiń ochronę przed usunięciem zadania zarządzanego przez inną integrację. Użyj tego, aby usunąć zadanie, którego integracja zarządzająca została odinstalowana lub działa nieprawidłowo i nie może go usunąć samodzielnie."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Usuń osierocone zadania",
+      "description": "Usuwa każde zadanie zarządzane przez integrację, gdy ta integracja nie jest załadowana (usunięta, wyłączona lub nieskonfigurowana). Tylko dla administratorów. Zwraca identyfikatory usuniętych zadań w kluczu \"deleted\"."
     },
     "complete_task": {
       "name": "Ukończ zadanie",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Godziny",
-          "description": "O ile godzin odłożyć zadanie (domyślnie 24). Ignorowane, gdy ustawiono Do kiedy."
+          "description": "O ile godzin odłożyć zadanie (domyślnie 24). Nie ustawiaj pól Godziny i Do kiedy w tym samym wywołaniu."
         },
         "until": {
           "name": "Do kiedy",
-          "description": "Odkłada zadanie dokładnie na tę datę i godzinę zamiast o liczbę godzin. Po jego ustawieniu pole Godziny nie jest używane."
+          "description": "Odkłada zadanie dokładnie na tę datę i godzinę zamiast o liczbę godzin. Nie ustawiaj pól Godziny i Do kiedy w tym samym wywołaniu."
         },
         "origin": {
           "name": "Inicjator",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Usuń zdjęcie zadania",
+      "description": "Usuwa zdjęcie z zadania i kasuje jego plik. Dodawaj zdjęcia w panelu, ponieważ wywołanie usługi nie może przenieść pliku.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ustaw okładkę zadania",
+      "description": "Ustawia zdjęcie jako okładkę jego zadania. Okładka to pierwsze zdjęcie. Widać ją na liście zadań, na stronie zadania i w oknie wykonania.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Podpisz URL zdjęcia zadania",
+      "description": "Tworzy krótkotrwały URL (bez nagłówka uwierzytelniania), który zwraca bajty zdjęcia zadania, na przykład aby pokazać zdjęcie w powiadomieniu.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Podpisuje URL małej kopii, o długim boku najwyżej 256 pikseli."
+        }
+      }
+    },
     "update_skip": {
       "name": "Aktualizuj pominięcie",
       "description": "Zmienia szczegóły zapisanego pominięcia wskazanego znacznikiem czasu. Pominięcie zachowuje swoją datę, a harmonogram pozostaje nietknięty.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} – zapas"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Zadania"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Nadchodzące zadania"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Nieznany dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Nieznane zdjęcie: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Licznik ma tylko zadanie powiązane z czujnikiem zużycia."
+    },
+    "meter_has_no_reading": {
+      "message": "Powiązany czujnik nie ma teraz wartości liczbowej. Podaj wartość początkową w wywołaniu."
+    },
+    "archived_completion_not_found": {
+      "message": "Urządzenie nie ma zarchiwizowanego wykonania zadania {task_id} o {ts}."
     },
     "unknown_part_file": {
       "message": "Nieznana część lub brak załączonego pliku."

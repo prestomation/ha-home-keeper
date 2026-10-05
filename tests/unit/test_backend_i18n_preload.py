@@ -73,6 +73,33 @@ def test_resolving_after_preload_reads_no_files(monkeypatch):
     assert reads == [], f"resolving read files after preload: {reads}"
 
 
+def test_b16_10_language_chain_tries_the_tag_its_base_then_english():
+    assert backend_i18n.language_chain("es-419") == ("es-419", "es", "en")
+    assert backend_i18n.language_chain("de") == ("de", "en")
+    assert backend_i18n.language_chain("en-GB") == ("en-GB", "en")
+    assert backend_i18n.language_chain("en") == ("en",)
+    assert backend_i18n.language_chain("") == ("en",)
+    assert backend_i18n.language_chain(None) == ("en",)
+
+
+def test_b16_10_a_regional_language_resolves_through_its_base():
+    es = backend_i18n.resolve_exception("es", "notify_no_targets")
+    assert es != backend_i18n.resolve_exception("en", "notify_no_targets")
+    assert backend_i18n.resolve_exception("es-419", "notify_no_targets") == es
+    es_name = backend_i18n.resolve_string("es", "report.csv.name")
+    assert backend_i18n.resolve_string("es-419", "report.csv.name") == es_name
+    assert backend_i18n.resolve_string("es-419", "no.such.key") == "no.such.key"
+    assert backend_i18n.resolve_exception("es-419", "no_such_key") == "no_such_key"
+
+
+def test_b16_10_preload_warms_the_whole_chain():
+    for table in _cached_tables():
+        table.cache_clear()
+    backend_i18n.preload("es-419")
+    for table in _cached_tables():
+        assert table.cache_info().currsize == 3
+
+
 def test_preload_is_idempotent():
     """An entry reload calls it again; that must not re-read anything."""
     for table in _cached_tables():

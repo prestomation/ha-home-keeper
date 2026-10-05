@@ -26,6 +26,7 @@ import {
   isManagedAssetOrphan,
   isManagedOrphan,
   managedChip,
+  onActivate,
   sourceOwnedTask,
   tagChip,
   taskChipsHtml,
@@ -47,6 +48,8 @@ import {
   MDI_WEAR,
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
+import { taskHeadPhotosHtml } from './panel-photo-markup';
+import { photosSection, wireTaskPhotos } from './panel-task-photos';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
 import { partBackstopLabel, partCountsUses, skipSnoozeFlags, taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task, UpcomingOccurrence } from './types';
@@ -60,13 +63,16 @@ import {
   assetSummary,
   btnAttrs,
   copyText,
-  deviceName,
+  assetTitle,
   dueLabel,
   escapeHTML,
   formatDate,
   formatDateTime,
   formatOccurrenceTime,
   formatQuantity,
+  intervalText,
+  isBuyTask,
+  isCompletedOneOff,
   isMonitoredDormant,
   navigateTo,
   partStockButtonStep,
@@ -77,6 +83,7 @@ import {
   safeHref,
   scanRequired,
   snapStock,
+  typedStock,
   countedProgress,
   isUseTask,
   statusChipHtml,
@@ -236,7 +243,9 @@ function sensorProgressBar(p: PanelHost, task: Task): string {
     const consumed = Math.max(0, reading - s.baseline);
     const pct = Math.max(0, Math.min(100, (consumed / target) * 100));
     const label = t('sensor.usageRemaining', {
-      remaining: `${round1(target - consumed)}${s.unit ? ` ${s.unit}` : ''}`,
+      // Clamped like the bar. A due task keeps counting past its target until it is
+      // done, and "-50 h to go" reads as nonsense (F07-9).
+      remaining: `${round1(Math.max(0, target - consumed))}${s.unit ? ` ${s.unit}` : ''}`,
     });
     parts.push(
       `<div class="hk-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(
@@ -246,7 +255,7 @@ function sensorProgressBar(p: PanelHost, task: Task): string {
     );
   }
   if (s.also_every) {
-    const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+    const every = intervalText(s.also_every.interval, s.also_every.unit);
     parts.push(
       `<div class="hk-meter-note">${escapeHTML(
         s.combinator === 'all'
@@ -344,7 +353,7 @@ function upcomingSection(p: PanelHost, task: Task): string {
                     origin,
                   )}">${escapeHTML(t('upcoming.undo'))}</ha-button>`
                 : '';
-              return `<div class="hk-up-row${row.moved_from ? ' moved' : ''}">
+              return `<div class="hk-up-row">
                 <span class="hk-up-when"><span class="hk-up-date">${escapeHTML(
                   formatOccurrenceTime(row.start, lang),
                 )}</span>${moved}</span>
@@ -478,8 +487,14 @@ function taskDetail(p: PanelHost, task: Task): string {
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.
-    const deleteBtn =
-      mb?.deletion_protected && !orphaned
+    //
+    // An auto-created buy reminder is editable but never deletable: the backend
+    // refuses every delete, because the reconciler makes it again while the part is
+    // low. Say how it ends instead of a Delete that fails after it leaves the page
+    // (F07-2).
+    const deleteBtn = isBuyTask(task)
+      ? `<span class="hk-managed-info">${escapeHTML(t('managed.buyReminder'))}</span>`
+      : mb?.deletion_protected && !orphaned
         ? `<span class="hk-managed-info">${escapeHTML(
             companion
               ? t('managed.deleteFromCompanion', { name: companion.name })
@@ -509,8 +524,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         : '';
 
   const monitored = isMonitoredDormant(task);
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   const due = monitored
     ? t('due.monitored')
     : completedOneOff
@@ -557,7 +571,9 @@ function taskDetail(p: PanelHost, task: Task): string {
   // the appliance page is one less layout to learn. Schedule first — what the task
   // is and when it is next due — with the notes and the history one tap off.
   const bodies: Record<TaskTab, string> = {
+    // Photos first: the one thing on this tab that shows what the work is and where.
     schedule: `
+      ${photosSection(p, task)}
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${row(t('field.recurrence_type'), recurrenceSummary(task))}
@@ -573,6 +589,10 @@ function taskDetail(p: PanelHost, task: Task): string {
     history: historySection(p, 'task', task.id),
   };
   const tab = p._taskTab();
+  // The cover sits beside the name: the photo is what tells a person which gap in
+  // which ceiling this task means. The photo of the last completion sits beside it,
+  // so the page shows the result too (#399).
+  const cover = taskHeadPhotosHtml(p, task);
   // Above everything, and only on a task that is off. A switched-off task is absent
   // from the to-do list, the calendar, its own entities, every profile and every
   // announcement, so the page that still shows a schedule has to say why none of it
@@ -590,7 +610,9 @@ function taskDetail(p: PanelHost, task: Task): string {
       : '';
   return `
       ${disabledBanner}
-      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
+      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner${cover ? ' hk-head-with-cover' : ''}">
+        ${cover}
+        <div class="hk-head-main">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${area}${tag}${consumable}${taskChips}${managed}</div>
         <div class="hk-detail-actions">
@@ -598,6 +620,7 @@ function taskDetail(p: PanelHost, task: Task): string {
           ${manage}
         </div>
         ${completionHint}
+        </div>
       </div>
       <nav class="hk-subtabs" aria-label="${escapeHTML(task.name)}">${taskSubtabs(task, tab)}</nav>
       </ha-card>
@@ -637,8 +660,7 @@ function assetDetail(p: PanelHost, asset: Asset): string {
         '↳ ' + assetAncestry(p, asset.parent_asset_id),
       )}"></ha-assist-chip>`
     : '';
-  const title =
-    asset.name || deviceName(p._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+  const title = assetTitle(asset, p._hass?.devices);
   const cost = asset.cost != null ? String(asset.cost) : '';
   // Structured (HA-wired) fields first, then the free-form metadata entries.
   const meta = (asset.metadata || [])
@@ -704,7 +726,7 @@ function assetDetail(p: PanelHost, asset: Asset): string {
     tasks: relatedTasksSection(p, asset),
     documents: documentsSection(p, asset),
     details: `${detailsCard}${p._assetNotesSection(asset)}`,
-    related: subdevicesSection(p, asset),
+    related: `${subdevicesSection(p, asset)}${relatedDevicesSection(p, asset)}`,
     history: historySection(p, 'asset', asset.id),
   };
   const tab = p._assetTab();
@@ -737,9 +759,16 @@ function assetSubtabs(p: PanelHost, asset: Asset, current: AssetTab): string {
     tasks: tasksForAsset(asset, p._tasks).length,
     documents: asset.documents?.length ?? 0,
     details: null,
+    // The same 2 lists the tab body shows, so the count never names rows that the
+    // body leaves out (F07-4).
     related: p._assets.filter((a) => a.parent_asset_id === asset.id).length +
-      (asset.related_device_ids?.length ?? 0),
-    history: completionGroupsFor(p, 'asset', asset.id).length,
+      relatedDeviceChips(p, asset).length,
+    // Entries, as the task page counts them, not one per related task: a task with
+    // no history adds 0, and a task with 40 completions adds 40 (F07-8).
+    history: completionGroupsFor(p, 'asset', asset.id).reduce(
+      (n, g) => n + (g.completions?.length ?? 0) + (g.skips?.length ?? 0),
+      0,
+    ),
   };
   // Short labels: six tabs and their counts have to fit a strip that is already
   // sharing the row with the appliance list. The sections themselves keep their
@@ -1076,7 +1105,15 @@ function wireStockSteppers(p: PanelHost, root: ShadowRoot, asset: Asset): void {
     };
     dec.addEventListener('click', () => void commit(committed - tap));
     inc.addEventListener('click', () => void commit(committed + tap));
-    input.addEventListener('change', () => void commit(Number(input.value)));
+    input.addEventListener('change', () => {
+      // An empty box is not a count of zero: put the stored count back (F07-3).
+      const typed = typedStock(input);
+      if (typed == null) {
+        input.value = String(committed);
+        return;
+      }
+      void commit(typed);
+    });
     input.addEventListener('keydown', (e) => {
       if ((e as KeyboardEvent).key === 'Enter') input.blur();
     });
@@ -1115,13 +1152,31 @@ function relatedTasksSection(p: PanelHost, asset: Asset): string {
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${rows}</div></ha-card>`;
 }
 
+/**
+ * A chip for each related device that is still in the device registry. The tab
+ * counted these but showed none of them (F07-4). A chip opens the Home Assistant
+ * device page, as a device chip on an appliance does.
+ */
+function relatedDeviceChips(p: PanelHost, asset: Asset): string[] {
+  return (asset.related_device_ids ?? []).map((id) => deviceChip(p, id)).filter(Boolean);
+}
+
+function relatedDevicesSection(p: PanelHost, asset: Asset): string {
+  const chips = relatedDeviceChips(p, asset);
+  if (!chips.length) return '';
+  return `
+      <div class="hk-section">${escapeHTML(t('section.related'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner"><div class="hk-chips">${chips.join(
+        '',
+      )}</div></div></ha-card>`;
+}
+
 function subdevicesSection(p: PanelHost, asset: Asset): string {
   const subs = p._assets.filter((a) => a.parent_asset_id === asset.id);
   if (!subs.length) return '';
   const rows = subs
     .map((sub) => {
-      const title =
-        sub.name || deviceName(p._hass?.devices, sub.device_id) || t('appliance.fallbackName');
+      const title = assetTitle(sub, p._hass?.devices);
       return `
           <div class="hk-rel detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(
             sub.id,
@@ -1156,6 +1211,9 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     wireDetailActions(p, root);
     wirePartIcons(root);
     wireHistory(p, root);
+    // The appliance History tab lists the skips of its tasks too, so wire the skip
+    // rows for both kinds, not only on the task page (F07-1).
+    wireSkipHistoryRows(p, root);
     const kind = p._detail.kind;
     root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
       b.addEventListener('click', () => {
@@ -1254,12 +1312,11 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   if (d.kind === 'task') {
     const task = p._tasks.find((x) => x.id === d.id);
     if (!task) return;
-    root.querySelector('.d-done')?.addEventListener('click', () => void p._complete(task));
-    root
-      .querySelector('.d-done-blocked-wrap')
-      ?.addEventListener('click', () => p._notifyBlocked(task));
+    const done = root.querySelector('.d-done');
+    done?.addEventListener('click', () => void p._complete(task, done));
+    const doneBlocked = root.querySelector<HTMLElement>('.d-done-blocked-wrap');
+    if (doneBlocked) onActivate(doneBlocked, () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
-    wireSkipHistoryRows(p, root);
     wireUpcoming(p, root, task);
     root
       .querySelector('.d-enable')
@@ -1282,6 +1339,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       });
     }
     p._wireNoteEditor(root, { kind: 'task', id: task.id });
+    wireTaskPhotos(p, root, task);
     root.querySelector('.d-del')?.addEventListener('click', () => {
       openConfirmDialog(p, t('confirm.deleteTask', { name: task.name }), () => {
         // The detail is about to vanish: replace it with its list so Forward
@@ -1332,8 +1390,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   root.querySelector('.d-archive')?.addEventListener('click', () => void p._archiveAsset(asset));
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));
   root.querySelector('.d-del')?.addEventListener('click', () => {
-    const name =
-      asset.name || deviceName(p._hass?.devices, asset.device_id) || t('appliance.fallbackName');
+    const name = assetTitle(asset, p._hass?.devices);
     openConfirmDialog(p, t('confirm.deleteAsset', { name }), () => {
       // The detail is about to vanish: replace it with its list so Forward
       // can't return to a deleted appliance.

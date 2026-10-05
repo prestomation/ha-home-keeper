@@ -47,7 +47,7 @@ class FakeSyncStore:
     Tasks are handed out live here (the drivers only read them) and a completion
     records its origin, which is what proves a tick-off travelled inbound from
     somebody's list rather than from the panel. ``complete_error`` is how a test
-    makes Home Keeper refuse a completion.
+    makes Home Keeper refuse a completion, and ``snooze_error`` a snooze.
 
     The bookkeeping each driver persists — mirrored shopping items on one side,
     tracked to-do list entries on the other — is a differently named pair of
@@ -58,6 +58,8 @@ class FakeSyncStore:
         self._tasks = tasks or {}
         self.completed: list[tuple[str, str | None]] = []
         self.complete_error: Exception | None = None
+        self.snoozed: list[tuple[str, object, str | None]] = []
+        self.snooze_error: Exception | None = None
         self.writes = 0
 
     def get_tasks(self) -> dict:
@@ -70,6 +72,13 @@ class FakeSyncStore:
         self._tasks.pop(task_id, None)
         return {}
 
+    async def snooze_task(self, task_id, until, *, origin=None):
+        if self.snooze_error is not None:
+            raise self.snooze_error
+        self.snoozed.append((task_id, until, origin))
+        self._tasks[task_id]["next_due"] = until.isoformat()
+        return self._tasks[task_id]
+
 
 class FakeSyncCoordinator:
     """The coordinator a to-do sync driver settles through."""
@@ -77,9 +86,13 @@ class FakeSyncCoordinator:
     def __init__(self, store) -> None:
         self.store = store
         self.settles = 0
+        self.refreshes = 0
 
     async def async_settle_buy_tasks(self) -> None:
         self.settles += 1
+
+    async def async_request_refresh(self) -> None:
+        self.refreshes += 1
 
 
 class FakeTodoServices:

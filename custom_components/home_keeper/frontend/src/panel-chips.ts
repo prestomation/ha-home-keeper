@@ -32,6 +32,22 @@ import {
 } from './utils';
 
 /**
+ * Run *fn* on a click, and on Enter or Space. A `role="button"` span gets no click
+ * from the keyboard, so a greyed button wired by click only does nothing for a
+ * keyboard user (F07-7).
+ */
+export function onActivate(el: HTMLElement, fn: () => void): void {
+  el.addEventListener('click', fn);
+  el.addEventListener('keydown', (e) => {
+    const key = (e as KeyboardEvent).key;
+    if (key === 'Enter' || key === ' ') {
+      e.preventDefault();
+      fn();
+    }
+  });
+}
+
+/**
  * Whether a managed task's owning integration is no longer loaded. A task is
  * orphaned when its `config_entry_id` is set but absent from the loaded-entry
  * set (uninstalled, disabled, or failing to set up). Without a recorded
@@ -51,7 +67,9 @@ export function isManagedAssetOrphan(p: PanelHost, asset: Asset): boolean {
 /** The one reading of "the owner is no longer here", shared by both surfaces. */
 function ownerIsGone(p: PanelHost, mb?: ManagedByBase | null): boolean {
   const id = mb?.config_entry_id;
-  return Boolean(id) && !p._loadedEntryIds.has(id as string);
+  // Unknown owners are not gone: a failed lookup must not offer to delete them.
+  const loaded = p._loadedEntryIds;
+  return Boolean(id) && loaded !== null && !loaded.has(id as string);
 }
 
 /**
@@ -325,19 +343,25 @@ export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
       el.replaceWith(svg);
     };
     const img = chip.querySelector<HTMLImageElement>('img.hk-dev-img');
-    if (img) {
-      img.addEventListener('error', () => {
-        // First failure: retry the generic `_/` brand path; then give up.
-        const domain = img.dataset.domain;
-        if (domain && !img.dataset.retried) {
-          img.dataset.retried = '1';
-          img.src = brandLogoUrl(domain, true);
-        } else {
-          fallbackIcon();
-        }
-      });
+    if (img) wireBrandImage(img, fallbackIcon);
+    else fallbackIcon();
+  });
+}
+
+/**
+ * Make a brand logo `<img>` (with `data-domain`) fail over. The first error retries
+ * the generic `_/` brand path. The second calls *fallback*, which puts an icon in
+ * its place. The device chip and the companion row both use it, so a logo that is
+ * not there fails over the same way on each.
+ */
+export function wireBrandImage(img: HTMLImageElement, fallback: () => void): void {
+  img.addEventListener('error', () => {
+    const domain = img.dataset.domain;
+    if (domain && !img.dataset.retried) {
+      img.dataset.retried = '1';
+      img.src = brandLogoUrl(domain, true);
     } else {
-      fallbackIcon();
+      fallback();
     }
   });
 }

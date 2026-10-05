@@ -14,7 +14,7 @@ household gets at most one list per profile and no second id to keep in step. Cl
 Everything here is HA-free so it's unit-testable in isolation (like ``recurrence.py``).
 The filter semantics are the single source of truth that the TS side (``card-filter``)
 must match — see ``tests/fixtures/profile_filter_cases.json`` and
-``docs/PROFILES_REFACTOR_PLAN.md``.
+``docs/design/profiles-notifications.md``.
 """
 
 from __future__ import annotations
@@ -234,8 +234,8 @@ def matches_filter(
     the sensor reports a problem, and dormant (``next_due is None``, excluded by the
     check above) once the sensor clears. Dropping the armed ones outright hid a whole
     class of overdue work from every Profile, in the panel and on the card, under every
-    status (#248). They are still left out of *walk* notifications, but that belongs to
-    delivery rather than to the filter — see ``notifications.is_walkable``.
+    status (#248). Walk notifications keep them too, and
+    ``notifications.actions_for`` gives them a Snooze button.
 
     The ``exclude_labels``/``exclude_areas``/``exclude_devices``/``exclude_companions``
     lists then subtract: any hit drops the task even when it satisfied every include

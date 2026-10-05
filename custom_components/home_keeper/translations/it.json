@@ -115,6 +115,10 @@
           "name": "Richiedi la scansione dell'etichetta",
           "description": "Solo l'etichetta collegata può completare questa attività. Qualsiasi altro modo di segnarla come fatta viene rifiutato. Richiede un'etichetta."
         },
+        "snooze_hours": {
+          "name": "Durata del rinvio",
+          "description": "Ore di cui Rinvia sposta questa attività. La finestra Rinvia parte da questa durata e il pulsante Rinvia di una notifica la usa. Lascia vuoto per usare le durate abituali."
+        },
         "source": {
           "name": "Origine",
           "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Home Keeper la memorizza e la restituisce testualmente e non la ispeziona mai. Vedi docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Richiedi la scansione dell'etichetta",
           "description": "Solo l'etichetta collegata può completare questa attività. Richiede un'etichetta."
         },
+        "snooze_hours": {
+          "name": "Durata del rinvio",
+          "description": "Ore di cui Rinvia sposta questa attività. Invia un valore vuoto per tornare alle durate abituali."
+        },
         "source": {
           "name": "Origine",
-          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Vedi docs/INTEGRATING.md."
+          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Ogni spazio dei nomi sostituisce quello salvato con lo stesso nome. Uno spazio dei nomi con il valore null viene rimosso. Vedi docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Dettaglio del completamento",
@@ -252,6 +260,10 @@
           "description": "Ignora la protezione dall'eliminazione per un'attività gestita da un'altra integrazione. Usalo per ripulire un'attività la cui integrazione di gestione è stata disinstallata o funziona male e non può rimuoverla da sola."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Elimina attività orfane",
+      "description": "Elimina ogni attività gestita da un'integrazione quando quell'integrazione non è caricata (rimossa, disattivata o non configurata). Solo per amministratori. Restituisce gli ID delle attività eliminate in \"deleted\"."
     },
     "complete_task": {
       "name": "Completa attività",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Ore",
-          "description": "Di quante ore rinviare l'attività (24 come predefinito). Ignorato se è impostato Fino a."
+          "description": "Di quante ore rinviare l'attività (24 come predefinito). Non impostare Ore e Fino a nella stessa chiamata."
         },
         "until": {
           "name": "Fino a",
-          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Se lo imposti, il campo Ore non viene usato."
+          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Non impostare Ore e Fino a nella stessa chiamata."
         },
         "origin": {
           "name": "Origine",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Rimuovi foto dell'attività",
+      "description": "Rimuove una foto da un'attività ed elimina il suo file. Aggiungi le foto dal pannello, perché una chiamata di servizio non può trasportare un file.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'ID dell'attività con la foto. Funziona anche il nome. Il pannello mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID della foto",
+          "description": "L'ID della foto. Il servizio list_tasks lo fornisce nelle foto dell'attività."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Imposta copertina dell'attività",
+      "description": "Rende una foto la copertina della sua attività. La copertina è la prima foto. Appare nell'elenco delle attività, nella pagina dell'attività e nella finestra di completamento.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'ID dell'attività con la foto. Funziona anche il nome. Il pannello mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID della foto",
+          "description": "L'ID della foto. Il servizio list_tasks lo fornisce nelle foto dell'attività."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Firma URL della foto dell'attività",
+      "description": "Genera un URL di breve durata (senza intestazione di autenticazione) che fornisce i byte di una foto dell'attività, ad esempio per mostrare la foto in una notifica.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'ID dell'attività con la foto. Funziona anche il nome. Il pannello mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID della foto",
+          "description": "L'ID della foto. Il servizio list_tasks lo fornisce nelle foto dell'attività."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Firma l'URL della copia piccola, al massimo 256 pixel sul lato lungo."
+        }
+      }
+    },
     "update_skip": {
       "name": "Aggiorna salto",
       "description": "Modifica i dettagli di un salto registrato, identificato dalla sua marca temporale. Il salto mantiene la data e la pianificazione non viene toccata.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part}: ricambi"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Attività"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Attività in arrivo"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Documento sconosciuto: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Foto sconosciuta: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Solo un'attività collegata a un sensore di utilizzo ha un contatore."
+    },
+    "meter_has_no_reading": {
+      "message": "Il sensore collegato non ha ora una lettura numerica. Indica un valore iniziale nella chiamata."
+    },
+    "archived_completion_not_found": {
+      "message": "L'elettrodomestico non ha un completamento archiviato di {task_id} alle {ts}."
     },
     "unknown_part_file": {
       "message": "Ricambio sconosciuto o nessun file allegato."

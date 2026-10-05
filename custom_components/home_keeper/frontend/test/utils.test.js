@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
+  addedCompletion,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
   DEFAULT_TASK_TAB,
@@ -37,6 +38,8 @@ import {
   navigateTo,
   normalizeIcon,
   notifyRowChip,
+  hkStateSignal,
+  inkFor,
   parseRoute,
   partStockButtonStep,
   partStockStep,
@@ -46,13 +49,18 @@ import {
   recurrenceSummary,
   relativeDay,
   resolveSnoozePreset,
+  snoozePresetForHours,
+  snoozePresetHours,
+  taskSnoozeHours,
   safeFileHref,
   safeHref,
   setBtnWeight,
+  setTimeZone,
   snapStock,
   showsUsageIntervals,
   sortedCompletions,
   statusChipHtml,
+  statusText,
   taskRecordsReading,
   assetForTask,
   assetsForTask,
@@ -60,6 +68,7 @@ import {
   tasksForAsset,
   toast,
   usageIntervalStats,
+  isCompletedOneOff,
 } from '../src/utils.ts';
 import { setLanguage } from '../src/i18n';
 
@@ -261,7 +270,41 @@ describe('recurrenceSummary', () => {
       }),
     ).toBe('Every month after completion');
   });
-  it('shows multi-window season with ampersand', () => {
+  it('F04-4: formats each season boundary in the panel language', () => {
+    const task = {
+      recurrence_type: 'floating', interval: 1, unit: 'months',
+      active_season: [
+        { start: '04-15', end: '10-31' },
+        { start: '02-29', end: '03-01' },
+      ],
+    };
+    setLanguage('de');
+    try {
+      expect(recurrenceSummary(task)).toContain('15. April–31. Oktober');
+      expect(recurrenceSummary(task)).toContain(' und 29. Februar–1. März');
+    } finally {
+      setLanguage('en');
+    }
+    expect(recurrenceSummary(task)).toBe(
+      'Every month after completion, April 15–October 31 and February 29–March 1',
+    );
+  });
+  it('F04-5: puts the usage backstop unit in the singular for an interval of 1', () => {
+    const usage = (interval) => ({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.runtime', mode: 'usage', target: 300, unit: 'h',
+        also_every: { interval, unit: 'months' },
+      },
+    });
+    expect(recurrenceSummary(usage(1))).toBe('Every 300 h of use, or every 1 month');
+    expect(recurrenceSummary(usage(5))).toBe('Every 300 h of use, or every 5 months');
+    const weeks = usage(1);
+    weeks.sensor.also_every.unit = 'weeks';
+    weeks.sensor.combinator = 'all';
+    expect(recurrenceSummary(weeks)).toBe('Every 300 h of use, and every 1 week');
+  });
+  it('shows multi-window season as a list', () => {
     expect(
       recurrenceSummary({
         recurrence_type: 'floating', interval: 1, unit: 'months',
@@ -270,7 +313,7 @@ describe('recurrenceSummary', () => {
           { start: '09-01', end: '10-31' },
         ],
       }),
-    ).toBe('Every month after completion, April 1–May 31 & September 1–October 31');
+    ).toBe('Every month after completion, April 1–May 31 and September 1–October 31');
   });
   it('defaults to daily when freq is missing for a fixed task', () => {
     expect(
@@ -634,6 +677,46 @@ describe('statusChipHtml', () => {
     );
     expect(html).toContain('&quot; onload=&quot;x');
     expect(html).not.toContain('" onload="x');
+  });
+});
+
+describe('statusText', () => {
+  // The plain-text half of the pair `statusChipHtml` wraps in a chip. A tile and a
+  // board card are each one press target, so the status reaches a screen reader
+  // through the card's own label instead of through the pill's colour. The two
+  // read one answer, and this is what holds them to it.
+  const now = new Date('2026-06-13T12:00:00Z');
+  const labelOf = (html) => html.match(/label="([^"]*)"/)[1];
+  const cases = [
+    [
+      'a buy reminder',
+      {
+        recurrence_type: 'one-off',
+        next_due: '2026-06-10T12:00:00Z',
+        source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+      },
+      { now },
+    ],
+    ['an overdue task', { next_due: '2026-06-10T12:00:00Z' }, { now }],
+    ['an overdue task counting days', { next_due: '2026-06-10T12:00:00Z' }, { now, elapsed: true }],
+    ['a plain upcoming task', { next_due: '2026-06-14T12:00:00Z' }, { now }],
+    [
+      'a counted wear item',
+      { recurrence_type: 'use', source: { part: { role: 'use' } } },
+      { now, counted: { count: 17, target: 25, noun: 'wears' } },
+    ],
+  ];
+  for (const [what, task, opts] of cases) {
+    it(`says the same as the chip for ${what}`, () => {
+      expect(statusText(task, undefined, opts)).toBe(labelOf(statusChipHtml(task, undefined, opts)));
+    });
+  }
+
+  it('carries the text unescaped, because an attribute is not where it lands', () => {
+    // The chip escapes for its `label=` attribute. This one is assigned through the
+    // DOM, so escaping it here would show the entities to the reader.
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusText(late, undefined, { now, elapsed: true })).toBe('3 days overdue');
   });
 });
 
@@ -1207,6 +1290,27 @@ describe('assetsForTask / assetForTask', () => {
 });
 
 describe('parseRoute', () => {
+  it('F04-3: keeps a malformed escape as the raw segment instead of throwing', () => {
+    expect(parseRoute('/tasks/%E0')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: '%E0', tab: 'schedule' },
+    });
+    expect(parseRoute('/appliances/50%off/parts/a%')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: '50%off', tab: 'parts', part: 'a%' },
+    });
+    expect(parseRoute('/appliances/x/%E0')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'x', tab: 'parts' },
+    });
+    expect(parseRoute('/tasks/x/%')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'x', tab: 'schedule' },
+    });
+    expect(parseRoute('/settings/%E0')).toEqual({ view: 'settings', detail: null });
+    // A good escape still decodes.
+    expect(parseRoute('/tasks/a%20b').detail.id).toBe('a b');
+  });
   it('defaults empty/unknown paths to the tasks list', () => {
     for (const p of ['', '/', undefined, null, '/bogus']) {
       expect(parseRoute(p)).toEqual({ view: 'tasks', detail: null });
@@ -1792,6 +1896,15 @@ describe('recurrenceSummary sentence case (#262)', () => {
 });
 
 describe('toast', () => {
+  it('carries an action button, such as Undo, when one is given', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    const action = () => {};
+    toast(el, 'Done', { text: 'Undo', action });
+    expect(detail).toEqual({ message: 'Done', action: { text: 'Undo', action } });
+  });
+
   it("emits HA's notification event from the element, escaping the shadow root", () => {
     const el = document.createElement('div');
     const seen = [];
@@ -1860,6 +1973,10 @@ describe('navigateTo', () => {
 
 describe('relativeDay', () => {
   const now = new Date('2026-06-13T12:00:00Z');
+  // Calendar days depend on the zone. Name one, so the result does not depend on the
+  // zone the suite runs in.
+  beforeEach(() => setTimeZone('UTC'));
+  afterEach(() => setTimeZone(undefined));
 
   it('names the recent past in whole days', () => {
     expect(relativeDay(new Date('2026-06-13T09:00:00Z'), now)).toBe('today');
@@ -1875,10 +1992,21 @@ describe('relativeDay', () => {
     expect(relativeDay(new Date('2026-06-20T12:00:00Z'), now)).toBe('today');
   });
 
-  it('rounds to the nearest whole day at the half-day mark', () => {
-    // 1.4 days ago is still "yesterday"; 1.6 rounds up to two.
-    expect(relativeDay(new Date('2026-06-12T02:24:00Z'), now)).toBe('yesterday');
-    expect(relativeDay(new Date('2026-06-11T21:36:00Z'), now)).toBe('2 days ago');
+  it('F04-2: counts calendar days in the HA zone, not rolling 24h windows', () => {
+    setTimeZone('America/Los_Angeles');
+    try {
+      // 08:00 on Sep 30 in Los Angeles. A completion at 23:30 on Sep 29 is yesterday.
+      const morning = new Date('2026-09-30T15:00:00Z');
+      expect(relativeDay(new Date('2026-09-30T06:30:00Z'), morning)).toBe('yesterday');
+      // 20:00 on Sep 30. 07:00 on Sep 29 is yesterday, and 07:00 on Sep 28 is 2 days ago.
+      const evening = new Date('2026-10-01T03:00:00Z');
+      expect(relativeDay(new Date('2026-09-29T14:00:00Z'), evening)).toBe('yesterday');
+      expect(relativeDay(new Date('2026-09-28T14:00:00Z'), evening)).toBe('2 days ago');
+      // 00:30 on Sep 30 is today at 20:00 on Sep 30.
+      expect(relativeDay(new Date('2026-09-30T07:30:00Z'), evening)).toBe('today');
+    } finally {
+      setTimeZone(undefined);
+    }
   });
 
   it('defaults to the real clock when no now is given', () => {
@@ -1944,6 +2072,7 @@ describe('snooze presets', () => {
 
   it('resolves each offset from the given instant', () => {
     expect(resolveSnoozePreset('1h', from)).toEqual(new Date(2026, 7, 30, 10, 0));
+    expect(resolveSnoozePreset('4h', from)).toEqual(new Date(2026, 7, 30, 13, 0));
     expect(resolveSnoozePreset('1d', from)).toEqual(new Date(2026, 7, 31, 9, 0));
     expect(resolveSnoozePreset('1w', from)).toEqual(new Date(2026, 8, 6, 9, 0));
     expect(resolveSnoozePreset('1mo', from)).toEqual(new Date(2026, 8, 30, 9, 0));
@@ -1984,6 +2113,51 @@ describe('snooze presets', () => {
 
   it('ends with custom, so the escape hatch sits last in the dropdown', () => {
     expect(SNOOZE_PRESETS[SNOOZE_PRESETS.length - 1].id).toBe('custom');
+  });
+});
+
+describe('snooze preset hours', () => {
+  it('gives each preset its length in whole hours', () => {
+    expect(snoozePresetHours('1h')).toBe(1);
+    expect(snoozePresetHours('4h')).toBe(4);
+    expect(snoozePresetHours('1d')).toBe(24);
+    expect(snoozePresetHours('1w')).toBe(168);
+    // A month is 30 days, which is what a task stores and a notification applies.
+    expect(snoozePresetHours('1mo')).toBe(720);
+  });
+
+  it('has no length for custom or an unknown id', () => {
+    expect(snoozePresetHours('custom')).toBeNull();
+    expect(snoozePresetHours('1y')).toBeNull();
+  });
+
+  it('finds the preset of an exact length', () => {
+    expect(snoozePresetForHours(1)).toBe('1h');
+    expect(snoozePresetForHours(4)).toBe('4h');
+    expect(snoozePresetForHours(24)).toBe('1d');
+    expect(snoozePresetForHours(168)).toBe('1w');
+    expect(snoozePresetForHours(720)).toBe('1mo');
+  });
+
+  it('finds no preset for a length none of them has', () => {
+    expect(snoozePresetForHours(3)).toBeNull();
+    expect(snoozePresetForHours(0)).toBeNull();
+  });
+});
+
+describe('taskSnoozeHours', () => {
+  it('reads a whole number of hours of 1 or more', () => {
+    expect(taskSnoozeHours({ snooze_hours: 1 })).toBe(1);
+    expect(taskSnoozeHours({ snooze_hours: 720 })).toBe(720);
+  });
+
+  it('reads anything else as no length of its own', () => {
+    for (const snooze_hours of [undefined, null, 0, -4, 1.5, '4', true, NaN]) {
+      expect(taskSnoozeHours({ snooze_hours })).toBeNull();
+    }
+    expect(taskSnoozeHours({})).toBeNull();
+    expect(taskSnoozeHours(null)).toBeNull();
+    expect(taskSnoozeHours(undefined)).toBeNull();
   });
 });
 
@@ -2115,12 +2289,44 @@ describe('notifyRowChip', () => {
     expect(notifyRowChip('not-an-icon', '#e53935')).toBe('');
   });
 
-  it('falls back to a theme color rather than an unusable one', () => {
+  it('falls back to theme colors rather than an unusable one', () => {
     for (const bad of ['', null, 'red', '#fff', 'red;background:url(x)']) {
       const html = notifyRowChip('mdi:pill', bad);
-      expect(html).toContain('background:var(--secondary-text-color)');
+      expect(html).toContain(
+        'style="background:var(--secondary-background-color);color:var(--primary-text-color)"',
+      );
       expect(html).not.toContain('url(');
     }
+  });
+
+  it('X11-6: accepts only a whole #rrggbb value as the fill', () => {
+    for (const bad of ['#e53935;x', 'x#e53935', '#e53935ff']) {
+      expect(notifyRowChip('mdi:pill', bad)).toContain('background:var(--secondary-background-color)');
+    }
+  });
+
+  it('X11-6: draws the glyph in the ink that reads on the fill', () => {
+    expect(notifyRowChip('mdi:pill', '#ffffff')).toContain('style="background:#ffffff;color:#000"');
+    expect(notifyRowChip('mdi:pill', '#FFEB3B')).toContain('color:#000');
+    expect(notifyRowChip('mdi:pill', '#000000')).toContain('color:#fff');
+    // A mid red reads better with black (4.97:1) than with white (4.23:1).
+    expect(notifyRowChip('mdi:pill', '#e53935')).toContain('color:#000');
+    expect(notifyRowChip('mdi:pill', '#283593')).toContain('color:#fff');
+  });
+
+  it('X11-6: inkFor picks the higher contrast at each side of the crossover', () => {
+    // Each channel weight and the sRGB curve count: a pure channel at full strength.
+    expect(inkFor('#00ff00')).toBe('#000'); // L 0.715
+    expect(inkFor('#ff0000')).toBe('#000'); // L 0.213
+    expect(inkFor('#0000ff')).toBe('#fff'); // L 0.072
+    // Greys either side of L = 0.179: #757575 is 0.178, #767676 is 0.181.
+    expect(inkFor('#757575')).toBe('#fff');
+    expect(inkFor('#767676')).toBe('#000');
+    // The linear segment of the sRGB curve: #0a0a0a is 0.003.
+    expect(inkFor('#0a0a0a')).toBe('#fff');
+    // A pale fill that is light only in one channel.
+    expect(inkFor('#ff00ff')).toBe('#000'); // L 0.285
+    expect(inkFor('#a000a0')).toBe('#fff'); // L 0.105
   });
 
   it('never lets a stored value reach the markup unchecked', () => {
@@ -2154,5 +2360,75 @@ describe('decimalMark', () => {
   it('answers the same twice', () => {
     expect(decimalMark('fr')).toBe(',');
     expect(decimalMark('fr')).toBe(',');
+  });
+});
+
+describe('hkStateSignal (X12-7)', () => {
+  it('counts the Home Keeper entities and keeps the newest stamp', () => {
+    expect(hkStateSignal(undefined)).toBe('');
+    expect(hkStateSignal({})).toBe('0:0');
+    const states = {
+      'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:00Z' },
+      'calendar.home_keeper_upcoming_tasks': { last_updated: '2026-10-01T09:00:00Z' },
+      'sensor.kitchen_temp': { last_updated: '2026-10-01T11:00:00Z' },
+    };
+    expect(hkStateSignal(states)).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
+  });
+
+  it('changes when a stamp moves, an entity comes or goes, and not otherwise', () => {
+    const a = { 'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:00Z' } };
+    const sig = hkStateSignal(a);
+    expect(hkStateSignal({ ...a, 'light.hall': { last_updated: '2030-01-01T00:00:00Z' } })).toBe(sig);
+    expect(
+      hkStateSignal({ 'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:01Z' } }),
+    ).not.toBe(sig);
+    expect(
+      hkStateSignal({ ...a, 'sensor.home_keeper_x': { last_updated: '2026-01-01T00:00:00Z' } }),
+    ).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
+    // A missing or bad stamp counts the entity but moves no stamp.
+    expect(hkStateSignal({ 'todo.home_keeper_tasks': {} })).toBe('1:0');
+  });
+});
+
+describe('isCompletedOneOff', () => {
+  const done = { recurrence_type: 'one-off', next_due: null, last_completed: '2026-06-16T14:30:00Z' };
+
+  it('holds for a one-off with a completion and no next due date', () => {
+    expect(isCompletedOneOff(done)).toBe(true);
+  });
+
+  it('fails when any of the 3 conditions fails', () => {
+    expect(isCompletedOneOff({ ...done, recurrence_type: 'floating' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, next_due: '2026-11-01T10:00:00Z' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: null })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: '' })).toBe(false);
+  });
+});
+
+describe('addedCompletion', () => {
+  const c = (ts) => ({ ts });
+  it('is the one new completion', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a'), c('2026-01-02T00:00:00Z')] })).toEqual(
+      c('2026-01-02T00:00:00Z'),
+    );
+  });
+  it('is the new last_completed when more than one is new', () => {
+    const done = {
+      completions: [c('2026-01-03T00:00:00Z'), c('2026-01-02T00:00:00Z')],
+      last_completed: '2026-01-02T00:00:00Z',
+    };
+    expect(addedCompletion(new Set(), done)).toEqual(c('2026-01-02T00:00:00Z'));
+  });
+  it('is the newest new one when last_completed is not new', () => {
+    const done = {
+      completions: [c('old'), c('2026-01-02T00:00:00Z'), c('2026-01-03T00:00:00Z'), c('2026-01-01T00:00:00Z')],
+      last_completed: 'old',
+    };
+    expect(addedCompletion(new Set(['old']), done)).toEqual(c('2026-01-03T00:00:00Z'));
+  });
+  it('is undefined when nothing is new', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a')] })).toBeUndefined();
+    expect(addedCompletion(new Set(), null)).toBeUndefined();
+    expect(addedCompletion(new Set(), {})).toBeUndefined();
   });
 });

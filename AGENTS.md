@@ -1,771 +1,146 @@
+---
+title: Agent guide
+summary: The hard gates every agent must follow in Home Keeper, and an index of the rules and design docs.
+---
+
 # AGENTS.md — Home Keeper
 
-## Workflow
+Home Keeper is a Home Assistant integration (domain `home_keeper`) for home maintenance.
+This page lists the hard gates. The detail is in the rules files below. Read the file for
+your topic before you change code or push.
 
-- **All English text follows ASD-STE100 Simplified Technical English.** This
-  includes documentation, user-facing strings, code comments, PR text, and replies to
-  the maintainer. Keep text brief. Use short sentences, the active voice, one approved
-  name per thing, and no idiom. The full rules and the project glossary are in
-  `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
-- **Never push directly to main.** Always use a feature branch and open a PR.
-- **Every check must be green before a merge, and approval on top of that.** No
-  exceptions and no "that one is unrelated": a failure the change did not cause is
-  still the change's to clear, so fix it, or land the fix first and merge it in.
-  Never merge on a red run, and never on one still going.
-- **A check that reports success is not proof the thing it checks passed.** A step
-  carrying `continue-on-error` reports green whatever happens, so read what it
-  produced as well as its colour — the walkthrough's sticky comment, the coverage
-  comment, the preview links. The walkthrough tour sat broken across several PRs
-  exactly this way: every check green, every capture failing. When a soft gate can
-  hide a real failure, **make it a hard gate** rather than learning to read past it.
-- **Always squash merge PRs.**
-- **CHANGELOG.md** — update for every user-facing change before tagging a release.
-  Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
-- **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
-  change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
-  That is the whole budget. Cut the worked example ("your odometer reads 48,000…"),
-  the before-and-after story, the list of every surface the new value shows up on, and
-  the inventory of new service fields and entity attributes — those read as release
-  notes written for the person who wrote the code. Detail belongs in `README.md`,
-  `docs/`, or the PR body; the changelog says what changed and stops. One bullet per
-  change, never a second paragraph. Three sentences is the budget for the **whole
-  bullet**, counting the bold lead as the first — not three per paragraph, and not three
-  on top of the lead. `(Fixes #N)` must land in the bullet's **first**
-  paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
-- **The bold lead is a label, not a sentence.** It names the thing that changed in a
-  short noun phrase and stops: `**Declarative companions.**`, `**Snooze and skip.**`,
-  `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead that opens
-  `Home Keeper can now…`, `A user can now…`, `The panel now…`, or `Give a task…` is
-  narrating, not labelling — cut it back to the noun and let the *second* sentence say
-  what a user notices. This is the single easiest bullet to get wrong, because a
-  narrative lead reads fine in isolation and only looks bloated next to its neighbours.
-  It also matters downstream: `summarize()` in `ci/release-issues.py` quotes the
-  **whole bullet** into the comment an issue reporter gets, and the lead is the first
-  thing the reporter reads, so it has to work as a standalone headline.
-  - **Write the lead as a heading, so drop the articles and prepositions.**
-    `**Seasonal tasks.**`, not `**Seasons on a task.**`. `**Declarative companion
-    presets.**`, not `**Presets for a declarative companion.**`. The "do not omit
-    articles" rule in `writing-style.md` governs *sentences*; a bold lead is a heading,
-    and headings are noun phrases. If a lead still has "a", "the", "of", "on", or "for"
-    in it, try again.
-- **The bullet says what a user gets, not how the feature works.** One bullet is a
-  headline plus at most 2 short sentences of what a user notices. Do not narrate the
-  mechanism: which buttons the feature hides or shows, what it rewrites internally,
-  which surfaces it touches, or which fields it added. `**Declarative companions.**
-  Define a pattern over existing entities to create tasks automatically.` is the whole
-  bullet — that its task shows Edit companion rather than Duplicate,
-  and that Home Keeper rewrites the task on each run, are `README.md` facts. When a
-  feature is big enough that trimming it loses something real, **split it into 2
-  bullets** rather than growing one: declarative companions and their shipped presets
-  are 2 entries, not 1 entry with a clause.
-- **A stable release's `## [X.Y.Z]` notes describe what changed since the last
-  _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
-  line, write the section for someone upgrading from the previous stable version and
-  roll the beta work into Added/Changed/Fixed as they'd perceive it. A feature
-  introduced over the betas is **Added** (even if a later beta changed how it worked
-  mid-stream); don't carry beta-to-beta framing — e.g. a `### Changed` for something
-  that didn't exist in the last stable — into the stable section. **Include a `###
-  Fixed` section listing every GitHub issue fixed by commits since the last stable**
-  — check the git log for `(Fixes #N)` references and write each one into the section
-  as `(Fixes #N)`.
-- **A `(Fixes #N)` in a version's CHANGELOG section is what notifies and closes the
-  issue.** `release.yml`'s `notify-issues` job reads the shipped version's section,
-  comments on every issue it references, and closes it once the version is stable. An
-  issue left out of the section is never told and never closes, so the section is the
-  release's issue list, not decoration. Only closing keywords count — write
-  `(Fixes #N)`; `(Related to #161)` and a bare `(#N)` are deliberately ignored,
-  because `(#N)` is also the squash-merge PR number and the two can't be told apart.
-  The job posts a CI warning naming any issue a shipped commit referenced that the
-  section forgot.
-- **A feature bullet's bold lead links its documentation.** Every `### Added` bullet
-  writes the lead as a Markdown link to the page that documents the feature, e.g.
-  `**[Import and export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**`.
-  A link costs nothing against the three-sentence budget, and `summarize()` in
-  `ci/release-issues.py` quotes the bullet into the issue reporter's comment, so
-  the reporter gets a working link to the docs as well. Use the absolute site URL,
-  because the bullet is read on GitHub and in a release body, never only in the
-  repository. A user-guide page is `https://prestomation.github.io/ha-home-keeper/docs/guide/<slug>`
-  — the slug is the section's `USER_SECTIONS` entry in `website/scripts/doc-map.mjs`
-  — and a deeper anchor is that page plus the heading slug. Link the nearest page that
-  says what the feature does, not the repository README and not a `docs/*_PLAN.md`.
-  A `### Fixed` or `### Changed` bullet may link the same way when a page covers it,
-  and does not have to. **A link to a page the release itself adds resolves only when a
-  _stable_ ships**, because `deploy-docs` in `release.yml` is gated on
-  `prerelease == 'false'` and a beta never republishes the site. Write the link in the
-  feature PR anyway, since that is when the author knows which page documents the
-  feature and the stable cut rolls the bullet up unchanged — but the bullet ships first
-  in a `## [X.Y.ZbN]` section whose link 404s for beta testers until the stable
-  publishes. That is the cost of pinning the site to the latest stable, not an
-  oversight. Prefer an existing page when one already covers the feature, and check the
-  shape of a URL that is already live, because nothing validates these links and a typo
-  404s forever. Put the bold **outside** the
-  link, `**[Text](url).**`, never `[**Text**](url)`, so every lead has the same shape.
-- **Credit an outside contributor in the bullet for their change.** End the bullet
-  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
-  not count against the three-sentence budget. An outside contributor is anyone
-  without write access to the repository when the PR opens. Their change gets a
-  credit in the same PR that writes the bullet. If a maintainer and a contributor
-  share the work, the contributor gets the credit. `summarize()` in
-  `ci/release-issues.py` quotes the whole bullet but removes the `(Thanks @user!)`
-  credit. The credit stays in the CHANGELOG. It does not reach the issue comment,
-  and it does not notify the contributor on each release.
-- **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
-  for this repository, so the keyword links the PR to the issue — that's what fills in
-  the issue's **Development** panel and its linked-pull-request relationship — without
-  closing anything. The issue stays open until the fix actually reaches users, and
-  `notify-issues` closes it on the release that carries it, so the reporter's "closed"
-  notification names a version they can install.
-- **Beta versioning — always use the next release number.** After every stable
-  `X.Y.0` ships, immediately bump `manifest.json` and `const.py` (`PANEL_VERSION`)
-  to `X.(Y+1).0b1` on `main`, and rename the `## [Unreleased]` CHANGELOG section to
-  `## [X.(Y+1).0b1]`. Beta iterations go `b1 → b2 → …` until the stable
-  `X.(Y+1).0` is cut. **Never use `X.Y.0bN` after `X.Y.0` has shipped** — PEP 440
-  sorts those below the stable version, so HACS would offer the stable as an
-  "upgrade" to anyone on the beta, which feels like a downgrade.
-- **Always cut a beta release for a new feature.** A PR that adds a user-facing
-  feature must bump to the next beta in the same change — `manifest.json` +
-  `const.py` (`PANEL_VERSION`) to the next `bN`, with a matching `## [X.Y.0bN]`
-  CHANGELOG section — so the work ships to beta testers via HACS rather than waiting
-  on the floor. (If the current top CHANGELOG section is an already-released beta,
-  open the next `bN`; if it's an unreleased beta still being iterated, fold the
-  feature into it.) Bug-fix-only / developer-only PRs don't need a fresh beta.
-- **Always add the `preview-release` label to a new-feature PR.** As soon as the PR
-  is open, apply the `preview-release` label so `preview-release.yml` publishes an
-  installable ephemeral pre-release (`X.Y.Z.dev<pr>`) from the PR head — testers can
-  try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
-  when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
-  developer-only PRs don't need it.
-- **Know which text a user reads, and hold it to the house rules.** `CHANGELOG.md`
-  bullets, `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
-  descriptions and the frontend locale are all read by users, so each one has to
-  satisfy the STE100 rules in `.amazonq/rules/writing-style.md`, the three-sentence
-  CHANGELOG budget, the `(Fixes #N)` placement, the strict ban on mannered prose, and
-  the vale AI-tells style. Read the
-  surrounding section for voice before you add to it. Commit messages, PR bodies and
-  code comments are *not* user-facing text and are not held to this.
-- **A plan starts with the CHANGELOG entry it will ship.** Write the proposed bullet
-  first, at the top of the plan, before the design and the file list. One bullet is the
-  whole change in 3 sentences, so a bullet that will not come out cleanly is telling you
-  the scope is wrong, not that the budget is too small. The text in the plan is a draft:
-  the shipped bullet is still redrafted by the subagent above.
-- **A UI change with a subjective visual choice starts with an artifact.** When there is
-  more than one reasonable way to draw a change — where a summary sits, how loud a value
-  reads, which block a figure belongs in — publish an artifact that mocks up the options
-  and agree on one before you write the plan. Draw them in the panel's own tokens, at
-  desktop **and** phone width, with the real markup rather than a sketch, so the choice is
-  made against what will ship. A change with one obvious rendering does not need this.
-- **Always run tests locally before pushing.** Never use CI as the test runner.
-  - Pure-logic unit tests need only
-    `pip install pytest python-dateutil PyYAML Babel hypothesis jsonschema`:
-    `pytest tests/unit -v`. `python-dateutil` is a runtime requirement of the
-    schedule engine, so every lane needs it.
-    Each of the last 4 covers one group of tests and each one skips cleanly on its own:
-    `PyYAML` for the API-surface gate (which reads `services.yaml`) and for the
-    import/export document, which `transfer.py` writes and reads; `Babel` for the
-    locale checks; `hypothesis` for the property-based tests below; `jsonschema` for
-    the published-schema gate.
-  - **A missing dependency fails the run; it never skips it.** Every package
-    `requirements-test.txt` names is imported plainly, so a missing one is an
-    ImportError at collection. A skip reads as "this lane does not cover that", so a
-    broken environment looked the same as a deliberate exclusion: #309 shipped red
-    with `hypothesis` missing and two files silent. `importorskip` stays for
-    `homeassistant` and `voluptuous`, which a bare install really does not have.
-    `test_generate_schema.py` imports `jsonschema` and `voluptuous_openapi` plainly
-    too, after its `HK_SCHEMA_GATE` skip: the gate says the lane opted in.
-  - **The published-schema gate runs only where `HK_SCHEMA_GATE` is set**, which is
-    `lint.yml`'s **mypy** job. `tests/unit/test_generate_schema.py` builds the schema
-    from the integration's own voluptuous service schemas, so it needs a Home Assistant
-    new enough to import the integration — and "is Home Assistant importable?" is the
-    wrong question. `ci/install-deps.sh` installs
-    `pytest-homeassistant-custom-component`, so it *is* importable in the unit lane, on
-    whatever release pip backtracked to for that job's Python; `LOVELACE_DATA` was gone
-    from it and the gate failed for a reason that had nothing to do with the schema.
-    That is the #199 trap in a new place, so the opt-in is explicit and the mypy job
-    greps the output to prove the tests really ran rather than skipped. Run it locally
-    the same way: `pip install homeassistant voluptuous-openapi jsonschema` on a Python
-    at or above HA's floor, then
-    `HK_SCHEMA_GATE=1 pytest tests/unit/test_generate_schema.py`.
-  - **Neither `jsonschema` nor `voluptuous-openapi` is in `requirements-test.txt`.**
-    `voluptuous-openapi` pulls `voluptuous` in, and `voluptuous` is what decides
-    whether `test_config_flow.py` and its neighbours skip — installing it for every
-    lane silently changes what the suite covers. `ci/install-schema-deps.sh` installs
-    both in the one job that needs them, under Home Assistant's own
-    `package_constraints.txt`, because which `voluptuous-openapi` works is Home
-    Assistant's choice rather than ours.
-  - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
-- **Property-based tests state an invariant and let the machine pick the inputs.**
-  They live in `tests/unit/test_recurrence_properties.py` and
-  `tests/unit/test_transfer_properties.py`, share `tests/unit/property_strategies.py`,
-  and carry the `property` marker, so `pytest tests/unit -m property` runs only them.
-  Write one when the claim is about a whole domain ("the fast path always agrees with
-  the slow one") rather than about a case ("Jan 31 plus a month is Feb 28"). A case is
-  still better said as an ordinary test.
-  - **Build inputs through the real builders.** A strategy calls `models.build_task` or
-    `assets.build_asset`. A hand-rolled dict is a second description of what a task is,
-    free to drift from the first one.
-  - **A property must hold for every input it can draw, or be scoped until it does.**
-    Widening an assertion to swallow a failure turns a found defect into a hidden one.
-    When the failure is real, scope the generator, then pin the defect with
-    `xfail(strict=True)` and a `@example` carrying the reproducer, so it cannot start
-    passing unnoticed. `test_r4b` is the worked example.
-  - **`HK_HYPOTHESIS_PROFILE` picks the settings**: `dev` (default) shrinks and
-    remembers; `ci` derandomizes so a red run is a real defect and not an unlucky seed;
-    `mutmut` drops the shrink phase. `ci/test-python-unit.sh` and
-    `ci/test-mutation-python.sh` export the right one. `.hypothesis/` is gitignored and
-    is never cached in CI: a gate whose result depends on which branch last filled a
-    cache is not a gate.
-  - **Property tests are scored by the mutation gate, not deselected from it.** They
-    kill mutants the example-based tests leave alive, and the shrink-free profile is
-    what keeps that inside the 45-minute budget. Each property names the mutant it
-    kills, and that claim is checked by mutating the line and watching it go red.
-- **Mutation testing gates every PR** at an 80% mutation score on the code the PR
-  changed — see "Mutation testing" below. It is too slow for the
-  run-before-you-push loop; run it when you touch the mutable surface.
-- **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
-  the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) Vale style (pinned in
-  `.vale.ini`) over `README.md`, `CHANGELOG.md`, `docs/guide/**/*.md`, the canonical `docs/*.md` (not the
-  scratch `*_PLAN.md`/research docs), `website/docs/intro.md`, `strings.json`,
-  `services.yaml`, and the English frontend locale (`locales/en.json`), catching
-  things like "delve", "it's important to note", em-dash overuse, and other
-  AI-writing tells. **It's diff-scoped** (`filter_mode: added`): only lines your PR
-  touches are checked, so it's a real gate on new prose without failing on the
-  existing backlog. Run it locally with `vale sync && vale <paths>` (Vale CLI from
-  [github.com/errata-ai/vale releases](https://github.com/errata-ai/vale/releases)).
-  For an accepted false positive, either disable the rule for that file in
-  `.vale.ini` (`ai-tells.RuleName = NO`) or wrap the exception inline with
-  `<!-- vale ai-tells.RuleName = NO -->` / `<!-- vale ai-tells.RuleName = YES -->`.
-  **A clean local `vale` run is not proof CI is clean.** The `vale-action` in `lint.yml`
-  pins its own binary, and a locally-installed one can miss hits it reports:
-  `ai-tells.VerbTricolon` fired on a rewritten CHANGELOG bullet in CI while local Vale
-  3.9.1 found nothing in the whole file. When a run matters, check the rule's own regexes
-  against the text directly (`styles/ai-tells/<Rule>.yml` is plain YAML `tokens`). Match
-  Vale's scope when you do: the rules apply per **block**, so a list item and all its
-  continuation lines are one string, and patterns like `[^,]+` happily span sentence
-  boundaries — a "three items in series" rule can fire across two sentences of one
-  bullet. In practice keep at most one comma in a bullet after a modal (`can`, `could`,
-  `will`) or a pronoun (`you`, `we`, `they`); a second one is usually what trips it.
-  Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
-  prose (not just a small edit) can surface pre-existing hits on lines that just
-  moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
-  catch those ahead of CI. **A one-line edit is enough to do this**, because the
-  rules apply per *block*: adding a clause to the first sentence of a paragraph puts
-  the whole paragraph in scope, and a rule like `StackedAnaphora` then reports
-  against a sentence further down that you never touched. A local check that keeps
-  only hits whose line number you added will filter that hit out and tell you the
-  branch is clean — #272 shipped a red `vale` that way. Compare the *set* of hits in
-  each file you edited against `origin/main` instead, or just read the whole
-  paragraph you touched. There's no automated version-bump for the pinned
-  `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
-  GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
-  full-corpus cleanup pass.
-- **Every PR that touches the panel UI MUST include screenshots — no exceptions,
-  and every changed surface needs BOTH a desktop shot and a phone shot.**
-  This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
-  body embeds current screenshots of the changed surface at both widths. One
-  desktop shot is not enough. Below 700px the panel is a different layout — the
-  tabs move to the bottom, Add floats, the filter segment comes apart into wrapping
-  chips, a control gets a row to itself, and a row stacks — so a desktop-only shot
-  documents none of what a phone user sees, and a control that overflows or loses
-  its tap target there is invisible to review. Capture the phone shot in the same
-  run: `screenshots.capture.ts` ends with a `page.setViewportSize(PHONE)` block
-  (`PHONE` from `viewports.ts`) that photographs the phone layout, and a new
-  surface adds a step to that block as well as to the desktop walk. Name the pair
-  so they sort together, with the phone one carrying a `-mobile-` segment, e.g.
-  `57-panel-task-search.png` and `57c-panel-mobile-task-search.png`. The capture
-  harness is
-  `tests/e2e/screenshots.capture.ts` (the test) driven by `screenshots.config.ts`
-  (the config — **pass this one to `--config`**, not the test file itself).
-  Step-by-step:
-  ```bash
-  # 1. Start HA and leave it running (from repo root)
-  KEEP_UP=1 bash ci/e2e-up.sh
+## Where the rules are
 
-  # 2. Run the capture — from tests/e2e/
-  cd tests/e2e
-  SHOT_DIR=../../docs/images \
-    npx playwright test --config=screenshots.config.ts
-  ```
-  **In the Claude Code remote environment `npx playwright install chromium` fails**
-  (the CDN is blocked by the proxy). Chromium is pre-installed at
-  `/opt/pw-browsers/`. Set `CHROMIUM_EXEC` to use it — `playwright.config.ts`
-  already wires it up:
-  ```bash
-  CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
-    SHOT_DIR=../../docs/images \
-    npx playwright test --config=screenshots.config.ts
-  ```
-  **`CHROMIUM_EXEC` is not the browser CI runs.** `e2e.yml` does `npx playwright install
-  chromium` with no override, so CI drives Playwright's **headless shell**, while
-  `/opt/pw-browsers/chromium-*` is an older full Chromium that enforces different
-  browser policy. A spec can pass here and fail on CI purely because of that —
-  `card-registration.spec.ts` did, three times. Before trusting a green e2e run on a spec
-  that touches browser plumbing (interception, service workers, storage), re-run it with
-  `CHROMIUM_EXEC` unset: `cd tests/e2e && CI=true npx playwright test <spec>`.
-  Commit PNG(s) under `docs/images/`, and embed them in the PR via a
-  `raw.githubusercontent.com/<owner>/<repo>/<commit-sha>/docs/images/<file>.png`
-  URL pinned to the commit that added them. When a change adds a new UI surface,
-  add a capture step for it to the capture script in the same PR.
-  - **Embed PR-body screenshots with an HTML `<img src="…" alt="…" width="820">`
-    tag, not markdown `![](…)`.** The `update_pull_request` path can silently wrap a
-    markdown image URL in double backticks (a code span), breaking the image — and it
-    may hit only some of several identical-looking lines. HTML `<img>` avoids markdown
-    link parsing. Keep the SHA-pinned `src` (branch names have slashes and are
-    ambiguous for `raw.githubusercontent.com`). After editing the body, re-read it to
-    confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
-    README/docs markdown with relative `docs/images/…` paths is fine — this only bites
-    PR/issue bodies set through the API.)
-    **An HTML `<img>` is not immune either, and the trigger is a character-entity
-    reference in an attribute value.** On #272 the one `<img>` whose `alt` contained
-    `&#39;` came back backtick-wrapped and fully entity-escaped, three submissions
-    running, while its two neighbours — identical but for that entity — went through
-    untouched. Write attribute text with no entities at all: reword around the
-    apostrophe rather than escaping it. Wrapping the tag in `<p>` does not help.
-    **An entity is not the only trigger — the `src` filename can be one, and then
-    only renaming the file clears it.** On #298 the `<img>` for
-    `21f-panel-declarative-recipe-from-task.png` came back backtick-wrapped on
-    `create_pull_request` and on two `update_pull_request` calls, while its neighbour
-    `21e-panel-declarative-task-detail.png` — same tag shape, same alt style, no
-    entities in either — went through clean every time. Reordering the attributes
-    made it worse (the `>` came back as `&gt;` too), and swapping the two images
-    proved the mangling follows the *file*, not the position. Renaming the capture's
-    output to `21f-panel-declarative-recipe-dialog.png` fixed it on the first try. So
-    when re-submitting an unchanged body twice does not clear a mangled `<img>`,
-    rename the PNG in the capture script and re-shoot rather than rewriting the tag.
-  - **Always visually inspect every captured screenshot before committing it.** Read
-    the PNG file with the Read tool and look at the rendered image. Confirm the
-    changed surface is visible and correct — dialogs show their heading and buttons,
-    lists are populated, no blank or clipped content. If a screenshot looks wrong
-    (empty dialog, missing elements, `position:fixed` overlay not visible in a
-    fullPage capture), diagnose the root cause and fix it before committing. Do not
-    commit screenshots that don't clearly show the intended UI state.
-  - **A screenshot is documentation, not verification — capturing a surface is not
-    covering it.** `docs/images/4-usage-todo-and-calendar.png` showed #221 in plain
-    sight for months: stale to-do items sitting beside panel columns that marked those
-    same tasks Completed. Nothing failed, because no test asserted on that card's
-    contents. When a capture adds a surface, make sure something in `tests/e2e/tests/`
-    asserts on it too.
-- **Every PR that adds a _new user-facing UI feature_ MUST keep the video walkthrough
-  current — but you don't capture or commit it; CI does.** Screenshots prove a surface
-  renders; a video proves the *interaction* works (the flow, the transitions, the
-  motion). The walkthrough is a **CI build artifact, never committed**: on every PR,
-  `walkthrough-preview.yml` stands up the seeded HA container, runs the capture
-  harness, transcodes to gif+mp4, publishes them to the `gh-pages`
-  `pr-preview-media/pr-<n>/` umbrella (served by GitHub Pages), and posts/updates a
-  **sticky PR comment** embedding the gif (with an mp4 link). Nothing lands in
-  `docs/videos/` in git — that directory is gitignored — so there's zero repo bloat,
-  and the comment always reflects the PR's HEAD.
-  - **The gate for a feature PR is: the walkthrough comment renders the new surface.**
-    Since the tour is generated, "keeping it current" means **editing the tour**, not
-    capturing a file: when a feature adds a brand-new UI surface, extend
-    `tests/e2e/walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so
-    the motion reads well) **in the same PR**, then confirm the regenerated comment
-    shows it. (Pure bug-fix / styling / copy PRs don't need to touch the tour.)
-  - **Adding a beat means re-measuring the tour's budget.** The desktop walk is a
-    fixed sequence of pauses, so its wall clock only ever grows, and `timeout` in
-    `tests/e2e/walkthrough.config.ts` is what bounds it. No single PR broke this:
-    6 feature PRs edited the tour after #298 measured it (search +4 beats, notification
-    icons +3, import/export +14, due today +4, counted wear +7, guide split +0), each
-    correctly adding the beats its surface needed, and none moved the number. 32 beats
-    is ~29s, the margin fell from ~40% to ~15%, and the tour went red on a change that
-    touched no panel code. Measure with
-    `npx playwright test --config=walkthrough.config.ts --timeout=600000
-    --reporter=list` and read the duration it *reports*, never the cap it died at,
-    then set the budget to that plus ~40%. A timeout here means suspect the margin
-    first. The cap now sits at 360s, which `walkthrough.config.ts` records as the last
-    raise that is free: at 3 attempts of 6 minutes the job's own 30-minute cap is the
-    next thing to give, so the next tour that outgrows its budget is paid for by
-    shortening the walk, not by another number.
-  - **Capture is a _hard_ gate.** A failed capture fails the check, so the PR does
-    not merge until the tour runs clean. A flaky run still posts a "capture failed"
-    note with a logs link and pushing again re-runs it, but the red check is what
-    stops it being ignored. Debug the tour locally (below) rather than re-pushing and
-    hoping, and never hand-commit a video to work around it.
-  - **Run it locally to debug the tour** (the harness still works standalone). From the
-    repo root, with ffmpeg on PATH:
-    ```bash
-    KEEP_UP=1 bash ci/e2e-up.sh        # build panel + start HA
-    # In the Claude Code remote env, point Playwright at the pre-installed Chromium:
-    CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1) \
-      bash ci/capture-video.sh         # writes gif/mp4 to docs/videos/ (gitignored)
-    ```
-    Open the resulting `docs/videos/walkthrough.gif` with the Read tool and confirm the
-    tour shows the intended surfaces — populated lists, the feature's flow, no
-    blank/stuck frames — before relying on CI to publish it.
-  - **Why a comment and not the PR/README body:** GitHub's issue/PR-body sanitizer
-    *strips* a committed-file HTML `video` tag entirely, and committing the gif bloats
-    git history with multi-MB binaries that never delta-compress. Hosting the gif on
-    Pages and embedding it via the comment keeps motion visible while leaving `main`
-    clean. (The only path that inline-*plays* an mp4 is a drag-and-drop
-    `user-attachments` upload, which CI can't produce — so the gif still carries the
-    motion and the mp4 is a link.)
-- **Always document new major features in `docs/guide/` in the same change.** Add a
-  section to the page that covers the feature, or a new page, with the **use cases**
-  (what problem it solves) and a little about **how it's used**, and include
-  **screenshot(s)** (same Playwright capture, committed under `docs/images/`, embedded
-  with a relative `../../images/…` path). A new page also needs a `USER_SECTIONS`
-  entry in `website/scripts/doc-map.mjs`, or the site build fails. A headline feature
-  isn't done until the User Guide shows it. **`README.md` is not the place for it** —
-  it is the repository front page (what Home Keeper is, user quotes, installation, a
-  link to the site) and it stays short. (The moving walkthrough is **not** committed
-  anywhere — it's the per-PR CI comment described above; the guide stays on committed
-  screenshots.)
-- **Plans and PRs must list one-way doors.** A one-way door is a design choice
-  that is hard to reverse once users depend on it: the name, shape, or format of
-  a field in a service call, an event payload, storage, an entity attribute, or
-  any other external contract. When a feature introduces or changes one, the plan
-  must call it out before implementation starts, and the PR body must include a
-  **One-way doors** section listing every committed surface — field name, format,
-  where it appears (service input, event, storage, attribute), and what users or
-  automations will rely on. This makes the review focus on what is expensive to
-  change later rather than what is easy to fix. Internal-only shapes (frontend
-  form data, private helpers) are not one-way doors.
-- **Always request an Amazon Q (Cue) review after every push and when opening a
-  PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
-  of the form `/q review {request}`. Cue gives better results when explicitly
-  asked for *critical, skeptical* feedback, so tailor the `{request}` to the
-  change and name the topics you want scrutinized — e.g. **correctness** (edge
-  cases, timezone/DST, off-by-one, error paths), **maintainability** (module
-  boundaries, naming, duplication, readability), **performance** (hot paths,
-  redundant work, N+1 / full reloads), **security**, and **HA best practices**.
-  Ask it to surface the most serious issues first and not to withhold minor ones.
-  Then triage its findings as usual (fix the valid ones; push back, with
-  reasoning, on false positives).
-- **Never comment on a GitHub issue.** Issues are where users talk to the
-  maintainer, and an agent posting there answers on the maintainer's behalf to
-  someone who didn't ask for it. Findings, analysis and status belong in the PR
-  that carries the work, or in the reply to whoever asked. A PR that fixes an
-  issue links it (`Fixes #N`) and the release that ships it closes it, which is the
-  only signal an issue needs. This does **not** restrict PR comments: the `/q review`
-  request above and replies to review threads are still required.
-  - The ban is on **you** posting. It does not cover repo automation, which posts
-    from a fixed template as the mechanical consequence of an event nobody has to
-    interpret: `release.yml`'s `notify-issues` job (a release shipped the fix) and
-    `ha-beta.yml`'s regression reporter (the nightly went red). Adding a comment to
-    an issue by hand, or by asking an agent to, is still off-limits — if something
-    needs saying there, the maintainer says it.
+| Topic | File |
+|---|---|
+| Writing style (STE100) and glossary | [writing-style.md](.amazonq/rules/writing-style.md) |
+| Branches, reviews, screenshots, walkthrough, user docs | [pr-workflow.md](.amazonq/rules/pr-workflow.md) |
+| CHANGELOG, betas, releases, issues | [changelog-and-release.md](.amazonq/rules/changelog-and-release.md) |
+| Test tiers, test rules, e2e, translations | [testing.md](.amazonq/rules/testing.md) |
+| CI, mutation gate, typing, HA versions, vale, presets | [ci-and-ha-versions.md](.amazonq/rules/ci-and-ha-versions.md) |
+| Admin and usage, privilege, pure core, entities, options, i18n | [architecture.md](.amazonq/rules/architecture.md) |
+| Services, websocket commands, events, API surface | [services-and-events.md](.amazonq/rules/services-and-events.md) |
+| Tasks, sensors, completions, appliances, syncs, import | [data-and-storage.md](.amazonq/rules/data-and-storage.md) |
+| Panel and card | [frontend.md](.amazonq/rules/frontend.md) |
+| Dev docs, design docs, `ci/docs.py` | [dev-docs.md](.amazonq/rules/dev-docs.md) |
+| How each subsystem works | [docs/design/](docs/design/architecture.md#design-doc-index) |
+| Release steps | [RELEASE.md](RELEASE.md) |
+| Ideas that are not built | [IDEAS.md](IDEAS.md) |
 
-## Conventions live in `.amazonq/rules/` — keep them current
+## Project in brief
 
-Project conventions and opinionated development decisions are recorded as Amazon Q
-project rules under [`.amazonq/rules/`](.amazonq/rules/) (Markdown files Amazon Q
-auto-loads as context). They currently cover architecture/code conventions and
-testing/workflow.
+- Backend: `custom_components/home_keeper/`. The pure core imports no Home Assistant code.
+- Storage: 1 JSON document, `.storage/home_keeper`.
+- Frontend: TypeScript and Rollup in `custom_components/home_keeper/frontend/`. CI builds
+  `dist/`, which is gitignored.
+- Administration is in the admin-only sidebar panel. Usage is through native `todo`,
+  `calendar` and device-page entities. Do not mix the 2.
+- Docs site: `website/` (Docusaurus). It renders `docs/guide/` and copies some `docs/*.md`.
+  Edit the sources, never the generated trees.
 
-**Whenever we establish or change a convention or opinionated development aspect**
-— in a conversation, a review thread, or a decision captured in a PR — **update
-`.amazonq/rules/` in the same change** (and this `AGENTS.md` if it's a
-workflow/process rule) so both Amazon Q and Claude pick it up automatically. Treat
-this as part of "done": a new convention isn't real until it's written into the
-rules. Keep the rules and `AGENTS.md` consistent with each other.
+## Hard gates
 
-## Project structure
+### Writing
 
-- **Domain:** `home_keeper`. **Display name:** Home Keeper.
-- **Backend:** `custom_components/home_keeper/`. The recurrence engine
-  (`recurrence.py`) and task model (`models.py`) are pure Python (no HA imports) so
-  they are unit-testable in isolation — keep them that way.
-- **Storage:** local, single JSON document `.storage/home_keeper`.
-- **Frontend:** TypeScript + Rollup at `custom_components/home_keeper/frontend/`.
-  Source in `src/*.ts`, builds to `dist/home-keeper-panel.js` (gitignored, built by
-  CI; only `dist/` is served as a static path, since HA serves those pre-auth;
-  see `ci/build-panel.sh`).
-- **Admin vs usage:** management lives in the **sidebar panel** (a custom HA panel);
-  usage is exposed via native `todo`/`calendar` entities and per-task device-page
-  entities. Don't blur these — administration stays in the panel. That split is also
-  the **privilege boundary**: the panel is `require_admin=True`, and an admin-only
-  operation must be gated in *both* its websocket command and its service twin, or
-  `call_service` walks around the gate. See `docs/SECURITY.md` and
-  `.amazonq/rules/architecture-and-code.md` → "Privilege model".
-- **Docs site:** `website/` is a Docusaurus site deployed to GitHub Pages
-  (https://prestomation.github.io/ha-home-keeper/). It has a **User Guide** and a
-  **Developer Guide** (the `docs/INTEGRATING.md` equivalent). **The content pages are
-  generated, not authored** — `website/scripts/sync-docs.mjs` renders the User Guide
-  (`website/docs/guide/`, gitignored) from `docs/guide/**/*.md`, one authored file per
-  page, and copies `docs/INTEGRATING.md` /
-  `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
-  Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`docs/guide/**/*.md`,
-  `docs/*.md`), never the generated trees.** Every file under `docs/guide/` must have a
-  `USER_SECTIONS` entry in `website/scripts/doc-map.mjs`, and every entry must name a
-  file that exists. `sync-docs.mjs` fails the site build on either, and
-  `tests/frontend/doc-anchors.test.js` fails first, so a new page cannot stay off
-  the site by accident. `docs/guide/` is therefore the
-  comprehensive user doc; `README.md` is the repository front page and stays short.
-  Screenshots are likewise
-  not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
-  static tree, so `docs/images/` stays the single home for screenshots and the
-  UI-screenshots gate is unchanged. Both run via `npm run sync` (wired into
-  prestart/prebuild/pretypecheck). **Production deploys on stable GitHub Release
-  publication** (not on push to `main`) — the live site is always pinned to the
-  latest stable release so users never see docs for unreleased features; **every PR
-  gets a live preview** at `pr-preview/pr-<n>/` (see `website/README.md`).
+- **All English text follows ASD-STE100.** Docs, strings, comments, PR text and chat
+  replies. Read [writing-style.md](.amazonq/rules/writing-style.md) before you write prose.
 
-## Conventions
+### Branches and merges
 
-- **Expose every data action as a `home_keeper.*` service.** Any operation that
-  mutates or exports Home Keeper data — task/asset CRUD, exports (the appliance report),
-  stock adjustments, and anything new — must ship as a Home Assistant **service**
-  for general interoperability (automations, scripts, voice, other integrations).
-  A panel **websocket command** is only a UI optimization and is never a substitute
-  for the service: add the service first (with a `services.yaml` entry and
-  `strings.json` localization parity), and have any websocket command delegate to
-  the same store method. See `.amazonq/rules/architecture-and-code.md`.
-- **A new persisted field is not done until it round-trips.** The import/export
-  document (`transfer.py`) exports what it does not exclude, so a field added to
-  `models.build_task` or `assets.build_asset` travels in both directions for free —
-  and `tests/unit/test_transfer_roundtrip.py` is what proves it did. When that test
-  goes red, either make the field travel or name it in the matching `EXCLUDED_*`
-  table with a reason. A new *storage section* is caught by
-  `test_transfer_coverage.py` instead. See `.amazonq/rules/architecture-and-code.md`
-  → "Data portability".
-- **Fire a `home_keeper_<noun>_<verb>` event for every state change.** Built by a pure
-  builder in `events.py`, fired at the `store.py` chokepoint (including the non-CRUD
-  mutation paths), edge-triggered for transitions (`transitions.py` + the coordinator,
-  baselined silently on startup). A new event isn't done until it has an `EventSpec` in
-  `api_surface.py` and, if device-facing, a `device_trigger.py` trigger with
-  translation-parity labels. Events need no new service. See
-  `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
-- **Every integrator-facing surface is declared in `api_surface.py`.** Services, events
-  and payloads, device triggers, entity platforms and attributes, options, plus the
-  internal websocket commands and HTTP views. The runtime consumes it (the service
-  teardown iterates `SERVICE_NAMES`; `device_trigger.py` builds its maps from
-  `triggers_for()`), and `tests/unit/test_api_surface.py` parses the component's source
-  to fail on drift. The model holds names and structure only — every label and
-  description is resolved from `services.yaml`/`strings.json` at generation time, so the
-  Developer Guide's **API reference** and the Home Assistant UI read from one string.
-  `ci/generate_api_docs.py` renders that page into the gitignored `website/developer/`
-  on `npm run sync`; nothing is committed and nothing is hand-written.
-- **An options flow merges; it never replaces.** Home Assistant stores what an options
-  flow returns from `async_create_entry` as the *entire* `entry.options`, and the
-  Configure dialog renders only `options.FLOW_OPTIONS` — so return
-  `options.merge_flow_input(entry, user_input)`, never `user_input`, or every key the
-  form doesn't render (profiles, notifications, dismissed companions) is deleted on
-  each save. See `.amazonq/rules/architecture-and-code.md` → "Options have three
-  editing surfaces".
-- Tasks are plain dicts: `id, name, notes, recurrence_type, interval+unit (floating)
-  | rrule+moved_occurrences (fixed), anchor, device_id, area_id, enabled,
-  last_completed, next_due, completions[]`. A fixed schedule is an RRULE, and a moved
-  date is a separate list; see `.amazonq/rules/architecture-and-code.md`.
-- All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes
-  an explicit `now` so tests are deterministic.
-- Entity unique IDs are anchored to the task `id` (survives renames).
-- Per-task device-page entities are created only for tasks with a `device_id`.
-- Escape all user content before innerHTML injection in the panel (`escapeHTML`).
-- Panel navigation is high-fidelity deep-linked: every destination (tab, detail
-  page) maps to a URL under `/home-keeper`, the `route` prop is the single source
-  of truth, and Back/Forward move within the panel — never mutate view/detail
-  state directly to navigate. See `.amazonq/rules/architecture-and-code.md`.
+- **Never push to `main`.** Use a feature branch and a PR.
+- **Every check green, plus approval, before a merge.** A failure you did not cause is
+  still yours to clear. Never merge on a red or running check.
+- **Read what a soft gate produced.** A `continue-on-error` step is always green.
+- **Always squash merge.**
+- **Run the tests locally before you push.** Never use CI as the test runner.
+  Pure unit tests: `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`,
+  then `pytest tests/unit`. Run `mypy` too
+  ([ci-and-ha-versions.md](.amazonq/rules/ci-and-ha-versions.md)).
+- **Ask Amazon Q for a review after each push.** Post `/q review {request}` and ask for
+  critical feedback on named topics. Triage what comes back.
+- **Never comment on a GitHub issue.** Findings go in the PR. Link the issue with
+  `Fixes #N`; the release closes it. The 1 exception is the `preview-comment` skill, after
+  the maintainer approves the exact text.
 
-## Companion discovery (implemented)
+### Plans and PR bodies
 
-Integrations that work with Home Keeper surface in the panel's **Settings →
-Companions** section. Two paths feed one in-memory registry: integrations
-*self-register* via the `home_keeper.register_companion` service (push), and Home
-Keeper *detects* a small curated catalog of popular upstreams and suggests their glue
-(pull). See `companions.py` / `companions_catalog.py` and
-`.amazonq/rules/architecture-and-code.md` → "Companion discovery".
+- **A plan lives in the PR body.** It starts with the CHANGELOG bullet it will ship.
+- **List one-way doors.** The plan and the PR body name every external contract the
+  change commits to: service fields, event payloads, storage, attributes, user-data keys.
+- **Add a Security section.** The plan and the PR body say if each service, websocket
+  command, HTTP method and event that the change adds or changes is admin-only or open,
+  and why ([architecture.md](.amazonq/rules/architecture.md#how-to-decide)).
+- **A subjective UI choice starts with an artifact.** Mock up the options at desktop and
+  phone width, then agree on 1.
 
-## Cross-integration contribution (task push) — partially deferred
+### UI evidence
 
-The `add_task` + `home_keeper_task_completed` contract for *pushing tasks* ships and is
-documented in `docs/INTEGRATING.md`. The fuller dedicated **upsert/reconcile**
-contribution service is still deferred — hook point `const.SIGNAL_TASK_CONTRIBUTION`.
-See IDEAS.md before building it.
+- **A PR that touches `frontend/src/` embeds screenshots: desktop and phone.** Every
+  changed surface needs both. Capture with the Playwright harness, read each PNG, commit
+  under `docs/images/`, and embed with a SHA-pinned HTML `<img>`. The phone step goes in
+  the `setViewportSize(PHONE)` block with a `-mobile-` name.
+- **A new UI feature extends the walkthrough tour** (`tests/e2e/walkthrough.capture.ts`)
+  in the same PR. CI records it and posts it as a PR comment. Never commit a video.
+  Capture is a hard gate.
+- **A new major feature is documented in `docs/guide/`** in the same change, with
+  screenshots. `README.md` stays short.
 
-## Mutation testing (a PR gate)
+### Mutation gate
 
-Coverage measures that a line *ran*. Mutation testing measures whether a test
-would have **failed** if that line were wrong — the difference between a suite
-that executes the code and one that actually asserts on it.
+- **`mutation.yml` fails a PR below an 80% mutation score on the code it changed.** Kill
+  a surviving mutant with a real assertion, or mark a truly equivalent one with a reason.
+  Never lower the threshold. The allowlist is `only_mutate` in `pyproject.toml` and
+  `mutate` in `stryker.conf.json`.
 
-`mutation.yml` runs on every PR, in two jobs:
+### CHANGELOG and versions
 
-```bash
-bash ci/test-mutation-python.sh            # mutmut, changed functions only
-bash ci/test-mutation-python.sh --all      # the whole configured surface
-bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
-bash ci/test-mutation-frontend.sh --all
-```
+- **Each user-facing change gets 1 bullet of at most 3 sentences**, the lead included.
+- **The bold lead is a 2 to 5 word noun phrase**, with no articles. An `### Added` lead
+  links its guide page by absolute URL: `**[Text](url).**`.
+- **The bullet says what a user gets.** No mechanism, no inventory.
+- **`(Fixes #N)` goes in the bullet's first paragraph.** It is what notifies and closes
+  the issue. A bare `(#N)` does nothing.
+- **Credit an outside contributor** with `(Thanks @user!)`.
+- **A stable section covers everything since the last stable**, with a `### Fixed` list
+  of every `(Fixes #N)` since then.
+- **Betas use the next release number.** After `X.Y.0` ships, `main` goes to
+  `X.(Y+1).0b1`. Never cut `X.Y.0bN` after `X.Y.0`.
+- **A new feature cuts a beta in the same PR.** Bump `manifest.json` and `PANEL_VERSION`
+  to the next `bN`, or fold into the top beta if it is still unreleased.
+- **Label a new-feature PR `preview-release`** as soon as it is open.
 
-- **It only scores what your branch touched.** `ci/mutation_scope.py` maps the
-  diff to mutmut mutant-name filters (changed line → enclosing function,
-  decorators included, via `ast`) and to Stryker `--mutate` line ranges. Scoping
-  to whole files would fail a PR for debt it didn't create.
-- **The mutable surface is an allowlist**, in exactly one place per language:
-  `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
-  `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
-  `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
-  `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`, `rrule`).
-  `options.py` counts as
-  pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
-  purpose: everything else importing Home Assistant
-  (only the Docker tiers cover it — far too slow to run once per mutant),
-  `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
-  but with no unit-test entry point), `testing.py` (already coverage-omitted), and
-  `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
-  indirectly covered, through the element's own tests; they would score near
-  zero). Widen the allowlist when you add unit tests that would make the score
-  mean something.
-- **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
-  mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
-  and fail on a mismatch, so they cannot drift.
-- **Kill surviving mutants with real assertions.** If a mutant is genuinely
-  *equivalent* — it cannot change observable behaviour — annotate it at the source
-  (`# pragma: no mutate`, `// Stryker disable next-line <mutator>`) with a one-line
-  reason. Never blanket-disable a file, and never lower the threshold to get green.
-- **Tests that read `src/*.ts` off disk belong in a `*-parity.test.js` file.**
-  Inside Stryker's sandbox they read *mutated* source, so any mutant touching a
-  string literal turns them red and is scored as "killed" by a test that never ran
-  the behaviour — `forms.ts` alone has dozens of `t('…')` call sites, so this
-  inflates the score badly. `vitest.stryker.config.js` excludes that suffix; the
-  normal `ci/test-frontend.sh` run still includes it.
-- **The root `vitest` stays on version 4.** It is the one Stryker drives, and
-  `@stryker-mutator/vitest-runner` 10.0.0 runs no test per mutant under vitest 5:
-  every mutant survives and the gate reads 0%. #384 moved it to 5 with every check
-  green, because a dependency-only PR changes no TypeScript and its mutation job
-  has nothing to score. `.github/dependabot.yml` holds the major back. The root
-  vitest also runs every frontend test: `ci/test-frontend.sh` and Stryker both run
-  from the repository root. The panel's own vitest is used only by `npm test` inside
-  `custom_components/home_keeper/frontend/`. Move the root major only with a Stryker
-  runner that supports it. To prove it, run `bash ci/test-mutation-frontend.sh --all`
-  and read the line `Ran N tests per mutant on average.` in the output: N must be
-  above 0. At 0.00 no test ran, whatever the score says.
-- **The gate checks its own toolchain.** When a PR changes no TypeScript but changes
-  `package.json`, `package-lock.json`, the Stryker or vitest config, or the two
-  mutation scripts, `ci/test-mutation-frontend.sh` runs Stryker on `limits.ts`
-  (14 mutants, all caught by a working toolchain) in place of "nothing to test". On
-  #384's vitest 5 that run scores 42.86% and fails. `ci/mutation_report.py` also
-  fails any run whose scored mutants ran no test at all (`testsCompleted` sums to
-  0), whatever the score.
-- Label a PR `skip-mutation` to bypass both jobs.
+### Code contracts
 
-`tests/conftest.py` executes the pure modules under their **real** dotted name
-(`custom_components.home_keeper.<mod>`, with stub parent packages so the
-HA-importing `__init__.py` never runs) and registers `hk.<mod>` / `hk_<mod>` as
-aliases. Keep it that way: mutmut matches a mutant's path-derived key against the
-function's `__module__`, and a mismatch makes every mutant look untested. `hk`
-itself must stay a **distinct** package object, not another alias of
-`custom_components.home_keeper` — `from . import x` resolves through the parent's
-`__name__`, so aliasing the two makes the modules that `test_coordinator_purge.py`
-and `test_calendar.py` load as `hk.coordinator` pull in the real HA-importing
-siblings instead of their fakes.
+- **Every data action is a `home_keeper.*` service.** A websocket command never
+  replaces it ([services-and-events.md](.amazonq/rules/services-and-events.md)).
+- **Gate an admin-only operation in the command and in the service**
+  ([architecture.md](.amazonq/rules/architecture.md#privilege-model)).
+- **Every state change fires a `home_keeper_<noun>_<verb>` event** from the store.
+- **Every integrator surface is declared in `api_surface.py`.**
+- **A new persisted field round-trips through import and export**, or is excluded with a
+  reason ([data-and-storage.md](.amazonq/rules/data-and-storage.md#import-and-export)).
+- **An options flow returns `options.merge_flow_input(...)`**, never `user_input`.
+- Escape all user content with `escapeHTML`. Navigate the panel only by URL.
+- All datetimes are timezone-aware. Recurrence code takes an explicit `now`.
 
-## Browser e2e tests (Playwright)
+### Dev docs
 
-- Location: `tests/e2e/` drives a real browser against the same HA Docker container
-  as `tests/integration`, on the seeded `home-keeper-e2e` YAML dashboard and the
-  `/home-keeper` panel.
-- Run locally / in a session: `bash ci/e2e-up.sh` (builds the panel, starts HA, runs
-  Playwright, tears down). `KEEP_UP=1` leaves HA running.
-- Env prep: `ci/setup-browser-env.sh` (Docker plus the browser). `ci/setup-ci-deps.sh`
-  calls it and also installs the other CI dependencies — see "Session setup" below.
-- Auth: `tests/e2e/global-setup.ts` completes onboarding and performs a real login.
+- **Before you change code, run `python3 ci/docs.py for <path>`.** It prints the design
+  docs and goals for that file. `list`, `read`, `outline` and `search` find the rest.
+- **On design-doc drift, check the goals.** If the change works against a goal, stop and
+  ask the user. Else make the doc describe the code as it is now, with no history, and
+  run `python3 ci/docs.py stamp <id>`.
+- **A change to Goals or Non-goals needs a "Goal changes" PR section** that the
+  maintainer agreed to.
+- **Each new file under `custom_components/home_keeper/` goes in a design doc's
+  `implements`.**
+- **Caps**: design 150 lines, reference 300, rules 200, process 200, backlog 300, skill
+  200; 100 characters a line; `CLAUDE.md` plus this file 250. At most 2 length exceptions.
+- **Unbuilt work goes in `IDEAS.md`.** There are no plan files.
+- `docs-audit` in `lint.yml` runs `python3 ci/docs.py check --base origin/main`. Details:
+  [dev-docs.md](.amazonq/rules/dev-docs.md).
 
-## Session setup
+### Keep the rules current
 
-`ci/setup-ci-deps.sh` installs every dependency the CI workflows need: the Python
-packages, the npm packages for each of the four projects, vale and its styles,
-ffmpeg for the walkthrough capture, and (through `ci/setup-browser-env.sh`) the
-Docker daemon and Playwright Chromium. A Claude Code SessionStart hook starts it
-in the background; the log is `/tmp/setup-ci-deps.log`.
-
-The script is idempotent. Each step looks first and skips what is already there,
-so it is safe to run again — and it is the way to try a step that failed. No step
-can stop the script: it always prints a summary of what it installed, skipped and
-failed.
-
-```bash
-bash ci/setup-ci-deps.sh          # install what is missing
-FORCE=1 bash ci/setup-ci-deps.sh  # install everything again
-# Leave one part alone:
-SKIP_PYTHON=1  SKIP_NPM=1  SKIP_VALE=1  SKIP_FFMPEG=1  SKIP_BROWSER=1
-```
-
-Only one run can hold the lock directory, because the hook starts the script in
-the background and two sessions can open together. A second run says so and stops.
-The exit status is 1 when a step failed, so a caller does not have to read the log.
-The `mutmut` pin comes from `mutation.yml` and the Python floor from `pyproject.toml`,
-so the script cannot go stale on its own when CI moves a pin.
-
-**The Python packages go in `.venv`** (git ignores it), not in the system Python.
-Activate it before you run a Python lane: `source .venv/bin/activate`. The script
-picks the interpreter for that virtual environment by test, not by name: it tries
-`3.14` (the Home Assistant floor), then `3.13`, then `3.12`, and keeps the first
-one that can run a unit test file. An old Home Assistant imports on a new Python
-and then breaks at the first fixture, so a name check is not enough. When the
-machine has no interpreter at the floor, pip resolves an older Home Assistant —
-the script says so, and `python ci/check-ha-version.py` gives the detail. mypy and
-the Home Assistant unit lane then test an older API than CI does.
-
-## Typing & quality scale
-
-- The integration is **fully typed** and targets the **Platinum** quality scale
-  (`manifest.json` `quality_scale`; per-rule ledger in
-  `custom_components/home_keeper/quality_scale.yaml`). `lint.yml` runs `mypy` against
-  the integration with Home Assistant installed — keep it error-free, and run it
-  locally (`pip install -r requirements-typing.txt && mypy custom_components/home_keeper`)
-  before pushing. User-facing exceptions must be localized (translation keys under
-  `strings.json` → `exceptions`); see `.amazonq/rules/`.
-- **`requirements-typing.txt` is the only place a mypy dependency is named.**
-  `lint.yml`, `ha-beta.yml` and `ci/setup-ci-deps.sh` all install from it. A new
-  third-party import needs its stub package added there, or mypy fails with
-  `Library stubs not installed`. Adding it to one workflow is what broke the nightly
-  in #320: `ha-beta.yml` runs on a schedule, so no PR executes its mypy lane, and a
-  list that drifts there stays green through review and goes red on `main`.
-
-## CI
-
-- `lint.yml` — ruff lint + format check, **mypy** strict typing (HA installed), vale
-  prose linting, and `changelog-release-gap` — fails a PR that edits the top
-  `## [X.Y.ZbN]` CHANGELOG section without a version bump once that version is
-  already a published release tag (the gap that let #236 merge without ever
-  shipping as a beta; see "Always cut a beta release for a new feature" above).
-- `test.yml` — vitest, pytest unit, HACS validation, hassfest.
-- `mutation.yml` — mutation testing (mutmut + Stryker) on the code a PR changed;
-  fails below an 80% mutation score. `skip-mutation` label bypasses it.
-- `integration.yml` — Docker-based integration tests.
-- `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.
-- `ha-beta.yml` — **nightly early warning**, gates nothing. Runs integration, e2e and
-  the upgrade suite against `HA_TAG=beta`, plus mypy against a pre-release HA, and
-  files/updates a single `ha-beta-regression` issue on failure. **No PR runs it**, so
-  every input it needs comes from a file a PR lane reads too — see
-  `requirements-typing.txt` above.
-- `pytest_coverage.yml` + `post_coverage_to_pr.yml` — coverage comment on PRs.
-- `release.yml` — PR-merge-driven release (see RELEASE.md). Its `notify-issues` job
-  tells every issue the version fixes which release carries the fix, and closes them
-  on a stable. Rehearse it against a past release with a `workflow_dispatch` run and
-  `notify_dry_run: true`.
-
-### Home Assistant versions
-
-- **PRs test `stable`** — what users actually run. The container version is
-  `HA_TAG` in `tests/integration/docker-compose.yml`, defaulting to `stable`;
-  override it locally with `HA_TAG=beta bash ci/e2e-up.sh`.
-- **A nightly tests `beta`.** HA beta week is public ~4 weeks ahead of a release, so
-  this is the warning window. HA 2026.8 split devices per config entry and broke
-  device attachment (#183) with no advance signal, which is why this exists.
-- **Anything resting on an HA framework contract** — device registry, entity registry,
-  device automation — **needs an integration-level assertion.** A unit test mocks the
-  framework and cannot see the contract change. #183 shipped because the only
-  device-attachment coverage was for the *self-owned* case.
-- **Cross-version behaviour needs an upgrade test**, not just a fresh-boot test:
-  `tests/upgrade/` boots a frozen pre-split HA, seeds, then boots the current one
-  against the same config dir so HA runs its own migration in between. Stage its
-  fixtures with `bash ci/fetch-glues.sh` first. The pre-split pin is frozen on
-  purpose — bumping it changes what the test means.
-- **Any job that `pip install`s Home Assistant must run on a Python at or above HA's
-  own floor, and must verify what pip actually resolved.** When the runner's Python
-  is too old, pip does not fail — it quietly backtracks to the last HA release that
-  supported it, and the job goes green having checked an API nobody runs. HA 2026.3
-  moved to Python >=3.14.2, which silently pinned both mypy jobs to HA 2026.2.3 for
-  months (#199). Every such job runs `python ci/check-ha-version.py` (add `--pre`
-  when installing with `pip install --pre`), which fails on a stale resolve.
-- **`[tool.mypy] python_version` tracks HA's floor, not ours.** HA's source uses
-  syntax from its own minimum Python (2026.8 uses PEP 758 parenthesis-free
-  `except A, B:`); target anything older and mypy cannot parse HA at all — it exits
-  on a syntax error having checked nothing.
-- **A diagnostic step must never be able to fail the suite it precedes.** The
-  version-report steps in `ha-beta.yml` are informational, so they carry
-  `continue-on-error: true`. #199 was a one-line version `print` that aborted a whole
-  nightly and filed a regression issue against a Home Keeper that was working fine.
+- **A new or changed convention updates `.amazonq/rules/` in the same change**, and this
+  file if it is a hard gate. Keep each fact in 1 place.

@@ -115,6 +115,10 @@
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Alla andra sätt att markera den som utförd avvisas. Kräver en tagg."
         },
+        "snooze_hours": {
+          "name": "Uppskjutningslängd",
+          "description": "Timmar som Skjut upp flyttar den här uppgiften. Dialogen Skjut upp börjar på den här längden, och knappen Skjut upp i en avisering använder den. Lämna tomt för de vanliga längderna."
+        },
         "source": {
           "name": "Källa",
           "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Home Keeper lagrar och återger den ordagrant och inspekterar den aldrig. Se docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Kräver en tagg."
         },
+        "snooze_hours": {
+          "name": "Uppskjutningslängd",
+          "description": "Timmar som Skjut upp flyttar den här uppgiften. Skicka ett tomt värde för att använda de vanliga längderna igen."
+        },
         "source": {
           "name": "Källa",
-          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Se docs/INTEGRATING.md."
+          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Varje namnrymd ersätter den sparade namnrymden med samma namn. En namnrymd med värdet null tas bort. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detaljnivå för slutförande",
@@ -252,6 +260,10 @@
           "description": "Kringgå raderingsskyddet för en uppgift som hanteras av en annan integration. Använd detta för att rensa bort en uppgift vars hanterande integration har avinstallerats eller fungerar felaktigt och inte kan ta bort den själv."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Ta bort föräldralösa uppgifter",
+      "description": "Tar bort varje uppgift som en integration hanterar när den integrationen inte är inläst (borttagen, inaktiverad eller inte konfigurerad). Endast för administratörer. Returnerar ID:n för de borttagna uppgifterna under \"deleted\"."
     },
     "complete_task": {
       "name": "Slutför uppgift",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Timmar",
-          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ignoreras när Till är angivet."
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ange inte både Timmar och Till i samma anrop."
         },
         "until": {
           "name": "Till",
-          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Anger du den används inte fältet Timmar."
+          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Ange inte både Timmar och Till i samma anrop."
         },
         "origin": {
           "name": "Ursprung",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Ta bort uppgiftsfoto",
+      "description": "Tar bort ett foto från en uppgift och raderar filen. Lägg till foton i panelen, eftersom ett tjänsteanrop inte kan bära en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ange uppgiftens omslagsfoto",
+      "description": "Gör ett foto till omslagsfoto för sin uppgift. Omslagsfotot är det första fotot. Det visas i uppgiftslistan, på uppgiftssidan och i klar-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signera URL för uppgiftsfoto",
+      "description": "Skapar en kortlivad URL (ingen auth-header behövs) som ger ett uppgiftsfotos byte, till exempel för att visa fotot i en avisering.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        },
+        "thumbnail": {
+          "name": "Miniatyr",
+          "description": "Signera URL:en för den lilla kopian, högst 256 pixlar på den långa sidan."
+        }
+      }
+    },
     "update_skip": {
       "name": "Uppdatera överhoppning",
       "description": "Ändrar detaljerna i en loggad överhoppning som identifieras av sin tidsstämpel. Överhoppningen behåller sitt datum och schemat lämnas orört.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} reservdelar"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Uppgifter"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommande uppgifter"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Okänt dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Okänt foto: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Bara en uppgift med en förbrukningssensor har en mätare."
+    },
+    "meter_has_no_reading": {
+      "message": "Den kopplade sensorn har inget numeriskt värde just nu. Ange ett startvärde i anropet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparaten har ingen arkiverad utförning av {task_id} kl. {ts}."
     },
     "unknown_part_file": {
       "message": "Okänd del eller ingen bifogad fil."

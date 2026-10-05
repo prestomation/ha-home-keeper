@@ -115,6 +115,10 @@
           "name": "Exiger le scan de l'étiquette",
           "description": "Seule l'étiquette liée peut terminer cette tâche. Toute autre façon de la marquer comme faite est refusée. Nécessite une étiquette."
         },
+        "snooze_hours": {
+          "name": "Durée du report",
+          "description": "Heures dont Reporter décale cette tâche. La boîte Reporter s'ouvre sur cette durée, et le bouton Reporter d'une notification l'utilise. Laissez vide pour les durées habituelles."
+        },
         "source": {
           "name": "Source",
           "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Home Keeper la stocke et la renvoie telle quelle et ne l'inspecte jamais. Voir docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Exiger le scan de l'étiquette",
           "description": "Seule l'étiquette liée peut terminer cette tâche. Nécessite une étiquette."
         },
+        "snooze_hours": {
+          "name": "Durée du report",
+          "description": "Heures dont Reporter décale cette tâche. Envoyez une valeur vide pour revenir aux durées habituelles."
+        },
         "source": {
           "name": "Source",
-          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Voir docs/INTEGRATING.md."
+          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Chaque espace de noms remplace l'espace de noms enregistré du même nom. Un espace de noms avec la valeur null est supprimé. Voir docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Niveau de détail de l'achèvement",
@@ -252,6 +260,10 @@
           "description": "Contourner la protection de suppression pour une tâche gérée par une autre intégration. À utiliser pour nettoyer une tâche dont l'intégration gestionnaire a été désinstallée ou dysfonctionne et ne peut pas la supprimer elle-même."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Supprimer les tâches orphelines",
+      "description": "Supprime chaque tâche gérée par une intégration lorsque cette intégration n'est pas chargée (supprimée, désactivée ou non configurée). Réservé aux administrateurs. Renvoie les ID des tâches supprimées sous \"deleted\"."
     },
     "complete_task": {
       "name": "Terminer la tâche",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Heures",
-          "description": "De combien d'heures reporter la tâche (24 par défaut). Ignoré si Jusqu'à est renseigné."
+          "description": "De combien d'heures reporter la tâche (24 par défaut). Ne renseignez pas Heures et Jusqu'à dans le même appel."
         },
         "until": {
           "name": "Jusqu'à",
-          "description": "Reporte la tâche à cette date et heure précises plutôt que d'un nombre d'heures. Si vous le renseignez, le champ Heures n'est pas utilisé."
+          "description": "Reporte la tâche à cette date et heure précises plutôt que d'un nombre d'heures. Ne renseignez pas Heures et Jusqu'à dans le même appel."
         },
         "origin": {
           "name": "Origine",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Supprimer une photo de tâche",
+      "description": "Retire une photo d'une tâche et supprime son fichier. Ajoutez les photos dans le panneau, car un appel de service ne peut pas transporter de fichier.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Définir la photo de couverture de la tâche",
+      "description": "Fait d'une photo la couverture de sa tâche. La couverture est la première photo. Elle apparaît dans la liste des tâches, sur la page de la tâche et dans la boîte de dialogue de réalisation.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer l'URL d'une photo de tâche",
+      "description": "Génère une URL de courte durée (sans en-tête d'authentification) qui donne les octets d'une photo de tâche, par exemple pour afficher la photo dans une notification.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        },
+        "thumbnail": {
+          "name": "Miniature",
+          "description": "Signe l'URL de la petite copie, de 256 pixels au plus sur son grand côté."
+        }
+      }
+    },
     "update_skip": {
       "name": "Mettre à jour l'omission",
       "description": "Modifie le détail d'une omission consignée, identifiée par son horodatage. L'omission garde sa date et la planification n'est pas touchée.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part} : pièces de rechange"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tâches"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Tâches à venir"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Document inconnu : {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Photo inconnue : {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Seule une tâche liée à un capteur d'utilisation a un compteur."
+    },
+    "meter_has_no_reading": {
+      "message": "Le capteur lié n'a pas de valeur numérique pour le moment. Indiquez une valeur de départ dans l'appel."
+    },
+    "archived_completion_not_found": {
+      "message": "L'appareil n'a aucune réalisation archivée de {task_id} à {ts}."
     },
     "unknown_part_file": {
       "message": "Pièce inconnue ou aucun fichier joint."

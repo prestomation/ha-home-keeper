@@ -40,6 +40,11 @@ _PURE_MODULES = (
     "models",
     "assets",
     "documents",
+    # Imports ``documents`` and ``models``, so it comes after both.
+    "task_photos",
+    # Pure but for Pillow, which requirements-test.txt names. Not on the mutation
+    # allowlist: the thumbnail is Pillow's work, not a rule of ours.
+    "photo_thumbs",
     "events",
     "transitions",
     "reconcile",
@@ -84,6 +89,10 @@ _PURE_MODULES = (
     # allowlist. Load ``declarative_companions`` after ``models`` since it does
     # ``from . import models``.
     "declarative_companions",
+    # The integration presets' data: the catalog and the task names. Pure data, and
+    # ``declarative_presets`` imports both, so they come before it.
+    "declarative_preset_text",
+    "declarative_presets_catalog",
     "declarative_presets",
     # ``task_entities`` names the per-task device-page entities. It imports
     # ``declarative_companions`` and ``notifications``, so it comes after both.

@@ -1,0 +1,74 @@
+{
+  "hacs_default_ref": "94ae363e31684d0be81e97045e33a404e1ec5128",
+  "reviewed": {
+    "core:accuweather": {
+      "keys": [
+        "sensor.hours_of_sun"
+      ],
+      "reason": "not a duty: hours of sun is a weather forecast"
+    },
+    "core:actron_air": {
+      "keys": [
+        "binary_sensor.clean_filter"
+      ],
+      "reason": "added: the clean filter alert"
+    },
+    "core:adguard": {
+      "keys": [
+        "switch.filtering"
+      ],
+      "reason": "not a duty: filtering is a DNS setting"
+    },
+    "core:ambient_station": {
+      "keys": [
+        "sensor.lifetime_rain"
+      ],
+      "reason": "not a duty: lifetime rain is a weather total"
+    },
+    "core:anova": {
+      "keys": [
+        "sensor.cook_time_remaining"
+      ],
+      "reason": "not a duty: cook time remaining is a cook timer"
+    },
+    "core:apcupsd": {
+      "keys": [
+        "sensor.battery_replacement_date",
+        "sensor.time_left"
+      ],
+      "reason": "not a duty: the battery replacement date is the date of the last change, not a due date; bad_batteries could suit a reading_high preset later"
+    },
+    "core:aprilaire": {
+      "keys": [
+        "select.air_cleaning_event",
+        "select.air_cleaning_mode",
+        "sensor.air_cleaning_status"
+      ],
+      "reason": "not a duty: air cleaning is a mode and a status"
+    },
+    "core:apsystems": {
+      "keys": [
+        "sensor.lifetime_production",
+        "sensor.lifetime_production_p1",
+        "sensor.lifetime_production_p2"
+      ],
+      "reason": "not a duty: lifetime production is an energy total"
+    },
+    "core:aussie_broadband": {
+      "keys": [
+        "sensor.billing_cycle_remaining"
+      ],
+      "reason": "not a duty: billing cycle remaining is an account value"
+    },
+    "core:balboa": {
+      "keys": [
+        "binary_sensor.filter_1",
+        "binary_sensor.filter_2",
+        "switch.filter_cycle_2_enabled",
+        "time.filter_cycle_end",
+        "time.filter_cycle_start"
+      ],
+      "reason": "not a duty: the filter cycle is a pump schedule, not a filter change"
+    }
+  }
+}

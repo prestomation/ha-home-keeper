@@ -8,8 +8,25 @@
  * text fields live inside `ha-selector-text` (fill the inner input) and dropdowns
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
-import { gotoTab, openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
+import {
+  authToken,
+  gotoTab,
+  openPanel,
+  openDashboard,
+  openPart,
+  openTaskTab,
+  setTaskLayout,
+} from './tests/helpers';
+import {
+  FIRMWARE_PRESET,
+  INTRO_KEY,
+  markAllPresetsSeen,
+  setUserData,
+  suggestOnly,
+} from './user-data';
 import {
   centre,
   expandGroup,
@@ -18,7 +35,7 @@ import {
   shotVisible,
   shotWithDrawer,
 } from './shots';
-import { ASSET, PART, TASK } from './fixture-ids';
+import { ASSET, PART, PHOTO, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
 
 /** The name of the throwaway appliance the orphaned-owner shots create. */
@@ -64,7 +81,119 @@ const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
 
 
+/** The seeded photos of the fridge filter task, as files to pick in a form. */
+const FORM_PHOTOS = ['filter-housing', 'cartridge-label'].map((stem) => {
+  const dir = path.resolve(
+    __dirname,
+    '../integration/ha_config/home_keeper/task_photos',
+    TASK.fridgeFilter,
+  );
+  const file = fs.readdirSync(dir).find((f) => f.endsWith(`__${stem}.jpg`));
+  if (!file) throw new Error(`no seeded photo ${stem}`);
+  return { name: `${stem}.jpg`, mimeType: 'image/jpeg', buffer: fs.readFileSync(path.join(dir, file)) };
+});
+
+/**
+ * Photos in the New task form (#399) at one width: 2 picked photos in the Photos
+ * section under the notes. The shot takes no Create, so the store does not change.
+ */
+async function captureFormPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  await openPanel(page);
+  const section = panel.locator('#hk-task-form .hk-form-photos');
+  // The page before this one can still finish a navigation, which reloads the panel
+  // and closes the form. So open the form and pick the photos again until both hold.
+  await expect(async () => {
+    if (!(await section.isVisible())) await panel.locator('#add-btn').click({ timeout: 5_000 });
+    await panel
+      .locator('#hk-task-form ha-selector-text')
+      .first()
+      .locator('input, textarea')
+      .fill('Replace the under-sink filter', { timeout: 5_000 });
+    await section
+      .locator('.hk-staged-add + input[type="file"]')
+      .setInputFiles(FORM_PHOTOS, { timeout: 5_000 });
+    await expect(section.locator('.hk-staged')).toHaveCount(2, { timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
+  for (const img of await section.locator('.hk-staged img').all()) {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await centre(section);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/${phone ? '58l-panel-mobile-task-form-photos' : '58k-panel-task-form-photos'}.png`,
+  });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-task-form')).toHaveCount(0, { timeout: 10_000 });
+}
+
 /** Fill the input of the nth ha-form text selector within a scope. */
+/**
+ * The after photo (#399) at one width: the details entry in the Done menu, the
+ * done one-off in the Completed group, and its page with the before-and-after
+ * pair. "Renew car registration" is that seeded one-off. *phone* picks the file
+ * names; the caller sets the viewport.
+ */
+async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  const name = (n: string, desktop: string, mobile: string): string =>
+    `${OUT}/${n}${phone ? mobile : desktop}.png`;
+  const loaded = async (img: Locator): Promise<void> => {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), {
+        timeout: 15_000,
+      })
+      .toBe(true);
+  };
+
+  await openPanel(page);
+  const split = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+  await centre(split);
+  await split.locator('.hk-split-caret').click();
+  await expect(split.locator('.hk-defer-details')).toBeVisible();
+  // The menu hangs below the row, so bring all of it into view.
+  await split.locator('.hk-defer-menu [role="menuitem"]').last().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58f' : '58e', '-panel-done-menu-details', '-panel-mobile-done-menu-details'),
+  });
+  await page.keyboard.press('Escape');
+  await expect(split.locator('.hk-defer-menu')).toBeHidden();
+
+  const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
+  // The open state is kept per browser, so a run before this one can leave it open.
+  await expandGroup(completed);
+  const after = completed.locator(
+    `.detail-open[data-detail-id="${TASK.carRegistration}"] .hk-row-after img`,
+  );
+  await loaded(after);
+  await centre(after);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(
+      phone ? '58j' : '58i',
+      '-panel-completed-after-photo',
+      '-panel-mobile-completed-row-photo',
+    ),
+  });
+  // The open state is kept per browser, and later shots expect the group closed.
+  if (await completed.evaluate((el: HTMLDetailsElement) => el.open)) {
+    await completed.locator('summary').click();
+  }
+
+  await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
+  const tiles = panel.locator('.hk-head-photos img');
+  await expect(tiles).toHaveCount(2, { timeout: 15_000 });
+  for (const img of await tiles.all()) await loaded(img);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58h' : '58g', '-panel-task-before-after', '-panel-mobile-task-before-after'),
+  });
+}
+
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
 }
@@ -83,6 +212,60 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
  * rod" task wears an NFC chip while the tag is set, and every other shot of the task
  * list documents that row without one.
  */
+/** The value an `ha-selector-select` holds (its inner `ha-select`). */
+async function selectValue(field: Locator): Promise<string> {
+  return field.locator('ha-select').evaluate((el) => String((el as HTMLInputElement).value ?? ''));
+}
+
+/**
+ * Open the Snooze length select, run *whileOpen* with its list showing, then pick
+ * *label* and check that the select now holds *value*.
+ */
+async function chooseSnoozeLength(
+  page: Page,
+  field: Locator,
+  label: string,
+  value: string,
+  whileOpen?: () => Promise<void>,
+): Promise<void> {
+  await field.locator('ha-select').click();
+  const option = page.getByRole('menuitem', { name: label, exact: true }).first();
+  await expect(option).toBeVisible({ timeout: 10_000 });
+  if (whileOpen) await whileOpen();
+  await option.click();
+  await expect.poll(() => selectValue(field), { timeout: 10_000 }).toBe(value);
+}
+
+/**
+ * Open the task form from the task page, and wait until it stays open.
+ *
+ * A save closes the form and changes the route, and that route change can land after
+ * the next Edit click and close the new form too. So wait for the form to still be
+ * there a moment later, and click Edit again when it is not.
+ */
+async function openTaskEdit(page: Page, panel: Locator): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.waitForTimeout(1000);
+    if (!(await panel.locator('#hk-task-form').isVisible())) {
+      await panel.locator('.d-edit').click();
+    }
+    await expect(panel.locator('#hk-task-form')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    if (await panel.locator('#hk-task-form').isVisible()) return;
+  }
+  throw new Error('the task form did not stay open');
+}
+
+/** Set the open task back to the usual snooze length through its form. */
+async function clearSnoozeLength(page: Page, panel: Locator): Promise<void> {
+  await openTaskEdit(page, panel);
+  const field = panel.locator('#hk-task-form ha-selector-select').filter({ hasText: 'Snooze length' });
+  await centre(field);
+  await chooseSnoozeLength(page, field, 'Usual length', '');
+  await panel.locator('#f-save').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+}
+
 async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
   await page.evaluate(
     async ({ ASSET: assetIds, PART: partIds, tagId: tag }) => {
@@ -177,7 +360,41 @@ async function chooseEntity(
   await page.locator('ha-combo-box-item:visible').filter({ hasText: label }).first().click();
 }
 
+/**
+ * Photograph the preset suggestion dialog, then the card that Not now leaves, then put
+ * the key back so no later shot meets either one.
+ */
+async function showPresetSuggestions(
+  page: Page,
+  panel: Locator,
+  dialogShot: string,
+  cardShot: string,
+): Promise<void> {
+  await suggestOnly(authToken(), FIRMWARE_PRESET);
+  try {
+    await openPanel(page);
+    const dialog = panel.locator('ha-dialog.hk-preset-dialog');
+    await expect(dialog.locator('label.hk-preset-pick')).toHaveCount(1, { timeout: 20_000 });
+    await expect(dialog.locator('label.hk-preset-pick')).toBeVisible();
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/${dialogShot}.png` });
+    await dialog.locator('ha-button.hk-preset-dialog-later').click();
+    await expect(dialog).toHaveCount(0);
+    const card = panel.locator('.hk-preset-nudge');
+    await expect(card).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/${cardShot}.png` });
+  } finally {
+    await markAllPresetsSeen(authToken());
+  }
+  await openPanel(page);
+  await expect(panel.locator('.hk-preset-nudge')).toHaveCount(0);
+}
+
 test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
+  // Step 0 shows the first-run intro, so start with it not dismissed: an earlier run
+  // on the same container dismisses it.
+  await setUserData(authToken(), INTRO_KEY, false);
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
@@ -196,6 +413,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('ha-button.hk-intro-dismiss').click();
   await expect(panel.locator('.hk-intro')).toHaveCount(0);
 
+  // 76/77. Preset suggestions. The container has one update entity, so Firmware update
+  // available is the one usable preset. global-setup marks every preset seen; clear
+  // that, and the dialog opens on the next load (the intro is dismissed now). Not now
+  // leaves the card above the list. The key is put back after, so the later shots
+  // keep their framing.
+  await showPresetSuggestions(page, panel, '76-panel-preset-dialog', '77-panel-preset-card');
+
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
   // 57. The text filter, beside the scope pills. Typing narrows the list and the
@@ -212,6 +436,17 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // buy reminder in the store — taken here it only ever captured "No tasks match this
   // filter", which is a picture of nothing.)
 
+  // 58b. The cover thumbnail on a task row (#399), next to rows that have none.
+  const coverRow = panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`);
+  await expect(coverRow).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await expect
+    .poll(() => coverRow.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+  await centre(coverRow);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58b-panel-task-photo-row.png` });
+
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.
@@ -223,6 +458,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await noteField.waitFor({ state: 'visible', timeout: 15_000 });
   await noteField.fill('Replaced cartridge; rinsed housing');
   await panel.locator('ha-dialog[open] ha-selector-number input').first().fill('42.50');
+  // The dialog loads Home Assistant's picture upload, then draws the photo field.
+  await expect(panel.locator('ha-dialog[open] ha-picture-upload')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/11-panel-completion-dialog.png`, fullPage: true });
   // Dismiss via Escape (closes ha-dialog) so the capture records no extra completion.
@@ -239,6 +476,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 58. Task photos (#399): the cover beside the name and the strip first in the
+  // Schedule tab. Wait for the signed thumbnails, or the shot shows empty boxes.
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await expect(panel.locator(`[data-photo-tile="${PHOTO.filterHousing}"] .hk-photo-badge`)).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58-panel-task-photos.png` });
+
+  // 58e/58g/58i. After photos (#399), desktop.
+  await captureAfterPhotos(page, panel, false);
+  // 58k. Photos in the New task form (#399), desktop.
+  await captureFormPhotos(page, panel, false);
+  await openPanel(page);
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
 
   // 7b. The Notes tab. The note is Markdown (issue #163). Assert it actually rendered
   // — `ha-markdown` is one of HA's lazily-loaded elements, so a regression here
@@ -268,6 +527,36 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await expect(panel.locator('.d-edit')).toBeVisible();
+
+  // 71. A task's own snooze length (#367), in the Completion section of the form. A
+  // reminder to take medicine wants 1 hour and a filter change wants 1 week, so the
+  // length is set per task. Chosen through the form, as a user does it.
+  await openTaskEdit(page, panel);
+  const snoozeField = panel
+    .locator('#hk-task-form ha-selector-select')
+    .filter({ hasText: 'Snooze length' });
+  await expect(snoozeField).toBeVisible({ timeout: 10_000 });
+  await centre(snoozeField);
+  await chooseSnoozeLength(page, snoozeField, '1 hour', '1', async () => {
+    await page.waitForTimeout(400);
+    await shotWithDrawer(page, `${OUT}/71-panel-task-snooze-length.png`);
+  });
+  await panel.locator('#f-save').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  // 71b. The snooze dialog for that task opens on its own length, not on 1 week.
+  const snoozeActions = panel.locator('.hk-detail-actions');
+  await snoozeActions.locator('.hk-split-caret').click();
+  await snoozeActions.locator('.hk-defer-snooze').click();
+  await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(() => selectValue(panel.locator('ha-dialog[open] ha-selector-select').first()))
+    .toBe('1h');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/71b-panel-snooze-dialog-task-length.png`, fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  // Clear it again, so every later shot sees the seeded task unchanged.
+  await clearSnoozeLength(page, panel);
 
   // 56. Duplicate. The button opens the *create* form already filled in with a copy of
   // this task — the answer to a row of near-identical tasks that differ by a sensor and
@@ -408,12 +697,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1f. Orphan cleanup — when a managing integration is uninstalled, its tasks are
-  // no longer protected: a warning banner offers a one-click "Remove orphaned tasks",
-  // and each orphaned task shows the "Integration offline" chip.
+  // no longer protected: a warning banner offers "Remove orphaned tasks", which asks
+  // first (71 below), and each orphaned task shows the "Integration offline" chip.
   await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
   await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/12-panel-orphan-cleanup.png`, fullPage: true });
+
+  // 71. "Remove orphaned tasks" asks first: a confirm dialog that names the count,
+  // with the keyboard on Cancel. Cancelled, so the seeded orphan stays for 13 below.
+  // Asserted in tests/orphan-cleanup.spec.ts.
+  await panel.locator('#cleanup-orphans-btn').click();
+  const orphanConfirm = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  await expect(orphanConfirm).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  // Viewport screenshot — the scrim is position:fixed on document.body.
+  await page.screenshot({ path: `${OUT}/71-panel-orphan-confirm.png` });
+  await orphanConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
   // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
   // explanation that the owning integration is gone.
@@ -685,6 +986,54 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/42c-panel-tasks-grouped-by-area.png`, fullPage: true });
   // Reset grouping so later list shots are unaffected.
   await panel.locator('select[data-seg-select="group"]').selectOption('status');
+
+  // 71. Tiles — the Layout menu's second entry. Each task is a card with its name
+  // and its status pill and nothing else, three to a row, so a whole week of work
+  // is on one screen. Everything a list row carries inline moves into the action
+  // sheet at 71c.
+  const layoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await layoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(400);
+  // Viewport, not full page: a full-page capture of this panel paints Home
+  // Assistant's fixed sidebar twice (see 71c).
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/71-panel-task-tiles.png` });
+
+  // 71b. Board — one column per Group by group, read across rather than down. The
+  // grouping is status here, so the columns are the sections the list already has.
+  await layoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(400);
+  // Viewport, not full page: a full-page capture of this panel paints Home
+  // Assistant's fixed sidebar twice (see 71c).
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/71b-panel-task-board.png` });
+
+  // 71c. The action sheet a press on a tile or a board card opens: Done, the two
+  // deferrals, Due today and Open task. It is where the actions a row carries
+  // inline went, so it is the shot that says a compact layout costs none of them.
+  // Viewport, not full page. The sheet is fixed to the viewport, and a full-page
+  // capture of a page taller than the screen paints Home Assistant's fixed sidebar
+  // twice — once at the top and once where it really is — with the sheet floating
+  // between the two copies.
+  await layoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-row[data-action="open"]')).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/71c-panel-task-action-sheet.png` });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0, { timeout: 10_000 });
+  // Back to rows. The choice is stored per user, so a layout left behind here is
+  // the layout every later list shot in this file is taken in.
+  await layoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card .hk-card-row').first()).toBeVisible({
+    timeout: 10_000,
+  });
 
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
@@ -1275,6 +1624,41 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     uploadThroughput: -1,
   });
   await expect(docForm.locator('#hk-upload')).toHaveCount(0, { timeout: 30_000 });
+
+  // 72. Removing a document asks first: the backend deletes an uploaded file at once
+  // and the drawer's Cancel does not bring it back. Cancelled, so nothing changes.
+  await settleToasts(page);
+  const docCard = docForm.locator('.hk-doc-card').first();
+  await centre(docCard);
+  await docCard.locator('ha-icon-button[label="Remove document"]').click();
+  const docConfirm = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  await expect(docConfirm).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/72-panel-document-remove-confirm.png` });
+  await docConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  // 73. A link the backend refuses (no https://) shows its error under Add link, and
+  // the name and URL the user typed stay in the boxes to be corrected.
+  const docAdd = docForm.locator('.hk-doc-add');
+  await fillText(docAdd, 0, 'Warranty card');
+  await fillText(docAdd, 1, 'example.com/warranty');
+  await docAdd.locator('ha-button', { hasText: 'Add link' }).click();
+  const linkError = docAdd.locator('ha-alert[alert-type="error"]');
+  await expect(linkError).toBeVisible({ timeout: 10_000 });
+  await expect(docAdd.locator('ha-selector-text').nth(0).locator('input')).toHaveValue(
+    'Warranty card',
+  );
+  await expect(docAdd.locator('ha-selector-text').nth(1).locator('input')).toHaveValue(
+    'example.com/warranty',
+  );
+  await centre(docAdd);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/73-panel-document-link-error.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await settleToasts(page);
 
   // 35. Part delete confirmation dialog — clicking the trash icon on a part now
   // shows a confirmation dialog before removing it (previously the icon was
@@ -1943,6 +2327,92 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
 
+  // 71d. Tiles on a phone. Two to a row rather than three, which is the layout the
+  // picker exists for: a phone list row is a tall stacked block, so the same screen
+  // holds four times as many tasks as tiles.
+  const phoneLayoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await phoneLayoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/71d-panel-mobile-task-tiles.png` });
+
+  // 71f. The action sheet on a phone. Below 700px it is a bottom sheet, so
+  // the status and the meta line above the actions are the first thing a press
+  // shows. The desktop sheet at 71c documents none of that.
+  await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-summary')).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/71f-panel-mobile-task-action-sheet.png` });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0, { timeout: 10_000 });
+
+  // 71e. The board on a phone. There is no room for columns side by side, so a
+  // column takes most of the width and the next one is a swipe away, snapping to
+  // the column edge — a different layout from the desktop board, not a narrower one.
+  await phoneLayoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/71e-panel-mobile-task-board.png` });
+  // Back to rows for the phone shots below, which are all of the list.
+  await phoneLayoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible({ timeout: 10_000 });
+
+  // 71c. The orphan cleanup confirm on a phone: the dialog keeps a 16px margin
+  // each side and its buttons stay on one row.
+  await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
+  await panel.locator('#cleanup-orphans-btn').click();
+  const orphanConfirmPhone = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  await expect(orphanConfirmPhone).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/71c-panel-mobile-orphan-confirm.png` });
+  await orphanConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  // 72c/73c. The document Remove confirm and a refused link on a phone, where the
+  // appliance editor is a page rather than a drawer.
+  await panel.locator('#mtab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const docFormPhone = panel.locator('#hk-asset-form');
+  await expect(docFormPhone).toBeVisible();
+  const docCardPhone = docFormPhone.locator('.hk-doc-card').first();
+  await centre(docCardPhone);
+  await docCardPhone.locator('ha-icon-button[label="Remove document"]').click();
+  const docConfirmPhone = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  await expect(docConfirmPhone).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/72c-panel-mobile-document-remove-confirm.png` });
+  await docConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  const docAddPhone = docFormPhone.locator('.hk-doc-add');
+  await fillText(docAddPhone, 0, 'Warranty card');
+  await fillText(docAddPhone, 1, 'example.com/warranty');
+  await docAddPhone.locator('ha-button', { hasText: 'Add link' }).click();
+  await expect(docAddPhone.locator('ha-alert[alert-type="error"]')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(docAddPhone.locator('ha-selector-text').nth(1).locator('input')).toHaveValue(
+    'example.com/warranty',
+  );
+  await centre(docAddPhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/73c-panel-mobile-document-link-error.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await settleToasts(page);
+  await openPanel(page);
+
+  // 76c/77c. The preset suggestions on a phone: the dialog, then the card, where each
+  // preset takes the full width.
+  await showPresetSuggestions(
+    page,
+    panel,
+    '76c-panel-mobile-preset-dialog',
+    '77c-panel-mobile-preset-card',
+  );
+
   // 8f (phone). The orphaned appliance's actions on a phone, where the action row
   // wraps under the head.
   await withOrphanedAppliance(page, async () => {
@@ -1983,10 +2453,36 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
 
+  // 71c. A task's own snooze length on a phone, where the form is a page of its own.
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await openTaskEdit(page, panel);
+  const phoneSnoozeField = panel
+    .locator('#hk-task-form ha-selector-select')
+    .filter({ hasText: 'Snooze length' });
+  await centre(phoneSnoozeField);
+  await chooseSnoozeLength(page, phoneSnoozeField, '1 hour', '1');
+  await centre(phoneSnoozeField);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/71c-panel-mobile-task-snooze-length.png` });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await openPanel(page);
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
   await panel.locator('#mtab-appliances').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/53-panel-mobile-appliances.png` });
+
+  // 5d. The tree view on a phone. The expand control is a real button with a
+  // tap-size ring here (X11-4).
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
+  await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/5d-panel-mobile-appliances-tree.png` });
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="flat"]').click();
+  await expect(panel.locator('.hk-tree-child')).toHaveCount(0);
 
   // 57d. And on the appliance list, where the row above it holds two segments
   // rather than one.
@@ -2066,6 +2562,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await panel.locator('.hk-index-row[data-section="notifications"]').click();
   await expect(panel.locator('#hk-notifications')).toBeVisible();
+  // 52c. The notification list on a phone, with each badge glyph in the ink that
+  // reads on its colour (X11-6).
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/52c-panel-mobile-notification-icons.png` });
   await panel.locator('#hk-notifications .hk-item-header').first().click();
   const scopeLine = panel.locator('#hk-notifications .hk-notify-scope').first();
   const triggerGroup = panel.locator('#hk-notifications .hk-indent').first();
@@ -2226,6 +2726,39 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#a-cancel').click();
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
   await setAnodeTag(page, null);
+
+  // 58c/58d. Task photos on a phone (#399): the row thumbnail, then the task page,
+  // where the cover goes full width above the name and the strip scrolls sideways.
+  await openPanel(page);
+  const coverRowPhone = panel.locator(
+    `.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`,
+  );
+  await expect(coverRowPhone).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await centre(coverRowPhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58d-panel-mobile-task-photo-row.png` });
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58c-panel-mobile-task-photos.png`, fullPage: true });
+
+  // 58f/58h/58j. After photos (#399), phone.
+  await captureAfterPhotos(page, panel, true);
+  // 58l. Photos in the New task form (#399), phone.
+  await captureFormPhotos(page, panel, true);
+
+  // The task layout is stored per user on the server, so it outlives this capture
+  // and would greet the next run — and the e2e suite — in whatever the last shot
+  // left. The steps above each put it back themselves; this is the backstop for a
+  // run that died between one of them and its reset.
+  await setTaskLayout(page, 'rows');
 
   await page.setViewportSize(DESKTOP);
 });

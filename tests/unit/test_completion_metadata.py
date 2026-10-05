@@ -414,3 +414,73 @@ def test_a_non_mapping_input_yields_no_metadata():
     # Reached from the websocket/service edge, where the payload is caller-shaped.
     for junk in ([1], "note", 5, None, {}, []):
         assert m.normalize_completion_metadata(junk) == {}
+
+
+# ── F10-1: editing an entry after the task stopped recording readings ────────
+#
+# A usage task logs completions with a reading, then becomes a floating task (or its
+# sensor mode becomes state). The edit dialog sends the stored reading back with a
+# changed note. That must save, and the stored reading must stay on the entry.
+
+_READING_ERROR = "reading is only valid for a sensor task with a numeric binding"
+
+
+def test_f10_1_an_unchanged_reading_is_accepted_and_kept():
+    out = m.normalize_entry_edit_metadata(
+        {"reading": 55, "note": "new note"}, allow_reading=False, stored_reading=55.0
+    )
+    assert out == {"reading": 55.0, "note": "new note"}
+
+
+def test_f10_1_an_absent_reading_keeps_the_stored_one():
+    out = m.normalize_entry_edit_metadata(
+        {"note": "x"}, allow_reading=False, stored_reading=55.0
+    )
+    assert out == {"note": "x", "reading": 55.0}
+    blank = m.normalize_entry_edit_metadata(
+        {"reading": "", "note": "x"}, allow_reading=False, stored_reading=55.0
+    )
+    assert blank == {"note": "x", "reading": 55.0}
+
+
+def test_f10_1_a_changed_reading_is_refused():
+    with raises_exactly(m.TaskValidationError, _READING_ERROR):
+        m.normalize_entry_edit_metadata(
+            {"reading": 56}, allow_reading=False, stored_reading=55.0
+        )
+
+
+def test_f10_1_a_reading_on_an_entry_that_had_none_is_refused():
+    with raises_exactly(m.TaskValidationError, _READING_ERROR):
+        m.normalize_entry_edit_metadata(
+            {"reading": 0}, allow_reading=False, stored_reading=None
+        )
+
+
+def test_f10_1_no_reading_stays_no_reading():
+    assert m.normalize_entry_edit_metadata(
+        {"note": "x"}, allow_reading=False, stored_reading=None
+    ) == {"note": "x"}
+    assert (
+        m.normalize_entry_edit_metadata(None, allow_reading=False, stored_reading=None)
+        == {}
+    )
+
+
+def test_f10_1_a_task_that_records_readings_edits_them_as_before():
+    # The stored value does not matter here: the user can see and change the box.
+    out = m.normalize_entry_edit_metadata(
+        {"reading": "60", "note": "x"}, allow_reading=True, stored_reading=55.0
+    )
+    assert out == {"reading": 60.0, "note": "x"}
+    cleared = m.normalize_entry_edit_metadata(
+        {"note": "x"}, allow_reading=True, stored_reading=55.0
+    )
+    assert cleared == {"note": "x"}
+
+
+def test_f10_1_the_other_fields_are_still_cleaned():
+    with raises_exactly(m.TaskValidationError, "cost must be >= 0"):
+        m.normalize_entry_edit_metadata(
+            {"reading": 55, "cost": -1}, allow_reading=False, stored_reading=55.0
+        )

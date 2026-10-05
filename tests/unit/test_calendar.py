@@ -285,14 +285,14 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     stops.
     """
     steps = 0
-    real_next = cal.recurrence.next_fixed_occurrence
+    real_next = cal.recurrence.next_task_occurrence
 
     def counted(*args, **kwargs):
         nonlocal steps
         steps += 1
         return real_next(*args, **kwargs)
 
-    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
     monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
     monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
 
@@ -304,7 +304,7 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    # One call to find the first occurrence, then one per bounded step.
+    # The first search, then one step per bounded iteration.
     assert steps == 6
 
 
@@ -328,6 +328,197 @@ def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
     hours = {e.start.astimezone(zone).hour for e in entity._collect_events(start, end)}
 
     assert hours == {9}, f"occurrences drifted off 09:00 local: {sorted(hours)}"
+
+
+# --- B11-2: a fixed task follows its next_due, as every other surface does ----
+
+
+def _starts(entity, start, end):
+    return [e.start for e in entity._collect_events(start, end)]
+
+
+def test_b11_2_a_fixed_task_done_early_shows_its_next_occurrence(monkeypatch):
+    """Daily 10:00, done at 09:00: the event is tomorrow, not today at 10:00."""
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 10, 1, 10).isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == _dt(2026, 10, 1, 10)
+    assert _starts(entity, _dt(2026, 9, 30), _dt(2026, 10, 3)) == [
+        _dt(2026, 10, 1, 10),
+        _dt(2026, 10, 2, 10),
+    ]
+
+
+def test_b11_2_a_snoozed_fixed_task_shows_the_snooze_time(monkeypatch):
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 10, 3, 18)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=snoozed.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == snoozed
+    assert _starts(entity, _dt(2026, 9, 29), _dt(2026, 10, 5)) == [
+        # The past occurrence before now stays: it is history, not the snooze.
+        _dt(2026, 9, 29, 10),
+        snoozed,
+        _dt(2026, 10, 4, 10),
+    ]
+
+
+def test_b11_2_due_today_on_a_fixed_task_shows_today(monkeypatch):
+    now = _dt(2026, 9, 30, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 5, 10), freq="WEEKLY", next_due=now.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == now
+    assert _starts(entity, _dt(2026, 9, 30), _dt(2026, 10, 4)) == [
+        now,
+        _dt(2026, 10, 3, 10),
+    ]
+
+
+def test_b11_2_an_overdue_fixed_task_keeps_its_grid(monkeypatch):
+    """A next_due in the past removes nothing, and is not shown twice."""
+    now = _dt(2026, 9, 30, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 9, 29, 10).isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == _dt(2026, 10, 1, 10)
+    assert _starts(entity, _dt(2026, 9, 29), _dt(2026, 10, 2)) == [
+        _dt(2026, 9, 29, 10),
+        _dt(2026, 9, 30, 10),
+        _dt(2026, 10, 1, 10),
+    ]
+
+
+def test_b11_2_an_in_progress_next_due_is_still_the_event(monkeypatch):
+    """next_due 30 minutes ago is inside its 1-hour event, like the grid case."""
+    now = _dt(2026, 9, 30, 10, 30)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 9, 30, 10, 0)
+    task = _fixed_task(_dt(2026, 9, 1, 8), next_due=snoozed.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == snoozed
+    ended = _fixed_task(
+        _dt(2026, 9, 1, 8), next_due=_dt(2026, 9, 30, 9, 30).isoformat()
+    )
+    assert _entity({"t_fixed": ended}).event.start == _dt(2026, 10, 1, 8)
+
+
+def test_b11_2_a_next_due_outside_the_window_is_not_added(monkeypatch):
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 10, 10, 18).isoformat())
+    entity = _entity({"t_fixed": task})
+    # Every grid occurrence before the snooze goes, and the snooze is past the end.
+    assert _starts(entity, _dt(2026, 10, 1), _dt(2026, 10, 3)) == []
+    # A window that ends before the snooze starts, and one that starts after it ends.
+    assert _starts(entity, _dt(2026, 10, 10, 19), _dt(2026, 10, 12)) == [
+        _dt(2026, 10, 11, 10)
+    ]
+    assert _dt(2026, 10, 10, 18) in _starts(
+        entity, _dt(2026, 10, 10, 18, 30), _dt(2026, 10, 11)
+    )
+    assert _starts(entity, _dt(2026, 10, 10), _dt(2026, 10, 10, 18)) == []
+
+
+# --- low-severity review fixes -----------------------------------------------
+
+
+def test_b11_7_collect_events_drops_a_fixed_occurrence_that_ends_at_the_window_start():
+    """A 06:00-07:00 occurrence is not in a window that starts at 07:00."""
+    anchor = _dt(2026, 6, 1, 6)
+    entity = _entity({"t_fixed": _fixed_task(anchor)})
+
+    starts = [
+        e.start
+        for e in entity._collect_events(_dt(2026, 6, 15, 7), _dt(2026, 6, 15, 22))
+    ]
+
+    assert starts == []
+    # 1 minute earlier, the occurrence is in progress and in the window.
+    starts = [
+        e.start
+        for e in entity._collect_events(_dt(2026, 6, 15, 6, 59), _dt(2026, 6, 15, 22))
+    ]
+    assert starts == [_dt(2026, 6, 15, 6)]
+
+
+def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
+    """Each step of the walk searches from the last occurrence, not from the start.
+
+    A search from the same point on each step would find the same date again and
+    never move. Every 12 months from Jan 31 never meets an April to September season.
+    """
+    afters: list[datetime] = []
+    found: list[datetime] = []
+    real_next = cal.recurrence.next_task_occurrence
+
+    def counted(task, *, after):
+        afters.append(after)
+        found.append(real_next(task, after=after))
+        return found[-1]
+
+    monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 4)
+    now = _dt(2026, 6, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+
+    task = _fixed_task(
+        _dt(2026, 1, 31, 9),
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "04-01", "end": "09-30"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+    assert afters == [now - cal.EVENT_DURATION, *found[:-1]]
+
+
+def test_b11_8_season_walk_lands_on_the_grid(monkeypatch):
+    """A day-31 schedule uses the last day of a short month: Feb 28, Mar 31, Apr 30."""
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 1, 31, 12))
+
+    task = _fixed_task(
+        _dt(2026, 1, 31, 9),
+        freq="MONTHLY",
+        interval=1,
+        active_season=[{"start": "04-01", "end": "09-30"}],
+    )
+    event = _entity({"t_fixed": task}).event
+
+    assert event is not None
+    assert event.start == _dt(2026, 4, 30, 9)
+
+
+def test_b11_5_armed_sensor_and_triggered_tasks_stay_off_the_calendar(monkeypatch):
+    """The guide says the calendar does not show these tasks, armed or not."""
+    now = _dt(2026, 6, 15, 9, 30)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    armed = _dt(2026, 6, 15, 9)
+    tasks = {
+        "t_sensor": _floating_task(armed, id="t_sensor", recurrence_type="sensor"),
+        "t_trig": _floating_task(armed, id="t_trig", recurrence_type="triggered"),
+    }
+    entity = _entity(tasks)
+
+    assert entity.event is None
+    assert entity._collect_events(_dt(2026, 6, 15), _dt(2026, 6, 16)) == []
+
+
+def test_x13_4_the_entity_has_a_translated_name_on_the_service_device() -> None:
+    """The name comes from strings.json, and the device supplies "Home Keeper"."""
+    import json
+
+    entity = cal.HomeKeeperCalendarEntity(types.SimpleNamespace(data={}))
+    assert entity._attr_has_entity_name is True
+    assert entity._attr_translation_key == "upcoming_tasks"
+    assert entity._attr_device_info["name"] == "Home Keeper"
+    assert entity._attr_device_info["identifiers"] == {("home_keeper", "service")}
+    component = Path(__file__).resolve().parent.parent.parent / "custom_components"
+    strings = json.loads((component / "home_keeper" / "strings.json").read_text())
+    platform = "calendar"
+    assert strings["entity"][platform]["upcoming_tasks"]["name"] == "Upcoming tasks"
 
 
 # --- RRULE events, moved dates and the "Only this event" edit ---------------

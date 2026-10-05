@@ -25,6 +25,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
   // A signed number: "+15,400 km". The value carries the digits and the unit, and the
   // sign reads the same in every language the panel ships.
   'completion.usageInterval',
+  // Two placeholders and a comma: "Replace filter, 3 days overdue". Both halves are
+  // already translated where they are built, so there is no word of its own here.
+  'layout.cardAria',
 ]);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to
@@ -52,17 +55,20 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // `declarative.companions.chip_error` is "Error" in Catalan and Spanish, which take
 // the Latin noun unchanged. Every other locale inflects or translates it ("Errore",
 // "Erreur", "Fehler", "Chyba", "Virhe", "Fout", "Błąd", "Feil", "Fel", "Ошибка").
+// `declarative.companions.platform.sensor` is "Sensor" in the Germanic, Polish and
+// Ibero-Romance locales, and Home Assistant itself names the platform so there.
+// `platform.update` is "Update" in Dutch, which takes the English word.
 const DECLARATIVE_COGNATES = {
   ca: [
     'declarative.companions.chip_error',
-    'declarative.companions.preset_badge',
+    'declarative.companions.platform.sensor',
     'declarative.companions.section_exclusions',
     'declarative.companions.summary_exclusions.other',
     'transfer.documentLabel',
   ],
-  da: ['declarative.companions.summary_filters.one'],
-  de: ['declarative.companions.field_name'],
-  es: ['declarative.companions.chip_error', 'declarative.companions.preset_badge'],
+  da: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
+  de: ['declarative.companions.field_name', 'declarative.companions.platform.sensor'],
+  es: ['declarative.companions.chip_error', 'declarative.companions.platform.sensor'],
   fr: [
     'declarative.companions.field_description',
     'declarative.companions.section_exclusions',
@@ -71,18 +77,19 @@ const DECLARATIVE_COGNATES = {
     'field.skipNote',
     'transfer.documentLabel',
   ],
-  it: ['declarative.companions.preset_badge'],
-  nb: ['declarative.companions.summary_filters.one'],
+  nb: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
   nl: [
-    'declarative.companions.preset_badge',
+    'declarative.companions.platform.sensor',
+    'declarative.companions.platform.update',
     'declarative.companions.section_trigger',
     'declarative.companions.summary_filters.one',
     'declarative.companions.summary_filters.other',
     'defer.preset.1w',
     'transfer.documentLabel',
   ],
-  'pt-BR': ['declarative.companions.preset_badge'],
-  sv: ['declarative.companions.summary_filters.one'],
+  sv: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
+  pl: ['declarative.companions.platform.sensor'],
+  'pt-BR': ['declarative.companions.platform.sensor'],
 };
 
 const COGNATE_IDENTICAL = {
@@ -92,7 +99,7 @@ const COGNATE_IDENTICAL = {
   de: ['chip.orphaned', 'detail.about', 'detail.id', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.link', 'opt.meta.text', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   es: ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'notify.opt.normal', 'settings.general_heading'],
   fi: ['field.doc_url'],
-  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
+  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'photos.title', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
   // `part.taskName.service` is "Service {part} ({asset})" in Norwegian, which takes
   // the English verb unchanged ("service bilen"). Danish and Swedish inflect it

@@ -1,5 +1,6 @@
 import { companionKeys } from './card-filter';
 import { t, tn } from './i18n';
+import { MAX_ONE_OFF_RETENTION_DAYS } from './limits';
 import {
   SIMPLE_FREQS,
   buildSimple,
@@ -14,9 +15,17 @@ import {
   HK_DOMAIN,
   formatDate,
   formatQuantity,
+  getTimeZone,
+  intervalText,
   normalizeIcon,
   recurrenceSummary,
   round1,
+  SNOOZE_PRESETS,
+  snoozePresetHours,
+  taskSnoozeHours,
+  zonedParts,
+  zonedMidnight,
+  zonedTimeToMs,
 } from './utils';
 import type {
   Asset,
@@ -203,18 +212,31 @@ function monthOptions(): { value: string; label: string }[] {
 }
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
-// HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
-export function isoToHaDateTime(iso?: string | null): string | undefined {
+// HA's datetime selector uses a zone-less "YYYY-MM-DD HH:mm:ss"; we persist ISO.
+// The zone-less text is a time in Home Assistant's zone (`setTimeZone`), not in the
+// browser zone (X04-7). Without a zone set, the browser zone is used.
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+export function isoToHaDateTime(iso?: string | null, tz = getTimeZone()): string | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
-    d.getMinutes(),
-  )}:${p(d.getSeconds())}`;
+  const [y, mo, day, h, mi, s] = tz
+    ? zonedParts(d.getTime(), tz)
+    : [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()];
+  return `${y}-${pad2(mo)}-${pad2(day)} ${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
 }
-export function haDateTimeToIso(value?: string | null): string | undefined {
+
+const HA_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+export function haDateTimeToIso(value?: string | null, tz = getTimeZone()): string | undefined {
   if (!value) return undefined;
+  const m = tz ? HA_DATETIME.exec(value) : null;
+  if (m) {
+    // `m` is set only when `tz` is set. An absent seconds part reads as 0.
+    const parts = m.slice(1).map((part) => Number(part ?? 0));
+    return new Date(zonedTimeToMs(parts, tz as string)).toISOString();
+  }
   const d = new Date(value.replace(' ', 'T'));
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toISOString();
@@ -329,6 +351,40 @@ function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknow
 }
 
 /**
+ * An optional flat `sensor_*` value from the edit state, else the loaded binding's.
+ *
+ * A key the edit state holds wins even when its value is `undefined`. Home Assistant's
+ * text and number selectors emit `undefined` for a box the user emptied, so a `??`
+ * fallback put the stored attribute, hold or unit back on save (F02-2).
+ */
+function flatSensor(sd: Record<string, unknown>, key: string, stored: unknown): unknown {
+  return key in sd ? sd[key] : stored;
+}
+
+/**
+ * The starting reading of a usage binding, as the form uses it (B08-5).
+ *
+ * The edit form shows the stored baseline in its box. That number belongs to the
+ * entity and attribute that the stored binding reads. When the user points the
+ * binding at another entity or attribute, it is a different meter, so an unchanged
+ * stored number is not sent and the new meter starts from its live reading. A number
+ * the user typed is kept.
+ */
+function formBaseline(task: Partial<Task>): unknown {
+  const sd = task as Record<string, unknown>;
+  const raw = sd.sensor_baseline ?? task.sensor?.baseline;
+  const stored = task.sensor;
+  if (stored?.baseline == null) return raw;
+  // The backend stores a trimmed attribute, and no attribute reads as "".
+  const attribute = String(flatSensor(sd, 'sensor_attribute', stored.attribute) ?? '').trim();
+  const rebound =
+    (sd.sensor_entity_id ?? stored.entity_id) !== stored.entity_id ||
+    attribute !== (stored.attribute ?? '');
+  // A blank box is omitted whatever this returns, so only a number matters here.
+  return rebound && Number(raw) === Number(stored.baseline) ? undefined : raw;
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -342,7 +398,9 @@ function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknow
  */
 export function isBinarySensorBinding(task: Partial<Task>): boolean {
   const sd = task as Record<string, unknown>;
-  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+  const attribute = String(
+    flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '',
+  ).trim();
   if (attribute) return false;
   const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
   return entityId.startsWith('binary_sensor.');
@@ -395,6 +453,40 @@ function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
       ],
     },
   ];
+}
+
+/**
+ * The choices for a task's own snooze length.
+ *
+ * The first choice is empty: no length of its own, so the dialog opens on its usual
+ * preset and a notification uses its own length. Then one choice per fixed preset,
+ * valued in hours. A length that no preset has (set through the service) gets a
+ * choice of its own, so the form shows it and a save does not drop it.
+ */
+export function snoozeHoursOptions(current?: unknown): { value: string; label: string }[] {
+  const options = [{ value: '', label: t('opt.snooze_hours.default') }];
+  for (const p of SNOOZE_PRESETS) {
+    const hours = snoozePresetHours(p.id);
+    if (hours != null) options.push({ value: String(hours), label: t('defer.preset.' + p.id) });
+  }
+  const own = snoozeHoursFromForm(current);
+  if (own != null && !options.some((o) => o.value === String(own))) {
+    options.push({ value: String(own), label: tn('opt.snooze_hours.hours', own, { n: own }) });
+  }
+  return options;
+}
+
+/**
+ * The snooze length a form value stands for: whole hours of 1 or more, or `null`.
+ *
+ * The select holds a string, and a task loaded from the backend holds a number, so
+ * this takes both.
+ */
+export function snoozeHoursFromForm(value: unknown): number | null {
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    return taskSnoozeHours({ snooze_hours: Number(value.trim()) });
+  }
+  return taskSnoozeHours({ snooze_hours: value });
 }
 
 /**
@@ -594,12 +686,20 @@ export function taskSchemaSections(
                   { value: '!=', label: '≠' },
                 ]),
               } as FormField,
-              { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
+              // Step 'any', as in the declarative dialog: a threshold such as 25.5 is
+              // valid, and step 1 flags it as invalid (F02-7).
+              {
+                name: 'sensor_value',
+                required: true,
+                selector: { number: { mode: 'box', step: 'any' } },
+              },
               { name: 'sensor_for', selector: selNumber(0) },
               { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
             ]
           : [
-              { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
+              // Step 'any' gives a decimal target (2.5 m3) and a keypad with a
+              // decimal key on iPhone (F02-7).
+              { name: 'sensor_target', required: true, selector: selNumber(0, 'any') } as FormField,
               { name: 'sensor_unit', selector: selText() } as FormField,
               // Where the meter counts from. Left blank, Home Keeper anchors at the
               // sensor's reading when you save — the original behaviour, and still the
@@ -767,6 +867,14 @@ export function taskSchemaSections(
               { value: 'optional', label: t('opt.completion_detail.optional') },
               { value: 'required', label: t('opt.completion_detail.required') },
             ]),
+          } as FormField,
+        ]
+      : []),
+    ...(!locked.has('snooze_hours')
+      ? [
+          {
+            name: 'snooze_hours',
+            selector: selSelect(snoozeHoursOptions(task.snooze_hours)),
           } as FormField,
         ]
       : []),
@@ -965,7 +1073,7 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     recurrence_type: task.recurrence_type ?? 'floating',
     ...fixedFormFields(task),
     unit: task.unit ?? 'months',
-    anchor: isoToHaDateTime(task.anchor) ?? '',
+    anchor: isoToHaDateTime(task.anchor) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     // A new one-off defaults its due date to now; an existing one shows its stored due.
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
@@ -989,9 +1097,9 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
       sd.sensor_clear_on_recover ??
       task.sensor?.clear_on_recover ??
       (sd.sensor_mode ?? task.sensor?.mode) === 'availability',
-    sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
-    sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
-    sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
+    sensor_for: flatSensor(sd, 'sensor_for', task.sensor?.for_seconds) ?? 0,
+    sensor_attribute: flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '',
+    sensor_unit: flatSensor(sd, 'sensor_unit', task.sensor?.unit) ?? '',
     sensor_baseline: sd.sensor_baseline ?? task.sensor?.baseline ?? undefined,
     sensor_backstop_on: backstopEnabled(task),
     // Seeded rather than left at 0 so switching the backstop on gives a working rule
@@ -1007,6 +1115,8 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    // The select holds strings; '' is "no length of its own".
+    snooze_hours: String(snoozeHoursFromForm(task.snooze_hours) ?? ''),
     season_on: seasonEnabled(task),
     // How many windows the form shows. Every window's four values are flattened
     // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
@@ -1138,6 +1248,11 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     // must not do. The form renders no control for it, so it rides along untouched.
     completion_required_fields: [...(task.completion_required_fields ?? [])],
     consumable_link: consumableLinkToken(task),
+    snooze_hours: taskSnoozeHours(task),
+    // The season is part of the rule. Without it, a copy of a seasonal task is due
+    // all year (F02-4). Copy each window, so the copy shares no object with the
+    // source task.
+    active_season: seasonWindows(task).map((w) => ({ ...w })),
   };
   if (sensor) seed.sensor = sensor;
   return seed as Partial<Task>;
@@ -1205,11 +1320,11 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     const attribute =
       mode === 'template'
         ? ''
-        : String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+        : String(flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '').trim();
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
-      const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
+      const unit = String(flatSensor(sd, 'sensor_unit', task.sensor?.unit) ?? '').trim();
       if (unit) sensor.unit = unit;
       // The meter's starting point. Only sent when the box actually holds a number:
       // blank on create means "anchor at the live reading" (the backend leaves
@@ -1217,8 +1332,18 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // by `merge_update`. Note the deliberate absence of the `|| 0` fallback used
       // for `target` above — 0 is a *valid* baseline (a brand-new hour meter) and
       // that idiom would turn a cleared box into a real anchor at zero.
-      const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
-      if (rawBaseline != null && rawBaseline !== '' && Number.isFinite(Number(rawBaseline)))
+      //
+      // On edit, the box is seeded with the stored baseline. Sent back unchanged, it
+      // reads as an explicit choice, so `merge_update` cannot re-baseline when the
+      // entity changes, and it reverts a completion that re-stamped the baseline
+      // while the form was open. So send it only when the user changed it (F02-3).
+      const rawBaseline = formBaseline(task);
+      if (
+        rawBaseline != null &&
+        rawBaseline !== '' &&
+        Number.isFinite(Number(rawBaseline)) &&
+        !(task.id && Number(rawBaseline) === task.sensor?.baseline)
+      )
         sensor.baseline = Number(rawBaseline);
       // The backstop applies only when its switch is on; a blank or zero interval
       // still drops it, so a half-filled form can't save a meaningless "every 0".
@@ -1251,7 +1376,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
           '>=';
         sensor.value = Number(sd.sensor_value ?? task.sensor?.value) || 0;
       }
-      const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
+      const forSeconds = Number(flatSensor(sd, 'sensor_for', task.sensor?.for_seconds)) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
       const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
       if (mode === 'availability') {
@@ -1292,7 +1417,9 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // pair would only be a second, possibly stale, copy of it.
       delete payload.interval;
       payload.rrule = formRule(task);
-      payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
+      // The backend requires an anchor. A blank box falls back to now, as a blank
+      // one-off due date does above (F02-8).
+      payload.anchor = haDateTimeToIso(task.anchor) ?? (task.anchor || new Date().toISOString());
     }
     payload.completion_detail = task.completion_detail || 'none';
     // Every window the form is showing, assembled from its flat fields — the whole
@@ -1301,7 +1428,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
       const mmdd = (month: number, day: number): string =>
         `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
-      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+      const windows = Array.from({ length: seasonCount(task) }, (_, i) => {
         const w = seasonWindowData(task, i + 1);
         const sm = Number(w[`season_${i + 1}_start_month`]);
         const em = Number(w[`season_${i + 1}_end_month`]);
@@ -1310,6 +1437,14 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
           end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
         };
       });
+      // A service call or an import can store more windows than the form edits. If
+      // the form shows the first windows unchanged, omit the list: `merge_update`
+      // then keeps the stored list, and the windows after the cap stay (F02-5).
+      const stored = seasonWindows(task);
+      const keepStored =
+        stored.length > MAX_SEASON_WINDOWS &&
+        windows.every((w, i) => w.start === stored[i].start && w.end === stored[i].end);
+      if (!keepStored) payload.active_season = windows;
     } else {
       payload.active_season = null;
     }
@@ -1325,6 +1460,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // could never be completed at all, from any surface.
   payload.tag_id = task.tag_id || null;
   payload.require_tag_scan = task.tag_id ? !!task.require_tag_scan : false;
+  // The snooze length applies to every task kind and always round-trips, so an
+  // empty choice sends null and clears it. A task kind whose form has no such field
+  // (a triggered task) sends back the stored value, so a save does not clear it.
+  payload.snooze_hours = snoozeHoursFromForm(task.snooze_hours);
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.
   payload.labels = Array.isArray(task.labels) ? task.labels : [];
@@ -1347,7 +1486,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   if (Array.isArray(requiredFields) && requiredFields.length) {
     payload.completion_required_fields = [...requiredFields];
   }
-  if (!task.id) {
+  // Only when the form shows the field: the schema hides it for a one-off. A value
+  // typed before the type changed to one-off stays in the edit state, and sent, it
+  // creates the one-off already completed (F02-1). A locked field is deleted below.
+  if (!task.id && task.recurrence_type !== 'one-off') {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
   }
@@ -1426,8 +1568,7 @@ function usageHint(
   targetStr: string,
   unit: string,
 ): string {
-  const sd = task as Record<string, unknown>;
-  const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
+  const rawBaseline = formBaseline(task);
   const baseline = Number(rawBaseline);
   const hasBaseline =
     rawBaseline != null && rawBaseline !== '' && Number.isFinite(baseline);
@@ -1495,7 +1636,7 @@ export function sensorHintText(
   const unit = ctx.unit ? ` ${ctx.unit}` : '';
 
   // The edge-driven modes share the hold wording and the clear-on-recover suffix.
-  const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds ?? 0) || 0;
+  const forSeconds = Number(flatSensor(sd, 'sensor_for', task.sensor?.for_seconds)) || 0;
   const withRecovery = (base: string): string =>
     (sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover)
       ? `${base} ${t('hint.sensor.clearOnRecover')}`
@@ -1555,7 +1696,7 @@ export function sensorHintText(
   const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
   if (!backstopEnabled(task) || alsoEvery <= 0) return base;
   const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');
-  const every = `${alsoEvery} ${t(`opt.unit.${alsoUnit}`)}`;
+  const every = intervalText(alsoEvery, alsoUnit);
   const combinator = String(sd.sensor_combinator ?? task.sensor?.combinator ?? 'any');
   return `${base} ${
     combinator === 'all'
@@ -1588,7 +1729,7 @@ export function sensorLive(
   if (!entityId) return {};
   const state = hass?.states?.[entityId];
   if (!state) return {};
-  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
+  const attribute = String(flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '');
   const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
   const num = raw == null || raw === '' ? NaN : Number(raw);
   const unit = state.attributes?.unit_of_measurement as string | undefined;
@@ -1672,7 +1813,12 @@ export function problemSyncExclusionsSchema(): FormField[] {
  * completed one-off retention (auto-delete after N days; 0 keeps them forever).
  */
 export function generalSchema(): FormField[] {
-  return [{ name: 'one_off_retention_days', selector: selNumber(0) }];
+  return [
+    {
+      name: 'one_off_retention_days',
+      selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
+    },
+  ];
 }
 
 /**
@@ -2249,20 +2395,23 @@ export function partFirstDue(part: Part): Date | null {
   // way, exactly as it does for the absent date this line is written for.
   const from = (part.last_replaced ?? '').trim();
   if (!interval || !unit || !from || partCountsUses(part)) return null;
-  const out = new Date(`${from}T00:00:00`);
+  // Calendar arithmetic on a UTC date, so no zone and no daylight-saving change can
+  // move the day. The result is that date's midnight in Home Assistant's zone, the
+  // zone `formatDate` shows it in (X04-7).
+  const out = new Date(`${from}T00:00:00Z`);
   if (Number.isNaN(out.getTime())) return null;
-  if (unit === 'days') out.setDate(out.getDate() + interval);
-  else if (unit === 'weeks') out.setDate(out.getDate() + interval * 7);
+  if (unit === 'days') out.setUTCDate(out.getUTCDate() + interval);
+  else if (unit === 'weeks') out.setUTCDate(out.getUTCDate() + interval * 7);
   else {
-    const day = out.getDate();
+    const day = out.getUTCDate();
     // Day 1 first: `setMonth` on the 31st of a month whose target is shorter rolls
     // *forward* into the month after (Jan 31 -> Mar 3), the opposite of clamping.
-    out.setDate(1);
-    out.setMonth(out.getMonth() + interval);
-    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
-    out.setDate(Math.min(day, lastDay));
+    out.setUTCDate(1);
+    out.setUTCMonth(out.getUTCMonth() + interval);
+    const lastDay = new Date(Date.UTC(out.getUTCFullYear(), out.getUTCMonth() + 1, 0)).getUTCDate();
+    out.setUTCDate(Math.min(day, lastDay));
   }
-  return out;
+  return zonedMidnight(out.getUTCFullYear(), out.getUTCMonth() + 1, out.getUTCDate());
 }
 
 /**

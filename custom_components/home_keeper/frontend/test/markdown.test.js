@@ -72,6 +72,15 @@ describe('markdownBlock', () => {
       expect(html).toContain('class="hk-md"');
     });
 
+    it('F04-1: sets breaks so a single line break in a note survives', () => {
+      const host = document.createElement('div');
+      host.innerHTML = markdownBlock('Filter: 16x25x1\nBrand: Filtrete');
+      const el = host.querySelector('ha-markdown');
+      expect(el.hasAttribute('breaks')).toBe(true);
+      expect(el.getAttribute('breaks')).toBe('');
+      expect(el.getAttribute('class')).toBe('hk-md');
+    });
+
     it('appends the extra class', () => {
       expect(markdownBlock('hi', 'hk-md-compact')).toContain('class="hk-md hk-md-compact"');
     });
@@ -309,6 +318,55 @@ describe('looksLikeMarkdown', () => {
     [null],
     [undefined],
   ])('treats %s as plain prose', (text) => {
+    expect(looksLikeMarkdown(text)).toBe(false);
+  });
+
+  // F04-7: the line-start patterns used `\s`, which runs across line ends, so a
+  // note of many blank lines (or many unclosed `[`) made each test quadratic.
+  it.each([
+    ['\n'.repeat(40000) + 'end', 'many blank lines'],
+    ['  \n'.repeat(20000) + 'end', 'many space-only lines'],
+    ['['.repeat(40000), 'many unclosed ['],
+    ['[a]('.repeat(20000), 'many unclosed link targets'],
+  ])('F04-7: stays fast on case %#', (text) => {
+    const start = performance.now();
+    expect(looksLikeMarkdown(text)).toBe(false);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it.each([
+    ['   # Heading', 'heading indented 3 spaces'],
+    ['\t- item', 'tab-indented bullet'],
+    ['   * item', 'space-indented star bullet'],
+    ['  + item', 'plus bullet'],
+    ['  12. item', 'indented ordered item'],
+    ['  >quote', 'blockquote with no space'],
+    ['\t| a | b |', 'indented table row'],
+    ['   ***', 'indented star break'],
+    ['___  ', 'underscore break with trailing spaces'],
+    ['note\n- item', 'bullet on a later line'],
+    ['note\n> quote', 'quote on a later line'],
+    ['note\n| a |', 'table row on a later line'],
+    ['note\n---\nmore', 'break between lines'],
+    ['see [the manual](http://x/y) now', 'inline link'],
+    [`[${'a'.repeat(300)}](${'x'.repeat(1000)})`, 'link at the length limit'],
+  ])('F04-7: still detects case %#', (text) => {
+    expect(looksLikeMarkdown(text)).toBe(true);
+  });
+
+  it.each([
+    ['[a\nb](x)', 'link text that spans lines'],
+    ['[a](x\ny)', 'link target that spans lines'],
+    [`[${'a'.repeat(301)}](x)`, 'link text over the length limit'],
+    [`[a](${'x'.repeat(1001)})`, 'link target over the length limit'],
+    ['    # four-space indent', 'indented code, not a heading'],
+    ['a - b', 'dash inside a line'],
+    ['--- x', 'dashes followed by text'],
+    ['a | b', 'pipe not at the start of a line'],
+    ['a | b | c', 'two pipes, not at the start of a line'],
+    ['a > b', 'greater-than inside a line'],
+    ['note ---', 'dashes at the end of a line of text'],
+  ])('F04-7: does not treat case %# as markup', (text) => {
     expect(looksLikeMarkdown(text)).toBe(false);
   });
 });

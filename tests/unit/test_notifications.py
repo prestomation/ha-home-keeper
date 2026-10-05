@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import hk_notifications as n
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -254,6 +255,18 @@ def test_normalize_notification_drops_unsupported_targets(caplog):
     assert n.TARGET_PERSISTENT in caplog.text
 
 
+def test_b16_11_normalize_without_warn_drops_quietly(caplog):
+    raw = {"name": "Me", "targets": ["mobile_app_phone", "smtp_family"]}
+    notif = n.normalize_notification(raw, warn=False)
+    assert notif["targets"] == ["mobile_app_phone"]
+    listed = n.normalize_notifications([raw], warn=False)
+    assert listed[0]["targets"] == ["mobile_app_phone"]
+    assert "dropped notify target" not in caplog.text
+    # The default still warns, from the list form too.
+    n.normalize_notifications([raw])
+    assert "dropped notify target(s) smtp_family" in caplog.text
+
+
 def test_normalize_notification_keeps_quiet_when_every_target_is_valid(caplog):
     # No warning on the ordinary path — an alarm that cries wolf gets filtered out.
     with_valid = n.normalize_notification({"targets": ["mobile_app_phone"]})
@@ -305,6 +318,79 @@ def test_resolve_notification_by_id_then_name():
     assert n.resolve_notification(notifs, "Me")["id"] == "a"
     assert n.resolve_notification(notifs, "nope") is None
     assert n.resolve_notification(notifs, None) is None
+
+
+# ── route ids (B16-7, B16-8) ────────────────────────────────────────────────
+
+
+def test_b16_7_route_id_and_adhoc_base():
+    assert n.route_id("n1", ["mobile_app_a", "mobile_app_b"]) == (
+        "n1@mobile_app_a,mobile_app_b"
+    )
+    assert n.adhoc_base(None) == "adhoc"
+    assert n.adhoc_base("") == "adhoc"
+    assert n.adhoc_base("p1") == "adhoc.p1"
+
+
+def _saved():
+    return [
+        n.normalize_notification(
+            {
+                "id": "n1",
+                "name": "Walk",
+                "profile_id": "p1",
+                "targets": ["mobile_app_dad"],
+                "snooze_hours": 5,
+            }
+        )
+    ]
+
+
+def test_b16_8_a_route_of_a_saved_notification_keeps_its_settings():
+    saved = _saved()
+    found = n.resolve_tap_notification(saved, "n1@mobile_app_kid")
+    assert found == {
+        **saved[0],
+        "id": "n1@mobile_app_kid",
+        "targets": ["mobile_app_kid"],
+    }
+    # The saved notification itself is not changed.
+    assert saved[0]["id"] == "n1"
+    assert saved[0]["targets"] == ["mobile_app_dad"]
+
+
+def test_b16_7_a_route_of_an_adhoc_send_is_made_again():
+    found = n.resolve_tap_notification([], "adhoc.p9@mobile_app_kid,mobile_app_mom")
+    assert found is not None
+    assert found["id"] == "adhoc.p9@mobile_app_kid,mobile_app_mom"
+    assert found["name"] == "ad-hoc"
+    assert found["profile_id"] == "p9"
+    assert found["targets"] == ["mobile_app_kid", "mobile_app_mom"]
+    assert found["style"] == n.STYLE_WALK
+    bare = n.resolve_tap_notification([], "adhoc@mobile_app_kid")
+    assert bare is not None
+    assert bare["profile_id"] is None
+    assert bare["targets"] == ["mobile_app_kid"]
+
+
+def test_b16_7_a_saved_id_comes_before_a_route():
+    saved = [n.normalize_notification({"id": "x@mobile_app_a", "name": "Odd"})]
+    assert n.resolve_tap_notification(saved, "x@mobile_app_a") is saved[0]
+    assert n.resolve_tap_notification(_saved(), "n1")["id"] == "n1"
+    # The targets follow the last "@", so a saved id with an "@" still routes.
+    routed = n.resolve_tap_notification(saved, "x@mobile_app_a@mobile_app_b")
+    assert routed["name"] == "Odd"
+    assert routed["targets"] == ["mobile_app_b"]
+
+
+def test_b16_7_a_bad_route_resolves_to_nothing():
+    saved = _saved()
+    assert n.resolve_tap_notification(saved, "gone") is None
+    assert n.resolve_tap_notification(saved, "gone@mobile_app_kid") is None
+    assert n.resolve_tap_notification(saved, "n1@") is None
+    assert n.resolve_tap_notification(saved, "n1@telegram_x") is None
+    assert n.resolve_tap_notification(saved, "n1@mobile_app_a,smtp") is None
+    assert n.resolve_tap_notification(saved, "adhocx@mobile_app_a") is None
 
 
 # ── per-task button sets ────────────────────────────────────────────────────
@@ -389,6 +475,30 @@ def test_a_blocked_task_keeps_snooze_even_when_the_switch_is_off():
     assert n.actions_for(BLOCKED, [], allow_snooze=False) == ["snooze"]
 
 
+SCAN_ONLY = {"id": "t", "tag_id": "tag1", "require_tag_scan": True}
+
+
+def test_b16_4_a_scan_only_task_drops_only_mark_done():
+    # The store refuses Mark done from a notification, but accepts Skip and Snooze.
+    assert n.actions_for(SCAN_ONLY, ALL_VERBS) == ["snooze", "skip", "open"]
+    assert n.actions_for(SCAN_ONLY, ["complete", "skip"]) == ["skip"]
+    assert n.actions_for(SCAN_ONLY, ["open"]) == ["open"]
+    assert n.actions_for({**SCAN_ONLY, "require_tag_scan": False}, ALL_VERBS) == (
+        ALL_VERBS
+    )
+
+
+def test_b16_4_a_scan_only_task_gets_snooze_when_mark_done_was_the_only_verb():
+    assert n.actions_for(SCAN_ONLY, ["complete", "open"]) == ["snooze", "open"]
+    assert n.actions_for(SCAN_ONLY, ["complete"]) == ["snooze"]
+    assert n.actions_for(SCAN_ONLY, ALL_VERBS, allow_snooze=False) == ["skip", "open"]
+    assert n.actions_for(
+        SCAN_ONLY, ALL_VERBS, allow_snooze=False, allow_skip=False
+    ) == ["snooze", "open"]
+    # An ordinary task with the same set keeps it as configured.
+    assert n.actions_for({"id": "t"}, ["open"]) == ["open"]
+
+
 def test_the_switches_default_on_so_an_unaware_caller_is_unaffected():
     # Both verbs predate the switches; a caller that does not pass them (every test
     # that builds one payload) must see exactly the historical behaviour.
@@ -440,6 +550,46 @@ def test_build_notification_walk_actions_and_tag():
     # The companion app stacks a channel's notifications by `group`, so the exact
     # string is a payload contract, not decoration.
     assert payload["data"]["group"] == "home_keeper"
+
+
+def test_build_notification_snooze_button_uses_the_task_snooze_length():
+    # A task with its own snooze length shows that length on the button, not the
+    # notification's. The tap handler reads the same helper, so the label is the
+    # length the tap applies.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {"id": "n1", "actions": ["snooze"], "snooze_hours": 24}
+    )
+    t = task("t1", "Take medicine", dt(2026, 6, 13), snooze_hours=1)
+    payload = n.build_notification(t, notification=notif, now=now)
+    assert [a["title"] for a in payload["data"]["actions"]] == ["Snooze 1h"]
+
+
+@pytest.mark.parametrize(
+    ("own", "notification", "expected"),
+    [
+        (1, {"snooze_hours": 24}, 1),
+        (720, {"snooze_hours": 6}, 720),
+        (None, {"snooze_hours": 6}, 6),
+        # A bad stored value is ignored, not trusted.
+        (0, {"snooze_hours": 6}, 6),
+        (-2, {"snooze_hours": 6}, 6),
+        (True, {"snooze_hours": 6}, 6),
+        ("3", {"snooze_hours": 6}, 6),
+        (1.5, {"snooze_hours": 6}, 6),
+        # No notification (deleted since the card was sent): the default applies.
+        (None, None, n.DEFAULT_SNOOZE_HOURS),
+        (4, None, 4),
+    ],
+)
+def test_snooze_hours_for(own, notification, expected):
+    t = {"id": "t1"} if own is None else {"id": "t1", "snooze_hours": own}
+    assert n.snooze_hours_for(t, notification) == expected
+
+
+def test_snooze_hours_for_a_missing_task_uses_the_notification():
+    assert n.snooze_hours_for(None, {"snooze_hours": 6}) == 6
+    assert n.snooze_hours_for(None, None) == n.DEFAULT_SNOOZE_HOURS
 
 
 def test_build_notification_falls_back_to_the_product_name_for_a_nameless_task():
@@ -895,6 +1045,27 @@ def test_unknown_language_falls_back_to_english():
     )
     assert payload["message"] == "Due now."
     assert payload["data"]["actions"][0]["title"] == "Mark done"
+
+
+def test_b16_10_a_regional_language_uses_its_base_language():
+    assert n._t("es-419", "action_complete") == n._t("es", "action_complete")
+    assert n._t("es-419", "action_complete") != n._t("en", "action_complete")
+    assert n._t("de-CH", "action_complete") == n._t("de", "action_complete")
+    # An exact table still comes first.
+    assert n._t("pt-BR", "action_complete") != n._t("en", "action_complete")
+    # Plurals go through the base language too.
+    assert n._tn("es-419", "digest_title", 1, count=1) == "1 tarea pendiente"
+    assert n._tn("pl-PL", "digest_title", 5, count=5) == "5 zadań do zrobienia"
+    # A key in no table comes back as the key.
+    assert n._t("es-419", "no_such_key") == "no_such_key"
+
+
+def test_b16_10_a_missing_plural_category_falls_to_other(monkeypatch):
+    tables = {"es": {"k.other": "{count} cosas"}, "en": {"k.one": "{count} thing"}}
+    monkeypatch.setattr(n, "_notification_strings", lambda lang: tables.get(lang, {}))
+    # "es" has no "one" form, so its "other" form comes before English.
+    assert n._tn("es-419", "k", 1, count=1) == "1 cosas"
+    assert n._tn("es-419", "no_such_key", 2, count=2) == "no_such_key"
 
 
 def test_plural_category_boundaries_match_cldr():

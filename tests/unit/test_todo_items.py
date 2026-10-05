@@ -139,6 +139,20 @@ def test_an_unmatched_uid_still_falls_back_to_the_summary():
     assert _resolve([recreated], uid="i1") is recreated
 
 
+def test_b09_1_a_vanished_uid_never_falls_back_to_a_ticked_off_line():
+    # B09-1: our line "i1" was deleted, and last cycle's ticked record reads the
+    # same. That record is not ours, and reading it as our line turns a deletion
+    # into a completion. Nothing resolves, so the planner sees a vanished line.
+    assert _resolve([_done(uid="old")], uid="i1") is None
+
+
+def test_b09_1_a_vanished_uid_still_takes_an_open_line_reading_the_same():
+    # The recreated-line case survives the fix: an open line wins over the record.
+    record = _done(uid="old")
+    recreated = _item(uid="i9")
+    assert _resolve([record, recreated], uid="i1") is recreated
+
+
 def test_an_open_line_wins_over_a_ticked_off_one_reading_the_same():
     # Last cycle's completed record sits above this cycle's fresh line; binding
     # to the record would tick off a chore nobody has done.

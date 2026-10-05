@@ -437,7 +437,7 @@ def test_a_save_that_does_not_send_profiles_removes_nothing() -> None:
 
 
 def test_renaming_a_profile_is_not_a_removal() -> None:
-    """Ids are matched; names are only reported. A rename keeps the id."""
+    """A rename keeps the id, and an id reference still resolves."""
     base = _opts([_P1], [_N_ON_P1])
     merged = _opts([{**_P1, "name": "House chores"}], [_N_ON_P1])
     assert opts.profile_removals_in_use(base, merged) == []
@@ -535,6 +535,34 @@ def test_a_profile_sent_without_an_id_reads_as_a_removal() -> None:
     assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
 
 
+_N_BY_NAME = {"id": "n1", "name": "Walk", "profile_id": "My chores", "targets": []}
+
+
+def test_b19_3_removing_a_profile_a_notification_names_by_name_is_blocked() -> None:
+    """The notifier resolves a stored name too, so the guard must see that use."""
+    base = _opts([_P1, _P2], [_N_BY_NAME])
+    merged = _opts([_P2], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_b19_3_renaming_a_profile_a_notification_names_by_name_is_blocked() -> None:
+    base = _opts([_P1], [_N_BY_NAME])
+    merged = _opts([{**_P1, "name": "House chores"}], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_b19_3_a_name_reference_that_still_resolves_is_not_blocked() -> None:
+    base = _opts([_P1, _P2], [_N_BY_NAME])
+    # Another profile is removed, and the named one keeps its name.
+    merged = _opts([_P1], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == []
+    # Re-sent without its id: a new id, but the name still resolves.
+    resent = _opts(
+        [{"name": "My chores", "filter": {"status": "overdue"}}], [_N_BY_NAME]
+    )
+    assert opts.profile_removals_in_use(base, resent) == []
+
+
 def test_the_options_flow_cannot_remove_a_profile() -> None:
     """``profiles`` is not in ``FLOW_OPTIONS``, so the Configure dialog never sends it.
 
@@ -546,3 +574,139 @@ def test_the_options_flow_cannot_remove_a_profile() -> None:
     merged = opts.merge_flow_input(_entry(_FULL), _SUBMISSION)
     assert merged[const.OPTION_PROFILES] == base[const.OPTION_PROFILES]
     assert opts.profile_removals_in_use(base, merged) == []
+
+
+# ------------------------------------------------------- retention bounds (B19-1)
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        (0, 0),
+        (-5, 0),
+        (1, 1),
+        (30.9, 30),
+        (const.MAX_ONE_OFF_RETENTION_DAYS, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (const.MAX_ONE_OFF_RETENTION_DAYS + 1, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (9999999, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (float("inf"), 0),
+        ("junk", 0),
+        (None, 0),
+    ],
+)
+def test_b19_1_retention_reads_back_inside_its_bounds(
+    stored: Any, expected: int
+) -> None:
+    """B19-1: a retention of millions of days overflowed the purge's date arithmetic
+    and stopped the entry from loading. The read path clamps it, so a value stored
+    before the clamp existed loads again with no user action."""
+    result = opts.current_options(_entry({const.OPTION_ONE_OFF_RETENTION_DAYS: stored}))
+    assert result[const.OPTION_ONE_OFF_RETENTION_DAYS] == expected
+
+
+def test_b19_1_the_maximum_is_ten_years() -> None:
+    """B19-1: the options flow offered at most 3650. The other paths now agree."""
+    assert const.MAX_ONE_OFF_RETENTION_DAYS == 3650
+
+
+# --------------------------------------------- lowered retention grace (X12-1)
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "lowered"),
+    [
+        (0, 3, True),  # forever -> 3 days deletes more
+        (0, 1, True),  # the smallest positive value counts too
+        (5, 1, True),
+        (30, 3, True),
+        (30, 29, True),
+        (3, 30, False),
+        (30, 30, False),
+        (30, 0, False),  # back to forever deletes nothing
+        (0, 0, False),
+    ],
+)
+def test_x12_1_retention_lowered(old: int, new: int, lowered: bool) -> None:
+    """X12-1: only a change that can delete more tasks waits for a tick."""
+    assert opts.retention_lowered(old, new) is lowered
+
+
+def test_x12_1_the_grace_is_taken_once() -> None:
+    opts._RETENTION_GRACE.add("grace-entry")
+    assert opts.take_retention_grace("grace-entry") is True
+    assert opts.take_retention_grace("grace-entry") is False
+    assert opts.take_retention_grace("other-entry") is False
+
+
+# ── X03-8: device ids after the Home Assistant 2026.8 device split ────────────
+DEAD = "dead_composite"
+LIVE = "live_device"
+
+
+def _device_options() -> dict[str, Any]:
+    return {
+        const.OPTION_SYNC_PROBLEM_SENSORS: True,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [DEAD, "keep"],
+        const.OPTION_PROFILES: [
+            {"id": "p1", "filter": {"devices": [DEAD], "exclude_devices": ["x"]}},
+            {"id": "p2", "filter": {"devices": [], "exclude_devices": [DEAD, LIVE]}},
+            {"id": "p3"},  # no filter block
+            "not a profile",
+        ],
+    }
+
+
+def test_x03_8_device_ids_in_options_finds_every_device_reference():
+    assert opts.device_ids_in_options(_device_options()) == {DEAD, "keep", "x", LIVE}
+    assert opts.device_ids_in_options({}) == set()
+
+
+def test_x03_8_repoint_device_ids_moves_exclusions_and_profile_filters():
+    stored = _device_options()
+    before = json.dumps(stored, sort_keys=True)
+    new = opts.repoint_device_ids(stored, {DEAD: LIVE})
+    assert new == {
+        const.OPTION_SYNC_PROBLEM_SENSORS: True,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [LIVE, "keep"],
+        const.OPTION_PROFILES: [
+            {"id": "p1", "filter": {"devices": [LIVE], "exclude_devices": ["x"]}},
+            # The dead id and the live id are one device now: listed once.
+            {"id": "p2", "filter": {"devices": [], "exclude_devices": [LIVE]}},
+            {"id": "p3"},
+            "not a profile",
+        ],
+    }
+    # The stored options are not changed in place.
+    assert json.dumps(stored, sort_keys=True) == before
+
+
+def test_x03_8_repoint_device_ids_reports_no_change():
+    assert opts.repoint_device_ids(_device_options(), {"other": LIVE}) is None
+    assert opts.repoint_device_ids({}, {DEAD: LIVE}) is None
+
+
+def test_x03_8_repoint_device_ids_moves_only_a_profile_filter():
+    stored = {
+        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [DEAD]}}]
+    }
+    assert opts.repoint_device_ids(stored, {DEAD: LIVE}) == {
+        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [LIVE]}}]
+    }
+
+
+def test_x03_8_repoint_device_ids_moves_only_the_exclusions():
+    stored = {const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [DEAD]}
+    assert opts.repoint_device_ids(stored, {DEAD: LIVE}) == {
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [LIVE]
+    }
+
+
+def test_x03_8_device_ids_in_options_reads_past_a_bad_profile():
+    stored = {
+        const.OPTION_PROFILES: [
+            "not a profile",
+            {"id": "p0"},
+            {"id": "p", "filter": {"devices": [DEAD]}},
+        ]
+    }
+    assert opts.device_ids_in_options(stored) == {DEAD}

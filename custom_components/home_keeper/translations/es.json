@@ -115,6 +115,10 @@
           "name": "Exigir escaneo de la etiqueta",
           "description": "Solo la etiqueta vinculada puede completar esta tarea. Se rechaza cualquier otra forma de marcarla como hecha. Requiere una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Duración de Posponer",
+          "description": "Horas que Posponer mueve esta tarea. El diálogo Posponer empieza con esta duración y el botón Posponer de una notificación la usa. Déjalo vacío para usar las duraciones habituales."
+        },
         "source": {
           "name": "Fuente",
           "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Home Keeper la almacena y la devuelve tal cual y nunca la inspecciona. Consulta docs/INTEGRATING.md."
@@ -217,9 +221,13 @@
           "name": "Exigir escaneo de la etiqueta",
           "description": "Solo la etiqueta vinculada puede completar esta tarea. Requiere una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Duración de Posponer",
+          "description": "Horas que Posponer mueve esta tarea. Envía un valor vacío para volver a las duraciones habituales."
+        },
         "source": {
           "name": "Fuente",
-          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Consulta docs/INTEGRATING.md."
+          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Cada espacio de nombres sustituye al espacio de nombres guardado con el mismo nombre. Un espacio de nombres con el valor null se elimina. Consulta docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detalle de finalización",
@@ -252,6 +260,10 @@
           "description": "Omitir la protección de eliminación de una tarea gestionada por otra integración. Úsalo para limpiar una tarea cuya integración gestora se desinstaló o funciona mal y no puede eliminarla por sí misma."
         }
       }
+    },
+    "delete_orphaned_tasks": {
+      "name": "Eliminar tareas huérfanas",
+      "description": "Elimina cada tarea gestionada por una integración cuando esa integración no está cargada (eliminada, desactivada o sin configurar). Solo para administradores. Devuelve los ID de las tareas eliminadas en \"deleted\"."
     },
     "complete_task": {
       "name": "Completar tarea",
@@ -359,11 +371,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Cuántas horas posponer la tarea (24 por defecto). Se ignora si se indica Hasta."
+          "description": "Cuántas horas posponer la tarea (24 por defecto). No indiques Horas y Hasta en la misma llamada."
         },
         "until": {
           "name": "Hasta",
-          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. Si lo indicas, el campo Horas no se usa."
+          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. No indiques Horas y Hasta en la misma llamada."
         },
         "origin": {
           "name": "Origen",
@@ -944,6 +956,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Quitar foto de tarea",
+      "description": "Quita una foto de una tarea y elimina su archivo. Añade fotos desde el panel, porque una llamada de servicio no puede llevar un archivo.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Establecer portada de la tarea",
+      "description": "Convierte una foto en la portada de su tarea. La portada es la primera foto. Aparece en la lista de tareas, en la página de la tarea y en el diálogo de completado.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Firmar URL de foto de tarea",
+      "description": "Genera una URL de corta duración (sin cabecera de autenticación) que da los bytes de una foto de tarea, por ejemplo para mostrar la foto en una notificación.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Firma la URL de la copia pequeña, de 256 píxeles como máximo en su lado largo."
+        }
+      }
+    },
     "update_skip": {
       "name": "Actualizar omisión",
       "description": "Modifica el detalle de una omisión registrada, identificada por su marca de tiempo. La omisión conserva su fecha y la planificación no se toca.",
@@ -1068,6 +1126,16 @@
       "part_spares": {
         "name": "{part}: repuestos"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tareas"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Próximas tareas"
+      }
     }
   },
   "device_automation": {
@@ -1132,6 +1200,18 @@
     },
     "unknown_document": {
       "message": "Documento desconocido: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Foto desconocida: {photo_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Solo una tarea vinculada a un sensor de uso tiene un contador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculado no tiene una lectura numérica ahora. Indique un valor inicial en la llamada."
+    },
+    "archived_completion_not_found": {
+      "message": "El electrodoméstico no tiene ninguna realización archivada de {task_id} en {ts}."
     },
     "unknown_part_file": {
       "message": "Pieza desconocida o sin archivo adjunto."

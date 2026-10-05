@@ -1,6 +1,6 @@
 """One Home Assistant stub tree for the unit suites that load HA-coupled modules.
 
-Seven suites here (``test_calendar``, ``test_coordinator_purge``,
+Eight suites here (``test_button``, ``test_calendar``, ``test_coordinator_purge``,
 ``test_device_heal``, ``test_notifier_blocking``, ``test_shopping_sync``,
 ``test_todo``, ``test_todo_list_sync``) load a **real** module out of
 ``custom_components/home_keeper`` under the synthetic ``hk`` package (see
@@ -17,9 +17,9 @@ The contract every caller depends on:
   overwritten.
 * **Idempotent, and load-order-free.** Because it only fills gaps, it does not
   matter which suite gets here first, or how many times it is called.
-* **A superset.** It registers the union of what all seven suites import, so a
+* **A superset.** It registers the union of what all eight suites import, so a
   suite may find symbols present that it does not itself need. That is
-  deliberate: one tree with everything in it beats seven that disagree.
+  deliberate: one tree with everything in it beats eight that disagree.
 * **It does not pin the clock.** ``homeassistant.util.dt.now`` *raises*, because
   a shared "now" that silently answers the wrong instant is worse than one that
   says it was never set up. Every suite that needs a fixed clock pins
@@ -89,7 +89,7 @@ def install_ha_stubs() -> None:
 
 
 def _install_components(ha: types.ModuleType) -> None:
-    """``homeassistant.components.{calendar,todo}`` — the two entity platforms."""
+    """``homeassistant.components.{calendar,todo,button}`` — the entity platforms."""
     components = _mod("homeassistant.components")
     ha.components = components
 
@@ -183,6 +183,15 @@ def _install_components(ha: types.ModuleType) -> None:
         comp_todo.TodoListEntityFeature = TodoListEntityFeature
     components.todo = comp_todo
 
+    comp_button = _mod("homeassistant.components.button")
+    if not hasattr(comp_button, "ButtonEntity"):
+
+        class ButtonEntity:
+            pass
+
+        comp_button.ButtonEntity = ButtonEntity
+    components.button = comp_button
+
 
 def _install_config_entries() -> None:
     """``homeassistant.config_entries`` — names only; nothing calls into them."""
@@ -249,6 +258,12 @@ def _install_exceptions() -> None:
                 self.translation_placeholders = translation_placeholders
 
         exceptions.HomeAssistantError = HomeAssistantError
+    if not hasattr(exceptions, "ServiceValidationError"):
+
+        class ServiceValidationError(exceptions.HomeAssistantError):
+            pass
+
+        exceptions.ServiceValidationError = ServiceValidationError
 
 
 def _install_helpers() -> None:
@@ -267,6 +282,11 @@ def _install_helpers() -> None:
             pass
 
         device_registry.DeviceInfo = DeviceInfo
+    if not hasattr(device_registry, "DeviceEntryType"):
+        # The service device of the to-do, calendar and count sensors uses it.
+        device_registry.DeviceEntryType = enum.StrEnum(
+            "DeviceEntryType", {"SERVICE": "service"}
+        )
     # A callable rather than a placeholder class: this is the one registry getter
     # a suite might reach through without replacing it first, and answering
     # ``None`` is the honest "there is no registry here".
@@ -307,6 +327,10 @@ def _install_helpers() -> None:
     event_mod = _mod("homeassistant.helpers.event")
     if not hasattr(event_mod, "async_track_state_change_event"):
         event_mod.async_track_state_change_event = lambda hass, ids, cb: lambda: None
+    if not hasattr(event_mod, "async_track_time_interval"):
+        event_mod.async_track_time_interval = lambda hass, action, interval: (
+            lambda: None
+        )
     helpers.event = event_mod
 
     storage = _mod("homeassistant.helpers.storage")

@@ -35,10 +35,18 @@ import { openConfirmDialog } from './panel-dialogs';
 import { setIcon } from './panel-history';
 import { applyRuleChange, previewLine, ruleControls, schedulePreview } from './panel-rule';
 import type { PanelHost } from './panel-host';
+import { formPhotosSection } from './panel-task-photos';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
 import type { Asset, Task } from './types';
-import { assetsForTask, escapeHTML, formatQuantity, safeHref, setBtnWeight } from './utils';
+import {
+  assetTitle,
+  assetsForTask,
+  escapeHTML,
+  formatQuantity,
+  safeHref,
+  setBtnWeight,
+} from './utils';
 
 /**
  * One active-season window: a numbered heading, Remove when there is more than one
@@ -230,11 +238,14 @@ export function consumableLinkLabel(p: PanelHost, task: Task): string {
     view: 'appliances',
     detail: { kind: 'asset', id: asset.id, tab: 'parts', part: linked.id },
   });
+  // The title the appliance shows everywhere else. An appliance on an existing device
+  // can have no name, and the link then had no text to tap (F07-11).
+  const title = assetTitle(asset, p._hass?.devices);
   const owner = linked.id
     ? `<a class="hk-part-link" href="${escapeHTML(href)}" data-asset-id="${escapeHTML(
         asset.id,
-      )}" data-part-id="${escapeHTML(linked.id)}">${escapeHTML(asset.name)}</a>`
-    : escapeHTML(asset.name);
+      )}" data-part-id="${escapeHTML(linked.id)}">${escapeHTML(title)}</a>`
+    : escapeHTML(title);
   return `${owner} · ${name}${stock}`;
 }
 
@@ -285,7 +296,7 @@ export function drawerHead(
   title: string,
   subtitle: string,
   saveLabel: string,
-  onSave: () => void,
+  onSave: (button: Element) => void,
   onCancel: () => void,
   ids: { save: string; cancel: string },
   helpUrl?: string,
@@ -317,7 +328,7 @@ export function drawerHead(
   setBtnWeight(save, 'primary');
   save.id = ids.save;
   save.textContent = saveLabel;
-  save.addEventListener('click', onSave);
+  save.addEventListener('click', () => onSave(save));
   head.append(close, titles, cancel, save);
   return head;
 }
@@ -332,7 +343,7 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       task.id ? t('form.task.edit') : t('form.task.new'),
       String(task.name ?? ''),
       task.id ? t('btn.save') : t('btn.create'),
-      () => void p._submitForm(),
+      (b) => void p._submitForm(b),
       () => p._closeForm(),
       { save: 'f-save', cancel: 'f-cancel' },
       SENSOR_DOCS_URL,
@@ -524,6 +535,11 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       heading.className = 'hk-eyebrow hk-form-section';
       heading.textContent = t(`form.section.${section.key}`);
       formWrap.append(heading, form);
+      // The photos are part of what a task is, so they sit with the name and notes.
+      if (section.key === 'basics') {
+        const photos = formPhotosSection(p, task);
+        if (photos) formWrap.appendChild(photos);
+      }
     }
   }
   inner.appendChild(formWrap);

@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.28.0b1"
+PANEL_VERSION = "0.30.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -41,6 +41,15 @@ MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
 # of a document id — it lives under the same per-asset directory (asset deletion's
 # rmtree cleans it up for free) and is served by a sibling HTTP view.
 PART_FILE_URL_PREFIX = "/api/home_keeper/part_document"
+# Task photos (#399): up to MAX_TASK_PHOTOS images on a task, the first one the cover.
+# They live in a tree of their own, one folder per task, beside the documents tree, so
+# a task delete is one ``rmtree`` and no task id can name an appliance's folder. Each
+# photo has a small JPEG thumbnail next to it for the task list and the strip.
+TASK_PHOTOS_SUBDIR = "home_keeper/task_photos"
+TASK_PHOTO_URL_PREFIX = "/api/home_keeper/task_photo"
+MAX_TASK_PHOTOS = 6
+MAX_TASK_PHOTO_BYTES = 25 * 1024 * 1024
+TASK_PHOTO_THUMB_PX = 256
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is
@@ -298,6 +307,11 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# The largest retention the options accept: 10 years. Every write path and the read
+# path clamp to it (``options._coerce_days``), because a very large number of days
+# overflows the date arithmetic of the purge and stops the entry from loading.
+# ``frontend/src/limits.ts`` mirrors it for the panel's number box.
+MAX_ONE_OFF_RETENTION_DAYS = 3650
 # Whether Home Keeper *offers* Snooze and Skip. Both default **on**: they are
 # long-standing verbs, and defaulting them off would hide a feature people already
 # struggle to find (#268). Turning one off withdraws it from the surfaces Home Keeper
@@ -327,7 +341,7 @@ OPTION_PROFILES = "profiles"
 # loudly it lands (channel, urgency) and how it looks (icon, color).
 # Edited from the panel's Settings → Notifications card and the set_options service;
 # consumed by the notify service, the action listener, and the coordinator's automatic
-# source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
+# source. See docs/design/profiles-notifications.md.
 OPTION_NOTIFICATIONS = "notifications"
 # An existing Home Assistant to-do list (a ``todo.*`` entity id) that auto-buy
 # reminders are mirrored onto — a shopping list, so "go buy more" reaches voice
@@ -413,7 +427,7 @@ REC_ONE_OFF = "one-off"
 # ``sensor_tasks.py``). Three modes: ``usage`` (a meter — due after the reading
 # advances ``target`` units since the last completion), ``threshold`` (due when
 # the reading crosses a numeric comparison) and ``state`` (due when the entity enters
-# a given state). See docs/SENSOR_TASKS_PLAN.md.
+# a given state). See docs/design/sensor-tasks.md.
 REC_SENSOR = "sensor"
 # A counted wear item's *use* task: the one surface a household taps to say "I wore
 # it / I used it once". It has no cadence and no due date at all — ``next_due`` is
@@ -423,7 +437,7 @@ REC_SENSOR = "sensor"
 # replacement task beside it arms once enough entries accumulate since the last
 # replacement (see ``reconcile.uses_since_replacement``). Distinct from
 # ``triggered``, which an owner arms and clears, and from ``sensor``, which reads a
-# number: nothing ever arms a use task. See docs/COUNTED_WEAR_ITEMS_PLAN.md.
+# number: nothing ever arms a use task. See docs/design/appliances.md.
 REC_USE = "use"
 RECURRENCE_TYPES = [
     REC_FLOATING,
@@ -612,7 +626,7 @@ MAX_USE_NOUN_LEN = 16
 # DEFERRED (not implemented this prototype): a stable cross-integration contribution
 # interface so integrations like Battery Notes can push maintenance tasks without
 # this integration knowing anything about them. The intended hook is a dispatcher
-# signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.
+# signal plus a `home_keeper.contribute_task` service. See IDEAS.md.
 SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"
 
 # ── Companion discovery ──────────────────────────────────────────────────────
@@ -668,6 +682,13 @@ MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN = 500
 MAX_DECLARATIVE_ENTITY_REGEX_LEN = 200
 MAX_DECLARATIVE_NAME_TEMPLATE_LEN = 200
 MAX_DECLARATIVE_NOTES_TEMPLATE_LEN = 2000
+# Bounds on the ``translation_keys`` filter and the ``task_names`` table keyed by it.
+# An integration names a few dozen entity keys at most; 100 leaves room and still
+# stops a runaway list. One key is an integration's own identifier, so 100 characters
+# is ample. A task name is plain text, bounded like the spec name.
+MAX_DECLARATIVE_TRANSLATION_KEYS = 100
+MAX_DECLARATIVE_TRANSLATION_KEY_LEN = 100
+MAX_DECLARATIVE_TASK_NAME_LEN = 100
 # Cap the number of tasks a single declarative spec can materialize. A poorly
 # narrowed regex (``.*``) against a big HA config would otherwise fan out to
 # hundreds of tasks silently. The preview warns at WARN and hard-fails at HARD so
@@ -691,6 +712,9 @@ COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.
 SIGNAL_DECLARATIVE_SPECS_CHANGED = f"{DOMAIN}_declarative_specs_changed"
+# Dispatcher signal: the stock of a part changed. The part entities (spares number,
+# low-stock sensor) write their state at once, before the debounced refresh.
+SIGNAL_PART_STOCK_CHANGED = f"{DOMAIN}_part_stock_changed"
 # Bus events fired on spec-level mutations. Managed tasks still emit the standard
 # ``home_keeper_task_*`` events; automations filter to declarative tasks via
 # ``managed_by.integration == "home_keeper"`` +

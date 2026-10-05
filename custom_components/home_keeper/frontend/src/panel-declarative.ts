@@ -28,13 +28,18 @@
 
 import * as api from './api';
 import {
+  applyKeyRows,
   EXCLUSION_FIELDS,
   exclusionsSchema,
   hasMoreFilters,
   idList,
+  keyOptions,
+  keyRows,
   moreFiltersSchema,
   moreFiltersSummary,
   toggleId,
+  toggleKeyRow,
+  type KeyRow,
 } from './declarative-filters';
 import {
   pickFormData,
@@ -50,14 +55,32 @@ import { t, tn } from './i18n';
 import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
+import { groupPresets, presetTaskNames } from './preset-picker';
+import { wireBrandImage } from './panel-chips';
+import {
+  changedSections,
+  companionOrigin,
+  limitProgress,
+  presetFor,
+  resetToPreset,
+} from './preset-summary';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
   DeclarativeCompanionPreviewMatch,
   DeclarativeCompanionPreviewResult,
+  EntityKeyList,
+  PresetLimit,
   Task,
 } from './types';
-import { btnAttrs, escapeHTML, setBtnWeight, toast } from './utils';
+import {
+  brandLogoUrl,
+  btnAttrs,
+  escapeHTML,
+  formatReading,
+  setBtnWeight,
+  toast,
+} from './utils';
 
 /** The trigger modes the form offers, in the order the dropdown lists them. */
 // `template` goes last on purpose. The four above it each answer one plain question,
@@ -246,7 +269,7 @@ export function declarativeOverlap(
   return best;
 }
 
-function errorMessage(err: unknown): string {
+export function errorMessage(err: unknown): string {
   return String((err as { message?: string })?.message || err);
 }
 
@@ -267,26 +290,84 @@ export function declarativeSection(p: PanelHost): string {
       ${rows}`;
 }
 
-/** One companion row: name, enabled chip, preset badge, description, count, actions. */
-function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
+/** The badge on a companion row's logo for each preset shape: its icon and its name. */
+const SHAPE_BADGES: Record<string, { icon: string; key: string }> = {
+  percent_low: { icon: 'mdi:trending-down', key: 'declarative.companions.shape.percent_low' },
+  life_low: { icon: 'mdi:timer-sand-complete', key: 'declarative.companions.shape.life_low' },
+  wear_high: { icon: 'mdi:counter', key: 'declarative.companions.shape.wear_high' },
+  reading_low: { icon: 'mdi:arrow-down-bold', key: 'declarative.companions.shape.reading_low' },
+  reading_high: { icon: 'mdi:arrow-up-bold', key: 'declarative.companions.shape.reading_high' },
+  alert: { icon: 'mdi:alert-outline', key: 'declarative.companions.shape.alert' },
+};
+
+/** The icon a companion row shows when it has no integration logo. */
+const COMPANION_ICON = 'mdi:puzzle-outline';
+
+/** The name of each entity platform the companion form offers, in the panel language. */
+const PLATFORM_NAMES: Record<string, string> = {
+  binary_sensor: 'declarative.companions.platform.binary_sensor',
+  sensor: 'declarative.companions.platform.sensor',
+  update: 'declarative.companions.platform.update',
+  switch: 'declarative.companions.platform.switch',
+  number: 'declarative.companions.platform.number',
+};
+
+/** The name of entity platform *domain*. Home Assistant does not load the titles of
+ *  the entity platforms in a panel, so the panel has its own for the common ones. */
+function platformName(p: PanelHost, domain: string): string {
+  const key = PLATFORM_NAMES[domain];
+  return key ? t(key) : integrationTitle(p, domain);
+}
+
+/** Home Assistant's title for *domain* (`component.<domain>.title`), else *domain*. */
+function integrationTitle(p: PanelHost, domain: string): string {
+  return p._hass?.localize?.(`component.${domain}.title`) || domain;
+}
+
+/**
+ * One companion row: a logo tile, the name with its status chips, the description,
+ * and a meta line that says the integration, the platform, the limit and the count.
+ */
+export function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
   const count = p._tasks.filter((task) => declarativeSpecId(task) === spec.id).length;
+  const origin = companionOrigin(spec, p._declarativePresets);
   const enabled = spec.enabled
     ? `<ha-assist-chip class="hk-comp-connected" label="${escapeHTML(t('declarative.companions.enabled'))}"></ha-assist-chip>`
     : `<ha-assist-chip class="hk-comp-suggested" label="${escapeHTML(t('declarative.companions.disabled'))}"></ha-assist-chip>`;
-  const preset = spec.preset_id
-    ? `<ha-assist-chip class="hk-decl-preset-chip" label="${escapeHTML(t('declarative.companions.preset_badge') + spec.preset_id)}"></ha-assist-chip>`
+  const custom = origin.custom
+    ? `<span class="hk-decl-custom">${escapeHTML(t('declarative.companions.custom'))}</span>`
     : '';
   const desc = spec.description
     ? `<div class="hk-companion-desc">${escapeHTML(spec.description)}</div>`
     : '';
+  const fallbackIcon = escapeHTML(origin.icon || COMPANION_ICON);
+  const art = origin.domain
+    ? `<img class="hk-decl-logo" alt="" src="${escapeHTML(brandLogoUrl(origin.domain))}" data-domain="${escapeHTML(origin.domain)}" data-fallback-icon="${fallbackIcon}" />`
+    : `<ha-icon class="hk-decl-logo" icon="${fallbackIcon}"></ha-icon>`;
+  const badge = origin.shape ? SHAPE_BADGES[origin.shape] : undefined;
+  const badgeHtml = badge
+    ? `<span class="hk-decl-shape" title="${escapeHTML(t(badge.key))}"><ha-icon icon="${badge.icon}"></ha-icon></span>`
+    : '';
+  const source = origin.domain
+    ? origin.brand || integrationTitle(p, origin.domain)
+    : t('declarative.companions.any_integration');
+  const meta = [
+    source,
+    origin.platform ? platformName(p, origin.platform) : '',
+    origin.limitText ?? '',
+    t('declarative.companions.matches', { count: String(count) }),
+  ]
+    .filter(Boolean)
+    .map((part) => `<span>${escapeHTML(part)}</span>`)
+    .join('');
   const id = escapeHTML(spec.id);
   return `
       <div class="hk-companion hk-decl-row" data-spec-id="${id}">
-        <ha-icon class="hk-companion-ic" icon="mdi:puzzle-outline"></ha-icon>
+        <div class="hk-companion-ic hk-decl-tile">${art}${badgeHtml}</div>
         <div class="hk-companion-body">
-          <div class="hk-companion-name">${escapeHTML(spec.name)} ${enabled} ${preset}</div>
+          <div class="hk-companion-name">${escapeHTML(spec.name)} ${enabled} ${custom}</div>
           ${desc}
-          <div class="hk-decl-matches">${escapeHTML(t('declarative.companions.matches', { count: String(count) }))}</div>
+          <div class="hk-decl-meta">${meta}</div>
         </div>
         <div class="hk-companion-actions">
           <ha-button ${btnAttrs('secondary')} class="hk-decl-edit" data-spec-id="${id}">${escapeHTML(t('declarative.companions.edit'))}</ha-button>
@@ -295,8 +376,21 @@ function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
       </div>`;
 }
 
+/** Make each row's logo fall back to the generic brand image, then to an icon. */
+function wireDeclarativeLogos(root: HTMLElement): void {
+  root.querySelectorAll<HTMLImageElement>('img.hk-decl-logo').forEach((img) =>
+    wireBrandImage(img, () => {
+      const icon = document.createElement('ha-icon');
+      icon.className = 'hk-decl-logo';
+      icon.setAttribute('icon', img.dataset.fallbackIcon || COMPANION_ICON);
+      img.replaceWith(icon);
+    }),
+  );
+}
+
 /** Wire the subsection's Add / Add from preset / Edit / Delete buttons. */
 export function wireDeclarativeSection(p: PanelHost, root: HTMLElement): void {
+  wireDeclarativeLogos(root);
   root
     .querySelector('.hk-decl-add')
     ?.addEventListener('click', () => void openDeclarativeForm(p, null));
@@ -377,7 +471,7 @@ export async function openDeclarativeForm(
   p._render();
 }
 
-function seededFrom(preset: DeclarativeCompanionPreset): DeclarativeCompanion {
+export function seededFrom(preset: DeclarativeCompanionPreset): DeclarativeCompanion {
   return { id: '', ...(preset.default_spec as Omit<DeclarativeCompanion, 'id'>) };
 }
 
@@ -430,17 +524,34 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
     ...(p._installedIntegrations ?? []),
     ...Object.values(p._entryDomains),
   ]);
+
+  // The search box stays put while the list under it is drawn again on each key, so
+  // typing never loses focus.
+  const search = document.createElement('div');
+  search.className = 'hk-decl-preset-search';
+  search.innerHTML = `<ha-icon icon="mdi:magnify"></ha-icon>`;
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.id = 'hk-decl-preset-q';
+  input.className = 'hk-decl-preset-q';
+  input.autocomplete = 'off';
+  input.placeholder = t('declarative.companions.preset_search');
+  input.setAttribute('aria-label', t('declarative.companions.preset_search'));
+  input.value = p._declDialog.presetQuery ?? '';
+  search.appendChild(input);
   const list = document.createElement('div');
-  list.className = 'hk-decl-preset-list';
-  for (const preset of p._declarativePresets ?? []) {
+  list.className = 'hk-decl-preset-groups';
+  body.append(search, list);
+
+  const card = (preset: DeclarativeCompanionPreset): HTMLElement => {
     const missing =
       preset.requires_integration !== null && !installed.has(preset.requires_integration);
     // A real button, so the picker is keyboard-reachable like the rest of the panel.
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'hk-decl-preset-card' + (missing ? ' hk-decl-preset-disabled' : '');
-    card.dataset.presetId = preset.id;
-    card.disabled = missing;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'hk-decl-preset-card' + (missing ? ' hk-decl-preset-disabled' : '');
+    el.dataset.presetId = preset.id;
+    el.disabled = missing;
     const requires = missing
       ? `<span class="hk-decl-preset-req">${escapeHTML(
           t('declarative.companions.requires_integration', {
@@ -448,19 +559,82 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
           }),
         )}</span>`
       : '';
-    card.innerHTML = `
+    // How many entities the preset would match now, so a user sees why it is first.
+    const count =
+      typeof preset.matches === 'number' && preset.matches > 0
+        ? `<span class="hk-decl-preset-count">${escapeHTML(
+            tn('declarative.companions.keys_entities', preset.matches),
+          )}</span>`
+        : '';
+    const tasks = presetTaskNames(preset);
+    const chips = tasks.length
+      ? `<span class="hk-decl-preset-tasks">${tasks
+          .map((name) => `<span class="hk-decl-preset-task">${escapeHTML(name)}</span>`)
+          .join('')}</span>`
+      : '';
+    el.innerHTML = `
         <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
         <span class="hk-decl-preset-text">
-          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}</span>
+          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}${count}</span>
           <span class="hk-decl-preset-desc">${escapeHTML(preset.description)}</span>
+          ${chips}
           ${requires}
         </span>`;
     if (!missing) {
-      card.addEventListener('click', () => void openDeclarativeForm(p, seededFrom(preset)));
+      el.addEventListener('click', () => void openDeclarativeForm(p, seededFrom(preset)));
     }
-    list.appendChild(card);
-  }
-  body.appendChild(list);
+    return el;
+  };
+
+  const draw = (): void => {
+    const query = p._declDialog.presetQuery ?? '';
+    const groups = groupPresets(
+      p._declarativePresets ?? [],
+      installed,
+      query,
+      p._declDialog.presetShowAll ?? false,
+    );
+    list.innerHTML = '';
+    const section = (key: string, presets: DeclarativeCompanionPreset[]): void => {
+      if (!presets.length) return;
+      const head = document.createElement('div');
+      head.className = 'hk-decl-preset-group';
+      head.dataset.group = key;
+      head.textContent = t('declarative.companions.preset_group_' + key);
+      const grid = document.createElement('div');
+      grid.className = 'hk-decl-preset-list';
+      grid.dataset.group = key;
+      for (const preset of presets) grid.appendChild(card(preset));
+      list.append(head, grid);
+    };
+    section('mine', groups.mine);
+    section('general', groups.general);
+    section('other', groups.other);
+    if (!groups.mine.length && !groups.general.length && !groups.other.length) {
+      const empty = document.createElement('div');
+      empty.className = 'hk-decl-preset-empty';
+      empty.textContent = t('declarative.companions.preset_none');
+      list.appendChild(empty);
+    }
+    if (!query.trim() && (groups.hidden || p._declDialog.presetShowAll)) {
+      const toggle = document.createElement('ha-button');
+      toggle.className = 'hk-decl-preset-all';
+      setBtnWeight(toggle, 'tertiary');
+      toggle.textContent = groups.hidden
+        ? tn('declarative.companions.preset_show_all', groups.hidden)
+        : t('declarative.companions.preset_hide_other');
+      toggle.addEventListener('click', () => {
+        p._declDialog.presetShowAll = !p._declDialog.presetShowAll;
+        draw();
+      });
+      list.appendChild(toggle);
+    }
+  };
+  input.addEventListener('input', () => {
+    p._declDialog.presetQuery = input.value;
+    draw();
+  });
+  draw();
 
   const cancel = document.createElement('ha-button');
   cancel.setAttribute('slot', 'secondaryAction');
@@ -487,10 +661,22 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   dialog.classList.add('hk-decl-dialog');
   body.classList.add('hk-decl-dialog-body');
 
+  // The preset this draft came from, and the box that says what it does. The box
+  // checks for changes on each edit, from the same hook the preview uses.
+  const preset = presetFor(draft, p._declarativePresets);
+  const presetBox = preset
+    ? presetSummaryBox(preset, draft, () => {
+        p._declDialog.draft = resetToPreset(draft, preset.default_spec);
+        p._render();
+      })
+    : null;
+  if (presetBox) body.appendChild(presetBox.el);
+
   const preview = document.createElement('div');
   preview.className = 'hk-decl-preview';
   preview.textContent = t('declarative.companions.preview_loading');
   const schedulePreview = (): void => {
+    presetBox?.refresh();
     // Only the dialog that is still on screen may own the pending preview. A trigger
     // mode change re-renders the dialog from *inside* the section's change handler,
     // so by the time the handler's own `schedulePreview()` runs, the new dialog has
@@ -502,7 +688,16 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     if (!preview.isConnected) return;
     p._debounce(
       'decl-preview',
-      () => void refreshPreview(p, draft, preview, (id) => toggleExcluded(id)),
+      () =>
+        void refreshPreview(
+          p,
+          draft,
+          preview,
+          (id) => toggleExcluded(id),
+          // A reading is drawn against the preset's limit only while the trigger is
+          // still the preset's: an edited trigger has a limit of its own.
+          preset && !presetBox?.changed().includes('trigger') ? (preset.limit ?? null) : null,
+        ),
       PREVIEW_DEBOUNCE_MS,
     );
   };
@@ -593,10 +788,17 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     ],
     { integration: sel.target_integration, domain: sel.domain },
     (v) => {
+      const before = `${sel.target_integration}|${sel.domain}`;
       sel.target_integration = str(v.integration);
       sel.domain = str(v.domain);
+      // Load the key list again only when the query changes. The form can report a
+      // change with the same values, and each load reads the entity registry.
+      if (`${sel.target_integration}|${sel.domain}` !== before) refreshKeys();
     },
   );
+  // Assigned once the key editor below exists; the integration box above can change
+  // before that, so it starts as a no-op.
+  let refreshKeys = (): void => {};
 
   // 2b. More filters: the rarer filters and the exclusions, behind one row whose
   //     summary says what is set, so a closed row never hides a filter unseen. It
@@ -636,6 +838,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   // earlier ones.
   const filtersData = (): Record<string, unknown> => ({
     device_class: sel.device_class,
+    device_ids: sel.device_ids ?? [],
     area_ids: sel.area_ids ?? [],
     label_ids: sel.label_ids ?? [],
     entity_regex: sel.entity_regex,
@@ -646,6 +849,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     filtersData(),
     (v) => {
       sel.device_class = str(v.device_class);
+      sel.device_ids = idList(v.device_ids);
       sel.area_ids = idList(v.area_ids);
       sel.label_ids = idList(v.label_ids);
       sel.entity_regex = str(v.entity_regex);
@@ -654,6 +858,42 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     },
     moreBody,
     false,
+  );
+
+  // The entity keys, each with the task name its tasks read as `{{ task_name }}`.
+  // Native inputs rather than an `ha-form`: a list of key and name pairs has no
+  // selector. The rows live here, so a row still being filled in (no key yet) stays
+  // on screen while the draft only ever holds complete keys.
+  const keysHost = document.createElement('div');
+  keysHost.className = 'hk-decl-keys';
+  moreBody.appendChild(
+    indentGroup(
+      t('declarative.companions.section_keys'),
+      t('declarative.companions.keys_note'),
+      keysHost,
+    ),
+  );
+  // The name table as the editor opened it. A spec made through the service can
+  // name keys that are not in its key list, and the rows do not show those (F06-4).
+  const storedNames = { ...draft.task_template.task_names };
+  refreshKeys = renderKeyEditor(
+    keysHost,
+    keyRows(sel.translation_keys, draft.task_template.task_names),
+    (rows) => {
+      const applied = applyKeyRows(rows, storedNames);
+      sel.translation_keys = applied.translation_keys;
+      draft.task_template.task_names = applied.task_names;
+      updateSummary();
+      schedulePreview();
+    },
+    {
+      integration: () => sel.target_integration,
+      load: async () =>
+        p._hass && sel.target_integration
+          ? api.listEntityKeys(p._hass, sel.target_integration, sel.domain)
+          : null,
+      names: storedNames,
+    },
   );
 
   // The exclusions, indented under the same head Problem sensor sync uses.
@@ -749,7 +989,9 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       target: trig.target,
       template: trig.template,
       for_seconds: trig.for_seconds ?? 0,
-      clear_on_recover: trig.clear_on_recover !== false,
+      // The backend stores this flag only when on in the edge modes, so a missing key
+      // means off there. Availability defaults it on (F06-1), as the task form does.
+      clear_on_recover: trig.clear_on_recover ?? mode === 'availability',
       attribute: trig.attribute,
     },
     (v) => {
@@ -761,7 +1003,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       if ('target' in v) trig.target = num(v.target);
       if ('template' in v) trig.template = String(v.template ?? '');
       if ('for_seconds' in v) trig.for_seconds = num(v.for_seconds) ?? 0;
-      if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover !== false;
+      if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover === true;
       if ('attribute' in v) {
         const attribute = str(v.attribute);
         if (attribute) trig.attribute = attribute;
@@ -837,6 +1079,206 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   schedulePreview();
 }
 
+/** Where the key editor gets the key list of the target integration. */
+interface KeySource {
+  integration: () => string | undefined;
+  load: () => Promise<EntityKeyList | null>;
+  /** The stored name table, so a key picked from the list keeps its name. */
+  names?: Readonly<Record<string, string>>;
+}
+
+/**
+ * The entity-key editor: one row per key, with its task name and a remove button,
+ * and an Add key button under them. Under those, the key list: every key the target
+ * integration's entities have, to add with a click, because Home Assistant shows a
+ * `translation_key` on no screen. *onChange* gets every row on each edit.
+ *
+ * Returns the function that loads the key list again, which the dialog calls when
+ * the integration or the domain changes.
+ */
+function renderKeyEditor(
+  host: HTMLElement,
+  initial: KeyRow[],
+  onChange: (rows: KeyRow[]) => void,
+  source: KeySource,
+): () => void {
+  let rows = initial.map((r) => ({ ...r }));
+  const editor = document.createElement('div');
+  editor.className = 'hk-decl-keys-rows';
+  const list = document.createElement('div');
+  list.className = 'hk-decl-keylist';
+  host.append(editor, list);
+
+  let keys: EntityKeyList | null = null;
+  let query = '';
+  let loading = 0;
+
+  const draw = (focusLast = false): void => {
+    editor.innerHTML = '';
+    if (rows.length) {
+      const head = document.createElement('div');
+      head.className = 'hk-decl-key-row hk-decl-key-head';
+      head.innerHTML =
+        `<span>${escapeHTML(t('declarative.companions.key_header'))}</span>` +
+        `<span>${escapeHTML(t('declarative.companions.task_name_header'))}</span>`;
+      editor.appendChild(head);
+    }
+    rows.forEach((row, i) => {
+      const line = document.createElement('div');
+      line.className = 'hk-decl-key-row';
+      const key = document.createElement('input');
+      key.className = 'hk-decl-key-input hk-decl-key';
+      key.value = row.key;
+      key.placeholder = t('declarative.companions.key_header');
+      key.spellcheck = false;
+      key.autocomplete = 'off';
+      key.setAttribute('aria-label', t('declarative.companions.key_header'));
+      key.addEventListener('input', () => {
+        row.key = key.value;
+        onChange(rows);
+      });
+      // A typed key can match one in the list, so the list marks it on leaving.
+      key.addEventListener('change', () => drawList());
+      const name = document.createElement('input');
+      name.className = 'hk-decl-key-input hk-decl-key-name';
+      name.value = row.name;
+      name.placeholder = t('declarative.companions.task_name_placeholder');
+      name.setAttribute('aria-label', t('declarative.companions.task_name_header'));
+      name.addEventListener('input', () => {
+        row.name = name.value;
+        onChange(rows);
+      });
+      const remove = document.createElement('ha-icon-button');
+      remove.className = 'hk-decl-key-remove';
+      remove.setAttribute('label', t('declarative.companions.remove_key'));
+      remove.innerHTML = '<ha-icon icon="mdi:close"></ha-icon>';
+      remove.addEventListener('click', () => {
+        rows.splice(i, 1);
+        onChange(rows);
+        draw();
+        drawList();
+      });
+      line.append(key, name, remove);
+      editor.appendChild(line);
+      if (focusLast && i === rows.length - 1) queueMicrotask(() => key.focus());
+    });
+    const add = document.createElement('ha-button');
+    add.className = 'hk-decl-key-add';
+    setBtnWeight(add, 'tertiary');
+    add.textContent = t('declarative.companions.add_key');
+    add.addEventListener('click', () => {
+      rows.push({ key: '', name: '' });
+      draw(true);
+    });
+    editor.appendChild(add);
+  };
+
+  // The list's search box is kept across a redraw of the rows under it, so typing
+  // in it never loses focus.
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'hk-decl-keylist-q';
+  search.autocomplete = 'off';
+  search.placeholder = t('declarative.companions.keys_search');
+  search.setAttribute('aria-label', t('declarative.companions.keys_search'));
+  search.addEventListener('input', () => {
+    query = search.value;
+    drawOptions();
+  });
+  const head = document.createElement('div');
+  head.className = 'hk-decl-keylist-head';
+  const options = document.createElement('div');
+  options.className = 'hk-decl-keylist-options';
+
+  const drawOptions = (): void => {
+    options.innerHTML = '';
+    if (!keys) return;
+    const picked = rows.map((r) => r.key.trim());
+    const found = keyOptions(keys.keys, picked, query);
+    for (const opt of found) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hk-decl-keyopt';
+      b.dataset.key = opt.key;
+      b.setAttribute('aria-pressed', String(opt.picked));
+      b.innerHTML = `
+          <ha-icon icon="${opt.picked ? 'mdi:check-circle' : 'mdi:plus-circle-outline'}"></ha-icon>
+          <span class="hk-decl-keyopt-text">
+            <span class="hk-decl-keyopt-key">${escapeHTML(opt.key)}</span>
+            <span class="hk-decl-keyopt-ex">${escapeHTML(opt.example_name || opt.example_entity_id)}</span>
+          </span>
+          <span class="hk-decl-keyopt-count">${escapeHTML(
+            tn('declarative.companions.keys_entities', opt.count),
+          )}</span>`;
+      b.addEventListener('click', () => {
+        rows = toggleKeyRow(rows, opt.key, source.names);
+        onChange(rows);
+        draw();
+        drawOptions();
+      });
+      options.appendChild(b);
+    }
+    if (!found.length && keys.keys.length) {
+      const none = document.createElement('div');
+      none.className = 'hk-decl-keylist-note';
+      none.textContent = t('declarative.companions.keys_none');
+      options.appendChild(none);
+    }
+  };
+
+  const drawList = (): void => {
+    const integration = source.integration();
+    list.hidden = !integration;
+    if (!integration) return;
+    list.innerHTML = '';
+    head.innerHTML = `<span class="hk-decl-keylist-title">${escapeHTML(
+      t('declarative.companions.keys_list_title', { integration }),
+    )}</span>`;
+    if (keys && keys.without_key) {
+      head.innerHTML += `<span class="hk-decl-keylist-note">${escapeHTML(
+        t('declarative.companions.keys_without', { n: String(keys.without_key) }),
+      )}</span>`;
+    }
+    list.appendChild(head);
+    if (keys === null) {
+      const wait = document.createElement('div');
+      wait.className = 'hk-decl-keylist-note';
+      wait.textContent = t('declarative.companions.preview_loading');
+      list.appendChild(wait);
+      return;
+    }
+    if (!keys.keys.length) {
+      const empty = document.createElement('div');
+      empty.className = 'hk-decl-keylist-note';
+      empty.textContent = t('declarative.companions.keys_empty');
+      list.appendChild(empty);
+      return;
+    }
+    list.append(search, options);
+    drawOptions();
+  };
+
+  const refresh = (): void => {
+    const mine = ++loading;
+    keys = null;
+    drawList();
+    if (!source.integration()) return;
+    void source
+      .load()
+      .catch(() => null)
+      .then((found) => {
+        // A later refresh (the integration changed again) owns the list now.
+        if (mine !== loading) return;
+        keys = found ?? { keys: [], without_key: 0 };
+        drawList();
+      });
+  };
+
+  draw();
+  refresh();
+  return refresh;
+}
+
 // ── the live preview ────────────────────────────────────────────────────────
 
 async function refreshPreview(
@@ -844,6 +1286,7 @@ async function refreshPreview(
   draft: DeclarativeCompanion,
   host: HTMLElement,
   onToggle: (entityId: string) => void,
+  limit: PresetLimit | null = null,
 ): Promise<void> {
   // A re-render (a mode change) replaces the dialog; the old preview node is gone
   // and the new dialog schedules its own.
@@ -866,6 +1309,7 @@ async function refreshPreview(
       overlap,
       draft.selection.exclude_entity_ids ?? [],
       pendingTemplate,
+      limit,
     );
     host.querySelectorAll<HTMLElement>('[data-toggle-entity]').forEach((b) =>
       b.addEventListener('click', () => onToggle(b.dataset.toggleEntity ?? '')),
@@ -907,6 +1351,85 @@ function excludedHtml(excluded: readonly string[]): string {
       </div>`;
 }
 
+/** A preview row's reading now, with a bar toward the preset's limit when the
+ *  reading must rise past it. Empty when the backend sent no state. */
+function readingHtml(m: DeclarativeCompanionPreviewMatch, limit: PresetLimit | null): string {
+  if (m.state == null || m.state === '') return '';
+  const number = Number(m.state);
+  const reading = Number.isFinite(number) ? formatReading(number, m.unit) : m.state;
+  const progress = limitProgress(m.state, m.unit, limit);
+  const pct = progress === null ? 0 : Math.round(progress * 100);
+  // The text beside the bar says the same number, so the bar is hidden from a screen
+  // reader.
+  const bar =
+    progress === null
+      ? ''
+      : `<span class="hk-decl-reading-bar" aria-hidden="true"><span style="width:${pct}%"></span></span>
+         <span class="hk-decl-reading-pct">${escapeHTML(
+           t('declarative.companions.preview_of_limit', { pct }),
+         )}</span>`;
+  return `<div class="hk-decl-reading">
+      <span>${escapeHTML(t('declarative.companions.preview_now', { value: reading }))}</span>${bar}
+    </div>`;
+}
+
+/**
+ * The box at the top of the form for a draft made from *preset*: what the preset
+ * does, its tasks, and a row that names the sections the user changed, with Reset to
+ * preset. The text always describes the preset, so the row says when the draft left it.
+ */
+function presetSummaryBox(
+  preset: DeclarativeCompanionPreset,
+  draft: DeclarativeCompanion,
+  onReset: () => void,
+): { el: HTMLElement; refresh: () => void; changed: () => string[] } {
+  const el = document.createElement('section');
+  el.className = 'hk-preset-summary';
+  el.setAttribute('aria-label', t('declarative.companions.summary_from_preset'));
+  const tasks = presetTaskNames(preset);
+  el.innerHTML = `
+      <div class="hk-preset-summary-head">
+        <span class="hk-preset-summary-icon"><ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon></span>
+        <span class="hk-preset-summary-title">
+          <span class="hk-preset-summary-kicker">${escapeHTML(t('declarative.companions.summary_from_preset'))}</span>
+          <span class="hk-preset-summary-name">${escapeHTML(preset.name)}</span>
+        </span>
+      </div>
+      <p class="hk-preset-summary-desc">${escapeHTML(preset.description)}</p>
+      ${
+        tasks.length
+          ? `<div class="hk-preset-summary-tasks"><span class="hk-preset-summary-label">${escapeHTML(
+              t('declarative.companions.summary_tasks'),
+            )}</span>${tasks
+              .map((name) => `<span class="hk-decl-preset-task">${escapeHTML(name)}</span>`)
+              .join('')}</div>`
+          : ''
+      }
+      <div class="hk-preset-summary-changed" hidden>
+        <span class="hk-preset-summary-chip"></span>
+        <button type="button" class="hk-preset-summary-reset">${escapeHTML(
+          t('declarative.companions.summary_reset'),
+        )}</button>
+        <span class="hk-preset-summary-note">${escapeHTML(t('declarative.companions.summary_changed_note'))}</span>
+      </div>`;
+  const row = el.querySelector('.hk-preset-summary-changed') as HTMLElement;
+  const chip = el.querySelector('.hk-preset-summary-chip') as HTMLElement;
+  el.querySelector('.hk-preset-summary-reset')?.addEventListener('click', onReset);
+  let sections: string[] = [];
+  const refresh = (): void => {
+    sections = changedSections(draft, preset.default_spec);
+    row.hidden = sections.length === 0;
+    // The chip names each section by the heading the form gives it.
+    chip.textContent = t('declarative.companions.summary_changed', {
+      sections: sections
+        .map((s) => t('declarative.companions.section_' + (s === 'task_template' ? 'template' : s)))
+        .join(', '),
+    });
+  };
+  refresh();
+  return { el, refresh, changed: () => sections };
+}
+
 /** The preview's HTML: the count line, the warnings, the sample, and the entities
  *  excluded one by one.
  *
@@ -919,6 +1442,7 @@ export function previewHtml(
   overlap: DeclarativeOverlap | null,
   excluded: readonly string[] = [],
   pendingTemplate = false,
+  limit: PresetLimit | null = null,
 ): string {
   if (result.over_cap) {
     return (
@@ -958,6 +1482,12 @@ export function previewHtml(
           <div class="hk-decl-preview-text">
             <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
             <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+            ${
+              m.translation_key
+                ? `<div class="hk-decl-preview-key">${escapeHTML(m.translation_key)}</div>`
+                : ''
+            }
+            ${readingHtml(m, limit)}
           </div>
           ${verdicts ? verdictChip(m) : ''}
           ${toggleButton(m.entity_id, false)}
