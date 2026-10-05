@@ -10,7 +10,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings#integration-presets).**
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
   New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
   or Sensibo report that a filter needs care.
 
