@@ -183,6 +183,23 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(grouped.locator('details.hk-group').first()).toBeVisible();
   await shotCard(page, grouped, `${OUT}/card-grouped.png`);
 
+  // 3a. The same grouped card with the groups started closed (#435). Compare with
+  // card-grouped.png: the headers and the counts stay, the rows wait behind a tap.
+  type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+  const groupedConfig = {
+    type: 'custom:home-keeper-card',
+    title: 'By status',
+    group_by: 'status',
+    show_notes: true,
+  };
+  await grouped.evaluate(
+    (el: ConfigurableCard, c) => el.setConfig({ ...c, collapsed: true }),
+    groupedConfig,
+  );
+  await expect(grouped.locator('details.hk-group[open]')).toHaveCount(0);
+  await shotCard(page, grouped, `${OUT}/card-groups-collapsed.png`);
+  await grouped.evaluate((el: ConfigurableCard, c) => el.setConfig(c), groupedConfig);
+
   // 3b. The label-filtered "Dog" card — only tasks carrying the `dog` label, with
   // each row's label chips shown (exercises labels filter + show_labels).
   const labelCard = page.locator('home-keeper-card').nth(2);
@@ -220,7 +237,6 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // empty-state string this PR fixed, t('card.empty') for zero tasks total rather
   // than zero filter matches, needs every seeded task gone — not reachable here
   // without destructively wiping the shared e2e fixture data.)
-  type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
   await labelCard.evaluate((el: ConfigurableCard) =>
     el.setConfig({ type: 'custom:home-keeper-card', labels: ['no-such-label-xyz'] }),
   );
@@ -330,6 +346,21 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);
   await expect(mobileCard.locator('.hk-meta')).toHaveCount(0);
   await shotCardTop(page, mobileCard, `${OUT}/card-row-compact-mobile.png`, 3);
+  await mobileCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+
+  // 7b3. The groups started closed (#435), at phone width: the same options as step 3a.
+  const mobileGrouped = {
+    type: 'custom:home-keeper-card',
+    title: 'By status',
+    group_by: 'status',
+    collapsed: true,
+  };
+  await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), mobileGrouped);
+  await expect(mobileCard.locator('details.hk-group').first()).toBeVisible();
+  await expect(mobileCard.locator('details.hk-group[open]')).toHaveCount(0);
+  await shotCard(page, mobileCard, `${OUT}/card-groups-collapsed-mobile.png`);
   await mobileCard.evaluate((el: ConfigurableCard) =>
     el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
   );

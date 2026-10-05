@@ -54,6 +54,39 @@ the row shows the chips directly below the name. The status chip still shows the
 
 ![Home Keeper task card with the schedule and completion count turned off](../../images/card-row-compact.png)
 
+#### Start groups closed
+
+A card that groups its tasks shows every group open at first. On an overview dashboard,
+you can start the groups closed. The group header and its count stay in view. Select a
+header to open the group. Use these card options:
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| **Start groups closed** (`collapsed`) | Off | Every group starts closed. |
+| **Start these groups closed** (`collapsed_groups`) | None | Only the groups in the list start closed. |
+| **Start a group closed above** (`collapse_above`) | 0 (off) | A group with more tasks than this number starts closed. |
+
+If you set more than 1 option, a group starts closed when any option applies to it. In
+`collapsed_groups`, write a status group as `overdue`, `shopping`, `counted`, `today`,
+`soon`, `later`, `monitored`, `none` or `disabled`. Write an area group or a device group
+as the area ID or the device ID. The name `none` is the group with no area or no device.
+
+```yaml
+type: custom:home-keeper-card
+group_by: status
+collapsed_groups:
+  - overdue
+  - today
+```
+
+The options set only the first state. A group that you open or close keeps that state
+until you reload the page. If you change a card option, the groups start over from the
+options. A card without `group_by` has no groups, so these options do nothing.
+
+![Home Keeper task card with every status group closed](../../images/card-groups-collapsed.png)
+
+![Home Keeper task card with every status group closed, at phone width](../../images/card-groups-collapsed-mobile.png)
+
 #### Task photos on the card
 
 A task with [photos](../tasks/task-photos.md) shows its cover at the start of its row.

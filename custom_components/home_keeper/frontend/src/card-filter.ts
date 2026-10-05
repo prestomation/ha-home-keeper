@@ -53,6 +53,13 @@ export interface HomeKeeperCardConfig {
   sort?: CardSort;
   /** Collapsible section grouping. Default 'none'. */
   group_by?: CardGroupBy;
+  /** Start every group closed. A group the user opens or closes keeps that state. */
+  collapsed?: boolean;
+  /** Start these groups closed. A status group by its name (`overdue`, `today`), an area
+   *  or a device group by its id. The full key (`status:overdue`) also works. */
+  collapsed_groups?: string[];
+  /** Start a group closed when it holds more than this many tasks (0 = off). */
+  collapse_above?: number;
   /** Restrict to these areas (a task's own area, else its device's area). */
   areas?: string[];
   /** Restrict to tasks attached to these devices. */
@@ -109,7 +116,13 @@ const CARD_FILTERS: readonly CardFilter[] = [
 ];
 const CARD_SORTS: readonly CardSort[] = ['due', 'name', 'recent', 'area'];
 const CARD_GROUPS: readonly CardGroupBy[] = ['none', 'status', 'area', 'device'];
-const CARD_LIST_KEYS = ['areas', 'devices', 'labels', 'recurrence_types'] as const;
+const CARD_LIST_KEYS = [
+  'areas',
+  'devices',
+  'labels',
+  'recurrence_types',
+  'collapsed_groups',
+] as const;
 
 /**
  * Check a card config and return a copy with each list option as a list (F05-8).
@@ -141,7 +154,32 @@ export function normalizeCardConfig(config: HomeKeeperCardConfig): HomeKeeperCar
       );
     }
   }
+  const collapsed = out.collapsed;
+  if (collapsed !== undefined && collapsed !== null && typeof collapsed !== 'boolean') {
+    throw new Error('Home Keeper card: collapsed must be true or false');
+  }
+  const above = out.collapse_above;
+  if (above !== undefined && above !== null) {
+    if (typeof above !== 'number' || !Number.isFinite(above) || above < 0) {
+      throw new Error('Home Keeper card: collapse_above must be a number of 0 or more');
+    }
+  }
   return out as unknown as HomeKeeperCardConfig;
+}
+
+/**
+ * Whether a group starts closed under the card's own settings (#435). It reads only
+ * the 3 collapse options, so a group the user has opened or closed is not its concern:
+ * the card seeds its state from this once per group and then keeps the user's choice.
+ */
+export function startsCollapsed<T>(group: Group<T>, config: HomeKeeperCardConfig): boolean {
+  if (!group.key) return false;
+  if (config.collapsed === true) return true;
+  const above = Number(config.collapse_above) || 0;
+  if (above > 0 && group.items.length > above) return true;
+  // A key reads `prefix:name`. A name in the list matches the part after the prefix.
+  const name = group.key.slice(group.key.indexOf(':') + 1);
+  return (config.collapsed_groups ?? []).some((e) => e === group.key || e === name);
 }
 
 /**

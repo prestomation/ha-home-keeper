@@ -14,6 +14,7 @@ import {
   normalizeSearch,
   profileMatches,
   sortTasks,
+  startsCollapsed,
   statusBucket,
   taskMatchesQuery,
 } from '../src/card-filter.ts';
@@ -442,6 +443,70 @@ describe('normalizeCardConfig (F05-8)', () => {
     expect(() => normalizeCardConfig({ type: 'x', [key]: 'bogus' })).toThrow(
       `Home Keeper card: ${key} must be one of ${values.join(', ')}, not bogus`,
     );
+  });
+});
+
+// Issue #435: options that start the card groups closed.
+describe('collapse options (issue #435)', () => {
+  it('makes a string collapsed_groups value a list of one', () => {
+    expect(normalizeCardConfig({ type: 'x', collapsed_groups: 'overdue' }).collapsed_groups).toEqual([
+      'overdue',
+    ]);
+    expect(() => normalizeCardConfig({ type: 'x', collapsed_groups: 5 })).toThrow(
+      'Home Keeper card: collapsed_groups must be a list',
+    );
+  });
+
+  it('accepts true, false and absent for collapsed, and refuses other values', () => {
+    expect(normalizeCardConfig({ type: 'x', collapsed: true }).collapsed).toBe(true);
+    expect(normalizeCardConfig({ type: 'x', collapsed: false }).collapsed).toBe(false);
+    expect(() => normalizeCardConfig({ type: 'x', collapsed: 'yes' })).toThrow(
+      'Home Keeper card: collapsed must be true or false',
+    );
+  });
+
+  it('accepts 0 or more for collapse_above, and refuses other values', () => {
+    expect(normalizeCardConfig({ type: 'x', collapse_above: 0 }).collapse_above).toBe(0);
+    expect(normalizeCardConfig({ type: 'x', collapse_above: 3 }).collapse_above).toBe(3);
+    for (const bad of [-1, '3', NaN, Infinity]) {
+      expect(() => normalizeCardConfig({ type: 'x', collapse_above: bad })).toThrow(
+        'Home Keeper card: collapse_above must be a number of 0 or more',
+      );
+    }
+  });
+
+  const group = (key, n) => ({ key, label: key, items: new Array(n).fill(overdue) });
+
+  it('starts every group open by default', () => {
+    expect(startsCollapsed(group('status:overdue', 5), { type: 'x' })).toBe(false);
+  });
+
+  it('closes every group when collapsed is true', () => {
+    expect(startsCollapsed(group('status:today', 1), { type: 'x', collapsed: true })).toBe(true);
+    expect(startsCollapsed(group('status:today', 1), { type: 'x', collapsed: false })).toBe(false);
+  });
+
+  it('closes a group named in collapsed_groups, by name or by full key', () => {
+    const cfg = { type: 'x', collapsed_groups: ['overdue', 'area:kitchen'] };
+    expect(startsCollapsed(group('status:overdue', 1), cfg)).toBe(true);
+    expect(startsCollapsed(group('area:kitchen', 1), cfg)).toBe(true);
+    expect(startsCollapsed(group('status:today', 1), cfg)).toBe(false);
+    expect(startsCollapsed(group('device:overdue', 1), { type: 'x', collapsed_groups: ['status:overdue'] })).toBe(false);
+  });
+
+  it('matches the fallback group by none', () => {
+    expect(startsCollapsed(group('area:none', 1), { type: 'x', collapsed_groups: ['none'] })).toBe(true);
+  });
+
+  it('closes a group only when it holds more tasks than collapse_above', () => {
+    const cfg = { type: 'x', collapse_above: 3 };
+    expect(startsCollapsed(group('status:overdue', 3), cfg)).toBe(false);
+    expect(startsCollapsed(group('status:overdue', 4), cfg)).toBe(true);
+    expect(startsCollapsed(group('status:overdue', 99), { type: 'x', collapse_above: 0 })).toBe(false);
+  });
+
+  it('never closes the unlabelled group of an ungrouped card', () => {
+    expect(startsCollapsed(group('', 5), { type: 'x', collapsed: true })).toBe(false);
   });
 });
 

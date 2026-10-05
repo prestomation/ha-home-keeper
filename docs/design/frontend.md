@@ -30,7 +30,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications]
-source_hash: 2c0061a06a23
+source_hash: 7adf302e9c7c
 ---
 
 # Frontend
@@ -116,8 +116,8 @@ floating Add, wrapped chips, stacked rows). Never put `container-type` on `:host
 
 `card.ts` defines `HomeKeeperCard` and its editor, and shapes tasks with `card-filter.ts`.
 It refreshes from `todo/item/subscribe`, which any user can open; an admin also listens for
-`home_keeper_task_completed`. The rows and the New task form show task photos
-([task-photos](task-photos.md)).
+`home_keeper_task_completed`. Rows and the New task form show [task photos](task-photos.md).
+`startsCollapsed` seeds each group once from the card options; a toggle by the user wins.
 
 `card.async_register_card` uses one delivery path per install: a Lovelace resource in storage
 mode, else `frontend.add_extra_js_url`. Both at once race the scoped element registry.
