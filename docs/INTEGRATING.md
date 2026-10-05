@@ -28,8 +28,8 @@ catalog is in [EVENTS.md](EVENTS.md).
 ## 1. Creating a task
 
 Recurrence is **floating** (`interval` + `unit`, from the last completion) or **fixed**
-(`rrule` + `anchor`; the older `freq` + `interval` still works). Keep the returned
-`task_id`:
+(`rrule` + `anchor`). The older `freq` + `interval` for a fixed task still works. Keep
+the returned `task_id`:
 
 ```python
 DOMAIN_HK = "home_keeper"
