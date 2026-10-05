@@ -613,8 +613,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.getByRole('menuitem', { name: /^weekly$/i }).first().click();
   const dayRow = panel.locator('#hk-rule-days');
   await expect(dayRow).toBeVisible();
-  await dayRow.locator('.hk-day-btn[data-day="TU"]').click();
-  await dayRow.locator('.hk-day-btn[data-day="FR"]').click();
+  // A new task starts on today, so today's day is already pressed. Press Tuesday and
+  // Friday first, then release any other day, so the step works on every day.
+  const days = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  for (const pass of ['press', 'release']) {
+    for (const day of days) {
+      const btn = dayRow.locator(`.hk-day-btn[data-day="${day}"]`);
+      const want = day === 'TU' || day === 'FR';
+      const pressed = (await btn.getAttribute('aria-pressed')) === 'true';
+      if (pass === 'press' ? want && !pressed : !want && pressed) await btn.click();
+    }
+  }
   await expect(dayRow.locator('.hk-day-btn[aria-pressed="true"]')).toHaveCount(2);
   await page.waitForTimeout(BEAT * 2);
 

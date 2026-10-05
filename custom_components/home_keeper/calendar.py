@@ -96,18 +96,24 @@ def _single_event(task: dict, start: datetime) -> CalendarEvent:
     )
 
 
-def _due_ahead(task: dict, now: datetime) -> datetime | None:
-    """A fixed task's ``next_due`` while its event has not ended, else ``None``.
+def _due_ahead(
+    task: dict, now: datetime | None = None
+) -> tuple[datetime, datetime] | None:
+    """``(next_due, now)`` while a fixed task's next event has not ended, else ``None``.
 
     ``next_due`` is what every other surface shows. A completion before the time of
     day, a skip, a snooze and a due-today all move it off the next schedule date, so
     the calendar follows it (B11-2). A ``next_due`` in the past is an overdue date,
-    and the schedule shows from now on.
+    and the schedule shows from now on. The clock is read only when there is a
+    ``next_due`` to judge, so a plain schedule never depends on it.
     """
     due = dt_util.parse_datetime(task.get("next_due") or "")
-    if due is None or due + EVENT_DURATION <= now:
+    if due is None:
         return None
-    return due
+    now = now or dt_util.now()
+    if due + EVENT_DURATION <= now:
+        return None
+    return due, now
 
 
 def _off_schedule(task: dict, due: datetime) -> bool:
@@ -130,8 +136,7 @@ def _fixed_events(
     """
     season = task.get("active_season")
     moved_to = {dst.timestamp(): src for src, dst in recurrence.task_moves(task)}
-    now = dt_util.now()
-    due = _due_ahead(task, now)
+    ahead = _due_ahead(task)
     events: list[CalendarEvent] = []
     # The expansion starts 1 event length early, to get a date that is in progress at
     # the window start. A date that ends exactly at the window start is not in the
@@ -143,17 +148,18 @@ def _fixed_events(
             continue
         if season and not recurrence.in_season(occ, season):
             continue
-        if due is not None and now - EVENT_DURATION <= occ < due:
+        if ahead is not None and ahead[1] - EVENT_DURATION <= occ < ahead[0]:
             continue
         original = moved_to.get(occ.timestamp(), occ)
         events.append(_schedule_event(task, occ, original))
-    if (
-        due is not None
-        and due < end_date
-        and due + EVENT_DURATION > start_date
-        and _off_schedule(task, due)
-    ):
-        events.append(_single_event(task, due))
+    if ahead is not None:
+        due = ahead[0]
+        if (
+            due < end_date
+            and due + EVENT_DURATION > start_date
+            and _off_schedule(task, due)
+        ):
+            events.append(_single_event(task, due))
     return events
 
 
@@ -206,13 +212,15 @@ class HomeKeeperCalendarEntity(
         if task.get("recurrence_type") == REC_FIXED:
             if dt_util.parse_datetime(task["anchor"]) is None:
                 return None
-            if (due := _due_ahead(task, now)) is not None:
-                if _off_schedule(task, due):
-                    return _single_event(task, due)
+            if (ahead := _due_ahead(task, now)) is not None:
+                shown = ahead[0]
+                if _off_schedule(task, shown):
+                    return _single_event(task, shown)
                 moved_to = {
                     dst.timestamp(): src for src, dst in recurrence.task_moves(task)
                 }
-                return _schedule_event(task, due, moved_to.get(due.timestamp(), due))
+                original = moved_to.get(shown.timestamp(), shown)
+                return _schedule_event(task, shown, original)
             return self._next_fixed_event(task, now)
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None

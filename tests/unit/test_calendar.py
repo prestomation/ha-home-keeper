@@ -578,9 +578,14 @@ def _editable(tasks: dict) -> tuple[object, _Store]:
 
 @pytest.fixture
 def local_tz(monkeypatch):
-    """Make HA's local zone the suite's fixed offset for recurrence_id text."""
+    """Make HA's local zone the suite's fixed offset for recurrence_id text.
+
+    It also fixes the clock, because the calendar follows ``next_due`` from now on
+    (B11-2). A test that needs another time patches ``now`` again.
+    """
     monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(TZ))
     monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: TZ)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
 
 
 def test_a_schedule_event_carries_its_rule_and_recurrence_id(local_tz):
@@ -734,6 +739,9 @@ def test_a_summer_anchor_is_not_a_snooze_in_winter(monkeypatch):
     # at their own offsets the two are an hour apart, and the task read as snoozed.
     la = ZoneInfo("America/Los_Angeles")
     monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: la)
+    monkeypatch.setattr(
+        cal.dt_util, "now", lambda: datetime(2026, 11, 20, 12, tzinfo=la)
+    )
     monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(la))
     task = _rule_task(
         rrule="FREQ=WEEKLY;BYDAY=TU",
