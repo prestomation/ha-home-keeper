@@ -69,6 +69,78 @@
         "time.filter_cycle_start"
       ],
       "reason": "not a duty: the filter cycle is a pump schedule, not a filter change"
+    },
+    "core:coolmaster": {
+      "keys": [
+        "binary_sensor.clean_filter",
+        "button.reset_filter"
+      ],
+      "reason": "added"
+    },
+    "core:fjaraskupan": {
+      "keys": [
+        "binary_sensor.carbon_filter",
+        "binary_sensor.grease_filter"
+      ],
+      "reason": "added"
+    },
+    "core:flow_it": {
+      "keys": [
+        "binary_sensor.service",
+        "sensor.g4_filter_status",
+        "sensor.hepa_filter_status"
+      ],
+      "reason": "filter status is an enum, no clear limit"
+    },
+    "core:helty": {
+      "keys": [
+        "button.reset_filter"
+      ],
+      "reason": "only a reset button, not a duty reading"
+    },
+    "core:homee": {
+      "keys": [
+        "binary_sensor.replace_filter",
+        "sensor.operating_hours"
+      ],
+      "reason": "added"
+    },
+    "core:intelliclima": {
+      "keys": [
+        "binary_sensor.filter_cleaning"
+      ],
+      "reason": "added"
+    },
+    "core:sensibo": {
+      "keys": [
+        "binary_sensor.filter_clean",
+        "button.reset_filter",
+        "sensor.filter_last_reset"
+      ],
+      "reason": "added"
+    },
+    "core:smarty": {
+      "keys": [
+        "button.reset_filters_timer",
+        "sensor.filter_days_left"
+      ],
+      "reason": "days-left sensor in days; unit not safe for life_low hours, left for later"
+    },
+    "core:tami4": {
+      "keys": [
+        "sensor.filter_installed",
+        "sensor.filter_litters_passed",
+        "sensor.filter_upcoming_replacement",
+        "sensor.uv_upcoming_replacement"
+      ],
+      "reason": "water counters and replacement dates, no clear limit"
+    },
+    "core:vallox": {
+      "keys": [
+        "date.filter_change_date",
+        "sensor.remaining_time_for_filter"
+      ],
+      "reason": "remaining time unit is not hours-safe; left for later"
     }
   }
 }

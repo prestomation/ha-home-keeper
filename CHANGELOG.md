@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.30.0b3]
+## [0.30.0b4]
 
 ### Added
 
@@ -25,8 +25,16 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   a short month and then goes back to its own day. Before, it stayed on the 28th after
   February.
 - **Fixed schedule storage.** Home Keeper stores each fixed schedule as a rule and
-  converts the tasks you have when it starts. Version 0.30.0b2 and earlier cannot read
+  converts the tasks you have when it starts. Version 0.30.0b3 and earlier cannot read
   that form, so make a backup before you install this beta.
+
+## [0.30.0b3]
+
+### Added
+
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
 
 ## [0.30.0b2]
 
