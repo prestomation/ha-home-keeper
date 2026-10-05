@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-434/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-434/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-434/assets/js/runtime~main.97c2e93b.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-434/assets/js/runtime~main.fb9dd27b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-434/assets/js/main.d551ab6e.js" defer="defer"></script>
 </head>
 <body>
@@ -20,6 +20,12 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#panel-tabs">Companion panel tabs</a>.</strong>
 Home Keeper Library and other companion integrations can add their own tab to the panel.
 To hide a tab, turn off its switch on the companion row in <strong>Settings → Companions</strong>.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>New task pages.</strong> A link to a task or an appliance that another surface added after
+the panel loaded now opens its page. Before, the page showed &quot;This item no longer
+exists&quot; until a reload.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0300b1">[0.30.0b1]<a href="#0300b1" class="hash-link" aria-label="Direct link to [0.30.0b1]" title="Direct link to [0.30.0b1]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-1">Added<a href="#added-1" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
@@ -51,13 +57,13 @@ Completed group show it beside the task photo.</li>
 shows the logo of the integration it watches, the kind of duty, the entity platform
 and the limit. A companion you made yourself has a Custom chip.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-1">Fixed<a href="#fixed-1" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Undo after snooze.</strong> Undo of a completion now puts back the date that a snoozed or
 moved task had. Before, the task became overdue at once.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0290b4">[0.29.0b4]<a href="#0290b4" class="hash-link" aria-label="Direct link to [0.29.0b4]" title="Direct link to [0.29.0b4]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-1">Fixed<a href="#fixed-1" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-2">Fixed<a href="#fixed-2" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Undo after snooze.</strong> Undo after Done now puts back the date that a snoozed or moved
 task had. Before, the task became overdue at once.</li>
@@ -130,7 +136,7 @@ Home Keeper opens a task when an Actron Air system says that its filter needs a 
 Set how long Snooze moves each task, such as 1 hour for a medicine reminder. The
 snooze dialog and the Snooze button on a notification use it. (Fixes #367)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-2">Fixed<a href="#fixed-2" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-3">Fixed<a href="#fixed-3" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/todo-sync#two-way-sync">Due dates from synced lists</a>.</strong>
 A due date that you change on a two-way synced to-do list now moves the task to that date. Home Keeper no longer writes the old date back. (Fixes #398)</li>
@@ -296,7 +302,7 @@ while it reads or writes the file.</li>
 <li class=""><strong>Small bug fixes.</strong> This release fixes many small bugs.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b18">[0.28.0b18]<a href="#0280b18" class="hash-link" aria-label="Direct link to [0.28.0b18]" title="Direct link to [0.28.0b18]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-3">Fixed<a href="#fixed-3" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-4">Fixed<a href="#fixed-4" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Small bug fixes.</strong> This release fixes many small bugs.</li>
 </ul>
@@ -308,7 +314,7 @@ Set how long Snooze moves each task, such as 1 hour for a medicine reminder. The
 snooze dialog and the Snooze button on a notification use it. (Fixes #367)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b16">[0.28.0b16]<a href="#0280b16" class="hash-link" aria-label="Direct link to [0.28.0b16]" title="Direct link to [0.28.0b16]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-4">Fixed<a href="#fixed-4" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-5">Fixed<a href="#fixed-5" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/todo-sync#two-way-sync">Due dates from synced lists</a>.</strong>
 A due date that you change on a two-way synced to-do list now moves the task to that date. Home Keeper no longer writes the old date back. (Fixes #398)</li>
@@ -329,7 +335,7 @@ all in one step, or set up each one from a card above the task list.</li>
 The Add dialog says in plain words what a preset watches and when it opens a task.
 It also marks each section you change, and the preview shows what each entity reads now.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-5">Fixed<a href="#fixed-5" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-6">Fixed<a href="#fixed-6" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">Device Pulse preset</a>.</strong>
 It now opens a task when a device is offline for 1 hour and completes it when the device
@@ -339,7 +345,7 @@ delete it and add the preset again.</li>
 sensors, so it stops opening tasks for phones and for devices that report once a day.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b13">[0.28.0b13]<a href="#0280b13" class="hash-link" aria-label="Direct link to [0.28.0b13]" title="Direct link to [0.28.0b13]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-6">Fixed<a href="#fixed-6" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-7">Fixed<a href="#fixed-7" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/completions">Schedule after history edits</a>.</strong>
 A deleted, moved or back-filled completion no longer undoes a later skip, snooze or
@@ -354,7 +360,7 @@ the browser zone. Due today and the day counts are now correct for a browser in 
 different zone.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b12">[0.28.0b12]<a href="#0280b12" class="hash-link" aria-label="Direct link to [0.28.0b12]" title="Direct link to [0.28.0b12]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-7">Fixed<a href="#fixed-7" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-8">Fixed<a href="#fixed-8" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card">Card errors in the log</a>.</strong>
 The dashboard card no longer writes an error to the Home Assistant log at each update
@@ -369,7 +375,7 @@ panel.</li>
 A refresh of the card no longer moves the focus out of an open form or dialog.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b11">[0.28.0b11]<a href="#0280b11" class="hash-link" aria-label="Direct link to [0.28.0b11]" title="Direct link to [0.28.0b11]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-8">Fixed<a href="#fixed-8" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-9">Fixed<a href="#fixed-9" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Double presses.</strong> A second press on Done, Skip, Snooze or Save while the first one
 still runs no longer makes a second completion or a second task.</li>
@@ -395,7 +401,7 @@ the task changed its type.</li>
 until you close the dialog.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b10">[0.28.0b10]<a href="#0280b10" class="hash-link" aria-label="Direct link to [0.28.0b10]" title="Direct link to [0.28.0b10]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-9">Fixed<a href="#fixed-9" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-10">Fixed<a href="#fixed-10" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">Disabled entities</a>.</strong>
 A declarative companion task now keeps its history when its entity is disabled, also
@@ -420,7 +426,7 @@ also updates related devices, profile device filters and problem sensor exclusio
 that Home Assistant 2027.8 removes.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b9">[0.28.0b9]<a href="#0280b9" class="hash-link" aria-label="Direct link to [0.28.0b9]" title="Direct link to [0.28.0b9]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-10">Fixed<a href="#fixed-10" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-11">Fixed<a href="#fixed-11" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/notifications">Automatic notifications</a>.</strong>
 An automatic notification now sends only when a task in its own profile becomes
@@ -436,7 +442,7 @@ After a tap on a button, the next notification shows the next task, not the task
 you acted on.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b8">[0.28.0b8]<a href="#0280b8" class="hash-link" aria-label="Direct link to [0.28.0b8]" title="Direct link to [0.28.0b8]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-11">Fixed<a href="#fixed-11" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-12">Fixed<a href="#fixed-12" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/sensor-tasks">Sensor task completions</a>.</strong>
 A task that clears when its sensor recovers now completes 1 time, also when many
@@ -457,7 +463,7 @@ An import with <code>state: on</code> without quotation marks now shows an error
 task was saved with the state True and never armed.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b7">[0.28.0b7]<a href="#0280b7" class="hash-link" aria-label="Direct link to [0.28.0b7]" title="Direct link to [0.28.0b7]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-12">Fixed<a href="#fixed-12" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-13">Fixed<a href="#fixed-13" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/todo-sync">To-do due dates</a>.</strong>
 A task due in the evening now shows on its correct day in a synced to-do list. Before,
@@ -473,7 +479,7 @@ A profile sync that you move to a new list now works when the old list is gone.<
 A task on the lists of 2 profiles now completes 1 time when you tick it off.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b6">[0.28.0b6]<a href="#0280b6" class="hash-link" aria-label="Direct link to [0.28.0b6]" title="Direct link to [0.28.0b6]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-13">Fixed<a href="#fixed-13" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-14">Fixed<a href="#fixed-14" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Tasks that share a spare part.</strong> Home Keeper no longer deletes tasks that use the
 same spare part each time it starts. This affected Battery Notes tasks and tasks
@@ -493,7 +499,7 @@ too much stock could not be edited.</li>
 A change of the Last replaced date of a wear part now moves the due date of its task.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b5">[0.28.0b5]<a href="#0280b5" class="hash-link" aria-label="Direct link to [0.28.0b5]" title="Direct link to [0.28.0b5]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-14">Fixed<a href="#fixed-14" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-15">Fixed<a href="#fixed-15" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/one-off-tasks">Retention box</a>.</strong>
 The box that deletes completed one-off tasks now saves only when you leave the box or
@@ -507,7 +513,7 @@ another card, a profile or a notification.</li>
 before.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b4">[0.28.0b4]<a href="#0280b4" class="hash-link" aria-label="Direct link to [0.28.0b4]" title="Direct link to [0.28.0b4]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-15">Fixed<a href="#fixed-15" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-16">Fixed<a href="#fixed-16" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/import-export">Import on older Home Assistant</a>.</strong>
 Import and the dry run work again on Home Assistant 2026.8 and older.</li>
@@ -525,7 +531,7 @@ An export now includes a task that you linked to a spare part by hand.</li>
 while it reads or writes the file.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0280b3">[0.28.0b3]<a href="#0280b3" class="hash-link" aria-label="Direct link to [0.28.0b3]" title="Direct link to [0.28.0b3]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-16">Fixed<a href="#fixed-16" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-17">Fixed<a href="#fixed-17" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Admin-only appliance writes.</strong> A user who is not an admin can no longer upload an
 appliance file or delete archived appliance history. These actions also showed that
@@ -591,7 +597,7 @@ on its appliance page.</li>
 <li class=""><strong>Stock adjust response.</strong> <code>home_keeper.adjust_part_stock</code> returns the new count,
 and each stock event names the integration that owns the appliance.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-17">Fixed<a href="#fixed-17" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-18">Fixed<a href="#fixed-18" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/todo-sync">Self-clearing task sync</a>.</strong>
 Tasks that Home Keeper cannot complete now show on synced to-do lists, such as synced
@@ -630,7 +636,7 @@ on its appliance page.</li>
 <li class=""><strong>Stock adjust response.</strong> <code>home_keeper.adjust_part_stock</code> returns the new count,
 and each stock event names the integration that owns the appliance.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-18">Fixed<a href="#fixed-18" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-19">Fixed<a href="#fixed-19" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Undo returns spares.</strong> Delete a completion of a task linked to a part, and the
 spares it took go back into stock.</li>
@@ -645,14 +651,14 @@ Edit on one task to add labels to that task only. (Fixes #378)</li>
 The Companions filter of a Profile lists each declarative companion and the synced
 problem sensors. Select one to show only its tasks.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-19">Fixed<a href="#fixed-19" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-20">Fixed<a href="#fixed-20" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#task-labels-and-notes">Declarative companion task notes</a>.</strong>
 A declarative companion with no notes template no longer clears the notes of its
 tasks. You can now write notes on those tasks.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0270b3">[0.27.0b3]<a href="#0270b3" class="hash-link" aria-label="Direct link to [0.27.0b3]" title="Direct link to [0.27.0b3]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-20">Fixed<a href="#fixed-20" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-21">Fixed<a href="#fixed-21" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/todo-sync">Self-clearing task sync</a>.</strong>
 Tasks that Home Keeper cannot complete now show on synced to-do lists, such as synced
@@ -662,7 +668,7 @@ fix the problem in your home and Home Keeper completes the task. (Fixes #370)</l
 the same as a completion.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0270b2">[0.27.0b2]<a href="#0270b2" class="hash-link" aria-label="Direct link to [0.27.0b2]" title="Direct link to [0.27.0b2]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-21">Fixed<a href="#fixed-21" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-22">Fixed<a href="#fixed-22" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">Recipe entity names</a>.</strong>
 On a device page, the entity names of a recipe task start with the recipe name. New
@@ -698,7 +704,7 @@ To leave out one entity, click Exclude on its row in the preview. (Fixes #373)</
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">Recipe area and label filters</a>.</strong>
 Limit a recipe to the entities in some areas or with some labels.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-22">Fixed<a href="#fixed-22" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-23">Fixed<a href="#fixed-23" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card">Intermittent card error</a>.</strong>
 On Home Assistant 2026.9, the dashboard card no longer shows &quot;Custom element
@@ -717,7 +723,7 @@ their tasks in the Home Assistant language.</li>
 a phone shows the new value.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0260b5">[0.26.0b5]<a href="#0260b5" class="hash-link" aria-label="Direct link to [0.26.0b5]" title="Direct link to [0.26.0b5]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-23">Fixed<a href="#fixed-23" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-24">Fixed<a href="#fixed-24" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Recipe area and label picks.</strong> When you pick a second area or label in More
 filters, the first one stays.</li>
@@ -741,7 +747,7 @@ To leave out one entity, click Exclude on its row in the preview. (Fixes #373)</
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">Recipe area and label filters</a>.</strong>
 Limit a recipe to the entities in some areas or with some labels.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-24">Fixed<a href="#fixed-24" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-25">Fixed<a href="#fixed-25" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Recipe area filters.</strong> An entity that gets its area from its device now matches
 an area filter, and <code>{{ area_name }}</code> shows that area.</li>
@@ -755,7 +761,7 @@ Show only the product name on the synced shopping list, without &quot;Buy&quot;.
 On a list that holds item descriptions, the amount to buy shows under the product
 name.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-25">Fixed<a href="#fixed-25" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-26">Fixed<a href="#fixed-26" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Buy reminder names.</strong> A buy reminder now follows a rename of its part and a
 change of the Home Assistant language. A name that you typed does not change.</li>
@@ -769,7 +775,7 @@ their tasks in the Home Assistant language.</li>
 a phone shows the new value.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0260b2">[0.26.0b2]<a href="#0260b2" class="hash-link" aria-label="Direct link to [0.26.0b2]" title="Direct link to [0.26.0b2]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-26">Fixed<a href="#fixed-26" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-27">Fixed<a href="#fixed-27" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong><a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card">Intermittent card error</a>.</strong>
 On Home Assistant 2026.9, the dashboard card no longer shows &quot;Custom element
@@ -792,7 +798,7 @@ its history and stays out of your reminders and your lists. (Fixes #344)</li>
 A task with a note now shows a Note chip on the card. Select the chip to read the
 full note in a dialog. (Fixes #340) (Thanks @baratrax!)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-27">Fixed<a href="#fixed-27" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-28">Fixed<a href="#fixed-28" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Document upload token.</strong> A document upload no longer fails with <code>Upload failed (401)</code> after the panel has been open for a long time. Home Keeper refreshes the
 access token before it sends the file. (Fixes #352)</li>
@@ -812,7 +818,7 @@ A task with a note now shows a Note chip on the card. Select the chip to read th
 full note in a dialog. (Fixes #340) (Thanks @baratrax!)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0250b1">[0.25.0b1]<a href="#0250b1" class="hash-link" aria-label="Direct link to [0.25.0b1]" title="Direct link to [0.25.0b1]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-28">Fixed<a href="#fixed-28" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-29">Fixed<a href="#fixed-29" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Document upload token.</strong> A document upload no longer fails with <code>Upload failed (401)</code> after the panel has been open for a long time. Home Keeper refreshes the
 access token before it sends the file. (Fixes #352)</li>
@@ -849,7 +855,7 @@ Settings, Import and export, beside the backup it is not a copy of. The
 switch. A meter has no condition to hold, so Home Keeper used to drop both without
 a word.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-29">Fixed<a href="#fixed-29" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-30">Fixed<a href="#fixed-30" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Fixed schedules.</strong> A task on a fixed schedule now moves to its next occurrence when
 you mark it done. A task due later in the same day used to stay due today.
@@ -883,7 +889,7 @@ single letters when the edit drawer is open beside the list.</li>
 A wear item now says what it will create before you save it. The box names each
 task, its schedule, and the count a use task feeds.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-30">Fixed<a href="#fixed-30" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-31">Fixed<a href="#fixed-31" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Task names in a narrow list.</strong> A task name no longer collapses into a column of
 single letters when the edit drawer is open beside the list.</li>
@@ -912,7 +918,7 @@ Settings, Import and export, beside the backup it is not a copy of. The
 switch. A meter has no condition to hold, so Home Keeper used to drop both without
 a word.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-31">Fixed<a href="#fixed-31" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-32">Fixed<a href="#fixed-32" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Sensor hold time.</strong> A hold now counts only the time an entity reported the
 trigger condition. An entity that stopped reporting part way through kept its
@@ -930,7 +936,7 @@ An integration that added many entities at once made it repeat the same work for
 each one.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0240b4">[0.24.0b4]<a href="#0240b4" class="hash-link" aria-label="Direct link to [0.24.0b4]" title="Direct link to [0.24.0b4]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-32">Fixed<a href="#fixed-32" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-33">Fixed<a href="#fixed-33" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Skipped wear items.</strong> Skip now holds on a counted wear item&#x27;s task. The task used
 to come back within seconds and send its reminder again.</li>
@@ -963,7 +969,7 @@ Move a task&#x27;s due date to today, whatever its schedule says. Home Keeper re
 completion, so the recurrence is unchanged. (Fixes #312) (Thanks @joss94!)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0240b1">[0.24.0b1]<a href="#0240b1" class="hash-link" aria-label="Direct link to [0.24.0b1]" title="Direct link to [0.24.0b1]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-33">Fixed<a href="#fixed-33" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-34">Fixed<a href="#fixed-34" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Fixed schedules.</strong> A task on a fixed schedule now moves to its next occurrence when
 you mark it done. A task due later in the same day used to stay due today.
@@ -987,7 +993,7 @@ Give a task or an appliance an <code>external_id</code> of your choice. An impor
 it, so running a migration script twice updates your records instead of copying
 them.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-34">Fixed<a href="#fixed-34" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-35">Fixed<a href="#fixed-35" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Notification triggers.</strong> A notification now states which tasks its profile
 selects. The 2 automatic switches are grouped as Triggers, which set the moment a
@@ -996,7 +1002,7 @@ notification is sent rather than its contents. (Fixes #313)</li>
 Edit. The page names the companion instead.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0230b2">[0.23.0b2]<a href="#0230b2" class="hash-link" aria-label="Direct link to [0.23.0b2]" title="Direct link to [0.23.0b2]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-35">Fixed<a href="#fixed-35" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-36">Fixed<a href="#fixed-36" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Fully managed tasks.</strong> A task whose companion sets every field no longer shows
 Edit. The page names the companion instead.</li>
@@ -1014,7 +1020,7 @@ the field names as you write.</li>
 choice. An import matches on it, so running a migration script twice updates your
 records instead of copying them.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-36">Fixed<a href="#fixed-36" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-37">Fixed<a href="#fixed-37" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Notification triggers.</strong> A notification now states which tasks its profile
 selects. The 2 automatic switches are grouped as Triggers, which set the moment a
@@ -1040,7 +1046,7 @@ chips and its overdue pill begin at the same place down the whole list.</li>
 <li class=""><strong>Profile deletion guard.</strong> Home Keeper asks you to confirm before it deletes a
 profile. A profile that a notification uses cannot be deleted at all.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-37">Fixed<a href="#fixed-37" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-38">Fixed<a href="#fixed-38" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Phone companion rows.</strong> A companion row on a phone puts its buttons on a line
 of their own. Edit and Delete no longer go past the edge of the screen.</li>
@@ -1092,7 +1098,7 @@ is. The text used to read &quot;Due soon&quot; for every such task.</p>
 task&#x27;s page splits into 3 sub-tabs.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-38">Fixed<a href="#fixed-38" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-39">Fixed<a href="#fixed-39" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Stale panel data.</strong> The panel kept the old view after Home Keeper reloaded. It now
@@ -1104,7 +1110,7 @@ form and closed the keyboard. (Fixes #296)</p>
 </li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0210b6">[0.21.0b6]<a href="#0210b6" class="hash-link" aria-label="Direct link to [0.21.0b6]" title="Direct link to [0.21.0b6]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-39">Fixed<a href="#fixed-39" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-40">Fixed<a href="#fixed-40" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>A monitored task no longer offers Done.</strong> Pressing Done recorded a completion but
@@ -1162,7 +1168,7 @@ uses 2 columns: task details on the left and Done on the right.</p>
 opens on Schedule, and each sub-tab has its own URL.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-40">Fixed<a href="#fixed-40" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-41">Fixed<a href="#fixed-41" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>A part&#x27;s Stock and Reorder-at boxes now keep focus while a user types.</strong>
 The first digit in an empty box rebuilt the whole form, so the drawer jumped
@@ -1204,7 +1210,7 @@ a note and a person, and <code>snooze_task</code> accepts <code>until</code> for
 time.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-41">Fixed<a href="#fixed-41" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-42">Fixed<a href="#fixed-42" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>A skip now defers a task that is measured by a meter.</strong> Such a task cleared its
@@ -1232,7 +1238,7 @@ entity reports unavailable or unknown, after an optional hold. A user can also
 bind one task to one entity by hand in the ordinary task form.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-42">Fixed<a href="#fixed-42" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-43">Fixed<a href="#fixed-43" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>A task with a hold now falls due the moment the hold ends.</strong> The hold used to
@@ -1310,7 +1316,7 @@ person is at home.</p>
 message.</strong> The status reads <em>Saving…</em> and then <em>Saved</em>. A save that fails shows <em>Not
 saved</em> on the card and also keeps the pop-up, which gives the reason.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-43">Fixed<a href="#fixed-43" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-44">Fixed<a href="#fixed-44" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
@@ -1359,7 +1365,7 @@ removes the auto-created buy tasks from the tasks that a Profile selects. It is 
 by default. An existing Profile is not changed.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-44">Fixed<a href="#fixed-44" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-45">Fixed<a href="#fixed-45" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>A buy task is no longer shown as overdue work.</strong> A task with no due date is due
@@ -1379,7 +1385,7 @@ dashboard card, and its status reads <strong>Low stock</strong>.</p>
 message.</strong> The status reads <em>Saving…</em> and then <em>Saved</em>. A save that fails shows <em>Not
 saved</em> on the card and also keeps the pop-up, which gives the reason.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-45">Fixed<a href="#fixed-45" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-46">Fixed<a href="#fixed-46" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Settings no longer loses an edit when you go to the next row too soon.</strong> Each row in
@@ -1427,7 +1433,7 @@ re-entry. A task another integration owns keeps a greyed Duplicate that explains
 why. (Fixes #279)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0200b1">[0.20.0b1]<a href="#0200b1" class="hash-link" aria-label="Direct link to [0.20.0b1]" title="Direct link to [0.20.0b1]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-46">Fixed<a href="#fixed-46" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-47">Fixed<a href="#fixed-47" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
 creates a duplicate.</strong> The duplicate was permanent: editing the task afterward
@@ -1439,14 +1445,14 @@ timing could also complete a recurring task twice and skip its next occurrence.<
 <ul>
 <li class=""><strong>Home Keeper has a new look.</strong> 0.19 is primarily a UI refresh.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-47">Fixed<a href="#fixed-47" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-48">Fixed<a href="#fixed-48" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Ready for Home Assistant 2026.9.</strong> That release reshapes the device registry and
 adds child devices, so Home Keeper reads both shapes and a task or appliance you
 attached to a device still finds it after the upgrade. (Fixes #253)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0190b8">[0.19.0b8]<a href="#0190b8" class="hash-link" aria-label="Direct link to [0.19.0b8]" title="Direct link to [0.19.0b8]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-48">Fixed<a href="#fixed-48" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-49">Fixed<a href="#fixed-49" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The admin panel&#x27;s dropdown menus (Profile, Group by, and similar filters) are
 themed when open, not just when closed.</strong> Their popup list previously fell back to
@@ -1460,7 +1466,7 @@ theme.</li>
 of <code>not_allowed</code>.</strong> Only the machine-readable code changes; the message shown to
 the user is the same as before.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-49">Fixed<a href="#fixed-49" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-50">Fixed<a href="#fixed-50" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Completing a task from the panel now settles buy reminders.</strong> The panel&#x27;s own
@@ -1486,7 +1492,7 @@ could drift from the service&#x27;s.</p>
 heading used to read &quot;Because of the kind you picked&quot;, which described the form&#x27;s
 behaviour rather than naming the fields below it.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-50">Fixed<a href="#fixed-50" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-51">Fixed<a href="#fixed-51" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong><code>home_keeper.add_task</code> works with just a name.</strong> It needed a unit it never
@@ -1540,7 +1546,7 @@ pass.</p>
 </li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0190b4">[0.19.0b4]<a href="#0190b4" class="hash-link" aria-label="Direct link to [0.19.0b4]" title="Direct link to [0.19.0b4]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-51">Fixed<a href="#fixed-51" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-52">Fixed<a href="#fixed-52" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Dialogs have their titles back.</strong> Completing a task or moving a completion date
@@ -1583,7 +1589,7 @@ stays on screen while its form is open, instead of being replaced by the list it
 from. On an appliance the list pane steps aside so the form is a second column rather
 than a third.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-52">Fixed<a href="#fixed-52" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-53">Fixed<a href="#fixed-53" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Picking a Settings section no longer jumps to the top of the page first.</strong> The rail
 now moves its mark on the page already drawn, so the scroll to that section starts
@@ -1621,7 +1627,7 @@ on a phone behaves as a dialog that Escape closes, and the filter chips, dropdow
 and Settings dots now say what they are rather than showing it in colour alone.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-53">Fixed<a href="#fixed-53" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-54">Fixed<a href="#fixed-54" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>The due date on a one-off task has a label again.</strong> Creating a task that happens
@@ -1639,7 +1645,7 @@ line to itself and left a visible gap under the task name.</p>
 </li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0190b1">[0.19.0b1]<a href="#0190b1" class="hash-link" aria-label="Direct link to [0.19.0b1]" title="Direct link to [0.19.0b1]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-54">Fixed<a href="#fixed-54" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-55">Fixed<a href="#fixed-55" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Ready for Home Assistant 2026.9.</strong> That release reshapes the device registry and
 adds child devices, so Home Keeper reads both shapes and a task or appliance you
@@ -1668,7 +1674,7 @@ it&#x27;s fixed.</li>
 cumulative, so the old <em>Due soon</em> already covered overdue tasks too. The new names
 are <em>Overdue only</em>, <em>Overdue and due soon</em> and <em>Every scheduled task</em>.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-55">Fixed<a href="#fixed-55" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-56">Fixed<a href="#fixed-56" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Synced problem sensors show up in Profiles again.</strong> Picking any Profile used to
 hide every mirrored <code>problem</code> sensor. (Fixes #248)</li>
@@ -1695,7 +1701,7 @@ panel prints the id with a copy button for when two share one. Home Keeper repor
 ambiguous name instead of guessing which you meant.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0180b2">[0.18.0b2]<a href="#0180b2" class="hash-link" aria-label="Direct link to [0.18.0b2]" title="Direct link to [0.18.0b2]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-56">Fixed<a href="#fixed-56" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-57">Fixed<a href="#fixed-57" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>To-do items show the right due date outside UTC.</strong> A task due at local midnight showed
 the previous day on <code>todo.home_keeper_tasks</code> while the panel showed the correct one. A
@@ -1703,7 +1709,7 @@ wear part&#x27;s last-replaced date shifted the same way when the replacement wa
 (Fixes #250)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0180b1">[0.18.0b1]<a href="#0180b1" class="hash-link" aria-label="Direct link to [0.18.0b1]" title="Direct link to [0.18.0b1]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-57">Fixed<a href="#fixed-57" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-58">Fixed<a href="#fixed-58" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Synced problem sensors show up in Profiles again.</strong> Picking any Profile used to
 hide every mirrored <code>problem</code> sensor. (Fixes #248)</li>
@@ -1728,7 +1734,7 @@ are <em>Overdue only</em>, <em>Overdue and due soon</em> and <em>Every scheduled
 switches between the flat list and a tree that nests child devices under their
 parents. (Fixes #215)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-58">Fixed<a href="#fixed-58" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-59">Fixed<a href="#fixed-59" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Home Keeper no longer throws you back to your dashboard.</strong> Anything that reloaded
 the integration took the sidebar panel down until setup finished, and Home Assistant
@@ -1773,7 +1779,7 @@ which every history row shows and the pencil edits. (Fixes #235)</li>
 it is, &quot;in 7000 miles&quot;, rather than only &quot;Monitored&quot;. (Threshold and state tasks,
 which have no interval to count down, still read &quot;Monitored&quot;.)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-59">Fixed<a href="#fixed-59" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-60">Fixed<a href="#fixed-60" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>&quot;Mark done&quot; on a notification works before the task is due.</strong> A notification built
 from a Profile set to <strong>Due soon</strong> or <strong>All</strong> shows tasks that aren&#x27;t overdue yet, and
@@ -1816,7 +1822,7 @@ task shows, so you can see at a glance which of your metered jobs is closest wit
 opening each one. (Threshold and state tasks, which have no interval to count down,
 still read &quot;Monitored&quot;.)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-60">Fixed<a href="#fixed-60" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-61">Fixed<a href="#fixed-61" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Undoing a meter task&#x27;s completion keeps your partial progress.</strong> Deleting a
 usage/meter completion (undoing an accidental &quot;done&quot;) reset the meter to zero and
@@ -1861,7 +1867,7 @@ chips, a linked task&#x27;s detail line, the stock control on the appliance&#x27
 and the <code>unit</code> field the stock events now carry. <code>home_keeper.adjust_part_stock</code> takes
 a decimal <code>delta</code> too, so <code>-250</code> and <code>-0.33</code> are both valid adjustments. (Fixes #220)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-61">Fixed<a href="#fixed-61" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-62">Fixed<a href="#fixed-62" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Opening Configure no longer wipes your notifications and profiles.</strong> Saving the
 integration&#x27;s options dialog (Settings → Devices &amp; services → Home Keeper →
@@ -1872,7 +1878,7 @@ to say why. The dialog now changes only its own fields and leaves what you set i
 the panel alone.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160b6">[0.16.0b6]<a href="#0160b6" class="hash-link" aria-label="Direct link to [0.16.0b6]" title="Direct link to [0.16.0b6]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-62">Fixed<a href="#fixed-62" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-63">Fixed<a href="#fixed-63" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The dashboard card no longer breaks on an ordinary page reload.</strong> A dashboard using
 the Home Keeper card could show a configuration error reading &quot;Custom element doesn&#x27;t
@@ -1898,7 +1904,7 @@ way removes the line, because nothing was bought. A line already ticked off is n
 touched. Only the lines Home Keeper added are ever managed. Leave the setting empty to
 turn it off. (Fixes #220)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-63">Fixed<a href="#fixed-63" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-64">Fixed<a href="#fixed-64" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>&quot;Mark done&quot; on a notification now clears an auto-buy reminder.</strong> Completing a
 &quot;Buy {part}&quot; reminder from a notification restocked the part but left the reminder
@@ -1914,7 +1920,7 @@ when a part&#x27;s stock hits its reorder point), so you can see at a glance wha
 buying without scrolling through every task. The same filter is available as
 <code>filter: shopping</code> on the dashboard card. (Fixes #220)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-64">Fixed<a href="#fixed-64" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-65">Fixed<a href="#fixed-65" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Documented that auto-clearing sensor tasks consume consumable stock.</strong> When a
 sensor task with <em>Clear when back to normal</em> is linked to a consumable part, the
@@ -1922,7 +1928,7 @@ auto-completion draws down one spare from stock, the same as completing by hand.
 was always the behavior but was not mentioned in the README or the events reference.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160b3">[0.16.0b3]<a href="#0160b3" class="hash-link" aria-label="Direct link to [0.16.0b3]" title="Direct link to [0.16.0b3]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-65">Fixed<a href="#fixed-65" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-66">Fixed<a href="#fixed-66" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>A do-once task you already finished no longer sits on the to-do list forever.</strong>
 Checking off a one-off task (renew the passport, register the car) retires it: it
@@ -1936,7 +1942,7 @@ its due date if you undo the completion. Checking one off a second time (through
 (Fixes #221)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0160b2">[0.16.0b2]<a href="#0160b2" class="hash-link" aria-label="Direct link to [0.16.0b2]" title="Direct link to [0.16.0b2]" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-66">Fixed<a href="#fixed-66" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-67">Fixed<a href="#fixed-67" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>&quot;Mark done&quot; on a notification works before the task is due.</strong> A notification built
 from a Profile set to <strong>Due soon</strong> (or <strong>All</strong>) shows tasks that aren&#x27;t overdue yet,
@@ -2055,7 +2061,7 @@ install exposed the panel&#x27;s source tree and dependencies.</li>
 almost everywhere. Escaping alone doesn&#x27;t defuse a <code>javascript:</code> link, and some links
 reach Home Keeper from other integrations.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-67">Fixed<a href="#fixed-67" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-68">Fixed<a href="#fixed-68" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Undoing a completion that was already gone no longer announces an undo.</strong> Removing
 a timestamp that isn&#x27;t in a task&#x27;s history has always been a no-op, but the event
@@ -2071,7 +2077,7 @@ single-letter shortcuts instead: the device or entity search popped up, and some
 Assist opened. The form now rebuilds only when the fields it shows actually change.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0130---2026-08-12">[0.13.0] - 2026-08-12<a href="#0130---2026-08-12" class="hash-link" aria-label="Direct link to [0.13.0] - 2026-08-12" title="Direct link to [0.13.0] - 2026-08-12" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-68">Fixed<a href="#fixed-68" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-69">Fixed<a href="#fixed-69" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Home Keeper is compatible with Home Assistant 2026.8&#x27;s device changes.</strong>
 Devices now belong to a single integration instead of being shared. Task and
@@ -2138,7 +2144,7 @@ Assistant&#x27;s built-in read-only &quot;Home Assistant Content&quot; user, the
 HA core uses for externally-fetchable media URLs), so browser-opened links keep
 working exactly as before. (Related to #161)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-69">Fixed<a href="#fixed-69" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-70">Fixed<a href="#fixed-70" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The dashboard card&#x27;s recurrence filter was missing half the task types.</strong> It only
 offered floating, fixed and triggered, so one-off and sensor-based tasks could not
@@ -2206,7 +2212,7 @@ custom field for the page you bought an appliance from. Separate from Vendor
 (which is free text), it renders as a clickable link on the appliance&#x27;s detail
 page, same as any other <code>link</code> metadata entry. (Fixes #160)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-70">Fixed<a href="#fixed-70" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-71">Fixed<a href="#fixed-71" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Notification action buttons and text were hardcoded in English.</strong> The &quot;Mark
 done&quot;/&quot;Snooze&quot;/&quot;Skip&quot;/&quot;Open&quot; action buttons on actionable mobile notifications, and
@@ -2305,7 +2311,7 @@ matching websocket command; automations that already react to
 <code>home_keeper_task_completed</code> / <code>home_keeper_task_uncompleted</code> see a move for
 free. (Fixes #143)</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-71">Fixed<a href="#fixed-71" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-72">Fixed<a href="#fixed-72" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The task-completion dialog&#x27;s Save button was invisible.</strong> For a task set to
 &quot;Ask for details&quot; or &quot;Require details&quot; on completion, tapping <strong>Done</strong> opened a
@@ -2361,7 +2367,7 @@ the task&#x27;s chips, which read inconsistently. They now render as primary-tin
 link-chips in the same chip row as the status, area, and label chips — one tidy,
 wrapping row — while still opening in a new tab on tap.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-72">Fixed<a href="#fixed-72" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-73">Fixed<a href="#fixed-73" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Auto-generated maintenance task names now follow your Home Assistant language.</strong>
 The name Home Keeper generates for a wear part (e.g. &quot;Replace {part} ({appliance})&quot;)
@@ -2415,7 +2421,7 @@ opens the product page directly — in the panel&#x27;s task detail and on the d
 card&#x27;s task row — instead of just naming the part.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-73">Fixed<a href="#fixed-73" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-74">Fixed<a href="#fixed-74" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">Fixed a batch of bugs found during an in-depth code review (correctness,
 security, and reliability), plus internal maintainability cleanups.</li>
@@ -2432,7 +2438,7 @@ each completion.&quot;</em> This clears up the most common confusion with usage-
 the target counts usage <strong>from the sensor&#x27;s current reading</strong>, not from zero, and the
 count restarts after each completion.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-74">Fixed<a href="#fixed-74" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-75">Fixed<a href="#fixed-75" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Auto-generated maintenance task names now follow your Home Assistant language.</strong>
 The name Home Keeper generates for a wear part (e.g. &quot;Replace {part} ({appliance})&quot;)
@@ -2475,7 +2481,7 @@ chip on the Appliances list and appliance detail is now a clickable link to that
 appliance&#x27;s Home Assistant device page (it was a static marker before).</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-75">Fixed<a href="#fixed-75" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-76">Fixed<a href="#fixed-76" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
 <p><strong>Problem Sensor Sync no longer leaves empty device cards behind.</strong> When you
@@ -2507,7 +2513,7 @@ owning integration (Home Keeper only adds its per-task entities there).</li>
 on the Appliances list and appliance detail is now a clickable link to that
 appliance&#x27;s Home Assistant device page (it was a static marker before).</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-76">Fixed<a href="#fixed-76" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-77">Fixed<a href="#fixed-77" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Device chip on a task/appliance card row now opens the device page.</strong> Clicking the
 device chip was hijacked by the card row&#x27;s open-detail handler (it opened the task or
@@ -2515,7 +2521,7 @@ appliance detail instead of navigating to the device); the chip click no longer
 bubbles to the row.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="070b3---2026-06-29">[0.7.0b3] - 2026-06-29<a href="#070b3---2026-06-29" class="hash-link" aria-label="Direct link to [0.7.0b3] - 2026-06-29" title="Direct link to [0.7.0b3] - 2026-06-29" translate="no">​</a></h2>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-77">Fixed<a href="#fixed-77" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-78">Fixed<a href="#fixed-78" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Problem Sensor Sync no longer leaves empty device cards behind.</strong> When you
 disable Problem Sensor Sync — or exclude an individual sensor, device, area, or
@@ -2593,7 +2599,7 @@ and link chips — while editing and deleting move to the sidebar panel, where t
 full task editor lives.</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-78">Fixed<a href="#fixed-78" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-79">Fixed<a href="#fixed-79" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The dashboard card and panel now reliably refresh after an update.</strong> Their module
 URLs are cache-busted by the bundle&#x27;s <strong>content hash</strong> instead of the integration
@@ -2635,7 +2641,7 @@ done. The card is now a focused do-and-glance surface: one-tap <strong>Done</str
 header <strong>+</strong>, and link chips — while <strong>editing and deleting move to the sidebar
 panel</strong>, where the full task editor lives.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-79">Fixed<a href="#fixed-79" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-80">Fixed<a href="#fixed-80" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>The dashboard card and panel now reliably refresh after an update.</strong> Their module
 URLs are cache-busted by the bundle&#x27;s <strong>content hash</strong> instead of the integration
@@ -2965,7 +2971,7 @@ incrementally).</li>
 <li class="">Home Keeper now registers as a <strong>service</strong>-type integration (<code>integration_type</code>),
 so Home Assistant groups it accordingly in the UI.</li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-80">Fixed<a href="#fixed-80" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-81">Fixed<a href="#fixed-81" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Settings exclusions now take effect immediately.</strong> Adding a problem-sensor
 entity, area, or label to a <em>skip</em> list in the panel&#x27;s <strong>Settings</strong> tab is now
@@ -3287,7 +3293,7 @@ keyboard), and shows the device&#x27;s integration brand logo (falling back to a
 generic device icon when no brand image is available).</p>
 </li>
 </ul>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-81">Fixed<a href="#fixed-81" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed-82">Fixed<a href="#fixed-82" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class=""><strong>Wear-part tasks no longer break the calendar and sensors.</strong> A maintenance task
 derived from a wear part (with a &quot;last replaced&quot; date) computed a
@@ -3397,6 +3403,6 @@ and matching websocket commands for the panel.</li>
 <li class="">Full test harness: pytest unit tests for the recurrence engine/model, a Docker
 integration suite, Playwright e2e smoke tests + screenshot capture, and vitest
 frontend tests. PR-merge-driven release workflow with beta/stable channels.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/docs/release-notes.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/quality-scale"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Quality scale</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#0300b2" class="table-of-contents__link toc-highlight">[0.30.0b2]</a><ul><li><a href="#added" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0300b1" class="table-of-contents__link toc-highlight">[0.30.0b1]</a><ul><li><a href="#added-1" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0290---2026-10-04" class="table-of-contents__link toc-highlight">[0.29.0] - 2026-10-04</a><ul><li><a href="#added-2" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0290b4" class="table-of-contents__link toc-highlight">[0.29.0b4]</a><ul><li><a href="#fixed-1" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0290b3" class="table-of-contents__link toc-highlight">[0.29.0b3]</a><ul><li><a href="#changed-1" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0290b2" class="table-of-contents__link toc-highlight">[0.29.0b2]</a><ul><li><a href="#added-3" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0290b1" class="table-of-contents__link toc-highlight">[0.29.0b1]</a><ul><li><a href="#added-4" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280---2026-10-02" class="table-of-contents__link toc-highlight">[0.28.0] - 2026-10-02</a><ul><li><a href="#added-5" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-2" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b18" class="table-of-contents__link toc-highlight">[0.28.0b18]</a><ul><li><a href="#fixed-3" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b17" class="table-of-contents__link toc-highlight">[0.28.0b17]</a><ul><li><a href="#added-6" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b16" class="table-of-contents__link toc-highlight">[0.28.0b16]</a><ul><li><a href="#fixed-4" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b15" class="table-of-contents__link toc-highlight">[0.28.0b15]</a><ul><li><a href="#added-7" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b14" class="table-of-contents__link toc-highlight">[0.28.0b14]</a><ul><li><a href="#added-8" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-5" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b13" class="table-of-contents__link toc-highlight">[0.28.0b13]</a><ul><li><a href="#fixed-6" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b12" class="table-of-contents__link toc-highlight">[0.28.0b12]</a><ul><li><a href="#fixed-7" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b11" class="table-of-contents__link toc-highlight">[0.28.0b11]</a><ul><li><a href="#fixed-8" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b10" class="table-of-contents__link toc-highlight">[0.28.0b10]</a><ul><li><a href="#fixed-9" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b9" class="table-of-contents__link toc-highlight">[0.28.0b9]</a><ul><li><a href="#fixed-10" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b8" class="table-of-contents__link toc-highlight">[0.28.0b8]</a><ul><li><a href="#fixed-11" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b7" class="table-of-contents__link toc-highlight">[0.28.0b7]</a><ul><li><a href="#fixed-12" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b6" class="table-of-contents__link toc-highlight">[0.28.0b6]</a><ul><li><a href="#fixed-13" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b5" class="table-of-contents__link toc-highlight">[0.28.0b5]</a><ul><li><a href="#fixed-14" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b4" class="table-of-contents__link toc-highlight">[0.28.0b4]</a><ul><li><a href="#fixed-15" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b3" class="table-of-contents__link toc-highlight">[0.28.0b3]</a><ul><li><a href="#fixed-16" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b2" class="table-of-contents__link toc-highlight">[0.28.0b2]</a><ul><li><a href="#added-9" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b1" class="table-of-contents__link toc-highlight">[0.28.0b1]</a><ul><li><a href="#added-10" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0270---2026-09-29" class="table-of-contents__link toc-highlight">[0.27.0] - 2026-09-29</a><ul><li><a href="#added-11" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-2" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-17" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b5" class="table-of-contents__link toc-highlight">[0.27.0b5]</a><ul><li><a href="#added-12" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-3" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-18" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b4" class="table-of-contents__link toc-highlight">[0.27.0b4]</a><ul><li><a href="#added-13" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-19" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b3" class="table-of-contents__link toc-highlight">[0.27.0b3]</a><ul><li><a href="#fixed-20" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b2" class="table-of-contents__link toc-highlight">[0.27.0b2]</a><ul><li><a href="#fixed-21" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b1" class="table-of-contents__link toc-highlight">[0.27.0b1]</a><ul><li><a href="#added-14" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0260---2026-09-24" class="table-of-contents__link toc-highlight">[0.26.0] - 2026-09-24</a><ul><li><a href="#added-15" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-22" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b5" class="table-of-contents__link toc-highlight">[0.26.0b5]</a><ul><li><a href="#fixed-23" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b4" class="table-of-contents__link toc-highlight">[0.26.0b4]</a><ul><li><a href="#added-16" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-24" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b3" class="table-of-contents__link toc-highlight">[0.26.0b3]</a><ul><li><a href="#added-17" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-25" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b2" class="table-of-contents__link toc-highlight">[0.26.0b2]</a><ul><li><a href="#fixed-26" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b1" class="table-of-contents__link toc-highlight">[0.26.0b1]</a><ul><li><a href="#added-18" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250---2026-09-24" class="table-of-contents__link toc-highlight">[0.25.0] - 2026-09-24</a><ul><li><a href="#added-19" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-27" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0250b3" class="table-of-contents__link toc-highlight">[0.25.0b3]</a><ul><li><a href="#added-20" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250b2" class="table-of-contents__link toc-highlight">[0.25.0b2]</a><ul><li><a href="#added-21" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250b1" class="table-of-contents__link toc-highlight">[0.25.0b1]</a><ul><li><a href="#fixed-28" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240---2026-09-20" class="table-of-contents__link toc-highlight">[0.24.0] - 2026-09-20</a><ul><li><a href="#added-22" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-4" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-29" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b8" class="table-of-contents__link toc-highlight">[0.24.0b8]</a><ul><li><a href="#added-23" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-30" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b7" class="table-of-contents__link toc-highlight">[0.24.0b7]</a><ul><li><a href="#added-24" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b6" class="table-of-contents__link toc-highlight">[0.24.0b6]</a><ul><li><a href="#changed-5" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0240b5" class="table-of-contents__link toc-highlight">[0.24.0b5]</a><ul><li><a href="#changed-6" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-31" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b4" class="table-of-contents__link toc-highlight">[0.24.0b4]</a><ul><li><a href="#fixed-32" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b3" class="table-of-contents__link toc-highlight">[0.24.0b3]</a><ul><li><a href="#added-25" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b2" class="table-of-contents__link toc-highlight">[0.24.0b2]</a><ul><li><a href="#added-26" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b1" class="table-of-contents__link toc-highlight">[0.24.0b1]</a><ul><li><a href="#fixed-33" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230---2026-09-11" class="table-of-contents__link toc-highlight">[0.23.0] - 2026-09-11</a><ul><li><a href="#added-27" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-34" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230b2" class="table-of-contents__link toc-highlight">[0.23.0b2]</a><ul><li><a href="#fixed-35" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230b1" class="table-of-contents__link toc-highlight">[0.23.0b1]</a><ul><li><a href="#added-28" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-36" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0220---2026-09-08" class="table-of-contents__link toc-highlight">[0.22.0] - 2026-09-08</a><ul><li><a href="#added-29" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-37" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210---2026-09-06" class="table-of-contents__link toc-highlight">[0.21.0] - 2026-09-06</a><ul><li><a href="#added-30" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-7" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-38" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b6" class="table-of-contents__link toc-highlight">[0.21.0b6]</a><ul><li><a href="#fixed-39" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b5" class="table-of-contents__link toc-highlight">[0.21.0b5]</a><ul><li><a href="#added-31" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-8" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-40" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b4" class="table-of-contents__link toc-highlight">[0.21.0b4]</a><ul><li><a href="#added-32" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-41" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b3" class="table-of-contents__link toc-highlight">[0.21.0b3]</a><ul><li><a href="#added-33" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-42" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b2" class="table-of-contents__link toc-highlight">[0.21.0b2]</a><ul><li><a href="#added-34" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-9" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0210b1" class="table-of-contents__link toc-highlight">[0.21.0b1]</a><ul><li><a href="#added-35" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200---2026-09-04" class="table-of-contents__link toc-highlight">[0.20.0] - 2026-09-04</a><ul><li><a href="#added-36" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-10" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-43" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b6" class="table-of-contents__link toc-highlight">[0.20.0b6]</a><ul><li><a href="#added-37" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-44" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b5" class="table-of-contents__link toc-highlight">[0.20.0b5]</a><ul><li><a href="#changed-11" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-45" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b4" class="table-of-contents__link toc-highlight">[0.20.0b4]</a><ul><li><a href="#added-38" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b3" class="table-of-contents__link toc-highlight">[0.20.0b3]</a><ul><li><a href="#added-39" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b2" class="table-of-contents__link toc-highlight">[0.20.0b2]</a><ul><li><a href="#added-40" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b1" class="table-of-contents__link toc-highlight">[0.20.0b1]</a><ul><li><a href="#fixed-46" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190---2026-09-01" class="table-of-contents__link toc-highlight">[0.19.0] - 2026-09-01</a><ul><li><a href="#added-41" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-47" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b8" class="table-of-contents__link toc-highlight">[0.19.0b8]</a><ul><li><a href="#fixed-48" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b7" class="table-of-contents__link toc-highlight">[0.19.0b7]</a><ul><li><a href="#changed-12" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-49" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b6" class="table-of-contents__link toc-highlight">[0.19.0b6]</a><ul><li><a href="#changed-13" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-50" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b5" class="table-of-contents__link toc-highlight">[0.19.0b5]</a><ul><li><a href="#changed-14" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0190b4" class="table-of-contents__link toc-highlight">[0.19.0b4]</a><ul><li><a href="#fixed-51" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b3" class="table-of-contents__link toc-highlight">[0.19.0b3]</a><ul><li><a href="#changed-15" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-52" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b2" class="table-of-contents__link toc-highlight">[0.19.0b2]</a><ul><li><a href="#changed-16" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-53" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b1" class="table-of-contents__link toc-highlight">[0.19.0b1]</a><ul><li><a href="#fixed-54" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180---2026-08-29" class="table-of-contents__link toc-highlight">[0.18.0] - 2026-08-29</a><ul><li><a href="#added-42" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-17" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-55" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180b4" class="table-of-contents__link toc-highlight">[0.18.0b4]</a><ul><li><a href="#added-43" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0180b3" class="table-of-contents__link toc-highlight">[0.18.0b3]</a><ul><li><a href="#added-44" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0180b2" class="table-of-contents__link toc-highlight">[0.18.0b2]</a><ul><li><a href="#fixed-56" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180b1" class="table-of-contents__link toc-highlight">[0.18.0b1]</a><ul><li><a href="#fixed-57" class="table-of-contents__link toc-highlight">Fixed</a></li><li><a href="#added-45" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-18" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0170---2026-08-26" class="table-of-contents__link toc-highlight">[0.17.0] - 2026-08-26</a><ul><li><a href="#added-46" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-58" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0170b1" class="table-of-contents__link toc-highlight">[0.17.0b1]</a><ul><li><a href="#added-47" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0160---2026-08-25" class="table-of-contents__link toc-highlight">[0.16.0] - 2026-08-25</a><ul><li><a href="#added-48" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-59" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b9" class="table-of-contents__link toc-highlight">[0.16.0b9]</a><ul><li><a href="#added-49" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-60" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b8" class="table-of-contents__link toc-highlight">[0.16.0b8]</a><ul><li><a href="#added-50" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0160b7" class="table-of-contents__link toc-highlight">[0.16.0b7]</a><ul><li><a href="#added-51" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-61" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b6" class="table-of-contents__link toc-highlight">[0.16.0b6]</a><ul><li><a href="#fixed-62" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b5" class="table-of-contents__link toc-highlight">[0.16.0b5]</a><ul><li><a href="#added-52" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-63" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b4" class="table-of-contents__link toc-highlight">[0.16.0b4]</a><ul><li><a href="#added-53" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-64" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b3" class="table-of-contents__link toc-highlight">[0.16.0b3]</a><ul><li><a href="#fixed-65" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b2" class="table-of-contents__link toc-highlight">[0.16.0b2]</a><ul><li><a href="#fixed-66" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b1---2026-08-21" class="table-of-contents__link toc-highlight">[0.16.0b1] - 2026-08-21</a><ul><li><a href="#added-54" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0150---2026-08-20" class="table-of-contents__link toc-highlight">[0.15.0] - 2026-08-20</a><ul><li><a href="#added-55" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0140---2026-08-18" class="table-of-contents__link toc-highlight">[0.14.0] - 2026-08-18</a><ul><li><a href="#added-56" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-19" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#security" class="table-of-contents__link toc-highlight">Security</a></li><li><a href="#fixed-67" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0130---2026-08-12" class="table-of-contents__link toc-highlight">[0.13.0] - 2026-08-12</a><ul><li><a href="#fixed-68" class="table-of-contents__link toc-highlight">Fixed</a></li><li><a href="#changed-20" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0120---2026-08-10" class="table-of-contents__link toc-highlight">[0.12.0] - 2026-08-10</a><ul><li><a href="#added-57" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-69" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0110---2026-08-03" class="table-of-contents__link toc-highlight">[0.11.0] - 2026-08-03</a><ul><li><a href="#added-58" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0100---2026-08-02" class="table-of-contents__link toc-highlight">[0.10.0] - 2026-08-02</a><ul><li><a href="#added-59" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-70" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#090---2026-07-23" class="table-of-contents__link toc-highlight">[0.9.0] - 2026-07-23</a><ul><li><a href="#added-60" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-71" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080---2026-07-04" class="table-of-contents__link toc-highlight">[0.8.0] - 2026-07-04</a><ul><li><a href="#added-61" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-21" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-72" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b5" class="table-of-contents__link toc-highlight">[0.8.0b5]</a><ul><li><a href="#changed-22" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#080b4" class="table-of-contents__link toc-highlight">[0.8.0b4]</a><ul><li><a href="#added-62" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#080b3" class="table-of-contents__link toc-highlight">[0.8.0b3]</a><ul><li><a href="#added-63" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-73" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b2" class="table-of-contents__link toc-highlight">[0.8.0b2]</a><ul><li><a href="#added-64" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-74" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b1" class="table-of-contents__link toc-highlight">[0.8.0b1]</a><ul><li><a href="#added-65" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#070---2026-06-30" class="table-of-contents__link toc-highlight">[0.7.0] - 2026-06-30</a><ul><li><a href="#added-66" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-75" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b4" class="table-of-contents__link toc-highlight">[0.7.0b4]</a><ul><li><a href="#added-67" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-76" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b3---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b3] - 2026-06-29</a><ul><li><a href="#fixed-77" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b2---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b2] - 2026-06-29</a><ul><li><a href="#added-68" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#070b1---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b1] - 2026-06-29</a></li><li><a href="#060---2026-06-29" class="table-of-contents__link toc-highlight">[0.6.0] - 2026-06-29</a><ul><li><a href="#added-69" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-23" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-78" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#060b4" class="table-of-contents__link toc-highlight">[0.6.0b4]</a><ul><li><a href="#added-70" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-24" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-79" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#060b3" class="table-of-contents__link toc-highlight">[0.6.0b3]</a><ul><li><a href="#changed-25" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#060b2" class="table-of-contents__link toc-highlight">[0.6.0b2]</a><ul><li><a href="#added-71" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#060b1" class="table-of-contents__link toc-highlight">[0.6.0b1]</a></li><li><a href="#050---2026-06-26" class="table-of-contents__link toc-highlight">[0.5.0] - 2026-06-26</a><ul><li><a href="#added-72" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#040---2026-06-22" class="table-of-contents__link toc-highlight">[0.4.0] - 2026-06-22</a><ul><li><a href="#added-73" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-26" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#040b1---2026-06-21" class="table-of-contents__link toc-highlight">[0.4.0b1] - 2026-06-21</a><ul><li><a href="#added-74" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030---2026-06-21" class="table-of-contents__link toc-highlight">[0.3.0] - 2026-06-21</a><ul><li><a href="#added-75" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-27" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b12---2026-06-21" class="table-of-contents__link toc-highlight">[0.3.0b12] - 2026-06-21</a><ul><li><a href="#added-76" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-28" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-80" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#030b11---2026-06-20" class="table-of-contents__link toc-highlight">[0.3.0b11] - 2026-06-20</a><ul><li><a href="#added-77" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b10---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b10] - 2026-06-19</a><ul><li><a href="#changed-29" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b9---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b9] - 2026-06-19</a><ul><li><a href="#added-78" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b7---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b7] - 2026-06-19</a><ul><li><a href="#added-79" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b6---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b6] - 2026-06-19</a><ul><li><a href="#added-80" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-30" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b5---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b5] - 2026-06-17</a></li><li><a href="#030b4---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b4] - 2026-06-17</a></li><li><a href="#030b3---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b3] - 2026-06-17</a></li><li><a href="#030b2---2026-06-16" class="table-of-contents__link toc-highlight">[0.3.0b2] - 2026-06-16</a></li><li><a href="#030b1---2026-06-16" class="table-of-contents__link toc-highlight">[0.3.0b1] - 2026-06-16</a></li><li><a href="#020---2026-06-16" class="table-of-contents__link toc-highlight">[0.2.0] - 2026-06-16</a></li><li><a href="#020b2---2026-06-15" class="table-of-contents__link toc-highlight">[0.2.0b2] - 2026-06-15</a></li><li><a href="#020b1---2026-06-15" class="table-of-contents__link toc-highlight">[0.2.0b1] - 2026-06-15</a></li><li><a href="#010b5---2026-06-15" class="table-of-contents__link toc-highlight">[0.1.0b5] - 2026-06-15</a></li><li><a href="#010b4---2026-06-15" class="table-of-contents__link toc-highlight">[0.1.0b4] - 2026-06-15</a><ul><li><a href="#fixed-81" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#010b3---2026-06-14" class="table-of-contents__link toc-highlight">[0.1.0b3] - 2026-06-14</a></li><li><a href="#010b2---2026-06-14" class="table-of-contents__link toc-highlight">[0.1.0b2] - 2026-06-14</a></li><li><a href="#010b1---2026-06-13" class="table-of-contents__link toc-highlight">[0.1.0b1] - 2026-06-13</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-434/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-434/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/docs/release-notes.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/quality-scale"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Quality scale</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#0300b2" class="table-of-contents__link toc-highlight">[0.30.0b2]</a><ul><li><a href="#added" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0300b1" class="table-of-contents__link toc-highlight">[0.30.0b1]</a><ul><li><a href="#added-1" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0290---2026-10-04" class="table-of-contents__link toc-highlight">[0.29.0] - 2026-10-04</a><ul><li><a href="#added-2" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-1" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0290b4" class="table-of-contents__link toc-highlight">[0.29.0b4]</a><ul><li><a href="#fixed-2" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0290b3" class="table-of-contents__link toc-highlight">[0.29.0b3]</a><ul><li><a href="#changed-1" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0290b2" class="table-of-contents__link toc-highlight">[0.29.0b2]</a><ul><li><a href="#added-3" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0290b1" class="table-of-contents__link toc-highlight">[0.29.0b1]</a><ul><li><a href="#added-4" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280---2026-10-02" class="table-of-contents__link toc-highlight">[0.28.0] - 2026-10-02</a><ul><li><a href="#added-5" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-3" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b18" class="table-of-contents__link toc-highlight">[0.28.0b18]</a><ul><li><a href="#fixed-4" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b17" class="table-of-contents__link toc-highlight">[0.28.0b17]</a><ul><li><a href="#added-6" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b16" class="table-of-contents__link toc-highlight">[0.28.0b16]</a><ul><li><a href="#fixed-5" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b15" class="table-of-contents__link toc-highlight">[0.28.0b15]</a><ul><li><a href="#added-7" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b14" class="table-of-contents__link toc-highlight">[0.28.0b14]</a><ul><li><a href="#added-8" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-6" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b13" class="table-of-contents__link toc-highlight">[0.28.0b13]</a><ul><li><a href="#fixed-7" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b12" class="table-of-contents__link toc-highlight">[0.28.0b12]</a><ul><li><a href="#fixed-8" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b11" class="table-of-contents__link toc-highlight">[0.28.0b11]</a><ul><li><a href="#fixed-9" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b10" class="table-of-contents__link toc-highlight">[0.28.0b10]</a><ul><li><a href="#fixed-10" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b9" class="table-of-contents__link toc-highlight">[0.28.0b9]</a><ul><li><a href="#fixed-11" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b8" class="table-of-contents__link toc-highlight">[0.28.0b8]</a><ul><li><a href="#fixed-12" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b7" class="table-of-contents__link toc-highlight">[0.28.0b7]</a><ul><li><a href="#fixed-13" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b6" class="table-of-contents__link toc-highlight">[0.28.0b6]</a><ul><li><a href="#fixed-14" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b5" class="table-of-contents__link toc-highlight">[0.28.0b5]</a><ul><li><a href="#fixed-15" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b4" class="table-of-contents__link toc-highlight">[0.28.0b4]</a><ul><li><a href="#fixed-16" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b3" class="table-of-contents__link toc-highlight">[0.28.0b3]</a><ul><li><a href="#fixed-17" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0280b2" class="table-of-contents__link toc-highlight">[0.28.0b2]</a><ul><li><a href="#added-9" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0280b1" class="table-of-contents__link toc-highlight">[0.28.0b1]</a><ul><li><a href="#added-10" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0270---2026-09-29" class="table-of-contents__link toc-highlight">[0.27.0] - 2026-09-29</a><ul><li><a href="#added-11" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-2" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-18" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b5" class="table-of-contents__link toc-highlight">[0.27.0b5]</a><ul><li><a href="#added-12" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-3" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-19" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b4" class="table-of-contents__link toc-highlight">[0.27.0b4]</a><ul><li><a href="#added-13" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-20" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b3" class="table-of-contents__link toc-highlight">[0.27.0b3]</a><ul><li><a href="#fixed-21" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b2" class="table-of-contents__link toc-highlight">[0.27.0b2]</a><ul><li><a href="#fixed-22" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0270b1" class="table-of-contents__link toc-highlight">[0.27.0b1]</a><ul><li><a href="#added-14" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0260---2026-09-24" class="table-of-contents__link toc-highlight">[0.26.0] - 2026-09-24</a><ul><li><a href="#added-15" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-23" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b5" class="table-of-contents__link toc-highlight">[0.26.0b5]</a><ul><li><a href="#fixed-24" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b4" class="table-of-contents__link toc-highlight">[0.26.0b4]</a><ul><li><a href="#added-16" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-25" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b3" class="table-of-contents__link toc-highlight">[0.26.0b3]</a><ul><li><a href="#added-17" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-26" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b2" class="table-of-contents__link toc-highlight">[0.26.0b2]</a><ul><li><a href="#fixed-27" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0260b1" class="table-of-contents__link toc-highlight">[0.26.0b1]</a><ul><li><a href="#added-18" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250---2026-09-24" class="table-of-contents__link toc-highlight">[0.25.0] - 2026-09-24</a><ul><li><a href="#added-19" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-28" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0250b3" class="table-of-contents__link toc-highlight">[0.25.0b3]</a><ul><li><a href="#added-20" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250b2" class="table-of-contents__link toc-highlight">[0.25.0b2]</a><ul><li><a href="#added-21" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0250b1" class="table-of-contents__link toc-highlight">[0.25.0b1]</a><ul><li><a href="#fixed-29" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240---2026-09-20" class="table-of-contents__link toc-highlight">[0.24.0] - 2026-09-20</a><ul><li><a href="#added-22" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-4" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-30" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b8" class="table-of-contents__link toc-highlight">[0.24.0b8]</a><ul><li><a href="#added-23" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-31" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b7" class="table-of-contents__link toc-highlight">[0.24.0b7]</a><ul><li><a href="#added-24" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b6" class="table-of-contents__link toc-highlight">[0.24.0b6]</a><ul><li><a href="#changed-5" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0240b5" class="table-of-contents__link toc-highlight">[0.24.0b5]</a><ul><li><a href="#changed-6" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-32" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b4" class="table-of-contents__link toc-highlight">[0.24.0b4]</a><ul><li><a href="#fixed-33" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0240b3" class="table-of-contents__link toc-highlight">[0.24.0b3]</a><ul><li><a href="#added-25" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b2" class="table-of-contents__link toc-highlight">[0.24.0b2]</a><ul><li><a href="#added-26" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0240b1" class="table-of-contents__link toc-highlight">[0.24.0b1]</a><ul><li><a href="#fixed-34" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230---2026-09-11" class="table-of-contents__link toc-highlight">[0.23.0] - 2026-09-11</a><ul><li><a href="#added-27" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-35" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230b2" class="table-of-contents__link toc-highlight">[0.23.0b2]</a><ul><li><a href="#fixed-36" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0230b1" class="table-of-contents__link toc-highlight">[0.23.0b1]</a><ul><li><a href="#added-28" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-37" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0220---2026-09-08" class="table-of-contents__link toc-highlight">[0.22.0] - 2026-09-08</a><ul><li><a href="#added-29" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-38" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210---2026-09-06" class="table-of-contents__link toc-highlight">[0.21.0] - 2026-09-06</a><ul><li><a href="#added-30" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-7" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-39" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b6" class="table-of-contents__link toc-highlight">[0.21.0b6]</a><ul><li><a href="#fixed-40" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b5" class="table-of-contents__link toc-highlight">[0.21.0b5]</a><ul><li><a href="#added-31" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-8" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-41" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b4" class="table-of-contents__link toc-highlight">[0.21.0b4]</a><ul><li><a href="#added-32" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-42" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b3" class="table-of-contents__link toc-highlight">[0.21.0b3]</a><ul><li><a href="#added-33" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-43" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0210b2" class="table-of-contents__link toc-highlight">[0.21.0b2]</a><ul><li><a href="#added-34" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-9" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0210b1" class="table-of-contents__link toc-highlight">[0.21.0b1]</a><ul><li><a href="#added-35" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200---2026-09-04" class="table-of-contents__link toc-highlight">[0.20.0] - 2026-09-04</a><ul><li><a href="#added-36" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-10" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-44" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b6" class="table-of-contents__link toc-highlight">[0.20.0b6]</a><ul><li><a href="#added-37" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-45" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b5" class="table-of-contents__link toc-highlight">[0.20.0b5]</a><ul><li><a href="#changed-11" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-46" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0200b4" class="table-of-contents__link toc-highlight">[0.20.0b4]</a><ul><li><a href="#added-38" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b3" class="table-of-contents__link toc-highlight">[0.20.0b3]</a><ul><li><a href="#added-39" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b2" class="table-of-contents__link toc-highlight">[0.20.0b2]</a><ul><li><a href="#added-40" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0200b1" class="table-of-contents__link toc-highlight">[0.20.0b1]</a><ul><li><a href="#fixed-47" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190---2026-09-01" class="table-of-contents__link toc-highlight">[0.19.0] - 2026-09-01</a><ul><li><a href="#added-41" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-48" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b8" class="table-of-contents__link toc-highlight">[0.19.0b8]</a><ul><li><a href="#fixed-49" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b7" class="table-of-contents__link toc-highlight">[0.19.0b7]</a><ul><li><a href="#changed-12" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-50" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b6" class="table-of-contents__link toc-highlight">[0.19.0b6]</a><ul><li><a href="#changed-13" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-51" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b5" class="table-of-contents__link toc-highlight">[0.19.0b5]</a><ul><li><a href="#changed-14" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0190b4" class="table-of-contents__link toc-highlight">[0.19.0b4]</a><ul><li><a href="#fixed-52" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b3" class="table-of-contents__link toc-highlight">[0.19.0b3]</a><ul><li><a href="#changed-15" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-53" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b2" class="table-of-contents__link toc-highlight">[0.19.0b2]</a><ul><li><a href="#changed-16" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-54" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0190b1" class="table-of-contents__link toc-highlight">[0.19.0b1]</a><ul><li><a href="#fixed-55" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180---2026-08-29" class="table-of-contents__link toc-highlight">[0.18.0] - 2026-08-29</a><ul><li><a href="#added-42" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-17" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-56" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180b4" class="table-of-contents__link toc-highlight">[0.18.0b4]</a><ul><li><a href="#added-43" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0180b3" class="table-of-contents__link toc-highlight">[0.18.0b3]</a><ul><li><a href="#added-44" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0180b2" class="table-of-contents__link toc-highlight">[0.18.0b2]</a><ul><li><a href="#fixed-57" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0180b1" class="table-of-contents__link toc-highlight">[0.18.0b1]</a><ul><li><a href="#fixed-58" class="table-of-contents__link toc-highlight">Fixed</a></li><li><a href="#added-45" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-18" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0170---2026-08-26" class="table-of-contents__link toc-highlight">[0.17.0] - 2026-08-26</a><ul><li><a href="#added-46" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-59" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0170b1" class="table-of-contents__link toc-highlight">[0.17.0b1]</a><ul><li><a href="#added-47" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0160---2026-08-25" class="table-of-contents__link toc-highlight">[0.16.0] - 2026-08-25</a><ul><li><a href="#added-48" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-60" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b9" class="table-of-contents__link toc-highlight">[0.16.0b9]</a><ul><li><a href="#added-49" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-61" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b8" class="table-of-contents__link toc-highlight">[0.16.0b8]</a><ul><li><a href="#added-50" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0160b7" class="table-of-contents__link toc-highlight">[0.16.0b7]</a><ul><li><a href="#added-51" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-62" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b6" class="table-of-contents__link toc-highlight">[0.16.0b6]</a><ul><li><a href="#fixed-63" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b5" class="table-of-contents__link toc-highlight">[0.16.0b5]</a><ul><li><a href="#added-52" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-64" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b4" class="table-of-contents__link toc-highlight">[0.16.0b4]</a><ul><li><a href="#added-53" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-65" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b3" class="table-of-contents__link toc-highlight">[0.16.0b3]</a><ul><li><a href="#fixed-66" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b2" class="table-of-contents__link toc-highlight">[0.16.0b2]</a><ul><li><a href="#fixed-67" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0160b1---2026-08-21" class="table-of-contents__link toc-highlight">[0.16.0b1] - 2026-08-21</a><ul><li><a href="#added-54" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0150---2026-08-20" class="table-of-contents__link toc-highlight">[0.15.0] - 2026-08-20</a><ul><li><a href="#added-55" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0140---2026-08-18" class="table-of-contents__link toc-highlight">[0.14.0] - 2026-08-18</a><ul><li><a href="#added-56" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-19" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#security" class="table-of-contents__link toc-highlight">Security</a></li><li><a href="#fixed-68" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0130---2026-08-12" class="table-of-contents__link toc-highlight">[0.13.0] - 2026-08-12</a><ul><li><a href="#fixed-69" class="table-of-contents__link toc-highlight">Fixed</a></li><li><a href="#changed-20" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#0120---2026-08-10" class="table-of-contents__link toc-highlight">[0.12.0] - 2026-08-10</a><ul><li><a href="#added-57" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-70" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#0110---2026-08-03" class="table-of-contents__link toc-highlight">[0.11.0] - 2026-08-03</a><ul><li><a href="#added-58" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#0100---2026-08-02" class="table-of-contents__link toc-highlight">[0.10.0] - 2026-08-02</a><ul><li><a href="#added-59" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-71" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#090---2026-07-23" class="table-of-contents__link toc-highlight">[0.9.0] - 2026-07-23</a><ul><li><a href="#added-60" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-72" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080---2026-07-04" class="table-of-contents__link toc-highlight">[0.8.0] - 2026-07-04</a><ul><li><a href="#added-61" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-21" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-73" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b5" class="table-of-contents__link toc-highlight">[0.8.0b5]</a><ul><li><a href="#changed-22" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#080b4" class="table-of-contents__link toc-highlight">[0.8.0b4]</a><ul><li><a href="#added-62" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#080b3" class="table-of-contents__link toc-highlight">[0.8.0b3]</a><ul><li><a href="#added-63" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-74" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b2" class="table-of-contents__link toc-highlight">[0.8.0b2]</a><ul><li><a href="#added-64" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-75" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#080b1" class="table-of-contents__link toc-highlight">[0.8.0b1]</a><ul><li><a href="#added-65" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#070---2026-06-30" class="table-of-contents__link toc-highlight">[0.7.0] - 2026-06-30</a><ul><li><a href="#added-66" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-76" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b4" class="table-of-contents__link toc-highlight">[0.7.0b4]</a><ul><li><a href="#added-67" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#fixed-77" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b3---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b3] - 2026-06-29</a><ul><li><a href="#fixed-78" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#070b2---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b2] - 2026-06-29</a><ul><li><a href="#added-68" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#070b1---2026-06-29" class="table-of-contents__link toc-highlight">[0.7.0b1] - 2026-06-29</a></li><li><a href="#060---2026-06-29" class="table-of-contents__link toc-highlight">[0.6.0] - 2026-06-29</a><ul><li><a href="#added-69" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-23" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-79" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#060b4" class="table-of-contents__link toc-highlight">[0.6.0b4]</a><ul><li><a href="#added-70" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-24" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-80" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#060b3" class="table-of-contents__link toc-highlight">[0.6.0b3]</a><ul><li><a href="#changed-25" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#060b2" class="table-of-contents__link toc-highlight">[0.6.0b2]</a><ul><li><a href="#added-71" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#060b1" class="table-of-contents__link toc-highlight">[0.6.0b1]</a></li><li><a href="#050---2026-06-26" class="table-of-contents__link toc-highlight">[0.5.0] - 2026-06-26</a><ul><li><a href="#added-72" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#040---2026-06-22" class="table-of-contents__link toc-highlight">[0.4.0] - 2026-06-22</a><ul><li><a href="#added-73" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-26" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#040b1---2026-06-21" class="table-of-contents__link toc-highlight">[0.4.0b1] - 2026-06-21</a><ul><li><a href="#added-74" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030---2026-06-21" class="table-of-contents__link toc-highlight">[0.3.0] - 2026-06-21</a><ul><li><a href="#added-75" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-27" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b12---2026-06-21" class="table-of-contents__link toc-highlight">[0.3.0b12] - 2026-06-21</a><ul><li><a href="#added-76" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-28" class="table-of-contents__link toc-highlight">Changed</a></li><li><a href="#fixed-81" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#030b11---2026-06-20" class="table-of-contents__link toc-highlight">[0.3.0b11] - 2026-06-20</a><ul><li><a href="#added-77" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b10---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b10] - 2026-06-19</a><ul><li><a href="#changed-29" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b9---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b9] - 2026-06-19</a><ul><li><a href="#added-78" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b7---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b7] - 2026-06-19</a><ul><li><a href="#added-79" class="table-of-contents__link toc-highlight">Added</a></li></ul></li><li><a href="#030b6---2026-06-19" class="table-of-contents__link toc-highlight">[0.3.0b6] - 2026-06-19</a><ul><li><a href="#added-80" class="table-of-contents__link toc-highlight">Added</a></li><li><a href="#changed-30" class="table-of-contents__link toc-highlight">Changed</a></li></ul></li><li><a href="#030b5---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b5] - 2026-06-17</a></li><li><a href="#030b4---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b4] - 2026-06-17</a></li><li><a href="#030b3---2026-06-17" class="table-of-contents__link toc-highlight">[0.3.0b3] - 2026-06-17</a></li><li><a href="#030b2---2026-06-16" class="table-of-contents__link toc-highlight">[0.3.0b2] - 2026-06-16</a></li><li><a href="#030b1---2026-06-16" class="table-of-contents__link toc-highlight">[0.3.0b1] - 2026-06-16</a></li><li><a href="#020---2026-06-16" class="table-of-contents__link toc-highlight">[0.2.0] - 2026-06-16</a></li><li><a href="#020b2---2026-06-15" class="table-of-contents__link toc-highlight">[0.2.0b2] - 2026-06-15</a></li><li><a href="#020b1---2026-06-15" class="table-of-contents__link toc-highlight">[0.2.0b1] - 2026-06-15</a></li><li><a href="#010b5---2026-06-15" class="table-of-contents__link toc-highlight">[0.1.0b5] - 2026-06-15</a></li><li><a href="#010b4---2026-06-15" class="table-of-contents__link toc-highlight">[0.1.0b4] - 2026-06-15</a><ul><li><a href="#fixed-82" class="table-of-contents__link toc-highlight">Fixed</a></li></ul></li><li><a href="#010b3---2026-06-14" class="table-of-contents__link toc-highlight">[0.1.0b3] - 2026-06-14</a></li><li><a href="#010b2---2026-06-14" class="table-of-contents__link toc-highlight">[0.1.0b2] - 2026-06-14</a></li><li><a href="#010b1---2026-06-13" class="table-of-contents__link toc-highlight">[0.1.0b1] - 2026-06-13</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-434/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-434/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
