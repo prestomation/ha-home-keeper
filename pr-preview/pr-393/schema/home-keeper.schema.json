@@ -272,13 +272,6 @@
           "rrule": {
             "type": "string"
           },
-          "moved_occurrences": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          },
           "anchor": {
             "type": "string"
           },
@@ -376,6 +369,17 @@
           },
           "require_tag_scan": {
             "type": "boolean"
+          },
+          "snooze_hours": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
+            ]
           },
           "active_season": {
             "anyOf": [
@@ -526,6 +530,24 @@
               },
               "required": [
                 "skipped_at"
+              ]
+            }
+          },
+          "moved_occurrences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
               ]
             }
           }
