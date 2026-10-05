@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b3]
+
+### Added
+
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
+
 ## [0.30.0b2]
 
 ### Added
