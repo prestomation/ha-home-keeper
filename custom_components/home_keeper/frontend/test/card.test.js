@@ -542,6 +542,89 @@ describe('Card schedule and completion count settings (issue #432)', () => {
   });
 });
 
+// Issue #435: card options that start the groups closed.
+describe('Card collapse options (issue #435)', () => {
+  const day = 86_400_000;
+  const mk = (id, daysFromNow) => ({
+    ...sampleTasks[0],
+    id,
+    name: id,
+    next_due: new Date(Date.now() + daysFromNow * day).toISOString(),
+  });
+  // 3 overdue tasks and 1 later task.
+  const tasks = [mk('a', -5), mk('b', -4), mk('c', -3), mk('d', 60)];
+
+  async function open(config) {
+    const card = makeCard({ type: 'custom:home-keeper-card', group_by: 'status', ...config });
+    card.hass = { callWS: async () => ({ tasks }), language: 'en' };
+    await waitFor(() => sr(card)?.querySelector('details.hk-group'));
+    return card;
+  }
+  const state = (card) =>
+    Object.fromEntries(
+      [...sr(card).querySelectorAll('details.hk-group')].map((d) => [d.dataset.groupKey, d.open]),
+    );
+
+  it('starts every group open by default', async () => {
+    expect(state(await open({}))).toEqual({ 'status:overdue': true, 'status:later': true });
+  });
+
+  it('starts every group closed with collapsed', async () => {
+    expect(state(await open({ collapsed: true }))).toEqual({
+      'status:overdue': false,
+      'status:later': false,
+    });
+  });
+
+  it('starts only the named groups closed with collapsed_groups', async () => {
+    expect(state(await open({ collapsed_groups: ['overdue'] }))).toEqual({
+      'status:overdue': false,
+      'status:later': true,
+    });
+  });
+
+  it('starts a group closed above collapse_above', async () => {
+    expect(state(await open({ collapse_above: 2 }))).toEqual({
+      'status:overdue': false,
+      'status:later': true,
+    });
+  });
+
+  it('keeps a group the user opened when the card draws again', async () => {
+    const card = await open({ collapsed: true });
+    const overdue = sr(card).querySelector('details[data-group-key="status:overdue"]');
+    overdue.open = true;
+    overdue.dispatchEvent(new Event('toggle'));
+    card.hass = { callWS: async () => ({ tasks }), language: 'en' };
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'status', collapsed: true });
+    expect(state(card)).toEqual({ 'status:overdue': true, 'status:later': false });
+  });
+
+  it('keeps a group the user opened when only group_by changes', async () => {
+    const card = await open({ collapsed: true });
+    const overdue = sr(card).querySelector('details[data-group-key="status:overdue"]');
+    overdue.open = true;
+    overdue.dispatchEvent(new Event('toggle'));
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'none', collapsed: true });
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'status', collapsed: true });
+    expect(state(card)).toEqual({ 'status:overdue': true, 'status:later': false });
+  });
+
+  it('counts the tasks that max_items leaves in the group for collapse_above', async () => {
+    // 3 overdue tasks, max_items 2: the group shows 2, so collapse_above 2 keeps it open.
+    expect(state(await open({ max_items: 2, collapse_above: 2 }))['status:overdue']).toBe(true);
+  });
+
+  it('starts over from the options when a collapse option changes', async () => {
+    const card = await open({ collapsed: true });
+    const overdue = sr(card).querySelector('details[data-group-key="status:overdue"]');
+    overdue.open = true;
+    overdue.dispatchEvent(new Event('toggle'));
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'status', collapsed_groups: ['later'] });
+    expect(state(card)).toEqual({ 'status:overdue': true, 'status:later': false });
+  });
+});
+
 // Note quick-view (issue #340). A task with a note gets a one-tap chip that opens a
 // read-only dialog showing the full note as Markdown, independent of the card's
 // "Show notes" row setting — the point is a compact row that still reaches the note.
