@@ -80,8 +80,8 @@ collapsed_groups:
 ```
 
 The options set only the first state. A group that you open or close keeps that state
-until you reload the page. If you change a card option, the groups start over from the
-options. A card without `group_by` has no groups, so these options do nothing.
+until you reload the page, unless you change a card option. Then the groups start over
+from the options. These options do nothing on a card without `group_by`.
 
 ![Home Keeper task card with every status group closed](../../images/card-groups-collapsed.png)
 
