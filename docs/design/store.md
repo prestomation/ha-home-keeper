@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: ac0f9539910d
+source_hash: 77a547d2c02c
 ---
 
 # Store
@@ -64,9 +64,9 @@ section is therefore additive and needs no version bump. Declarative specs go th
 dropped with a warning, because one lost spec is better than a failed startup.
 
 Then load runs idempotent shims: `assets.migrate_legacy_part_numbers`,
-`assets.migrate_documents_from_manual_url`, `_clean_relationship_links` and
-`reconcile.adopt_part_tags`. It saves once, only if a shim changed data. A new optional
-field needs no shim, because readers use `.get()` with a default.
+`assets.migrate_documents_from_manual_url`, `_clean_relationship_links`,
+`models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`. It saves once, only
+if a shim changed data. A new optional field needs no shim: readers use `.get()`.
 
 ### The mutation shape
 
@@ -87,8 +87,9 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
 
 ### Responsibilities
 
-- **Tasks:** add, update, delete, trigger, snooze, due today, skip, meter baseline. A
-  delete calls `_archive_task_history` to keep history on a linked appliance.
+- **Tasks:** add, update, delete, trigger, snooze, due today, skip, move a date
+  (`move_occurrence`) and meter baseline. A delete calls `_archive_task_history` to keep
+  history on a linked appliance.
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
 - **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and
@@ -114,10 +115,9 @@ pass, `delete_orphaned_tasks` and `async_import_records`. The `Store` write lock
 
 ### Unload, reload and concurrency
 
-`async_unload_entry` calls `store.close`. After that, `_save` raises
-`models.StoreClosedError`. A reload builds a new `HomeKeeperStore` that reads the file again,
-so a pass that still holds the old store fails at its save. It cannot write its old
-snapshot over the new file.
+`async_unload_entry` calls `store.close`. After that, `_save` raises `models.StoreClosedError`. A
+reload builds a new `HomeKeeperStore` that reads the file again, so a pass that still holds the old
+store fails at its save. It cannot write its old snapshot over the new file.
 
 All methods run on the event loop, and the store holds no lock. Most methods change the
 dicts before their first `await`, so 2 calls do not interleave inside a change. Each

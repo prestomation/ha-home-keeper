@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 2900cf120415
+source_hash: b414d9a4681d
 ---
 
 # To-do, calendar and list sync
@@ -43,23 +43,25 @@ and a Home Assistant driver.
 
 ## Design
 
-### Own to-do entity
+### Own to-do and calendar entities
 
 `todo.HomeKeeperTodoListEntity` lists 1 item per enabled task, with `uid` = task id. A
-`one-off`, `triggered` or `sensor` task with no `next_due` is dormant and is not listed.
-A `use` task has no date and stays listed. The due date is the local date of `next_due`.
-The entity declares only `UPDATE_TODO_ITEM`. A tick calls `store.complete_task`, then
-`coordinator.async_settle_buy_tasks`. A tick on a completed one-off is ignored. A new
-summary or description goes to the task `name` and `notes` through `store.update_task`.
-A `TaskValidationError` becomes a translated `HomeAssistantError`.
+`one-off`, `triggered` or `sensor` task with no `next_due` is dormant and is not listed. A `use`
+task has no date and stays listed. The due date is the local date of `next_due`. The entity
+declares only `UPDATE_TODO_ITEM`. A tick calls `store.complete_task`, then
+`coordinator.async_settle_buy_tasks`. A tick on a completed one-off is ignored. A new summary or
+description goes to the task `name` and `notes` through `store.update_task`. A
+`TaskValidationError` becomes a translated `HomeAssistantError`.
 
-### Calendar entity
-
-`calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`.
-`triggered` and `sensor` tasks have no schedule and never show. A `fixed` task expands with
-`recurrence.expand_fixed_occurrences`, minus the occurrences outside its `active_season`.
-`calendar._follow_next_due` removes the grid occurrences before `next_due` and adds a
-`next_due` that a snooze moved off the grid. Every other task is 1 event at `next_due`.
+`calendar.HomeKeeperCalendarEntity` makes 1-hour events and never shows a `triggered` or
+`sensor` task. Each other task is 1 event at `next_due`, with `uid` = `<task id>@<ISO start>`.
+`calendar._fixed_events` expands a `fixed` task with its moves, inside its `active_season`.
+Each schedule event has `uid` = task id, the effective rule and a local `recurrence_id`
+(`YYYYMMDDTHHMMSS`). The dates from now up to `next_due` are left out (`calendar._due_ahead`).
+A `next_due` from a snooze or a due today is a one-date event. The entity supports
+`UPDATE_EVENT`. "Only this event" calls `store.move_occurrence`, and an edit of a one-date
+event calls `store.snooze_task`, both with `ORIGIN_CALENDAR`. A series edit raises
+`calendar_edit_in_panel`, which points at the panel.
 
 ### Pure planners and HA drivers
 
@@ -84,9 +86,8 @@ The `add_item` service returns no uid, so a new entry has `uid: None` and `added
 CalDAV entity shows a new item late. A pass that cannot find the item carries the entry
 forward verbatim, because the summary is its only handle. When `todo_items.add_unconfirmed`
 is true, after `todo_items.UNCONFIRMED_GRACE` (20 minutes, above the 15-minute CalDAV
-poll), the item is added again. The hold uses the wall clock, because 4 passes can run in
-milliseconds. `todo_items.added_stamp` replaces a bad or future stamp, so a hold ends.
-During a hold, a ticked item with the same summary is not a tick.
+poll), the item is added again. `todo_items.added_stamp` replaces a bad or future stamp, so
+a hold ends. During a hold, a ticked item with the same summary is not a tick.
 
 ### Profile sync
 
@@ -111,8 +112,7 @@ so the item is ticked off. When the task is due again, a new item goes next to i
   earlier or later, and changes only `next_due`. `todo_list.reschedule_until` keeps the
   local time of day. A completion in the same pass wins. If the snooze fails, the next pass
   writes the task date back on the item.
-
-A deleted or switched-off profile removes its open items from the list.
+- **Profile removed.** A deleted or switched-off profile removes its open items from the list.
 
 ### Shopping list mirror
 

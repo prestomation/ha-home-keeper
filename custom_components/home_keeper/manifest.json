@@ -19,7 +19,8 @@
   "issue_tracker": "https://github.com/prestomation/ha-home-keeper/issues",
   "quality_scale": "platinum",
   "requirements": [
-    "Babel>=2.12"
+    "Babel>=2.12",
+    "python-dateutil>=2.8"
   ],
-  "version": "0.30.0b3"
+  "version": "0.30.0b4"
 }

@@ -43,7 +43,8 @@
     "custom_components/home_keeper/frontend/src/preset-summary.ts",
     "custom_components/home_keeper/frontend/src/task-photos.ts",
     "custom_components/home_keeper/frontend/src/photo-staging.ts",
-    "custom_components/home_keeper/frontend/src/task-layout.ts"
+    "custom_components/home_keeper/frontend/src/task-layout.ts",
+    "custom_components/home_keeper/frontend/src/rrule.ts"
   ],
   "thresholds": {
     "high": 90,

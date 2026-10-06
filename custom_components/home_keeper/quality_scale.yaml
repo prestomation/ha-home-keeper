@@ -36,9 +36,11 @@ rules:
   dependency-transparency:
     status: done
     comment: >-
-      The one requirement is Babel (BSD license, released on PyPI from a public
-      source repository) for locale-aware numbers. The other dependencies are HA
-      core http and frontend.
+      There are 2 requirements, both released on PyPI from a public source
+      repository. Babel (BSD license) gives locale-aware numbers. python-dateutil
+      (Apache 2.0 and BSD licenses) expands the RRULE of a fixed schedule, and Home
+      Assistant core installs it too. The other dependencies are HA core http and
+      frontend.
   docs-actions:
     status: done
     comment: Services documented in services.yaml, strings.json and README.
@@ -179,9 +181,10 @@ rules:
   async-dependency:
     status: exempt
     comment: >-
-      The one requirement, Babel, does no network I/O. Setup reads its locale data
-      in the executor (backend_i18n.preload and assets.decimal_mark), so the event
-      loop uses only cached values.
+      Neither requirement does network I/O. Setup reads the locale data of Babel in
+      the executor (backend_i18n.preload and assets.decimal_mark), so the event loop
+      uses only cached values. python-dateutil is used only for dateutil.rrule, which
+      is pure computation and reads no files.
   inject-websession:
     status: exempt
     comment: Makes no HTTP requests; no web session to inject.

@@ -28,7 +28,8 @@ catalog is in [EVENTS.md](EVENTS.md).
 ## 1. Creating a task
 
 Recurrence is **floating** (`interval` + `unit`, from the last completion) or **fixed**
-(`freq` + `interval` + `anchor`). Keep the returned `task_id`:
+(`rrule` + `anchor`). The older `freq` + `interval` for a fixed task still works. Keep
+the returned `task_id`:
 
 ```python
 DOMAIN_HK = "home_keeper"
@@ -38,7 +39,8 @@ if hass.services.has_service(DOMAIN_HK, "add_task"):
         "name": "Replace smoke-detector battery",
         "notes": "Uses a **9V** battery.",  # Markdown source, stored verbatim
         "recurrence_type": "floating", "interval": 6, "unit": "months",
-        # Fixed: "recurrence_type": "fixed", "freq": "MONTHLY", "anchor": "2026-01-01T08:00:00"
+        # Fixed: "recurrence_type": "fixed", "rrule": "FREQ=MONTHLY;BYDAY=1TU",
+        #        "anchor": "2026-01-06T08:00:00"
         "last_completed": "2026-01-01T08:00:00",  # optional; else the task is due now
         "device_id": my_device_id,  # optional device registry id
         "source": {"my_integration": {"thing_id": thing_id}},  # namespaced under YOUR domain

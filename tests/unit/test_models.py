@@ -1818,7 +1818,10 @@ def test_an_anchor_and_freq_still_build_a_fixed_task():
         now=NOW,
     )
     assert task["recurrence_type"] == "fixed"
-    assert task["freq"] == "MONTHLY"
+    # The legacy pair is converted to a rule; only the rule is stored.
+    assert task["rrule"] == "FREQ=MONTHLY;INTERVAL=1"
+    assert "freq" not in task
+    assert "interval" not in task
     assert task["anchor"] == datetime(2026, 7, 1, 9, tzinfo=TZ).isoformat()
 
 
@@ -1986,7 +1989,7 @@ def test_a_rename_leaves_a_floating_schedule_where_it_was():
     )
 
 
-def test_a_fixed_task_keeps_its_freq_and_anchor_across_a_rename():
+def test_a_fixed_task_keeps_its_rule_and_anchor_across_a_rename():
     task = m.build_task(
         {
             "name": "Fixed",
@@ -1998,7 +2001,7 @@ def test_a_fixed_task_keeps_its_freq_and_anchor_across_a_rename():
         now=NOW,
     )
     renamed = m.merge_update(task, {"name": "Renamed"}, now=NOW)
-    assert renamed["freq"] == "MONTHLY"
+    assert renamed["rrule"] == "FREQ=MONTHLY;INTERVAL=1"
     assert renamed["anchor"] == task["anchor"]
 
 

@@ -149,6 +149,10 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("interval"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
+        # A fixed schedule as an RFC 5545 RRULE body, e.g. "FREQ=WEEKLY;BYDAY=TU,FR".
+        # Takes the place of ``freq``/``interval``, which stay accepted and are
+        # converted to a rule.
+        vol.Optional("rrule"): cv.string,
         vol.Optional("anchor"): cv.string,
         # Due date for a one-off (do-once) task. Optional: defaults to "now" (due
         # today) when omitted. Naive values are interpreted in HA's configured tz.
@@ -209,6 +213,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("interval"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
+        vol.Optional("rrule"): cv.string,
         vol.Optional("anchor"): cv.string,
         vol.Optional("due"): cv.string,
         vol.Optional("sensor"): dict,
@@ -288,6 +293,17 @@ SKIP_TASK_SCHEMA = vol.Schema(
 SET_DUE_TODAY_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
+        vol.Optional("origin"): cv.string,
+    }
+)
+# Move one date of a fixed task's schedule. ``occurrence`` is the date on the rule
+# (or where a moved date is now); ``to`` equal to it undoes the move. A usage action
+# like snooze, so it is not admin-gated.
+MOVE_OCCURRENCE_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("occurrence"): cv.datetime,
+        vol.Required("to"): cv.datetime,
         vol.Optional("origin"): cv.string,
     }
 )
@@ -728,6 +744,11 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
             _entry_schema(COMPLETION_ENTRY_FIELDS, "completed_at")
         ],
         vol.Optional("skips"): [_entry_schema(SKIP_ENTRY_FIELDS, "skipped_at")],
+        # A fixed task's moved dates. No service takes them: ``move_occurrence`` is the
+        # 1 way to move a date, but a document carries the list so a backup keeps it.
+        vol.Optional("moved_occurrences"): [
+            {vol.Required("from"): cv.string, vol.Required("to"): cv.string}
+        ],
     },
     # An unknown field is a named warning on import, not an error, so the schema has
     # to allow one. Same reasoning as the document below.
@@ -1419,6 +1440,25 @@ def _register_services(hass: HomeAssistant) -> None:
         # set is unchanged, so a refresh is enough — no entry reload.
         await coord.async_request_refresh()
 
+    async def handle_move_occurrence(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        # ``cv.datetime`` parses an offset-less string naively; qualify both with HA's
+        # zone, as snooze does, so a stored move is never naive.
+        zone = dt_util.now().tzinfo
+        occurrence = call.data["occurrence"]
+        to = call.data["to"]
+        if occurrence.tzinfo is None:
+            occurrence = occurrence.replace(tzinfo=zone)
+        if to.tzinfo is None:
+            to = to.replace(tzinfo=zone)
+        with _store_errors(task_id=task_id):
+            await coord.store.move_occurrence(
+                task_id, occurrence, to, origin=call.data.get("origin")
+            )
+        # Only next_due and the move list change; a refresh is enough.
+        await coord.async_request_refresh()
+
     async def handle_skip_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
@@ -1801,6 +1841,9 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "move_occurrence", handle_move_occurrence, MOVE_OCCURRENCE_SCHEMA
     )
     hass.services.async_register(
         DOMAIN,

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable, Collection
+from datetime import datetime
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
@@ -51,6 +52,7 @@ from .const import (
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
     EVENT_TASK_DUE_TODAY_SET,
+    EVENT_TASK_OCCURRENCE_MOVED,
     EVENT_TASK_SKIP_REMOVED,
     EVENT_TASK_SKIP_UPDATED,
     EVENT_TASK_SKIPPED,
@@ -61,6 +63,7 @@ from .const import (
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     ORIGIN_SENSOR_RECOVER,
+    REC_FIXED,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_TEMPLATE,
@@ -168,6 +171,20 @@ def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
     """
     owns = _task_owns_entities(before) or _task_owns_entities(after)
     return owns and entity_set_key(before) != entity_set_key(after)
+
+
+def _refuse_moves(data: dict[str, Any]) -> None:
+    """Refuse ``moved_occurrences`` in a task add or edit.
+
+    ``move_occurrence`` is the 1 way to move a date. It checks that the date is on the
+    rule and that the new date is free, and it fires ``task_occurrence_moved``. A list
+    written through ``add_task`` or ``update_task`` would skip all 3. An import keeps
+    the list, because it builds the task with ``models`` directly.
+    """
+    if "moved_occurrences" in data:
+        raise models.TaskValidationError(
+            "moved_occurrences cannot be set here; use move_occurrence to move a date"
+        )
 
 
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
@@ -372,6 +389,11 @@ class HomeKeeperStore:
                 changed = True
         if self._clean_relationship_links():
             changed = True
+        # A fixed task stored before schedules were RRULEs carries ``freq`` and
+        # ``interval``. Convert it to the rule it means, once.
+        for task in self._tasks.values():
+            if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
+                changed = True
         # A tag bound to a wear part's derived task before parts carried one moves
         # onto the part here, or the first reconcile after the upgrade would clear
         # it. Load-time only: on every pass it would also undo a tag a user just
@@ -526,6 +548,7 @@ class HomeKeeperStore:
                     f"source keys {sorted(reserved)} are reserved for Home Keeper's "
                     "own task reconcilers and cannot be set via add_task"
                 )
+        _refuse_moves(data)
         task = models.build_task(data, now=dt_util.now())
         self._check_template_syntax(task)
         self._tasks[task["id"]] = task
@@ -563,6 +586,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        _refuse_moves(updates)
         # The reconciler writes a wear part task's tag from its part, so a change
         # made here would be undone on the next pass without a message.
         if _is_part_owned_tag_update(existing, updates):
@@ -793,6 +817,60 @@ class HomeKeeperStore:
             events.task_event_data(
                 existing,
                 extra={"snoozed_until": existing["next_due"], "origin": origin},
+            ),
+        )
+        return existing
+
+    async def move_occurrence(
+        self,
+        task_id: str,
+        occurrence: datetime,
+        to: datetime,
+        *,
+        origin: str | None = None,
+    ) -> dict[str, Any]:
+        """Move one date of a fixed task's schedule to *to*, or undo a move.
+
+        *occurrence* is the date on the rule, or the current date of a move (what a
+        calendar shows). Moving it back to its own date undoes the move. The other
+        dates do not change. ``next_due`` is recomputed only when the date the task
+        shows is the one that moved, so a snooze keeps its date.
+
+        Fires ``home_keeper_task_occurrence_moved``. Like ``snooze_task`` this is a
+        usage action, not an edit of the task, so a managed task's locked fields do
+        not stop it: the rule itself does not change.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        if existing.get("recurrence_type") != REC_FIXED:
+            raise models.TaskValidationError(
+                "Only a task on a fixed schedule has dates to move. Snooze a task of "
+                "another kind instead."
+            )
+        try:
+            _, original, previous_to = recurrence.move_occurrence(
+                existing, occurrence, to, now=dt_util.now()
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        if to.tzinfo is None:
+            to = to.replace(tzinfo=original.tzinfo)
+        if previous_to is None and to == original:
+            # Moving an unmoved date to itself changes nothing; say nothing.
+            return existing
+        await self._save()
+        _LOGGER.debug("Moved occurrence %s of task %s to %s", original, task_id, to)
+        self._hass.bus.async_fire(
+            EVENT_TASK_OCCURRENCE_MOVED,
+            events.task_event_data(
+                existing,
+                extra=events.occurrence_moved_extra(
+                    original.isoformat(),
+                    to.isoformat(),
+                    previous_to.isoformat() if previous_to else None,
+                    origin=origin,
+                ),
             ),
         )
         return existing

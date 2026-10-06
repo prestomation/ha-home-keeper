@@ -606,6 +606,25 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await recurrence.click();
   await page.getByRole('menuitem', { name: /fixed schedule/i }).first().click();
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  // A weekly schedule on more than one day (#390): pick weekly, then press Tuesday
+  // and Friday. The rule summary and the next dates rewrite under the form.
+  await panel.locator('#hk-task-form-cadence ha-select').first().click();
+  await page.getByRole('menuitem', { name: /^weekly$/i }).first().click();
+  const dayRow = panel.locator('#hk-rule-days');
+  await expect(dayRow).toBeVisible();
+  // A new task starts on today, so today's day is already pressed. Press Tuesday and
+  // Friday first, then release any other day, so the step works on every day.
+  const days = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  for (const pass of ['press', 'release']) {
+    for (const day of days) {
+      const btn = dayRow.locator(`.hk-day-btn[data-day="${day}"]`);
+      const want = day === 'TU' || day === 'FR';
+      const pressed = (await btn.getAttribute('aria-pressed')) === 'true';
+      if (pass === 'press' ? want && !pressed : !want && pressed) await btn.click();
+    }
+  }
+  await expect(dayRow.locator('.hk-day-btn[aria-pressed="true"]')).toHaveCount(2);
   await page.waitForTimeout(BEAT * 2);
 
   // 3b. The **active season**: hold a repeating task to the part of the year it
@@ -1247,9 +1266,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
   await expect(hkCard.locator('.hk-defer-due-today').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
-  await hkCard.locator('.hk-defer-snooze').first().click();
+  // The medicine task is on a fixed schedule, so its dialog also offers "A later
+  // date" (#390): switch to it and pick a date, to show one date moving alone.
+  await hkCard.locator(`.hk-defer-snooze[data-id="${TASK.medicine}"]`).click();
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT * 2);
+  const snoozeDialog = page.locator('ha-dialog[open]').first();
+  await snoozeDialog.locator('#hk-snooze-mode-later').click();
+  await expect(snoozeDialog.locator('.hk-later-row').first()).toBeVisible({ timeout: 15_000 });
+  await snoozeDialog.locator('.hk-later-row').nth(1).click();
+  await expect(snoozeDialog.locator('.hk-later-row.picked')).toHaveCount(1);
+  await page.waitForTimeout(BEAT * 2);
   await page.keyboard.press('Escape');
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);

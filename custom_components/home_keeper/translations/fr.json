@@ -63,6 +63,10 @@
           "name": "Fréquence",
           "description": "Pour les tâches fixed : DAILY, WEEKLY ou MONTHLY."
         },
+        "rrule": {
+          "name": "Règle",
+          "description": "Pour les tâches fixes : une RRULE iCalendar, par exemple FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Utilisez-la à la place de freq et interval. COUNT et UNTIL ne sont pas autorisés."
+        },
         "anchor": {
           "name": "Ancre",
           "description": "Pour les tâches fixed : date/heure ISO de la première occurrence (définit l'heure de la journée)."
@@ -164,6 +168,10 @@
         "freq": {
           "name": "Fréquence",
           "description": "DAILY, WEEKLY ou MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Règle",
+          "description": "Pour les tâches fixes : une RRULE iCalendar, par exemple FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Utilisez-la à la place de freq et interval. COUNT et UNTIL ne sont pas autorisés."
         },
         "anchor": {
           "name": "Ancre",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "Origine",
           "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_due_today_set, afin qu'une intégration contributrice puisse reconnaître et ignorer l'avancement qu'elle a déclenché (prévention des boucles). Home Keeper ne l'interprète pas."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Déplacer une date",
+      "description": "Déplace une date du calendrier d'une tâche fixe vers une nouvelle date et heure. Les autres dates ne changent pas. Pour annuler un déplacement, remettez la date à son heure d'origine.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'identifiant de la tâche. Son nom fonctionne aussi. Le panneau affiche l'identifiant."
+        },
+        "occurrence": {
+          "name": "Date à déplacer",
+          "description": "La date et l'heure du calendrier à déplacer."
+        },
+        "to": {
+          "name": "Nouvelle date",
+          "description": "La nouvelle date et heure. Elle doit être dans le futur."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur facultatif de forme libre renvoyé dans l'événement home_keeper_task_occurrence_moved afin qu'une intégration contributrice puisse reconnaître et ignorer le changement qu'elle a déclenché (prévention des boucles). Home Keeper ne l'interprète jamais."
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ne peut pas supprimer ces profils : {profiles}. Ces notifications les utilisent : {notifications}. Modifiez ou supprimez chaque notification, puis enregistrez à nouveau."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Ici, seule l'heure d'une date peut changer. Pour modifier la tâche ou son calendrier, ouvrez le panneau Home Keeper."
     }
   }
 }

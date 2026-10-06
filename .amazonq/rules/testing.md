@@ -17,7 +17,8 @@ Run the tests locally before you push. CI is not the test runner.
 | Browser | `tests/e2e` (Playwright) | `bash ci/e2e-up.sh` |
 | Upgrade | `tests/upgrade` | stage fixtures with `bash ci/fetch-glues.sh` first |
 
-- The pure unit lane needs only `pip install pytest PyYAML Babel hypothesis jsonschema`.
+- The pure unit lane needs only
+  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
   The full unit suite adds `pytest-homeassistant-custom-component`. `ci/setup-ci-deps.sh`
   installs everything into `.venv`. Run `source .venv/bin/activate` first.
 - `tests/conftest.py` runs each pure module under its real dotted name

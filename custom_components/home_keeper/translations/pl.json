@@ -63,6 +63,10 @@
           "name": "Częstotliwość",
           "description": "Dla zadań fixed: DAILY, WEEKLY lub MONTHLY."
         },
+        "rrule": {
+          "name": "Reguła",
+          "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
+        },
         "anchor": {
           "name": "Kotwica",
           "description": "Dla zadań fixed: data i czas ISO pierwszego wystąpienia (ustawia porę dnia)."
@@ -164,6 +168,10 @@
         "freq": {
           "name": "Częstotliwość",
           "description": "DAILY, WEEKLY lub MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Reguła",
+          "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
         },
         "anchor": {
           "name": "Kotwica",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "Inicjator",
           "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_due_today_set, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować przyspieszenie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Przenieś jeden termin",
+      "description": "Przenosi jeden termin harmonogramu zadania stałego na nową datę i godzinę. Pozostałe terminy się nie zmieniają. Aby cofnąć przeniesienie, przenieś termin z powrotem na pierwotną godzinę.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania. Działa też jego nazwa. Panel pokazuje identyfikator."
+        },
+        "occurrence": {
+          "name": "Termin",
+          "description": "Data i godzina w harmonogramie, które mają zostać przeniesione."
+        },
+        "to": {
+          "name": "Nowy termin",
+          "description": "Nowa data i godzina. Musi być w przyszłości."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w dowolnej formie zwracany w zdarzeniu home_keeper_task_occurrence_moved, aby integracja współpracująca mogła rozpoznać i zignorować wywołaną przez siebie zmianę (zapobieganie pętlom). Home Keeper nigdy go nie interpretuje."
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nie może usunąć tych profili: {profiles}. Te powiadomienia ich używają: {notifications}. Zmień lub usuń każde powiadomienie, a następnie zapisz ponownie."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Tutaj można zmienić tylko godzinę jednego terminu. Aby zmienić zadanie lub jego harmonogram, otwórz panel Home Keeper."
     }
   }
 }

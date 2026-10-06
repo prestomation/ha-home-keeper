@@ -60,13 +60,24 @@ add_task:
             - months
     freq:
       name: Frequency
-      description: For fixed tasks - DAILY, WEEKLY, or MONTHLY.
+      description: >-
+        For fixed tasks - DAILY, WEEKLY, or MONTHLY. Home Keeper converts it to a
+        rule. Use rrule for more than one day of the week.
       selector:
         select:
           options:
             - DAILY
             - WEEKLY
             - MONTHLY
+    rrule:
+      name: Rule
+      description: >-
+        For fixed tasks - an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or
+        FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and
+        UNTIL are not allowed.
+      example: "FREQ=WEEKLY;BYDAY=TU,FR"
+      selector:
+        text:
     anchor:
       name: Anchor
       description: For fixed tasks - ISO datetime of the first occurrence (sets time-of-day).
@@ -299,13 +310,18 @@ update_task:
             - months
     freq:
       name: Frequency
-      description: DAILY, WEEKLY, or MONTHLY (fixed).
+      description: DAILY, WEEKLY, or MONTHLY (fixed). Changes the frequency of the rule.
       selector:
         select:
           options:
             - DAILY
             - WEEKLY
             - MONTHLY
+    rrule:
+      name: Rule
+      description: An iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR (fixed).
+      selector:
+        text:
     anchor:
       name: Anchor
       description: ISO datetime of the first occurrence (fixed).
@@ -809,6 +825,42 @@ set_due_today:
         Optional free-form marker echoed back in the home_keeper_task_due_today_set
         event so a contributing integration can recognise and ignore the change it
         triggered (loop prevention), and Home Keeper never interprets it.
+      selector:
+        text:
+
+move_occurrence:
+  name: Move one date
+  description: >-
+    Move one date of a fixed task's schedule to a new date and time, and keep the
+    other dates as they are. To undo a move, move the date back to its original time.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    occurrence:
+      name: Date
+      description: The date and time on the schedule to move.
+      required: true
+      example: "2026-10-10T07:00:00"
+      selector:
+        datetime:
+    to:
+      name: New date
+      description: The new date and time. It must be in the future.
+      required: true
+      example: "2026-10-11T07:00:00"
+      selector:
+        datetime:
+    origin:
+      name: Origin
+      description: >-
+        Optional free-form marker echoed back in the
+        home_keeper_task_occurrence_moved event so a contributing integration can
+        recognise and ignore the change it triggered (loop prevention), and Home
+        Keeper never interprets it.
       selector:
         text:
 

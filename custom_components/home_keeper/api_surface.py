@@ -178,6 +178,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("snooze_task"),
     ServiceSpec("skip_task"),
     ServiceSpec("set_due_today"),
+    ServiceSpec("move_occurrence"),
     ServiceSpec("update_skip"),
     ServiceSpec("delete_skip"),
     ServiceSpec("move_skip"),
@@ -468,6 +469,29 @@ EVENTS: tuple[EventSpec, ...] = (
         "a task's due date is moved to now without recording a completion; only "
         "next_due moves, the recurrence is untouched — the mirror of a snooze",
         extra=(Field("origin", "str | None", "the marker the caller passed"),),
+    ),
+    EventSpec(
+        const.EVENT_TASK_OCCURRENCE_MOVED,
+        "EVENT_TASK_OCCURRENCE_MOVED",
+        "fired",
+        "task",
+        "one date of a fixed task's schedule moves, or a move is undone; the other "
+        "dates of the schedule do not change",
+        extra=(
+            Field("occurrence", "str", "the date on the rule that moved, ISO"),
+            Field(
+                "to",
+                "str",
+                "where the date is now, ISO; equal to occurrence "
+                "when the move is undone",
+            ),
+            Field(
+                "previous_to",
+                "str | None",
+                "where the date was before this call, or null when it was not moved",
+            ),
+            Field("origin", "str | None", "the marker the caller passed"),
+        ),
     ),
     EventSpec(
         const.EVENT_TASK_SKIP_UPDATED,
@@ -761,6 +785,10 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/snooze_task", service="snooze_task"),
     WebsocketSpec("home_keeper/skip_task", service="skip_task"),
     WebsocketSpec("home_keeper/set_due_today", service="set_due_today"),
+    WebsocketSpec("home_keeper/move_occurrence", service="move_occurrence"),
+    # Read-only: the next dates of a stored or draft fixed schedule, for the form
+    # preview, the panel's Upcoming block and the card's "A later date" list.
+    WebsocketSpec("home_keeper/upcoming_occurrences"),
     WebsocketSpec("home_keeper/update_skip", service="update_skip"),
     WebsocketSpec("home_keeper/move_skip", service="move_skip"),
     WebsocketSpec("home_keeper/delete_skip", service="delete_skip"),

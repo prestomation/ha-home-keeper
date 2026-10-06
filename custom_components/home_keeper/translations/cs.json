@@ -63,6 +63,10 @@
           "name": "Frekvence",
           "description": "Pro pevné úkoly: DAILY, WEEKLY nebo MONTHLY."
         },
+        "rrule": {
+          "name": "Pravidlo",
+          "description": "Pro pevné úkoly: pravidlo RRULE formátu iCalendar, například FREQ=WEEKLY;BYDAY=TU,FR nebo FREQ=MONTHLY;BYDAY=1TU. Použijte ho místo freq a interval. COUNT a UNTIL nejsou povoleny."
+        },
         "anchor": {
           "name": "Kotva",
           "description": "Pro pevné úkoly: ISO datum a čas prvního výskytu (nastaví denní čas)."
@@ -164,6 +168,10 @@
         "freq": {
           "name": "Frekvence",
           "description": "DAILY, WEEKLY nebo MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Pravidlo",
+          "description": "Pro pevné úkoly: pravidlo RRULE formátu iCalendar, například FREQ=WEEKLY;BYDAY=TU,FR nebo FREQ=MONTHLY;BYDAY=1TU. Použijte ho místo freq a interval. COUNT a UNTIL nejsou povoleny."
         },
         "anchor": {
           "name": "Kotva",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "Původ",
           "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_due_today_set, aby přispívající integrace mohla rozpoznat a ignorovat urychlení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Přesunout jeden termín",
+      "description": "Přesune jeden termín rozvrhu pevného úkolu na nové datum a čas. Ostatní termíny se nezmění. Chcete-li přesun vrátit, přesuňte termín zpět na původní čas.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu. Funguje i jeho název. Panel zobrazuje ID."
+        },
+        "occurrence": {
+          "name": "Termín",
+          "description": "Datum a čas v rozvrhu, které se má přesunout."
+        },
+        "to": {
+          "name": "Nový termín",
+          "description": "Nové datum a čas. Musí být v budoucnosti."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném tvaru, která se vrací v události home_keeper_task_occurrence_moved, aby přispívající integrace mohla rozpoznat a ignorovat změnu, kterou sama vyvolala (prevence smyček). Home Keeper ji nikdy neinterpretuje."
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nemůže odstranit tyto profily: {profiles}. Tato oznámení je používají: {notifications}. Změňte nebo odstraňte každé oznámení a poté uložte znovu."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Zde lze změnit jen čas jednoho termínu. Chcete-li změnit úkol nebo jeho rozvrh, otevřete panel Home Keeper."
     }
   }
 }

@@ -25,12 +25,19 @@ from . import (
     declarative_presets,
     devices,
     manuals,
+    models,
     notifier,
     options,
+    recurrence,
 )
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
-from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
+from .const import (
+    COMPLETION_ENTRY_FIELDS,
+    OPTION_PROFILES,
+    REC_FIXED,
+    SENSOR_MODE_TEMPLATE,
+)
 from .coordinator import (
     HomeKeeperCoordinator,
     async_delete_orphaned_tasks,
@@ -222,6 +229,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_snooze_task)
     websocket_api.async_register_command(hass, ws_skip_task)
     websocket_api.async_register_command(hass, ws_set_due_today)
+    websocket_api.async_register_command(hass, ws_move_occurrence)
+    websocket_api.async_register_command(hass, ws_upcoming_occurrences)
     websocket_api.async_register_command(hass, ws_update_skip)
     websocket_api.async_register_command(hass, ws_move_skip)
     websocket_api.async_register_command(hass, ws_delete_skip)
@@ -562,6 +571,116 @@ async def ws_snooze_task(
         return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/move_occurrence",
+        vol.Required("task_id"): str,
+        vol.Required("occurrence"): str,
+        vol.Required("to"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_move_occurrence(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Move one date of a fixed task's schedule (``home_keeper.move_occurrence``)."""
+    zone = dt_util.now().tzinfo
+    moments = []
+    for key in ("occurrence", "to"):
+        moment = dt_util.parse_datetime(msg[key])
+        if moment is None:
+            _err(hass, connection, msg, "not_allowed", "invalid_task", error=msg[key])
+            return
+        moments.append(moment if moment.tzinfo else moment.replace(tzinfo=zone))
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.move_occurrence(msg["task_id"], *moments)
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/upcoming_occurrences",
+        vol.Optional("task_id"): str,
+        vol.Optional("rrule"): str,
+        vol.Optional("anchor"): str,
+        vol.Optional("active_season"): vol.Any(dict, list, None),
+        vol.Optional("count", default=4): vol.All(int, vol.Range(min=1, max=12)),
+    }
+)
+@websocket_api.async_response
+async def ws_upcoming_occurrences(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """The next dates of a fixed schedule: a stored task's, or a draft's.
+
+    With ``task_id`` it reads the stored task, moves included (the panel's Upcoming
+    block and the card's "A later date" list). With ``rrule`` and ``anchor`` it reads
+    a draft, so the task form previews the dates with the same engine that will
+    compute them. Read-only. A bad draft rule answers ``invalid_rule`` with the
+    message ``models.normalize_rrule`` gives, which the form shows as is.
+    """
+    now = dt_util.now()
+    task: dict[str, Any]
+    if "task_id" in msg:
+        coord = _coordinator(hass)
+        if coord is None:
+            _not_loaded(hass, connection, msg)
+            return
+        stored = coord.data.get(msg["task_id"])
+        if stored is None:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "task_not_found",
+                task_id=msg["task_id"],
+            )
+            return
+        task = stored
+    else:
+        try:
+            task = {
+                "recurrence_type": REC_FIXED,
+                "rrule": models.normalize_rrule(msg.get("rrule") or ""),
+                "anchor": _draft_anchor(msg.get("anchor"), now),
+                "active_season": models.normalize_active_season(msg["active_season"])
+                if msg.get("active_season")
+                else None,
+            }
+        except TaskValidationError as err:
+            _err(hass, connection, msg, "invalid_rule", "invalid_task", error=str(err))
+            return
+    if task.get("recurrence_type") != REC_FIXED:
+        connection.send_result(msg["id"], {"occurrences": []})
+        return
+    rows = recurrence.upcoming_occurrences(task, now=now, count=msg["count"])
+    connection.send_result(msg["id"], {"occurrences": rows})
+
+
+def _draft_anchor(value: str | None, now: Any) -> str:
+    """A draft's anchor as an aware ISO string; a naive one is read in HA's zone."""
+    moment = dt_util.parse_datetime(value) if value else None
+    if moment is None:
+        raise TaskValidationError(f"invalid anchor datetime: {value!r}")
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=now.tzinfo)
+    return str(moment.replace(microsecond=0).isoformat())
 
 
 @websocket_api.websocket_command(

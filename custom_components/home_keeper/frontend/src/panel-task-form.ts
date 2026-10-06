@@ -33,6 +33,7 @@ import { t } from './i18n';
 import { isManagedOrphan } from './panel-chips';
 import { openConfirmDialog } from './panel-dialogs';
 import { setIcon } from './panel-history';
+import { applyRuleChange, previewLine, ruleControls, schedulePreview } from './panel-rule';
 import type { PanelHost } from './panel-host';
 import { formPhotosSection } from './panel-task-photos';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
@@ -380,6 +381,9 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
         ...seasonMonthEndFollow(p, value),
       } as Partial<Task>;
       p._edit.error = undefined;
+      // A fixed task's Repeats, Every, day buttons and rule text are views of one
+      // stored rule; this keeps them in step without a re-render (see panel-rule.ts).
+      applyRuleChange(p, value);
       // Refresh the notes preview in place — a re-render here would drop focus from
       // the textarea mid-word.
       if (has('notes')) p._taskNotePreview?.update(String(value.notes ?? ''));
@@ -473,8 +477,10 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
 
   const formWrap = document.createElement('div');
   formWrap.id = 'hk-task-form';
+  let dependentBody: HTMLElement | null = null;
   for (const section of sections) {
     if (!section.fields.length) continue;
+    if (!section.dependent) dependentBody = null;
     // Each section is seeded with *only* its own fields. `ha-form` emits its whole
     // `data` object on every change, so seeding each section with the full form
     // would have every section re-asserting a snapshot of the others taken when it
@@ -484,10 +490,13 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     form.id = `hk-task-form-${section.key}`;
     // Muted per-field helper text under each field (keyed `help.<field>`); returns
     // '' where no string is authored, so helpers appear only where we wrote them.
+    // Every on a fixed schedule counts between schedule dates, not completions.
+    const fixed = formData.recurrence_type === 'fixed';
     form.computeHelper = (s: { name: string }): string => {
       if (!s.name) return '';
-      const h = t('help.' + s.name);
-      return h === 'help.' + s.name ? '' : h;
+      const key = fixed && s.name === 'interval' ? 'help.intervalFixed' : 'help.' + s.name;
+      const h = t(key);
+      return h === key ? '' : h;
     };
     // An active-season window: its own heading, numbered, with Remove beside it and
     // Add another season under the last one. The windows are a list the user grows
@@ -504,17 +513,26 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       formWrap.appendChild(form);
     } else if (section.dependent) {
       // A run that only exists because of the answer above it, indented behind a
-      // rule and captioned with what revealed it.
-      const indent = document.createElement('div');
-      indent.className = 'hk-indent';
-      const body = document.createElement('div');
-      body.className = 'hk-indent-body';
-      const head = document.createElement('div');
-      head.className = 'hk-eyebrow accent hk-indent-head';
-      head.textContent = t('form.section.dependent');
-      body.append(head, form);
-      indent.appendChild(body);
-      formWrap.appendChild(indent);
+      // rule and captioned with what revealed it. A fixed task's rule section
+      // continues the same run, so it joins the indent the cadence opened.
+      if (!dependentBody) {
+        const indent = document.createElement('div');
+        indent.className = 'hk-indent';
+        dependentBody = document.createElement('div');
+        dependentBody.className = 'hk-indent-body';
+        const head = document.createElement('div');
+        head.className = 'hk-eyebrow accent hk-indent-head';
+        head.textContent = t('form.section.dependent');
+        dependentBody.appendChild(head);
+        indent.appendChild(dependentBody);
+        formWrap.appendChild(indent);
+      }
+      dependentBody.appendChild(form);
+      // The day buttons sit between Repeats/Every and the start date.
+      if (section.key === 'cadence' && task.recurrence_type === 'fixed') {
+        dependentBody.appendChild(ruleControls(p));
+      }
+      continue;
     } else {
       const heading = document.createElement('div');
       heading.className = 'hk-eyebrow hk-form-section';
@@ -548,8 +566,11 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     `<span class="hk-form-summary-label">${escapeHTML(t('form.summary.label'))}</span>` +
     `<span class="hk-form-summary-value" id="hk-form-summary-value"></span>` +
     `<span class="hk-form-summary-detail" id="hk-sensor-hint"></span>`;
+  // A fixed task's next few dates, from the same engine that will schedule them.
+  summary.appendChild(previewLine());
   inner.appendChild(summary);
   updateFormHints(p, summary);
+  if (task.recurrence_type === 'fixed') schedulePreview(p);
 
   if (p._edit.error) {
     const err = document.createElement('ha-alert');

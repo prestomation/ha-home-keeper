@@ -6,6 +6,8 @@
  * imports and its class.
  */
 
+import { LATER_DATES_STYLES } from './defer-dialogs';
+
 /** How many descriptive chips a list row shows beside the task name before the rest
  *  collapse into a "+n". Two keeps the title line readable at any width; the hidden
  *  chips stay in the DOM (and on the task's detail page) rather than being dropped.
@@ -1050,6 +1052,37 @@ export const STYLES = `
     display: block; margin-top: 6px;
     color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
   }
+  /* The next few dates of a fixed schedule, under the rule headline. */
+  .hk-form-summary-next {
+    display: block; margin-top: 6px;
+    color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
+  }
+  .hk-form-summary-next.hk-form-summary-error { color: var(--hk-danger-ink); }
+  /* The day buttons of a weekly fixed schedule. Round and a full tap target each, so
+     7 fit a phone row: 7 × 44 px plus the gaps is under the narrowest 320 px form. */
+  .hk-rule-days { margin: 4px 0 12px; }
+  .hk-rule-days-label {
+    font-size: 0.8rem; color: var(--hk-ink-2); margin-bottom: 6px;
+  }
+  .hk-rule-day-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hk-day-btn {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 600;
+    min-width: var(--hk-tap); height: var(--hk-tap); padding: 0 6px;
+    border-radius: var(--hk-r-pill); border: 1px solid var(--hk-line);
+    background: var(--hk-surface); color: var(--hk-ink); cursor: pointer;
+  }
+  .hk-day-btn:hover { background: var(--hk-page); }
+  .hk-day-btn[aria-pressed="true"] {
+    background: var(--hk-accent); border-color: var(--hk-accent); color: var(--hk-accent-fg);
+  }
+  .hk-day-btn:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
+  /* A rule the buttons cannot show: they stay visible, so the user sees what they
+     would edit, but read as unavailable. */
+  .hk-day-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+  .hk-rule-note {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+    margin-top: 8px; font-size: 0.85rem; color: var(--hk-ink-2);
+  }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
   .hk-card-row .grow.clickable { cursor: pointer; }
@@ -1622,6 +1655,23 @@ export const STYLES = `
     font-size: 13px; color: var(--secondary-text-color);
     padding: 4px 2px 0; line-height: 1.4;
   }
+  ${LATER_DATES_STYLES}
+  /* The Upcoming block on a fixed task's page: one row per date, Move at the end. */
+  .hk-upcoming { padding-top: 4px; padding-bottom: 4px; }
+  .hk-up-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+    min-height: var(--hk-tap); padding: 4px 0;
+    border-bottom: 1px solid var(--hk-line-soft);
+  }
+  .hk-up-row:last-child { border-bottom: 0; }
+  .hk-up-when {
+    flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
+    gap: 2px 8px;
+  }
+  .hk-up-date { font-variant-numeric: tabular-nums; }
+  .hk-up-from { flex-basis: 100%; font-size: 0.85rem; color: var(--hk-ink-2); }
+  .hk-up-acts { display: flex; gap: 4px; margin-inline-start: auto; }
+  .hk-up-empty { color: var(--hk-ink-2); padding: 8px 0; }
   .hk-detail-row {
     display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
     border-bottom: 1px solid var(--divider-color);
@@ -1979,6 +2029,9 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* 7 day buttons share the row evenly, so none wraps onto a line of its own. */
+    .hk-rule-day-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .hk-day-btn { min-width: 0; padding: 0; }
     /* A phone has no room beside the name, so the task cover goes full width above
        it (#399), and the photo strip scrolls sideways rather than wrapping. */
     .hk-head-with-cover { flex-direction: column; gap: 12px; }

@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/transfer.py
   - custom_components/home_keeper/transfer_runner.py
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 3804045eb4d5
+source_hash: c03a67eb91d0
 ---
 
 # Import and export
@@ -79,7 +79,8 @@ names, the device ids and a match mode (`auto` or `none`). It returns an `Import
 `tasks[3].history[0].completed_at`, a message and a severity. An `error` blocks the import. A
 `warning` is reported and applied. An unknown key or section is a warning, so an older release
 reads a newer file and names the data it drops. `transfer._known_task_keys` gets the known
-keys from 1 probe task per recurrence type. Appliances are planned first. For each record:
+keys from 1 probe task per recurrence type, and 1 more for the legacy `freq` and `interval`
+of a fixed task, which an old export holds. Appliances are planned first. For each record:
 1. `transfer._keyed_records` refuses a key field that is a list or a mapping, and an `id`
    that 2 records state.
 2. `transfer._Matcher` matches by `id`, then `external_id`, then name through

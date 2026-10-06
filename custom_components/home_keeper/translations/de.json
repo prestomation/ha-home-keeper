@@ -63,6 +63,10 @@
           "name": "Häufigkeit",
           "description": "Für fixed-Aufgaben: DAILY, WEEKLY oder MONTHLY."
         },
+        "rrule": {
+          "name": "Regel",
+          "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
+        },
         "anchor": {
           "name": "Anker",
           "description": "Für fixed-Aufgaben: ISO-Datum/Uhrzeit des ersten Auftretens (legt die Tageszeit fest)."
@@ -164,6 +168,10 @@
         "freq": {
           "name": "Häufigkeit",
           "description": "DAILY, WEEKLY oder MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
         },
         "anchor": {
           "name": "Anker",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "Ursprung",
           "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_due_today_set zurückgegeben wird, damit eine beitragende Integration das von ihr ausgelöste Vorziehen erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Einen Termin verschieben",
+      "description": "Verschiebt einen Termin im Zeitplan einer festen Aufgabe auf ein neues Datum und eine neue Uhrzeit. Die anderen Termine ändern sich nicht. Um eine Verschiebung rückgängig zu machen, verschiebe den Termin auf seine ursprüngliche Zeit.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "occurrence": {
+          "name": "Termin",
+          "description": "Datum und Uhrzeit im Zeitplan, die verschoben werden sollen."
+        },
+        "to": {
+          "name": "Neuer Termin",
+          "description": "Das neue Datum und die neue Uhrzeit. Sie müssen in der Zukunft liegen."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_occurrence_moved zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Änderung erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nie aus."
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kann diese Profile nicht löschen: {profiles}. Diese Benachrichtigungen verwenden sie: {notifications}. Ändere oder lösche jede Benachrichtigung und speichere dann erneut."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Hier kann nur die Uhrzeit eines Termins geändert werden. Um die Aufgabe oder ihren Zeitplan zu ändern, öffne das Home Keeper-Panel."
     }
   }
 }

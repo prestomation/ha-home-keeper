@@ -63,6 +63,10 @@
           "name": "Tiheys",
           "description": "Kiinteille tehtäville: DAILY, WEEKLY tai MONTHLY."
         },
+        "rrule": {
+          "name": "Sääntö",
+          "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
+        },
         "anchor": {
           "name": "Ankkuri",
           "description": "Kiinteille tehtäville: ensimmäisen esiintymän ISO-aikaleima (asettaa kellonajan)."
@@ -164,6 +168,10 @@
         "freq": {
           "name": "Tiheys",
           "description": "DAILY, WEEKLY tai MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Sääntö",
+          "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
         },
         "anchor": {
           "name": "Ankkuri",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "Alkuperä",
           "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_due_today_set-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa aikaistamisen (silmukan esto). Home Keeper ei tulkitse sitä."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Siirrä yksi päivä",
+      "description": "Siirtää kiinteän tehtävän aikataulun yhden päivän uuteen päivään ja kellonaikaan. Muut päivät eivät muutu. Kumoa siirto siirtämällä päivä takaisin alkuperäiseen aikaansa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Tehtävän tunnus. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "occurrence": {
+          "name": "Päivä",
+          "description": "Aikataulun päivä ja kellonaika, joka siirretään."
+        },
+        "to": {
+          "name": "Uusi päivä",
+          "description": "Uusi päivä ja kellonaika. Sen on oltava tulevaisuudessa."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka palautetaan home_keeper_task_occurrence_moved-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa itse aiheuttamansa muutoksen (silmukoiden esto). Home Keeper ei koskaan tulkitse sitä."
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ei voi poistaa näitä profiileja: {profiles}. Nämä ilmoitukset käyttävät niitä: {notifications}. Muuta tai poista jokainen ilmoitus ja tallenna sitten uudelleen."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Tässä voi muuttaa vain yhden päivän kellonajan. Avaa Home Keeper -paneeli, jos haluat muuttaa tehtävää tai sen aikataulua."
     }
   }
 }

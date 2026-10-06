@@ -63,6 +63,10 @@
           "name": "频率",
           "description": "对于固定任务：DAILY、WEEKLY 或 MONTHLY。"
         },
+        "rrule": {
+          "name": "规则",
+          "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
+        },
         "anchor": {
           "name": "锚点",
           "description": "对于固定任务：首次发生的 ISO 日期时间（设置每日时间）。"
@@ -164,6 +168,10 @@
         "freq": {
           "name": "频率",
           "description": "DAILY、WEEKLY 或 MONTHLY（fixed）。"
+        },
+        "rrule": {
+          "name": "规则",
+          "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
         },
         "anchor": {
           "name": "锚点",
@@ -404,6 +412,28 @@
         "origin": {
           "name": "发起方",
           "description": "可选的自由文本标记，会在 home_keeper_task_due_today_set 事件中回显，以便贡献集成能够识别并忽略由其自身触发的提前操作（防止循环）。Home Keeper 不会解释它。"
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "移动一个日期",
+      "description": "将固定任务计划中的一个日期移到新的日期和时间。其他日期不变。要撤销移动，请把该日期移回原来的时间。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "任务的 id。名称同样可用。面板中会显示 id。"
+        },
+        "occurrence": {
+          "name": "日期",
+          "description": "计划中要移动的日期和时间。"
+        },
+        "to": {
+          "name": "新日期",
+          "description": "新的日期和时间。必须在将来。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_occurrence_moved 事件中回显，以便贡献集成能够识别并忽略由其自身触发的更改（防止循环）。Home Keeper 不会解释它。"
         }
       }
     },
@@ -1213,6 +1243,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper 无法删除这些配置文件：{profiles}。以下通知正在使用它们：{notifications}。请更改或删除每条通知，然后重新保存。"
+    },
+    "calendar_edit_in_panel": {
+      "message": "这里只能更改一个日期的时间。要更改任务或其计划，请打开 Home Keeper 面板。"
     }
   }
 }

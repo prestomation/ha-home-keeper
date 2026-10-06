@@ -17,6 +17,7 @@ import type {
   PortableDocument,
   Profile,
   Task,
+  UpcomingOccurrence,
 } from './types';
 import { parseNudgeState, type PresetNudgeState } from './preset-nudge';
 import { parseTaskLayout, type TaskLayout } from './task-layout';
@@ -370,6 +371,51 @@ export async function snoozeTask(hass: Hass, taskId: string, until: string): Pro
     until,
   });
   return res.task;
+}
+
+/**
+ * Move one date of a fixed task's schedule to *to*. *occurrence* is the date on the
+ * rule (or where a moved date is now); moving it to its own time undoes the move.
+ */
+export async function moveOccurrence(
+  hass: Hass,
+  taskId: string,
+  occurrence: string,
+  to: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/move_occurrence',
+    task_id: taskId,
+    occurrence,
+    to,
+  });
+  return res.task;
+}
+
+/**
+ * The next dates of a fixed schedule: a stored task's (moves included), or a draft
+ * rule's, computed by the same engine that will schedule it. A bad draft rule
+ * rejects with the backend's message, which the form shows as is.
+ */
+export async function upcomingOccurrences(
+  hass: Hass,
+  source:
+    | { taskId: string }
+    | { rrule: string; anchor: string; activeSeason?: unknown },
+  count = 4,
+): Promise<UpcomingOccurrence[]> {
+  const res = await hass.callWS<{ occurrences: UpcomingOccurrence[] }>({
+    type: 'home_keeper/upcoming_occurrences',
+    count,
+    ...('taskId' in source
+      ? { task_id: source.taskId }
+      : {
+          rrule: source.rrule,
+          anchor: source.anchor,
+          ...(source.activeSeason ? { active_season: source.activeSeason } : {}),
+        }),
+  });
+  return res?.occurrences ?? [];
 }
 
 /**

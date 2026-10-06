@@ -14,6 +14,8 @@ Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
   shows the new due date before it is applied. The recurrence does not change, so
   a task snoozed from the 29th to the 6th is due again on the 29th of the next
   month.
+  A task on a fixed schedule also offers **A later date**, which moves one future
+  date. See [Move one date](fixed-schedules.md#move-one-date).
 - **Skip** advances the schedule by 1 occurrence. With a skip, a floating task
   starts a new interval from the current date, and a fixed task moves to its next
   scheduled date.

@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
@@ -22,9 +22,11 @@ from .const import (
     COMPLETION_DETAIL_NONE,
     COMPLETION_DETAIL_REQUIRED,
     COMPLETION_METADATA_FIELDS,
+    FREQ_MONTHLY,
     FREQS,
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
+    MAX_MOVED_OCCURRENCES,
     MAX_SENSOR_STATE_LEN,
     MAX_SENSOR_TEMPLATE_LEN,
     MAX_SENSOR_UNIT_LEN,
@@ -739,6 +741,156 @@ def normalize_active_season(data: Any) -> list[dict]:
     raise TaskValidationError("active_season must be an object or a list of objects")
 
 
+def normalize_rrule(value: Any) -> str:
+    """Validate a fixed schedule's RRULE and return its canonical text.
+
+    The message names the problem in words a user can act on, because the panel and
+    the service both show it as is.
+    """
+    try:
+        return recurrence.normalize_rule(value)
+    except recurrence.RuleError as err:
+        reasons = {
+            "syntax": "the rule is not valid iCalendar RRULE text",
+            "freq": "the rule needs FREQ=DAILY, WEEKLY, MONTHLY or YEARLY",
+            "forbidden": f"the rule cannot use {err.detail}",
+            "empty": "the rule has no dates",
+            "length": "the rule is too long",
+        }
+        raise TaskValidationError(
+            f"invalid rrule: {reasons.get(err.reason, err.reason)}"
+        ) from err
+
+
+def normalize_moved_occurrences(value: Any, *, tz: Any = None) -> list[dict]:
+    """Validate a fixed task's ``moved_occurrences``: ``[{"from": ISO, "to": ISO}]``.
+
+    A naive time is read in *tz*, as a naive anchor is. Each ``from`` may appear once.
+    Whether ``from`` really is a date of the rule is checked by the engine when a date
+    is moved; an imported list is trusted to the same extent as an imported anchor.
+    """
+    if value in (None, ""):
+        return []
+    if not isinstance(value, list):
+        raise TaskValidationError("moved_occurrences must be a list")
+    if len(value) > MAX_MOVED_OCCURRENCES:
+        raise TaskValidationError(
+            f"moved_occurrences may hold at most {MAX_MOVED_OCCURRENCES} entries"
+        )
+    result: list[dict] = []
+    seen: set[float] = set()
+    for index, row in enumerate(value):
+        if not isinstance(row, dict):
+            raise TaskValidationError(f"moved_occurrences[{index}] must be an object")
+        pair: list[str] = []
+        for key in ("from", "to"):
+            try:
+                moment = datetime.fromisoformat(row[key])
+            except (KeyError, TypeError, ValueError) as err:
+                raise TaskValidationError(
+                    f"moved_occurrences[{index}] needs a valid {key!r} datetime"
+                ) from err
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=tz) if tz else moment.astimezone()
+            pair.append(moment.replace(microsecond=0).isoformat())
+        key_instant = datetime.fromisoformat(pair[0]).timestamp()
+        if key_instant in seen:
+            raise TaskValidationError(
+                f"moved_occurrences[{index}] moves a date that is already moved"
+            )
+        seen.add(key_instant)
+        result.append({"from": pair[0], "to": pair[1]})
+    return result
+
+
+def _rule_after_legacy_edit(rule: str, freq: Any, interval: Any) -> str:
+    """*rule* with a legacy ``freq``/``interval`` edit applied.
+
+    ``update_task`` still takes the legacy fields. Changing only the interval keeps
+    the rule's days (every 2 weeks on Tue and Fri stays on Tue and Fri); changing the
+    frequency makes a plain rule of the new one with the same interval, because a
+    weekday list means nothing to a daily rule.
+    """
+    parts = recurrence.rule_parts(rule)
+    if freq not in (None, "") and freq not in FREQS:
+        raise TaskValidationError(f"invalid freq: {freq!r}")
+    if freq not in (None, "") and freq != parts.get("FREQ"):
+        # A new frequency keeps the interval, as the legacy pair always did.
+        parts = {"FREQ": str(freq), "INTERVAL": parts.get("INTERVAL", "1")}
+    if interval not in (None, ""):
+        parts["INTERVAL"] = str(interval)
+    return ";".join(f"{k}={v}" for k, v in parts.items())
+
+
+def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) -> bool:
+    """Convert a stored fixed task's ``freq``/``interval`` to ``rrule``, in place.
+
+    Fixed schedules were a frequency and an interval before they were RRULEs. The
+    rule is the same schedule, with one deliberate change that the rule engine owns:
+    a monthly task on the 29th to 31st returns to its day after a short month instead
+    of staying on the 28th. Returns ``True`` when the task changed. Additive, like
+    the other load-time migrations: no storage-version bump.
+
+    Two stored values would read as off the new schedule, and so as a snooze, unless
+    they move with it (*now* gives Home Assistant's zone for the check):
+
+    * an anchor with a fraction of a second, which the rule engine drops, and the
+      ``next_due`` derived from it;
+    * the ``next_due`` of a month-end task that the old engine left on the 28th. It
+      moves to the new date in the same month.
+    """
+    if task.get("recurrence_type") != REC_FIXED:
+        return False
+    changed = False
+    legacy_freq = None
+    if not task.get("rrule"):
+        freq = task.get("freq")
+        if freq not in FREQS:
+            return False
+        try:
+            interval = int(task.get("interval") or 1)
+        except (TypeError, ValueError):
+            interval = 1
+        task["rrule"] = recurrence.legacy_rule(freq, max(1, interval))
+        legacy_freq = freq
+        changed = True
+    for key in ("freq", "interval"):
+        if key in task:
+            del task[key]
+            changed = True
+    if "moved_occurrences" not in task:
+        task["moved_occurrences"] = []
+        changed = True
+    try:
+        anchor = datetime.fromisoformat(task["anchor"])
+        due = datetime.fromisoformat(task["next_due"]) if task.get("next_due") else None
+    except (KeyError, TypeError, ValueError):
+        return changed
+    if anchor.microsecond:
+        task["anchor"] = anchor.replace(microsecond=0).isoformat()
+        anchor = anchor.replace(microsecond=0)
+        if due is not None and due.microsecond:
+            due = due.replace(microsecond=0)
+            task["next_due"] = due.isoformat()
+        changed = True
+    zone = now.tzinfo if now is not None else None
+    if (
+        legacy_freq == FREQ_MONTHLY
+        and due is not None
+        and anchor.astimezone(zone).day > 28
+        and not recurrence.is_rule_occurrence(anchor, task["rrule"], due, tz=zone)
+        and due.astimezone(zone).time() == anchor.astimezone(zone).time()
+    ):
+        local = due.astimezone(zone)
+        month_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        realigned = recurrence.next_fixed_occurrence(
+            anchor, task["rrule"], after=month_start - timedelta(microseconds=1)
+        )
+        task["next_due"] = realigned.isoformat()
+        changed = True
+    return changed
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -848,9 +1000,6 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
             raise TaskValidationError(f"invalid unit: {unit!r}")
         fields["unit"] = unit
     else:  # REC_FIXED
-        freq = data.get("freq")
-        if freq not in FREQS:
-            raise TaskValidationError(f"invalid freq: {freq!r}")
         anchor = _require(data, "anchor")
         try:
             parsed_anchor = datetime.fromisoformat(anchor)
@@ -869,8 +1018,25 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 if tz is not None
                 else parsed_anchor.astimezone()
             )
-        fields["freq"] = freq
+        # RFC 5545 counts in whole seconds, so the rule engine drops a fraction.
+        # Storing it would make the anchor itself read as off the schedule.
+        parsed_anchor = parsed_anchor.replace(microsecond=0)
+        # The schedule is an RRULE. The legacy ``freq``/``interval`` pair is still
+        # accepted (services, old exports) and converted, so existing automations
+        # keep working; only the rule is stored.
+        raw_rule = data.get("rrule")
+        if raw_rule not in (None, ""):
+            fields["rrule"] = normalize_rrule(raw_rule)
+        else:
+            freq = data.get("freq")
+            if freq not in FREQS:
+                raise TaskValidationError(f"invalid freq: {freq!r}")
+            fields["rrule"] = recurrence.legacy_rule(freq, interval)
+        fields.pop("interval")
         fields["anchor"] = parsed_anchor.isoformat()
+        fields["moved_occurrences"] = normalize_moved_occurrences(
+            data.get("moved_occurrences"), tz=tz
+        )
 
     season = data.get("active_season")
     if season not in (None, "", {}, []):
@@ -1009,7 +1175,11 @@ def infer_recurrence_type(data: dict) -> str:
         return str(explicit)
     if data.get("interval") is not None or data.get("unit") is not None:
         return REC_FLOATING
-    if data.get("freq") is not None or data.get("anchor") is not None:
+    if (
+        data.get("rrule") is not None
+        or data.get("freq") is not None
+        or data.get("anchor") is not None
+    ):
         return REC_FIXED
     return REC_ONE_OFF
 
@@ -1186,6 +1356,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "enabled": updates.get("enabled", existing.get("enabled", True)),
         "unit": updates.get("unit", existing.get("unit")),
         "freq": updates.get("freq", existing.get("freq")),
+        "rrule": updates.get("rrule", existing.get("rrule")),
+        "moved_occurrences": updates.get(
+            "moved_occurrences", existing.get("moved_occurrences")
+        ),
         "anchor": updates.get("anchor", existing.get("anchor")),
         "due": updates.get("due", existing.get("due")),
         "sensor": updates.get("sensor", existing.get("sensor")),
@@ -1197,6 +1371,17 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         ),
         "active_season": updates.get("active_season", existing.get("active_season")),
     }
+    # A legacy ``freq``/``interval`` edit of a task that already has a rule changes
+    # that rule rather than replacing it, so the days it holds survive.
+    if (
+        candidate["recurrence_type"] == REC_FIXED
+        and "rrule" not in updates
+        and existing.get("rrule")
+        and ("freq" in updates or "interval" in updates)
+    ):
+        candidate["rrule"] = _rule_after_legacy_edit(
+            existing["rrule"], updates.get("freq"), updates.get("interval")
+        )
     if type_changed:
         # A type change reads the due date and the sensor binding only from the
         # update. A value stored for an earlier type is stale: an old due date made
@@ -1216,6 +1401,30 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         for key in _TYPE_SCHEDULE_KEYS:
             if key not in fields:
                 merged.pop(key, None)
+    if merged.get("recurrence_type") == REC_FIXED:
+        # The rule replaced the legacy pair; a stale copy would contradict it.
+        merged.pop("freq", None)
+        merged.pop("interval", None)
+        # A move is of a date on the rule. When the rule or anchor changes, a move
+        # of a date the new schedule no longer has means nothing, so it goes.
+        if (
+            merged.get("rrule") != existing.get("rrule")
+            or merged.get("anchor") != existing.get("anchor")
+        ) and merged.get("moved_occurrences"):
+            anchor = datetime.fromisoformat(merged["anchor"])
+            merged["moved_occurrences"] = [
+                m
+                for m in merged["moved_occurrences"]
+                if recurrence.is_rule_occurrence(
+                    anchor,
+                    merged["rrule"],
+                    datetime.fromisoformat(m["from"]),
+                    tz=now.tzinfo,
+                )
+            ]
+    else:
+        merged.pop("rrule", None)
+        merged.pop("moved_occurrences", None)
 
     # Preserve a usage meter's accumulated baseline across edits. The panel's edit
     # payload rebuilds the ``sensor`` binding from form fields and sends ``baseline``
@@ -1296,6 +1505,8 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "interval",
         "unit",
         "freq",
+        "rrule",
+        "moved_occurrences",
         "anchor",
         "due",
         "sensor",

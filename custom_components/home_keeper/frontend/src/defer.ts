@@ -11,13 +11,14 @@
 
 import { haDateTimeToIso, isoToHaDateTime, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
-import type { Task } from './types';
+import type { Task, UpcomingOccurrence } from './types';
 import type { BtnWeight, SnoozePresetId } from './utils';
 import {
   DEFAULT_SNOOZE_PRESET,
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  formatOccurrenceTime,
   isOverdue,
   scanRequired,
   resolveSnoozePreset,
@@ -173,6 +174,13 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
   );
 }
 
+/**
+ * Which date a snooze acts on. `next` is the classic snooze: it moves the due date.
+ * `later` moves one *future* date of a fixed schedule (`move_occurrence`), for "the
+ * city moved next week's pickup" — the date on the board is not the one that moved.
+ */
+export type SnoozeMode = 'next' | 'later';
+
 export interface SnoozeState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
@@ -181,6 +189,13 @@ export interface SnoozeState {
   preset: SnoozePresetId;
   customAt?: string;
   error?: string;
+  /** `next` when absent. */
+  mode?: SnoozeMode;
+  /** The dates "A later date" lists. `undefined` until they are asked for. */
+  occurrences?: UpcomingOccurrence[];
+  /** The row being moved, and where to (an `ha-form` date-time value). */
+  picked?: UpcomingOccurrence;
+  moveTo?: string;
 }
 
 export interface SkipState {
@@ -237,6 +252,62 @@ function customDate(s: SnoozeState): Date | null {
   if (!iso) return null;
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** How many dates "A later date" offers. */
+export const LATER_DATES = 6;
+
+/**
+ * Whether the snooze dialog offers "A later date". Only a fixed schedule has later
+ * dates to move: a floating task's next date does not exist until this one is done.
+ */
+export function offersLaterDates(task: Task | null | undefined): boolean {
+  return task?.recurrence_type === 'fixed';
+}
+
+/** The date on the rule a row stands for: where a moved date came from. */
+export function occurrenceOrigin(row: UpcomingOccurrence): string {
+  return row.moved_from ?? row.start;
+}
+
+/**
+ * A starting value for the new date: one day after the row, same time. The day is
+ * added on the wall clock of Home Assistant's zone, so the time stays the same across
+ * a clock change and in a browser in another zone.
+ */
+export function defaultMoveTo(start: string): string {
+  const shown = isoToHaDateTime(start);
+  if (!shown) return '';
+  const [date, time] = shown.split(' ');
+  const [y, mo, d] = date.split('-').map(Number);
+  return `${new Date(Date.UTC(y, mo - 1, d + 1)).toISOString().slice(0, 10)} ${time}`;
+}
+
+/** Pick *row* to move, seeding its new date. */
+export function pickOccurrence(s: SnoozeState, row: UpcomingOccurrence): void {
+  s.picked = row;
+  s.moveTo = defaultMoveTo(row.start);
+  s.error = undefined;
+}
+
+/** The instant the picked date moves to, or `null` when nothing usable is set. */
+export function moveTarget(s: SnoozeState): Date | null {
+  if (!s.picked || !s.moveTo) return null;
+  const iso = haDateTimeToIso(s.moveTo);
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** The line under "A later date": what moves where, or what to do next. */
+export function moveHintText(s: SnoozeState, lang?: string): string {
+  if (!s.picked) return t('defer.movePick');
+  const to = moveTarget(s);
+  if (!to) return t('defer.snoozePickDate');
+  return t('defer.moveResolves', {
+    from: formatOccurrenceTime(s.picked.start, lang),
+    to: formatOccurrenceTime(to, lang),
+  });
 }
 
 /**
