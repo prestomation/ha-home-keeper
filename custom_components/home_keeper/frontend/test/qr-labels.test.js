@@ -7,10 +7,28 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  CUSTOM_MAX_MM,
+  CUSTOM_MIN_MM,
+  FIT_PAD,
   LABEL_LINES,
+  LABEL_PAPERS,
   LAYOUTS,
   QR_BORDER,
+  ROLL_PAPERS,
+  SHEET_PAPERS,
+  clampMm,
   clampSkip,
+  defaultLabelOpts,
+  dotsPerMm,
+  fitLabel,
+  isRoll,
+  labelPrintHtml,
+  labelSizeMm,
+  layoutText,
+  pngSize,
+  qrPixelPlan,
+  rollSheetHtml,
+  wrapText,
   cssNum,
   defaultPaper,
   labelBaseUrl,
@@ -160,7 +178,14 @@ describe('cssNum', () => {
 
 describe('parseLabelOpts', () => {
   it('gives the defaults for nothing, bad JSON or a non-object', () => {
-    const dflt = { paper: 'a4_21', lines: [...LABEL_LINES] };
+    const dflt = {
+      paper: 'a4_21',
+      lines: [...LABEL_LINES],
+      customW: 50,
+      customH: 30,
+      dpi: 203,
+      rotate: false,
+    };
     expect(parseLabelOpts(null, 'a4_21')).toEqual(dflt);
     expect(parseLabelOpts('', 'a4_21')).toEqual(dflt);
     expect(parseLabelOpts('{nope', 'a4_21')).toEqual(dflt);
@@ -171,6 +196,34 @@ describe('parseLabelOpts', () => {
   it('keeps a known paper and reads an unknown one as the fallback', () => {
     expect(parseLabelOpts('{"paper":"letter30"}', 'a4_21').paper).toBe('letter30');
     expect(parseLabelOpts('{"paper":"a5"}', 'letter30').paper).toBe('letter30');
+  });
+
+  it('keeps a roll paper, the custom size, the density and the rotation', () => {
+    const opts = parseLabelOpts(
+      '{"paper":"roll_custom","customW":62,"customH":29.04,"dpi":300,"rotate":true}',
+      'a4_21',
+    );
+    expect(opts).toEqual({
+      paper: 'roll_custom',
+      lines: [...LABEL_LINES],
+      customW: 62,
+      customH: 29,
+      dpi: 300,
+      rotate: true,
+    });
+  });
+
+  it('reads a bad size, density or rotation as the default, and clamps a size', () => {
+    const opts = parseLabelOpts(
+      '{"customW":"62","customH":5000,"dpi":600,"rotate":"yes"}',
+      'letter30',
+    );
+    expect(opts.customW).toBe(50);
+    expect(opts.customH).toBe(CUSTOM_MAX_MM);
+    expect(opts.dpi).toBe(203);
+    expect(opts.rotate).toBe(false);
+    expect(parseLabelOpts('{"customW":1}', 'a4_21').customW).toBe(CUSTOM_MIN_MM);
+    expect(parseLabelOpts('{"customW":null}', 'a4_21').customW).toBe(50);
   });
 
   it('keeps only known lines, in print order, and keeps an empty choice', () => {
@@ -341,5 +394,311 @@ describe('labelFileName', () => {
   it('keeps the slug to 60 characters', () => {
     const name = 'a'.repeat(80);
     expect(labelFileName('asset', name)).toBe(`home-keeper-appliance-${'a'.repeat(60)}.png`);
+  });
+});
+
+describe('rolls', () => {
+  it('lists the sheets first, then the rolls', () => {
+    expect(LABEL_PAPERS).toEqual([...SHEET_PAPERS, ...ROLL_PAPERS]);
+    expect(SHEET_PAPERS.map(isRoll)).toEqual([false, false]);
+    expect(ROLL_PAPERS.every(isRoll)).toBe(true);
+  });
+
+  it('puts 1 label on each page of a roll', () => {
+    for (const paper of ROLL_PAPERS) expect(labelsPerPage(paper)).toBe(1);
+    expect(clampSkip('roll_50x30', 5)).toBe(0);
+  });
+
+  it('gives the label size in mm for a roll, a custom roll and a sheet', () => {
+    const base = defaultLabelOpts('a4_21');
+    expect(labelSizeMm({ ...base, paper: 'roll_50x30' })).toEqual({ w: 50, h: 30 });
+    expect(labelSizeMm({ ...base, paper: 'roll_40x30' })).toEqual({ w: 40, h: 30 });
+    expect(labelSizeMm({ ...base, paper: 'roll_50x20' })).toEqual({ w: 50, h: 20 });
+    expect(labelSizeMm({ ...base, paper: 'roll_30x15' })).toEqual({ w: 30, h: 15 });
+    expect(labelSizeMm({ ...base, paper: 'roll_custom', customW: 62, customH: 29 })).toEqual({
+      w: 62,
+      h: 29,
+    });
+    expect(labelSizeMm(base)).toEqual({ w: 63.5, h: 38.1 });
+    const letter = labelSizeMm({ ...base, paper: 'letter30' });
+    expect(letter.w).toBeCloseTo(66.675, 6);
+    expect(letter.h).toBeCloseTo(25.4, 6);
+  });
+
+  it('clamps a custom size to the limits and rounds it to 0.1 mm', () => {
+    expect(clampMm(49.96, 1)).toBe(50);
+    expect(clampMm(49.94, 1)).toBe(49.9);
+    expect(clampMm(9.9, 1)).toBe(CUSTOM_MIN_MM);
+    expect(clampMm(CUSTOM_MIN_MM, 1)).toBe(CUSTOM_MIN_MM);
+    expect(clampMm(CUSTOM_MAX_MM, 1)).toBe(CUSTOM_MAX_MM);
+    expect(clampMm(300.1, 1)).toBe(CUSTOM_MAX_MM);
+    expect(clampMm(Number.NaN, 42)).toBe(42);
+    expect(clampMm(Infinity, 42)).toBe(42);
+  });
+});
+
+describe('fitLabel', () => {
+  it('puts the text right of the code on a wide label', () => {
+    const fit = fitLabel(50, 30, true);
+    expect(fit.mode).toBe('side');
+    expect(fit.qr).toBe(27);
+    expect(fit.qrX).toBe(FIT_PAD);
+    expect(fit.qrY).toBe(FIT_PAD);
+    expect(fit.textX).toBe(30);
+    expect(fit.textY).toBe(FIT_PAD);
+    expect(fit.textW).toBe(18.5);
+    expect(fit.textH).toBe(27);
+  });
+
+  it('makes the code smaller to keep room for the text', () => {
+    // 40 × 30: a full-height code leaves 9.5 mm, less than the 14 mm text minimum.
+    const fit = fitLabel(40, 30, true);
+    expect(fit.mode).toBe('side');
+    expect(fit.qr).toBe(21.5);
+    expect(fit.textW).toBe(14);
+    expect(fit.qrY).toBe(FIT_PAD + (27 - 21.5) / 2);
+  });
+
+  it('puts the text below the code on a tall label', () => {
+    const fit = fitLabel(30, 50, true);
+    expect(fit.mode).toBe('below');
+    expect(fit.qr).toBe(27);
+    expect(fit.qrX).toBe(FIT_PAD);
+    expect(fit.qrY).toBe(FIT_PAD);
+    expect(fit.textX).toBe(FIT_PAD);
+    expect(fit.textY).toBe(30);
+    expect(fit.textW).toBe(27);
+    expect(fit.textH).toBe(18.5);
+  });
+
+  it('shrinks the code on a tall label to keep room for the text', () => {
+    const fit = fitLabel(30, 36, true);
+    expect(fit.mode).toBe('below');
+    expect(fit.qr).toBe(25.5);
+    expect(fit.qrX).toBe(FIT_PAD + (27 - 25.5) / 2);
+    expect(fit.textH).toBe(6);
+  });
+
+  it('prints only the code when the text has no room, or there is no text', () => {
+    const tiny = fitLabel(20, 12, true);
+    expect(tiny.mode).toBe('code');
+    expect(tiny.qr).toBe(9);
+    expect(tiny.qrX).toBe(5.5);
+    expect(tiny.qrY).toBe(FIT_PAD);
+    expect(tiny.textW).toBe(0);
+    expect(fitLabel(10, 30, true).mode).toBe('code');
+    const none = fitLabel(50, 30, false);
+    expect(none.mode).toBe('code');
+    expect(none.qr).toBe(27);
+    expect(none.qrX).toBe(11.5);
+  });
+
+  it('keeps the smallest code that still fits next to text', () => {
+    // 50 × 11: the inner height is exactly the 8 mm minimum.
+    expect(fitLabel(50, 11, true).mode).toBe('side');
+    expect(fitLabel(50, 10.9, true).mode).toBe('code');
+    // 26.5 × 20: the inner width leaves 23.5 − 1.5 − 14 = 8 mm for the code.
+    expect(fitLabel(26.5, 20, true).mode).toBe('side');
+    expect(fitLabel(26.4, 20, true).mode).toBe('code');
+    // 11 × 30: the inner width is the 8 mm minimum, and the inner height has room.
+    expect(fitLabel(11, 30, true).mode).toBe('below');
+    expect(fitLabel(10.9, 30, true).mode).toBe('code');
+  });
+
+  it('keeps the code inside the label and away from the text at every size', () => {
+    for (const [w, h] of [
+      [50, 30],
+      [40, 30],
+      [50, 20],
+      [30, 15],
+      [10, 10],
+      [62, 29],
+      [30, 50],
+      [300, 10],
+    ]) {
+      for (const text of [true, false]) {
+        const fit = fitLabel(w, h, text);
+        expect(fit.qrX).toBeGreaterThanOrEqual(0);
+        expect(fit.qrY).toBeGreaterThanOrEqual(0);
+        expect(fit.qrX + fit.qr).toBeLessThanOrEqual(w + 1e-9);
+        expect(fit.qrY + fit.qr).toBeLessThanOrEqual(h + 1e-9);
+        if (fit.mode === 'side') expect(fit.textX).toBeGreaterThan(fit.qrX + fit.qr);
+        if (fit.mode === 'below') expect(fit.textY).toBeGreaterThan(fit.qrY + fit.qr);
+        if (fit.mode !== 'code') {
+          expect(fit.textX + fit.textW).toBeLessThanOrEqual(w - FIT_PAD + 1e-9);
+          expect(fit.textY + fit.textH).toBeLessThanOrEqual(h - FIT_PAD + 1e-9);
+        }
+      }
+    }
+  });
+});
+
+/** 1 mm for each character: a measure that is easy to reason about. */
+const mono = (text) => text.length;
+
+describe('wrapText', () => {
+  const fits = (max) => (row) => mono(row) <= max;
+
+  it('keeps a short text on 1 row', () => {
+    expect(wrapText('Water heater', 3, fits(20))).toEqual(['Water heater']);
+  });
+
+  it('wraps at spaces and joins words while they fit', () => {
+    expect(wrapText('Garage  water heater tank', 3, fits(12))).toEqual([
+      'Garage water',
+      'heater tank',
+    ]);
+  });
+
+  it('cuts a word that is wider than a row', () => {
+    expect(wrapText('XE50T10HS45U0', 4, fits(5))).toEqual(['XE50T', '10HS4', '5U0']);
+    expect(wrapText('ab XE50T10HS4', 4, fits(5))).toEqual(['ab', 'XE50T', '10HS4']);
+  });
+
+  it('ends the last row with an ellipsis when the text is too long', () => {
+    expect(wrapText('one two three four', 2, fits(6))).toEqual(['one', 'two…']);
+    expect(wrapText('aaaaaa bbbbbb cc', 2, fits(6))).toEqual(['aaaaaa', 'bbbbb…']);
+  });
+
+  it('gives no rows for an empty text or no room', () => {
+    expect(wrapText('   ', 2, fits(10))).toEqual([]);
+    expect(wrapText('abc', 0, fits(10))).toEqual([]);
+  });
+});
+
+describe('layoutText', () => {
+  const ptMm = 25.4 / 72;
+  const l1 = 8.5 * ptMm;
+  const ln = 7 * ptMm;
+
+  it('sets the first line bold and larger, the other lines smaller', () => {
+    const rows = layoutText(['Heater', 'Garage'], 40, 40, mono);
+    expect(rows.map((r) => [r.text, r.bold])).toEqual([
+      ['Heater', true],
+      ['Garage', false],
+    ]);
+    expect(rows[0].sizeMm).toBeCloseTo(l1, 9);
+    expect(rows[1].sizeMm).toBeCloseTo(ln, 9);
+  });
+
+  it('stacks the rows with the line height and a gap, centered in the box', () => {
+    const rows = layoutText(['Heater', 'Garage'], 40, 20, mono);
+    const used = l1 * 1.15 + ptMm + ln * 1.2;
+    const shift = (20 - used) / 2;
+    expect(rows[0].top).toBeCloseTo(shift, 9);
+    expect(rows[1].top).toBeCloseTo(shift + l1 * 1.15 + ptMm, 9);
+  });
+
+  it('wraps the first line to 3 rows and the others to 2', () => {
+    const rows = layoutText(['a b c d e', 'f g h i'], 1, 100, mono);
+    expect(rows.filter((r) => r.bold).map((r) => r.text)).toEqual(['a', 'b', '…']);
+    expect(rows.filter((r) => !r.bold).map((r) => r.text)).toEqual(['f', '…']);
+  });
+
+  it('leaves out the rows that do not fit the box height', () => {
+    const rows = layoutText(['Heater', 'Garage', 'Bosch'], 40, l1 * 1.15 + ptMm + ln * 1.2, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage']);
+    expect(rows[0].top).toBeCloseTo(0, 9);
+    expect(layoutText(['Heater'], 40, l1, mono)).toEqual([]);
+  });
+
+  it('does not count the gap of a line that left no rows', () => {
+    const rows = layoutText(['Heater', '', 'Garage'], 40, 40, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage']);
+    expect(rows[1].top - rows[0].top).toBeCloseTo(l1 * 1.15 + ptMm, 9);
+  });
+});
+
+describe('PNG geometry', () => {
+  it('uses 8 dots per mm at 203 dpi and about 12 at 300 dpi', () => {
+    expect(dotsPerMm(203)).toBeCloseTo(7.992, 3);
+    expect(dotsPerMm(300)).toBeCloseTo(11.811, 3);
+  });
+
+  it('sizes the image as the label at the density, turned on request', () => {
+    expect(pngSize({ w: 50, h: 30 }, 203, false)).toEqual({ width: 400, height: 240 });
+    expect(pngSize({ w: 50, h: 30 }, 203, true)).toEqual({ width: 240, height: 400 });
+    expect(pngSize({ w: 50, h: 30 }, 300, false)).toEqual({ width: 591, height: 354 });
+  });
+
+  it('makes each module a whole number of dots and centers the code in its box', () => {
+    // 27 mm at 8 dots/mm is 215 dots; 25 modules + 4 quiet = 29, so 7 dots each.
+    const plan = qrPixelPlan(27, 29, dotsPerMm(203));
+    expect(plan).toEqual({ module: 7, size: 203, offset: 6 });
+  });
+
+  it('never makes a module smaller than 1 dot', () => {
+    expect(qrPixelPlan(2, 29, 8)).toEqual({ module: 1, size: 29, offset: -7 });
+  });
+});
+
+describe('rollSheetHtml', () => {
+  const labels = [
+    { url: URL_A, lines: ['Water <heater>', 'Garage'] },
+    { url: URL_A.replace('appliances', 'tasks'), lines: [] },
+  ];
+  const opts = { ...defaultLabelOpts('a4_21'), paper: 'roll_50x30' };
+
+  it('makes 1 page at the label size for each label', () => {
+    const html = rollSheetHtml(labels, opts, 'QR labels');
+    expect(html).toContain('@page{size:50mm 30mm;margin:0}');
+    expect(html).toContain('.page{position:relative;width:50mm;height:30mm;');
+    expect(html.match(/class="page"/g)).toHaveLength(2);
+    expect(html).toContain('.page:last-child{break-after:auto}');
+    expect(html).not.toContain('transform');
+  });
+
+  it('places the code and the text as fitLabel says', () => {
+    const html = rollSheetHtml(labels, opts, 'QR labels');
+    expect(html).toContain('<div class="qr" style="left:1.5mm;top:1.5mm;width:27mm;height:27mm">');
+    expect(html).toContain(
+      '<div class="text side" style="left:30mm;top:1.5mm;width:18.5mm;height:27mm">',
+    );
+    // A label with no text lines is only its code, in the middle.
+    expect(html).toContain('<div class="qr" style="left:11.5mm;top:1.5mm;width:27mm;height:27mm">');
+    expect(html.match(/class="text/g)).toHaveLength(1);
+  });
+
+  it('centers the text below the code on a tall label', () => {
+    const html = rollSheetHtml(labels.slice(0, 1), { ...opts, paper: 'roll_custom', customW: 30, customH: 50 }, 'x');
+    expect(html).toContain('<div class="text below"');
+    expect(html).toContain('.text.below{text-align:center}');
+  });
+
+  it('turns the page and the label 90° on request', () => {
+    const html = rollSheetHtml(labels, { ...opts, rotate: true }, 'QR labels');
+    expect(html).toContain('@page{size:30mm 50mm;margin:0}');
+    expect(html).toContain('.page{position:relative;width:30mm;height:50mm;');
+    expect(html).toContain(
+      '.label{position:absolute;left:0;top:0;width:50mm;height:30mm;' +
+        'transform:translateX(30mm) rotate(90deg);transform-origin:0 0;}',
+    );
+  });
+
+  it('holds the code of each link and escapes the text and the title', () => {
+    const html = rollSheetHtml(labels, opts, 'A <b> title');
+    expect(html).toContain(qrSvg(URL_A));
+    expect(html).toContain('<div class="l1">Water &lt;heater&gt;</div><div class="ln">Garage</div>');
+    expect(html).not.toContain('<heater>');
+    expect(html).toContain('<title>A &lt;b&gt; title</title>');
+  });
+
+  it('uses the custom size for a custom roll', () => {
+    const html = rollSheetHtml(labels, { ...opts, paper: 'roll_custom', customW: 62, customH: 29 }, 'x');
+    expect(html).toContain('@page{size:62mm 29mm;margin:0}');
+  });
+});
+
+describe('labelPrintHtml', () => {
+  const labels = [{ url: URL_A, lines: ['Heater'] }];
+
+  it('prints a sheet for a sheet paper, with the skip', () => {
+    const opts = defaultLabelOpts('a4_21');
+    expect(labelPrintHtml(labels, opts, 2, 'T')).toBe(labelSheetHtml(labels, 'a4_21', 2, 'T'));
+  });
+
+  it('prints a roll for a roll paper, and ignores the skip', () => {
+    const opts = { ...defaultLabelOpts('a4_21'), paper: 'roll_40x30' };
+    expect(labelPrintHtml(labels, opts, 2, 'T')).toBe(rollSheetHtml(labels, opts, 'T'));
   });
 });

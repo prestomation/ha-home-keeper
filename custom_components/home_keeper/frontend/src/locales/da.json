@@ -908,7 +908,7 @@
   "labels.nothingListed": "Listen er tom. Ret søgningen eller filteret, og prøv igen.",
   "labels.withTasks.one": "Udskriv også en etiket for hver opgave på disse apparater ({n} opgave)",
   "labels.withTasks.other": "Udskriv også en etiket for hver opgave på disse apparater ({n} opgaver)",
-  "labels.sheet": "Etiketark",
+  "labels.sheet": "Etiketstørrelse",
   "labels.paper.letter30": "US Letter, 30 etiketter (2⅝ × 1 in)",
   "labels.paper.a4_21": "A4, 21 etiketter (63,5 × 38,1 mm)",
   "labels.skip": "Spring brugte etiketter over",
@@ -918,6 +918,14 @@
   "labels.line.area": "Område",
   "labels.line.schedule": "Tidsplan",
   "labels.printHint": "Sæt margener til Ingen og skalering til 100 % i udskriftsdialogen. Så passer etiketterne til arket.",
+  "labels.printHintRoll": "Sæt margener til Ingen og skalering til 100 % i udskriftsdialogen. Vælg Gem som PDF for at få 1 side pr. etiket. Åbn filen i appen til din etiketprinter.",
+  "labels.dpiOption": "{dpi} dpi ({dots} punkter pr. mm)",
+  "labels.dpi": "PNG-opløsning",
+  "labels.rotate": "Drej etiketten 90°",
+  "labels.height": "Højde (mm)",
+  "labels.width": "Bredde (mm)",
+  "labels.paper.custom": "Etiketrulle, egen størrelse",
+  "labels.paper.roll": "Etiketrulle, {w} × {h} mm",
   "labels.print.one": "Udskriv {n} etiket",
   "labels.print.other": "Udskriv {n} etiketter"
 }

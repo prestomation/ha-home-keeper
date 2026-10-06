@@ -1,7 +1,8 @@
 # QR code labels
 
 Home Keeper supports QR code labels for appliances and tasks. Each code is a link to the
-page of its appliance or task in the Home Keeper panel. Put a label on the appliance.
+page of its appliance or task in the Home Keeper panel. Print the labels on a label sheet
+or on a label printer. Put a label on the appliance.
 Then scan it with a phone camera to open the page in the panel.
 
 The panel is for admins only, so the link opens only for an admin. To complete a task
@@ -11,7 +12,7 @@ with a scan, use a Home Assistant tag. See [NFC and RFID tags](../tasks/nfc-tags
 
 1. Open the page of an appliance or a task.
 2. Select **QR label**.
-3. Optional: change the print settings. See [Label sheets](#label-sheets) and
+3. Optional: change the print settings. See [Label sizes](#label-sizes) and
    [Text on the label](#text-on-the-label).
 4. Select **Print 1 label**. The print dialog of the browser opens.
 
@@ -22,7 +23,8 @@ with a scan, use a Home Assistant tag. See [NFC and RFID tags](../tasks/nfc-tags
 The dialog also has these buttons:
 
 - **Copy link** copies the link in the code.
-- **Download PNG** saves the code as an image. Use it with the app of a label printer.
+- **Download PNG** saves the whole label, the code and its text, as an image at the
+  label size. See [Label printers](#label-printers).
 
 ## Print many labels
 
@@ -37,7 +39,12 @@ The dialog shows the same appliances or tasks as the list. To print fewer, type 
 
 ![The Print labels dialog with 2 appliances selected and their tasks added](../../images/79b-panel-qr-labels-picker.png)
 
-## Label sheets
+## Label sizes
+
+Select the size in **Label size**. Home Keeper prints on label sheets and on the label
+rolls of label printers.
+
+### Label sheets
 
 Home Keeper prints on 2 common label sheets:
 
@@ -47,7 +54,7 @@ Home Keeper prints on 2 common label sheets:
 | A4 | 21 | 63.5 × 38.1 mm | Avery L7160 |
 
 The first sheet comes from the country in the Home Assistant settings. The panel keeps
-your choice of sheet and text in this browser.
+your choice of size and text in this browser.
 
 If a sheet is part used, set **Skip used labels** to the number of used labels. The
 first label then prints on the next free label.
@@ -60,6 +67,46 @@ In the print dialog, do these steps, or the labels do not align with the sheet:
 To make a PDF file, select **Save as PDF** as the printer.
 
 ![A printed sheet with labels for 2 appliances and the tasks of 1 of them](../../images/79e-panel-qr-label-sheet.png)
+
+### Label printers
+
+A small label printer, such as a Niimbot B1, prints on a roll of labels. Its app
+opens an image or a PDF file. Home Keeper makes both at the size of 1 label.
+
+Select 1 of these sizes in **Label size**:
+
+| Size | Width × height |
+|---|---|
+| Label roll | 50 × 30 mm |
+| Label roll | 40 × 30 mm |
+| Label roll | 50 × 20 mm |
+| Label roll | 30 × 15 mm |
+| Label roll, custom size | You type the width and the height, from 10 to 300 mm |
+
+To make a PDF file:
+
+1. Select the size of your labels.
+2. Select **Print**. The print dialog of the browser opens.
+3. Select **Save as PDF** as the printer. Set the margins to **None** and the scale to
+   **100%**.
+4. Open the PDF file in the app of your label printer. Each label is 1 page.
+
+To make an image of 1 label:
+
+1. Open the **QR label** dialog of the appliance or the task.
+2. Select the size of your labels.
+3. In **PNG resolution**, select the resolution of your printer. Most small thermal
+   printers use 203 dpi (8 dots per mm). The PNG then has 1 pixel for each dot.
+4. Select **Download PNG**. Open the file in the app of your label printer.
+
+The text goes next to the code on a wide label and below the code on a tall label. On a
+label that is too small for text, Home Keeper prints only the code.
+
+If the label comes out of the printer on its side, select **Rotate the label 90°**.
+
+![The QR label dialog with a 50 × 30 mm label roll and the PNG resolution](../../images/79l-panel-qr-label-roll.png)
+
+![A 50 × 30 mm label as the PDF holds it](../../images/79m-panel-qr-label-roll-page.png)
 
 ## Text on the label
 

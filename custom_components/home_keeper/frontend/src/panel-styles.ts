@@ -2387,6 +2387,7 @@ export const STYLES = `
      a dark theme: a phone reads dark on light only. No min-width, for the reason
      given at .hk-decl-dialog-body below. */
   .hk-label-body { display: flex; flex-direction: column; gap: 14px; width: 100%; box-sizing: border-box; }
+  .hk-label-body [hidden] { display: none !important; }
   .hk-label-preview {
     display: flex; align-items: center; gap: 14px; padding: 12px;
     border: 1px dashed var(--hk-line); border-radius: var(--hk-r-card);

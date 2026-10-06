@@ -14,20 +14,35 @@ import { t, tn } from './i18n';
 import type { PanelHost } from './panel-host';
 import { LS_LABELS } from './panel-types';
 import {
+  LABEL_DPIS,
   LABEL_LINES,
+  CUSTOM_MAX_MM,
+  CUSTOM_MIN_MM,
   LABEL_PAPERS,
+  QR_BORDER,
+  ROLL_SIZES,
+  clampMm,
   clampSkip,
   defaultPaper,
+  dotsPerMm,
+  fitLabel,
+  isRoll,
   labelBaseUrl,
   labelFileName,
   labelLines,
+  labelPrintHtml,
+  labelSizeMm,
   labelsPerPage,
-  labelSheetHtml,
   labelUrl,
+  layoutText,
   parseLabelOpts,
+  pngSize,
+  qrModules,
+  qrPixelPlan,
   qrSvg,
   type LabelLine,
   type LabelOpts,
+  type LabelPaper,
   type LabelSource,
   type PrintLabel,
 } from './qr-labels';
@@ -223,24 +238,59 @@ function printSheet(html: string): void {
   document.body.appendChild(frame);
 }
 
-/** Draw 1 code on a canvas and save it as a PNG. */
-async function downloadPng(svg: string, filename: string): Promise<boolean> {
-  const px = 600;
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+/**
+ * Draw 1 whole label, the code and its text, on a canvas at the chosen density, and save
+ * it as a PNG for the app of a label printer. Each module of the code is a whole number
+ * of dots (`qrPixelPlan`), so no module prints wider than the next.
+ */
+async function downloadLabelPng(
+  label: PrintLabel,
+  opts: LabelOpts,
+  filename: string,
+): Promise<boolean> {
   try {
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('svg'));
-      img.src = url;
-    });
+    const size = labelSizeMm(opts);
+    const rotate = isRoll(opts.paper) && opts.rotate;
+    const { width, height } = pngSize(size, opts.dpi, rotate);
+    const dpmm = dotsPerMm(opts.dpi);
     const canvas = document.createElement('canvas');
-    canvas.width = px;
-    canvas.height = px;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return false;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, px, px);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
+    if (rotate) {
+      ctx.translate(width, 0);
+      ctx.rotate(Math.PI / 2);
+    }
+    const fit = fitLabel(size.w, size.h, label.lines.length > 0);
+    const mods = qrModules(label.url);
+    const plan = qrPixelPlan(fit.qr, mods.length + QR_BORDER * 2, dpmm);
+    const x0 = Math.round(fit.qrX * dpmm) + plan.offset + QR_BORDER * plan.module;
+    const y0 = Math.round(fit.qrY * dpmm) + plan.offset + QR_BORDER * plan.module;
+    ctx.fillStyle = '#000';
+    mods.forEach((row, y) =>
+      row.forEach((dark, x) => {
+        if (dark) ctx.fillRect(x0 + x * plan.module, y0 + y * plan.module, plan.module, plan.module);
+      }),
+    );
+    if (fit.mode !== 'code') {
+      const font = (bold: boolean, sizeMm: number): string =>
+        `${bold ? '700' : '400'} ${sizeMm * dpmm}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const measure = (text: string, bold: boolean, sizeMm: number): number => {
+        ctx.font = font(bold, sizeMm);
+        return ctx.measureText(text).width / dpmm;
+      };
+      ctx.textBaseline = 'top';
+      const center = fit.mode === 'below';
+      ctx.textAlign = center ? 'center' : 'left';
+      const x = (center ? fit.textX + fit.textW / 2 : fit.textX) * dpmm;
+      for (const row of layoutText(label.lines, fit.textW, fit.textH, measure)) {
+        ctx.font = font(row.bold, row.sizeMm);
+        ctx.fillText(row.text, x, (fit.textY + row.top) * dpmm);
+      }
+    }
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     if (!blob) return false;
     const href = URL.createObjectURL(blob);
@@ -255,12 +305,17 @@ async function downloadPng(svg: string, filename: string): Promise<boolean> {
     return true;
   } catch {
     return false;
-  } finally {
-    URL.revokeObjectURL(url);
   }
 }
 
-const PAPER_KEYS: Record<LabelOpts['paper'], string> = {
+/** The text of 1 paper in the size list. */
+function paperName(paper: LabelPaper): string {
+  if (paper === 'roll_custom') return t('labels.paper.custom');
+  if (isRoll(paper)) return t('labels.paper.roll', ROLL_SIZES[paper]);
+  return t(SHEET_KEYS[paper]);
+}
+
+const SHEET_KEYS: Record<'letter30' | 'a4_21', string> = {
   letter30: 'labels.paper.letter30',
   a4_21: 'labels.paper.a4_21',
 };
@@ -345,7 +400,13 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   const paperOpts = LABEL_PAPERS.map(
     (paper) =>
       `<option value="${paper}"${paper === opts.paper ? ' selected' : ''}>${escapeHTML(
-        t(PAPER_KEYS[paper]),
+        paperName(paper),
+      )}</option>`,
+  ).join('');
+  const dpiOpts = LABEL_DPIS.map(
+    (dpi) =>
+      `<option value="${dpi}"${dpi === opts.dpi ? ' selected' : ''}>${escapeHTML(
+        t('labels.dpiOption', { dpi, dots: Math.round(dotsPerMm(dpi)) }),
       )}</option>`,
   ).join('');
   const lineBoxes = LABEL_LINES.map(
@@ -361,16 +422,38 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
         <span>${escapeHTML(t('labels.sheet'))}</span>
         <select data-label-paper>${paperOpts}</select>
       </label>
-      <label class="hk-label-field">
+      <label class="hk-label-field" data-label-skip-field>
         <span>${escapeHTML(t('labels.skip'))}</span>
         <input type="number" min="0" step="1" inputmode="numeric" data-label-skip value="${s.skip}">
       </label>
+      <label class="hk-label-field" data-label-custom-field>
+        <span>${escapeHTML(t('labels.width'))}</span>
+        <input type="number" min="${CUSTOM_MIN_MM}" max="${CUSTOM_MAX_MM}" step="0.1"
+          inputmode="decimal" data-label-custom-w value="${opts.customW}">
+      </label>
+      <label class="hk-label-field" data-label-custom-field>
+        <span>${escapeHTML(t('labels.height'))}</span>
+        <input type="number" min="${CUSTOM_MIN_MM}" max="${CUSTOM_MAX_MM}" step="0.1"
+          inputmode="decimal" data-label-custom-h value="${opts.customH}">
+      </label>
+      ${
+        oneTarget
+          ? `<label class="hk-label-field">
+              <span>${escapeHTML(t('labels.dpi'))}</span>
+              <select data-label-dpi>${dpiOpts}</select>
+            </label>`
+          : ''
+      }
     </div>
+    <label class="hk-label-check" data-label-rotate-field>
+      <input type="checkbox" data-label-rotate${opts.rotate ? ' checked' : ''}>
+      <span>${escapeHTML(t('labels.rotate'))}</span>
+    </label>
     <fieldset class="hk-label-lines">
       <legend class="hk-eyebrow">${escapeHTML(t('labels.lines'))}</legend>
       ${lineBoxes}
     </fieldset>
-    <p class="hk-label-hint">${escapeHTML(t('labels.printHint'))}</p>`);
+    <p class="hk-label-hint" data-label-hint></p>`);
   body.innerHTML = parts.join('');
 
   const print = document.createElement('ha-button');
@@ -383,8 +466,19 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     const count = printTargets(p).length;
     print.textContent = tn('labels.print', count);
     print.toggleAttribute('disabled', count === 0);
+    const roll = isRoll(now.paper);
     const skip = body.querySelector<HTMLInputElement>('[data-label-skip]');
     if (skip) skip.max = String(labelsPerPage(now.paper) - 1);
+    // A roll has 1 label on each page, so nothing is used up; a sheet does not turn.
+    const show = (sel: string, on: boolean): void =>
+      body.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        el.hidden = !on;
+      });
+    show('[data-label-skip-field]', !roll);
+    show('[data-label-custom-field]', now.paper === 'roll_custom');
+    show('[data-label-rotate-field]', roll);
+    const hint = body.querySelector<HTMLElement>('[data-label-hint]');
+    if (hint) hint.textContent = t(roll ? 'labels.printHintRoll' : 'labels.printHint');
     const text = body.querySelector<HTMLElement>('[data-label-text]');
     if (text && oneTarget) {
       text.innerHTML = labelLines(oneTarget.src, now.lines)
@@ -426,6 +520,26 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     saveOpts({ ...readOpts(p), paper });
     sync();
   });
+  const customInput = (sel: string, key: 'customW' | 'customH'): void => {
+    body.querySelector<HTMLInputElement>(sel)?.addEventListener('change', (e) => {
+      const input = e.target as HTMLInputElement;
+      const now = readOpts(p);
+      const mm = clampMm(input.valueAsNumber, now[key]);
+      input.value = String(mm);
+      saveOpts({ ...now, [key]: mm });
+      sync();
+    });
+  };
+  customInput('[data-label-custom-w]', 'customW');
+  customInput('[data-label-custom-h]', 'customH');
+  body.querySelector<HTMLInputElement>('[data-label-rotate]')?.addEventListener('change', (e) => {
+    saveOpts({ ...readOpts(p), rotate: (e.target as HTMLInputElement).checked });
+  });
+  body.querySelector<HTMLSelectElement>('[data-label-dpi]')?.addEventListener('change', (e) => {
+    const dpi = Number((e.target as HTMLSelectElement).value);
+    const now = readOpts(p);
+    saveOpts({ ...now, dpi: LABEL_DPIS.find((d) => d === dpi) ?? now.dpi });
+  });
   body.querySelector<HTMLInputElement>('[data-label-skip]')?.addEventListener('change', (e) => {
     const input = e.target as HTMLInputElement;
     p._labelDialog.skip = clampSkip(readOpts(p).paper, Number(input.value));
@@ -453,7 +567,9 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     setBtnWeight(png, 'secondary');
     png.textContent = t('labels.downloadPng');
     png.addEventListener('click', async () => {
-      const ok = await downloadPng(qrSvg(url), labelFileName(oneTarget.kind, oneTarget.src.name));
+      const now = readOpts(p);
+      const label = { url, lines: labelLines(oneTarget.src, now.lines) };
+      const ok = await downloadLabelPng(label, now, labelFileName(oneTarget.kind, oneTarget.src.name));
       if (!ok) toast(p, t('labels.pngFailed'));
     });
     footer.appendChild(png);
@@ -466,7 +582,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
       lines: labelLines(target.src, now.lines),
     }));
     if (!labels.length) return;
-    printSheet(labelSheetHtml(labels, now.paper, p._labelDialog.skip, t('labels.title')));
+    printSheet(labelPrintHtml(labels, now, p._labelDialog.skip, t('labels.title')));
   });
   footer.appendChild(print);
 

@@ -908,7 +908,7 @@
   "labels.nothingListed": "Die Liste ist leer. Ändere die Suche oder den Filter und versuche es erneut.",
   "labels.withTasks.one": "Auch für jede Aufgabe dieser Geräte ein Etikett drucken ({n} Aufgabe)",
   "labels.withTasks.other": "Auch für jede Aufgabe dieser Geräte ein Etikett drucken ({n} Aufgaben)",
-  "labels.sheet": "Etikettenbogen",
+  "labels.sheet": "Etikettengröße",
   "labels.paper.letter30": "US Letter, 30 Etiketten (2⅝ × 1 in)",
   "labels.paper.a4_21": "A4, 21 Etiketten (63,5 × 38,1 mm)",
   "labels.skip": "Benutzte Etiketten überspringen",
@@ -918,6 +918,14 @@
   "labels.line.area": "Bereich",
   "labels.line.schedule": "Zeitplan",
   "labels.printHint": "Stelle im Druckdialog die Ränder auf Keine und die Skalierung auf 100 %. Dann passen die Etiketten auf den Bogen.",
+  "labels.printHintRoll": "Stelle im Druckdialog die Ränder auf Keine und die Skalierung auf 100 %. Wähle Als PDF speichern, dann ist jedes Etikett 1 Seite. Öffne die Datei in der App deines Etikettendruckers.",
+  "labels.dpiOption": "{dpi} dpi ({dots} Punkte pro mm)",
+  "labels.dpi": "PNG-Auflösung",
+  "labels.rotate": "Etikett um 90° drehen",
+  "labels.height": "Höhe (mm)",
+  "labels.width": "Breite (mm)",
+  "labels.paper.custom": "Etikettenrolle, eigene Größe",
+  "labels.paper.roll": "Etikettenrolle, {w} × {h} mm",
   "labels.print.one": "{n} Etikett drucken",
   "labels.print.other": "{n} Etiketten drucken"
 }

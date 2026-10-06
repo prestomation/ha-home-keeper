@@ -908,7 +908,7 @@
   "labels.nothingListed": "Listan är tom. Ändra sökningen eller filtret och försök igen.",
   "labels.withTasks.one": "Skriv även ut en etikett för varje uppgift för dessa apparater ({n} uppgift)",
   "labels.withTasks.other": "Skriv även ut en etikett för varje uppgift för dessa apparater ({n} uppgifter)",
-  "labels.sheet": "Etikettark",
+  "labels.sheet": "Etikettstorlek",
   "labels.paper.letter30": "US Letter, 30 etiketter (2⅝ × 1 in)",
   "labels.paper.a4_21": "A4, 21 etiketter (63,5 × 38,1 mm)",
   "labels.skip": "Hoppa över använda etiketter",
@@ -918,6 +918,14 @@
   "labels.line.area": "Område",
   "labels.line.schedule": "Schema",
   "labels.printHint": "Ställ in marginalerna på Inga och skalan på 100 % i utskriftsdialogen. Då hamnar etiketterna rätt på arket.",
+  "labels.printHintRoll": "Ställ in marginalerna på Inga och skalan på 100 % i utskriftsdialogen. Välj Spara som PDF för att få 1 sida per etikett. Öppna filen i appen för din etikettskrivare.",
+  "labels.dpiOption": "{dpi} dpi ({dots} punkter per mm)",
+  "labels.dpi": "PNG-upplösning",
+  "labels.rotate": "Rotera etiketten 90°",
+  "labels.height": "Höjd (mm)",
+  "labels.width": "Bredd (mm)",
+  "labels.paper.custom": "Etikettrulle, egen storlek",
+  "labels.paper.roll": "Etikettrulle, {w} × {h} mm",
   "labels.print.one": "Skriv ut {n} etikett",
   "labels.print.other": "Skriv ut {n} etiketter"
 }

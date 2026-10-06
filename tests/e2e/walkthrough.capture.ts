@@ -805,8 +805,13 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('.d-label').click();
   await expect(panel.locator('ha-dialog.hk-label-dialog .hk-label-qr svg')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+  // A label printer: pick a roll size, and the dialog offers Rotate.
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-paper]').selectOption('roll_50x30');
+  await expect(panel.locator('ha-dialog.hk-label-dialog [data-label-rotate-field]')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
   await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
   await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
+  await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
   await panel.locator('#labels-btn').click();
   const labelPicks = panel.locator('ha-dialog.hk-label-dialog [data-label-pick]');
   await labelPicks.nth(1).check();

@@ -908,7 +908,7 @@
   "labels.nothingListed": "列表为空。请更改搜索或筛选条件后重试。",
   "labels.withTasks.one": "同时为这些设备的每个任务打印标签（{n} 个任务）",
   "labels.withTasks.other": "同时为这些设备的每个任务打印标签（{n} 个任务）",
-  "labels.sheet": "标签纸",
+  "labels.sheet": "标签尺寸",
   "labels.paper.letter30": "US Letter，30 个标签（2⅝ × 1 英寸）",
   "labels.paper.a4_21": "A4，21 个标签（63.5 × 38.1 毫米）",
   "labels.skip": "跳过已用标签",
@@ -918,6 +918,14 @@
   "labels.line.area": "区域",
   "labels.line.schedule": "计划",
   "labels.printHint": "在打印对话框中，将边距设为“无”，缩放设为 100%。这样标签才能对准标签纸。",
+  "labels.printHintRoll": "在打印对话框中，将边距设为“无”，缩放设为 100%。选择“另存为 PDF”，每个标签占 1 页。在标签打印机的应用中打开该文件。",
+  "labels.dpiOption": "{dpi} dpi（每毫米 {dots} 点）",
+  "labels.dpi": "PNG 分辨率",
+  "labels.rotate": "将标签旋转 90°",
+  "labels.height": "高度（毫米）",
+  "labels.width": "宽度（毫米）",
+  "labels.paper.custom": "标签卷，自定义尺寸",
+  "labels.paper.roll": "标签卷，{w} × {h} 毫米",
   "labels.print.one": "打印 {n} 个标签",
   "labels.print.other": "打印 {n} 个标签"
 }

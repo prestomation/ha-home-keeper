@@ -12,6 +12,8 @@
  *  79e. The printed sheet, drawn from the document the panel hands the browser.
  *  79f-79i. The phone versions of 79 to 79d.
  *  79j/79k. The QR label button on the appliance page, desktop and phone.
+ *  79l/79n. The label dialog with a 50 × 30 mm label roll, desktop and phone.
+ *  79m. 1 page of the roll print, as Save as PDF makes it.
  *
  * The desktop dialog shots use a taller window, so the whole checklist is in frame.
  *
@@ -122,6 +124,45 @@ async function taskShot(page: Page, name: string): Promise<void> {
   await closeDialog(page);
 }
 
+/** The appliance label dialog with a label roll picked. Returns the print document. */
+async function rollShot(page: Page, name: string): Promise<string> {
+  await openPanel(page);
+  const panel = page.locator('home-keeper-panel').first();
+  const dialog = labelDialog(panel);
+  await page.evaluate(() => {
+    const w = window as unknown as { __hkPrints: string[] };
+    w.__hkPrints = [];
+    new MutationObserver((records) => {
+      for (const r of records) {
+        r.addedNodes.forEach((node) => {
+          if (node instanceof HTMLIFrameElement && node.id === 'hk-label-print') {
+            w.__hkPrints.push(node.srcdoc);
+          }
+        });
+      }
+    }).observe(document.body, { childList: true });
+  });
+  await expect(async () => {
+    if (!(await panel.locator('.d-label').isVisible())) {
+      await openAppliance(page, ASSET.waterHeater);
+    }
+    await panel.locator('.d-label').click({ timeout: 5_000 });
+    await dialog.locator('[data-label-paper]').selectOption('roll_50x30', { timeout: 5_000 });
+    await expect(dialog.locator('[data-label-rotate-field]')).toBeVisible({ timeout: 5_000 });
+    await settled(page, dialog);
+    await page.screenshot({ path: `${OUT}/${name}.png` });
+    await expect(dialog.locator('[data-label-close]')).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 45_000 });
+  await dialog.locator('[data-label-print]').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __hkPrints: string[] }).__hkPrints.length))
+    .toBe(1);
+  const html = await page.evaluate(() => (window as unknown as { __hkPrints: string[] }).__hkPrints[0]);
+  await closeDialog(page);
+  await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
+  return html;
+}
+
 test('capture QR code labels', async ({ page, context }) => {
   await page.setViewportSize({ width: DESKTOP.width, height: 900 });
   await page.evaluate(() => localStorage.removeItem('home-keeper.labels')).catch(() => {});
@@ -137,6 +178,16 @@ test('capture QR code labels', async ({ page, context }) => {
   await sheetPage.locator('.page').first().screenshot({ path: `${OUT}/79e-panel-qr-label-sheet.png` });
   await sheetPage.close();
 
+  const roll = await rollShot(page, '79l-panel-qr-label-roll');
+  // 79m. 1 roll label at 4 times its print size, so the shot is readable.
+  const rollPage = await context.newPage();
+  await rollPage.setViewportSize({ width: 800, height: 520 });
+  await rollPage.setContent(roll);
+  await rollPage.addStyleTag({ content: 'body{zoom:4;background:#ddd}.page{background:#fff}' });
+  await expect(rollPage.locator('.label').first()).toBeVisible();
+  await rollPage.locator('.page').first().screenshot({ path: `${OUT}/79m-panel-qr-label-roll-page.png` });
+  await rollPage.close();
+
   await page.setViewportSize(PHONE);
   await listShots(page, '79f-panel-mobile-qr-labels-button', '79g-panel-mobile-qr-labels-picker');
   await applianceShot(
@@ -145,5 +196,6 @@ test('capture QR code labels', async ({ page, context }) => {
     '79k-panel-mobile-qr-label-detail-button',
   );
   await taskShot(page, '79i-panel-mobile-qr-label-task');
+  await rollShot(page, '79n-panel-mobile-qr-label-roll');
   await page.setViewportSize(DESKTOP);
 });

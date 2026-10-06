@@ -908,7 +908,7 @@
   "labels.nothingListed": "Lista on tyhjä. Muuta hakua tai suodatinta ja yritä uudelleen.",
   "labels.withTasks.one": "Tulosta myös tarra jokaiselle näiden laitteiden tehtävälle ({n} tehtävä)",
   "labels.withTasks.other": "Tulosta myös tarra jokaiselle näiden laitteiden tehtävälle ({n} tehtävää)",
-  "labels.sheet": "Tarra-arkki",
+  "labels.sheet": "Tarran koko",
   "labels.paper.letter30": "US Letter, 30 tarraa (2⅝ × 1 in)",
   "labels.paper.a4_21": "A4, 21 tarraa (63,5 × 38,1 mm)",
   "labels.skip": "Ohita käytetyt tarrat",
@@ -918,6 +918,14 @@
   "labels.line.area": "Alue",
   "labels.line.schedule": "Aikataulu",
   "labels.printHint": "Aseta tulostusikkunassa marginaaleiksi Ei mitään ja skaalaukseksi 100 %. Silloin tarrat osuvat arkille oikein.",
+  "labels.printHintRoll": "Aseta tulostusikkunassa marginaaleiksi Ei mitään ja skaalaukseksi 100 %. Valitse Tallenna PDF-muodossa, niin jokainen tarra on oma sivunsa. Avaa tiedosto tarratulostimesi sovelluksessa.",
+  "labels.dpiOption": "{dpi} dpi ({dots} pistettä/mm)",
+  "labels.dpi": "PNG-tarkkuus",
+  "labels.rotate": "Käännä tarraa 90°",
+  "labels.height": "Korkeus (mm)",
+  "labels.width": "Leveys (mm)",
+  "labels.paper.custom": "Tarrarulla, oma koko",
+  "labels.paper.roll": "Tarrarulla, {w} × {h} mm",
   "labels.print.one": "Tulosta {n} tarra",
   "labels.print.other": "Tulosta {n} tarraa"
 }

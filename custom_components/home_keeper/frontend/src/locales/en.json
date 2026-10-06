@@ -908,7 +908,7 @@
   "labels.nothingListed": "The list is empty. Change the search or the filter, then try again.",
   "labels.withTasks.one": "Also print a label for each task of these appliances ({n} task)",
   "labels.withTasks.other": "Also print a label for each task of these appliances ({n} tasks)",
-  "labels.sheet": "Label sheet",
+  "labels.sheet": "Label size",
   "labels.paper.letter30": "US Letter, 30 labels (2⅝ × 1 in)",
   "labels.paper.a4_21": "A4, 21 labels (63.5 × 38.1 mm)",
   "labels.skip": "Skip used labels",
@@ -918,6 +918,14 @@
   "labels.line.area": "Area",
   "labels.line.schedule": "Schedule",
   "labels.printHint": "In the print dialog, set the margins to None and the scale to 100%. Then the labels align with the sheet.",
+  "labels.printHintRoll": "In the print dialog, set the margins to None and the scale to 100%. Select Save as PDF to get 1 page for each label. Open that file in the app of your label printer.",
+  "labels.dpiOption": "{dpi} dpi ({dots} dots per mm)",
+  "labels.dpi": "PNG resolution",
+  "labels.rotate": "Rotate the label 90°",
+  "labels.height": "Height (mm)",
+  "labels.width": "Width (mm)",
+  "labels.paper.custom": "Label roll, custom size",
+  "labels.paper.roll": "Label roll, {w} × {h} mm",
   "labels.print.one": "Print {n} label",
   "labels.print.other": "Print {n} labels"
 }
