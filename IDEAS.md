@@ -229,10 +229,11 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **Follow the user's time zone setting.** The panel and the card always show and read
   times in Home Assistant's zone (`setTimeZone(hass.config.time_zone)` in `panel.ts` and
   `card.ts`, X04-7). A user away from home sees times that do not match the clock on the
-  device. Home Assistant has a per-user profile setting for this (`hass.locale.time_zone`:
-  local or server). Use it to show and read times. Keep "due today", overdue and the day
-  counts on Home Assistant's day. The schedule, the to-do list and the calendar use that
-  day. Check which option Home Assistant uses as the default.
+  device. Home Assistant has a per-user profile setting for this, `hass.locale.time_zone`,
+  with the values `local` and `server`. Use this setting to show and read times. Calculate
+  "due today", overdue and the day counts on the day in Home Assistant's zone, because the
+  schedule, the to-do list and the calendar use that day. Check which value Home Assistant
+  uses as the default.
 
 ## Product ideas
 
