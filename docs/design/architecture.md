@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: aa604d26b144
+source_hash: a3d56f56e3ed
 ---
 
 # Architecture
@@ -43,7 +43,7 @@ the tasks through native entities, such as the to-do list and the calendar.
 | Layer | Modules | Rule |
 |---|---|---|
 | Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
-| Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
+| Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
 | Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
 
@@ -93,8 +93,8 @@ A failure in the repair or the prune is logged and does not stop setup.
 `async_unload_entry` unloads the platforms and discards edge state for a disabled entry. It
 closes the store so that a pass from before the unload cannot write over a new store.
 It removes the panel only for a disabled entry, because a reload with no panel sends an
-open page to the default dashboard. `async_remove_entry` removes the panel, the card
-resource, the storage document and the uploaded files.
+open page to the default dashboard. `async_remove_entry` removes the panel, the companion
+tabs, the card resource, the storage document and the uploaded files.
 
 ### Config entry and options
 

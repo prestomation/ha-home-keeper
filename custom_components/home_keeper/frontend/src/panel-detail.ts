@@ -101,12 +101,20 @@ export function detailView(p: PanelHost): string {
   if (!d) return '';
   if (d.kind === 'task') {
     const task = p._tasks.find((x) => x.id === d.id);
-    if (!task) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+    if (!task) return missingDetail(p, `task:${d.id}`);
     return taskDetail(p, task);
   }
   const asset = p._assets.find((x) => x.id === d.id);
-  if (!asset) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+  if (!asset) return missingDetail(p, `asset:${d.id}`);
   return assetDetail(p, asset);
+}
+
+/** A spinner while the panel loads again to look for the item, then the gone alert. */
+function missingDetail(p: PanelHost, key: string): string {
+  if (p._detailLookup === key) {
+    return `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+  }
+  return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
 }
 
 /** Render a URL as a clickable anchor that opens in the browser (new tab). A

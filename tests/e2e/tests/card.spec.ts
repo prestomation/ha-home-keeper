@@ -61,6 +61,41 @@ test.describe('Home Keeper card — dashboard', () => {
     ).toBeVisible();
   });
 
+  test('collapsed and collapse_above start the groups closed (#435)', async ({ page }) => {
+    await openCardDashboard(page);
+    const grouped = page.locator('home-keeper-card').nth(1);
+    await expect(grouped.locator('details.hk-group').first()).toBeVisible({ timeout: 30_000 });
+    type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+    const setConfig = (c: Record<string, unknown>) =>
+      grouped.evaluate((el: ConfigurableCard, cfg) => el.setConfig(cfg), c);
+    const groups = grouped.locator('details.hk-group');
+    const base = { type: 'custom:home-keeper-card', group_by: 'status' };
+
+    // By default every group is open.
+    await setConfig(base);
+    await expect(groups.first()).toHaveJSProperty('open', true);
+
+    // `collapsed` closes all of them. The header and its count stay visible.
+    await setConfig({ ...base, collapsed: true });
+    const total = await groups.count();
+    for (let i = 0; i < total; i++) await expect(groups.nth(i)).toHaveJSProperty('open', false);
+    await expect(groups.first().locator('.hk-group-count')).toBeVisible();
+
+    // A tap opens one group, and it stays open.
+    await groups.first().locator('summary').click();
+    await expect(groups.first()).toHaveJSProperty('open', true);
+
+    // `collapsed_groups` closes only the named group.
+    await setConfig({ ...base, collapsed_groups: ['overdue'] });
+    const overdue = grouped.locator('details[data-group-key="status:overdue"]');
+    await expect(overdue).toHaveJSProperty('open', false);
+    await expect(overdue.locator('.hk-row').first()).toBeHidden();
+
+    // `collapse_above: 0` is off, so every group is open again.
+    await setConfig({ ...base, collapse_above: 0 });
+    await expect(overdue).toHaveJSProperty('open', true);
+  });
+
   test('the label-filtered card shows only labelled tasks, with named label chips', async ({
     page,
   }) => {
@@ -76,6 +111,26 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(dog.locator('.hk-name', { hasText: 'Replace water filter' })).toHaveCount(0);
     // The label chip resolves the id to its registry name ("Dog", not "dog").
     await expect(dog.locator('ha-assist-chip.hk-label').first()).toHaveAttribute('label', 'Dog');
+  });
+
+  test('show_schedule and show_history_count remove the line under the name (#432)', async ({
+    page,
+  }) => {
+    const card = await openCardDashboard(page);
+    const row = card.locator('.hk-row', { hasText: 'Replace fridge filter' });
+    await expect(row.locator('.hk-meta')).toHaveCount(1, { timeout: 30_000 });
+    type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+    await card.evaluate((el: ConfigurableCard) =>
+      el.setConfig({
+        type: 'custom:home-keeper-card',
+        show_schedule: false,
+        show_history_count: false,
+      }),
+    );
+    await expect(row.locator('.hk-name')).toBeVisible();
+    await expect(card.locator('.hk-meta')).toHaveCount(0);
+    // The status chip with the due date stays.
+    await expect(row.locator('.hk-chips ha-assist-chip').first()).toBeVisible();
   });
 
   test('a task surfaces its chosen appliance links as openable chips', async ({ page }) => {

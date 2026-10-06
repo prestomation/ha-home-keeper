@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Companion ignorati",
           "description": "Domini delle integrazioni di collegamento da nascondere dall'elenco «Suggeriti» in Impostazioni → Companions. Ignorare silenzia solo un suggerimento; un abbinamento connesso viene sempre mostrato."
+        },
+        "hidden_panel_tabs": {
+          "name": "Schede del pannello nascoste",
+          "description": "Gli ID delle schede companion che il pannello non mostra."
         }
       }
     },

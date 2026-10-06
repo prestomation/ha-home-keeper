@@ -72,6 +72,13 @@ export default captureConfig('walkthrough.capture.ts', {
   // again with both merged: 3.7m (about 222s) for the desktop walk and 40s for the
   // phone one, in the dev container. 222s plus ~40% is ~311s, so 360s still holds.
   //
+  // The companion panel tab PR added 6 beats to the desktop walk (turn on the Show
+  // switch, open the Library tab, navigate it, turn the switch off). Measured back to
+  // back in the same dev container, each on a fresh container: 4.6m (about 276s)
+  // without the beat and 4.7m (about 282s) with it, so the beat costs about 6-10s. This
+  // container ran the tour about 50s slower than the 222s above with or without the
+  // beat, so the cap stays 360s. A CI run near the cap pays by shortening the walk.
+  //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
   // a fixed duration, so anything that eats the whole budget is a *call that never

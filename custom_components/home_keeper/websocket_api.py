@@ -27,6 +27,7 @@ from . import (
     manuals,
     notifier,
     options,
+    panel_tabs,
 )
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
@@ -247,6 +248,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
+    websocket_api.async_register_command(hass, ws_get_panel_tabs)
     websocket_api.async_register_command(hass, ws_get_profiles)
     websocket_api.async_register_command(hass, ws_list_declarative_companions)
     websocket_api.async_register_command(hass, ws_add_declarative_companion)
@@ -1386,6 +1388,33 @@ async def ws_get_companions(
     """
     connection.send_result(
         msg["id"], {"companions": companions.async_list_companions(hass)}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/get_panel_tabs",
+        vol.Optional("language"): vol.All(str, vol.Length(max=35)),
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_get_panel_tabs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the companion tabs for the panel's tab bar and Settings → Companions.
+
+    Admin-only: only the panel reads it, and a tab is code that runs in the panel.
+    The title of each tab is in *language*, the language of the panel, else in the
+    Home Assistant language, else in English. The registry is on ``hass``, so the
+    command needs no loaded entry. Every tab is in the reply. The panel leaves out
+    the tabs that the ``hidden_panel_tabs`` option names.
+    """
+    language = msg.get("language") or hass.config.language
+    connection.send_result(
+        msg["id"], {"tabs": panel_tabs.async_list_panel_tabs(hass, language)}
     )
 
 

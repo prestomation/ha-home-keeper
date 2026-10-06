@@ -11,6 +11,7 @@ bwt_perla_percent_low
 candy_reading_low
 connectlife_alert_binary_sensor_on
 connectlife_wear_high
+coolmaster_alert_binary_sensor_on
 dantherm_life_low
 device_pulse
 device_stopped_reporting
@@ -24,6 +25,7 @@ eheimdigital_life_low
 electrolux_alert_Change
 electrolux_percent_low
 firmware_update_available
+fjaraskupan_alert_binary_sensor_on
 flexit_bacnet_wear_high
 flexit_wear_high
 fordconnect_query_percent_low
@@ -38,12 +40,14 @@ hass_dyson_percent_low
 home_connect_alert_present
 homeconnect_ws_reading_high
 homeconnect_ws_reading_low
+homee_alert_binary_sensor_on
 homewhiz_alert_binary_sensor_on
 hon_reading_high
 hotspring_life_low
 hotspring_wear_high
 hpprinter_percent_low
 husqvarna_automower_wear_high
+intelliclima_alert_binary_sensor_on
 iqua_softener_percent_low
 landroid_cloud_wear_high
 lg_thinq_alert_replace
@@ -84,6 +88,7 @@ roomba_alert_binary_sensor_on
 roomba_plus_life_low
 salt_sentry_percent_low
 screenlogic_reading_low
+sensibo_alert_binary_sensor_on
 smarthashtag_life_low
 smartthings_alert_binary_sensor_on
 smartthings_reading_high

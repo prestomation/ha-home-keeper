@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.30.0b1]
+## [0.30.0b5]
 
 ### Added
 
@@ -14,6 +14,44 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Print QR code labels for your appliances and tasks, 1 at a time or many on a label
   sheet, and stick them on the appliance. An admin who scans a label opens that page in
   Home Keeper. (Fixes #428)
+
+## [0.30.0b4]
+
+### Added
+
+- **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
+  Companion integrations can add their own tab to the panel. To hide a tab, turn off its
+  switch on the companion row in **Settings → Companions**.
+
+### Fixed
+
+- **New task pages.** A link to a task or an appliance that another surface added after
+  the panel loaded now opens its page. Before, the page showed "This item no longer
+  exists" until a reload.
+
+## [0.30.0b3]
+
+### Added
+
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
+
+## [0.30.0b2]
+
+### Added
+
+- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+  Make a grouped card start with all groups closed, only chosen groups closed, or every
+  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
+
+## [0.30.0b1]
+
+### Added
+
+- **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
+  Turn off **Show schedule** or **Show completion count** in the card editor to remove
+  that text from each row. (Fixes #432)
 
 ## [0.29.0] - 2026-10-04
 

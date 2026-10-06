@@ -5,6 +5,7 @@ import {
   normalizeCardConfig,
   profileMatches,
   sortTasks,
+  startsCollapsed,
   type CardFilter,
   type CardGroupBy,
   type CardSort,
@@ -140,6 +141,9 @@ const S: Record<string, string> = {
   filter: 'Filter',
   sort: 'Sort by',
   group_by: 'Group by',
+  collapsed: 'Start groups closed',
+  collapsed_groups: 'Start these groups closed',
+  collapse_above: 'Start a group closed above (tasks, 0 = off)',
   areas: 'Limit to areas',
   devices: 'Limit to devices',
   labels: 'Limit to labels',
@@ -151,6 +155,8 @@ const S: Record<string, string> = {
   show_notes: 'Show notes',
   show_area: 'Show area / device',
   show_labels: 'Show labels',
+  show_schedule: 'Show schedule',
+  show_history_count: 'Show completion count',
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
@@ -172,6 +178,23 @@ const SORT_OPTS: { value: CardSort; label: string }[] = [
   { value: 'recent', label: 'Recently completed' },
   { value: 'area', label: 'Area' },
 ];
+// The status names for `collapsed_groups`. An area or a device is typed by its id.
+const COLLAPSE_STATUS_OPTS: { value: string; label: string }[] = [
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'shopping', label: 'Shopping' },
+  { value: 'counted', label: 'Counted' },
+  { value: 'today', label: 'Today' },
+  { value: 'soon', label: 'Soon' },
+  { value: 'later', label: 'Later' },
+  { value: 'monitored', label: 'Monitored' },
+  { value: 'none', label: 'No schedule, area or device' },
+  { value: 'disabled', label: 'Disabled' },
+];
+/** One string for the 3 collapse options, to tell when a new config changes them. A group
+ *  key has its own prefix per grouping mode, so `group_by` is not part of it. */
+function collapseSignature(c: HomeKeeperCardConfig): string {
+  return JSON.stringify([c.collapsed, c.collapsed_groups, c.collapse_above]);
+}
 const GROUP_OPTS: { value: CardGroupBy; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'status', label: 'Status' },
@@ -461,7 +484,11 @@ export class HomeKeeperCard extends HTMLElement {
   // The note quick-view dialog: read-only, so it carries only which task it is
   // showing, unlike `_edit` (which also carries the form's draft).
   private _noteView: { open: boolean; task: Task | null } = { open: false, task: null };
+  // The keys of the closed groups. `_seeded` holds the keys already decided from the
+  // collapse options (#435): each group is decided once, so a refresh never closes a
+  // group the user is reading and a toggle by the user always wins.
   private _collapsed = new Set<string>();
+  private _seeded = new Set<string>();
   private _liveHassEls: Array<{ hass?: Hass }> = [];
   private _unsub?: () => void;
   private _subscribing = false;
@@ -498,7 +525,13 @@ export class HomeKeeperCard extends HTMLElement {
       throw new Error('Invalid Home Keeper card configuration');
     }
     const profileBefore = this._config.profile;
+    const collapseBefore = collapseSignature(this._config);
     this._config = normalizeCardConfig(config);
+    // A change to a collapse option starts the groups over from the new options.
+    if (collapseSignature(this._config) !== collapseBefore) {
+      this._collapsed.clear();
+      this._seeded.clear();
+    }
     // A newly chosen profile needs the profile list, or the card cannot apply it
     // until the next refresh (F05-4).
     if (this._loaded && this._config.profile && this._config.profile !== profileBefore) {
@@ -1045,6 +1078,10 @@ export class HomeKeeperCard extends HTMLElement {
     }
     return groups
       .map((g) => {
+        if (!this._seeded.has(g.key)) {
+          this._seeded.add(g.key);
+          if (startsCollapsed(g, this._config)) this._collapsed.add(g.key);
+        }
         const open = this._collapsed.has(g.key) ? '' : 'open';
         return `
           <details class="hk-group" data-group-key="${escapeHTML(g.key)}" ${open}>
@@ -1242,8 +1279,15 @@ export class HomeKeeperCard extends HTMLElement {
         )
         .join('');
     }
+    // The line under the name: the schedule and the completion count. Each part has
+    // its own row setting (#432). If both are off, the line is not rendered.
     const n = task.completions?.length ?? 0;
-    const meta = `${escapeHTML(recurrenceSummary(task))}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
+    const metaParts: string[] = [];
+    if (this._config.show_schedule !== false) metaParts.push(escapeHTML(recurrenceSummary(task)));
+    if (n && this._config.show_history_count !== false) {
+      metaParts.push(escapeHTML(tn('history.count', n)));
+    }
+    const meta = metaParts.length ? `<div class="hk-meta">${metaParts.join(' · ')}</div>` : '';
     const notes =
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
@@ -1277,7 +1321,7 @@ export class HomeKeeperCard extends HTMLElement {
         <div class="grow">
           ${this._coverHtml(task)}
           <div class="hk-name">${escapeHTML(task.name)}</div>
-          <div class="hk-meta">${meta}</div>
+          ${meta}
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${noteChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
@@ -1639,6 +1683,26 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'group_by', selector: selSelect(GROUP_OPTS) },
         ],
       },
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          { name: 'collapsed', selector: selBool() },
+          { name: 'collapse_above', selector: selNumber(0) },
+        ],
+      },
+      {
+        name: 'collapsed_groups',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: COLLAPSE_STATUS_OPTS,
+            multiple: true,
+            custom_value: true,
+            sort: false,
+          },
+        },
+      },
       { name: 'areas', selector: selArea(true) },
       { name: 'devices', selector: selDevice(true) },
       { name: 'labels', selector: selLabel(true) },
@@ -1660,6 +1724,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'show_notes', selector: selBool() },
           { name: 'show_area', selector: selBool() },
           { name: 'show_labels', selector: selBool() },
+          { name: 'show_schedule', selector: selBool() },
+          { name: 'show_history_count', selector: selBool() },
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },

@@ -653,10 +653,27 @@ export interface HomeKeeperOptions {
   shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
+  // The ids of the companion panel tabs that the tab bar leaves out.
+  hidden_panel_tabs?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications
   // that consume them.
   profiles: Profile[];
   notifications: Notification[];
+}
+
+/**
+ * A tab that a companion integration adds to the panel, as `home_keeper/get_panel_tabs`
+ * sends it. The title is in the language of the panel. See the backend `panel_tabs.py`.
+ */
+export interface PanelTabInfo {
+  id: string;
+  companion: string;
+  title: string;
+  icon: string;
+  module_url: string;
+  element: string;
+  host_api: number;
+  order: number;
 }
 
 /**

@@ -48,6 +48,7 @@ _FULL: dict[str, Any] = {
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: ["kitchen"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-1"],
     const.OPTION_DISMISSED_COMPANIONS: ["acme_vacuum"],
+    const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [
         {
             "id": "p1",
@@ -102,6 +103,7 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
         const.OPTION_PROFILES,
         const.OPTION_NOTIFICATIONS,
         const.OPTION_DISMISSED_COMPANIONS,
+        const.OPTION_HIDDEN_PANEL_TABS,
     ):
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
@@ -214,6 +216,7 @@ _PROBES: dict[str, Any] = {
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: ["area-x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-x"],
     const.OPTION_DISMISSED_COMPANIONS: ["some_domain"],
+    const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [{"id": "px", "name": "X", "filter": {"status": "all"}}],
     const.OPTION_NOTIFICATIONS: [{"id": "nx", "name": "X", "profile_id": "px"}],
 }
@@ -383,6 +386,7 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "problem_sensor_exclude_areas": [],
         "problem_sensor_exclude_labels": [],
         "dismissed_companions": [],
+        "hidden_panel_tabs": [],
     }
 
 

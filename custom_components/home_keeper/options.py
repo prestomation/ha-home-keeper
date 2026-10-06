@@ -33,6 +33,7 @@ from .const import (
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
@@ -49,13 +50,15 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-# The exclusion options (and the dismissed-companions list) are id/domain lists.
+# The exclusion options, the dismissed-companions list and the hidden panel tabs are
+# id/domain lists.
 _LIST_OPTIONS = (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_HIDDEN_PANEL_TABS,
 )
 
 # The plain on/off options. ``_normalize`` coerces each with ``bool()`` when a

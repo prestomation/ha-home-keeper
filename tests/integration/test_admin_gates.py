@@ -841,3 +841,10 @@ def test_the_key_list_refuses_a_non_admin(non_admin_token):
     )
     assert not msg.get("success"), "a non-admin read the entity keys"
     assert msg["error"]["code"] == "unauthorized", msg
+
+
+def test_the_panel_tab_list_refuses_a_non_admin(non_admin_token):
+    # A tab is code that runs in the admin panel, and only the panel reads the list.
+    msg = ws_send(non_admin_token, {"type": "home_keeper/get_panel_tabs"})
+    assert not msg.get("success"), "a non-admin read the panel tabs"
+    assert msg["error"]["code"] == "unauthorized", msg

@@ -73,6 +73,8 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   coordinator, and set a silent baseline on startup so a restart replays nothing.
 - Backfilled history from an import fires no completion event.
 - An event needs no new service. It observes a change that a service already makes.
+- A change to in-memory registration that is not store state, such as the panel tab
+  registry, fires no event. Give the reason in its `SURFACE_KINDS` row.
 
 ## The declared surface
 

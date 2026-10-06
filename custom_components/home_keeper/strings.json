@@ -869,6 +869,10 @@
         "dismissed_companions": {
           "name": "Dismissed companions",
           "description": "Glue integration domains to hide from the Settings → Companions \"Suggested\" list. Dismissing only silences a suggestion. A connected pairing is always shown."
+        },
+        "hidden_panel_tabs": {
+          "name": "Hidden panel tabs",
+          "description": "The IDs of the companion tabs that the panel does not show."
         }
       }
     },

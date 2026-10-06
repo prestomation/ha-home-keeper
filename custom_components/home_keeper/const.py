@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.30.0b1"
+PANEL_VERSION = "0.30.0b5"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -322,6 +322,10 @@ OPTION_ALLOW_DUE_TODAY = "allow_due_today"  # bool, default True
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
+# The ids of the companion panel tabs that the admin hid from the panel's tab bar. A
+# list of tab id strings. An id of a tab that is not registered stays stored, so the
+# tab stays hidden when its companion registers it again. See panel_tabs.py.
+OPTION_HIDDEN_PANEL_TABS = "hidden_panel_tabs"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
 # the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the
@@ -632,6 +636,14 @@ EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
 # upstream's glue is first suggested. Payload built by events.companion_event_data.
 EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
+
+# ── Companion panel tabs ───────────────────────────────────────────────────────
+# A companion integration adds a tab to the panel through the Python API in
+# panel_tabs.py. The registry is in memory on ``hass.data`` for the Home Assistant
+# run, so an entry reload keeps the tabs. The removal of the entry clears it.
+DATA_PANEL_TABS = f"{DOMAIN}_panel_tabs"
+# Upper bound on how many tabs the registry holds.
+MAX_PANEL_TABS = 20
 
 # ── Declarative companions ─────────────────────────────────────────────────────
 # A **declarative companion** is a Home-Keeper-owned spec (target integration +

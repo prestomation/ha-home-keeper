@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Companions ignorés",
           "description": "Domaines d'intégration de liaison à masquer de la liste « Suggéré » de Paramètres → Companions. Ignorer ne fait que masquer une suggestion ; un appairage connecté est toujours affiché."
+        },
+        "hidden_panel_tabs": {
+          "name": "Onglets du panneau masqués",
+          "description": "Les identifiants des onglets de companions que le panneau n'affiche pas."
         }
       }
     },

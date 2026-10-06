@@ -1477,8 +1477,94 @@ export function isCompletedOneOff(
 
 // ── panel routing ────────────────────────────────────────────────────────────
 
-/** The navigable list view; mirrors the panel's two tabs. */
-export type PanelView = 'tasks' | 'appliances' | 'settings';
+/** The navigable view: the panel's own tabs, or a companion tab (`tab`). */
+export type PanelView = 'tasks' | 'appliances' | 'settings' | 'tab';
+
+/**
+ * The first URL segments that a companion tab id can never be: the 3 that the panel
+ * routes itself, then the segments that Home Keeper keeps for pages it can add later,
+ * such as a launcher that holds many tabs. The backend keeps the same list in
+ * `panel_tabs.RESERVED_TAB_IDS`, and `panel-tab-ids-parity.test.js` compares the 2.
+ */
+export const RESERVED_TAB_IDS = [
+  'tasks',
+  'appliances',
+  'settings',
+  'apps',
+  'calendar',
+  'companions',
+  'dashboard',
+  'help',
+  'history',
+  'more',
+  'notifications',
+  'overview',
+  'profiles',
+  'search',
+] as const;
+
+/** A companion tab id, the same pattern as `panel_tabs.TAB_ID_PATTERN`. */
+export const PANEL_TAB_ID_RE = /^[a-z][a-z0-9-]{1,30}$/;
+
+/**
+ * The version of the host object that the panel gives to a companion tab. A tab
+ * that needs a higher version shows a message to update Home Keeper.
+ */
+export const PANEL_HOST_API = 1;
+
+/**
+ * Normalize the path inside a companion tab: `/a/b`, or `''` for the tab root.
+ *
+ * The result can never leave the tab. A `.` or `..` segment is removed, a backslash
+ * counts as a slash, empty segments are removed, and a query or a fragment is cut
+ * off, because the panel route has only a path.
+ */
+export function normalizeTabPath(path: unknown): string {
+  const raw = String(path ?? '')
+    .split(/[?#]/)[0]
+    .replace(/\\/g, '/');
+  const segments = raw.split('/').filter((s) => s && s !== '.' && s !== '..');
+  return segments.length ? `/${segments.join('/')}` : '';
+}
+
+/**
+ * The panel route of a link, or null if the link goes to another place.
+ *
+ * *href* is resolved against *origin*. The result is the part after *prefix*
+ * (`/tasks/t1`, or `''` for the panel root). Another origin, or a path outside the
+ * prefix, gives null, so the browser opens it as usual.
+ */
+export function panelSubPath(href: string, origin: string, prefix: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(href, origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== origin) return null;
+  if (url.pathname === prefix) return '';
+  return url.pathname.startsWith(`${prefix}/`) ? url.pathname.slice(prefix.length) : null;
+}
+
+/**
+ * The companion tabs that the tab bar shows: every tab that is not hidden, sorted by
+ * `order`, then by title, then by id. The backend sends them in this order too, and
+ * the sort here keeps the order also if that changes.
+ */
+export function visiblePanelTabs<T extends { id: string; title: string; order: number }>(
+  tabs: readonly T[],
+  hidden: readonly string[] | null | undefined,
+): T[] {
+  const off = new Set(hidden ?? []);
+  return tabs
+    .filter((tab) => !off.has(tab.id))
+    .sort(
+      (a, b) =>
+        a.order - b.order ||
+        a.title.toLowerCase().localeCompare(b.title.toLowerCase()) ||
+        a.id.localeCompare(b.id),
+    );
+}
 
 /**
  * The sub-tabs an appliance's detail page is divided into. Each is a URL of its own,
@@ -1540,6 +1626,10 @@ export interface PanelLocation {
   view: PanelView;
   detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab; part?: string } | null;
   section?: SettingsSection;
+  /** The companion tab id, when `view` is `tab`. */
+  tab?: string;
+  /** The path inside the companion tab (`/a/b`, or `''` for its root). */
+  path?: string;
 }
 
 /**
@@ -1581,6 +1671,20 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
+  // An unknown first segment that has the shape of a companion tab id is kept, so it
+  // can resolve when the tab list loads. The panel goes to the task list if no tab
+  // has the id.
+  const first = parts[0];
+  if (
+    first &&
+    PANEL_TAB_ID_RE.test(first) &&
+    !(RESERVED_TAB_IDS as readonly string[]).includes(first)
+  ) {
+    // Only spaces and slashes come before the first segment, so its first match is it.
+    const raw = String(path);
+    const rest = raw.slice(raw.indexOf(first) + first.length);
+    return { view: 'tab', detail: null, tab: first, path: normalizeTabPath(rest) };
+  }
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
   if (view === 'settings') {
@@ -1636,6 +1740,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
+  if (loc.view === 'tab') return `/${loc.tab ?? ''}${normalizeTabPath(loc.path)}`;
   if (loc.view === 'settings') {
     return loc.section ? `/settings/${loc.section}` : '/settings';
   }

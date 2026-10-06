@@ -51,10 +51,19 @@ import type {
   DeclarativeCompanionPreset,
   Hass,
   HomeKeeperOptions,
+  PanelTabInfo,
   Task,
 } from './types';
 import type { TaskLayout } from './task-layout';
-import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
+import type { PanelTabRuntime } from './panel-tabs';
+import type {
+  AssetTab,
+  BtnWeight,
+  PanelLocation,
+  PanelView,
+  SettingsSection,
+  TaskTab,
+} from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -212,6 +221,9 @@ export interface PanelHost extends HTMLElement {
   ): HaFormElement;
   /** Navigate within the panel; `replace` for a lateral move that Back should skip. */
   _navigate(loc: PanelLocation, replace?: boolean): void;
+  /** Whether Home Assistant shows the panel in its narrow layout. A companion tab
+   *  gets the value. */
+  readonly narrow: boolean;
   /** The full panel URL for a location (prefix included). */
   _hrefFor(loc: PanelLocation): string;
   /** A detail page's Notes card contents — rendered Markdown, or the inline editor. */
@@ -249,6 +261,15 @@ export interface PanelHost extends HTMLElement {
   _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
+  /** The companion tab that the URL names, with the path inside it; null elsewhere. */
+  _panelTab: { id: string; path: string } | null;
+  /** The `kind:id` of a detail page that the loaded lists did not have, while the
+   *  panel loads again to look for it. `detailView` shows a spinner then. */
+  _detailLookup: string | null;
+  /** Every registered companion tab, hidden ones included (Settings lists them all). */
+  _panelTabs: PanelTabInfo[];
+  /** The companion tab elements and their load states, kept while the panel lives. */
+  _tabRuntime: PanelTabRuntime;
   /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
   _ownTodoEntities: string[];
   /** The saved Profile id the task list is filtered by ('' = none). */
@@ -324,7 +345,7 @@ export interface PanelHost extends HTMLElement {
   /** Pending "the upload has run long enough to show a bar" timer. */
   _uploadShowTimer?: ReturnType<typeof setTimeout>;
   /** Which top-level tab is showing. */
-  _view: 'tasks' | 'appliances' | 'settings';
+  _view: PanelView;
   /** Wire a detail page's inline notes editor (buttons + live preview). Stays on the
    *  panel: the preview it builds must be registered in `_previews` for disposal. */
   _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void;

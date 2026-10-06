@@ -52,6 +52,19 @@ import {
 } from './panel-settings';
 import { STYLES } from './panel-styles';
 import { renderTaskForm } from './panel-task-form';
+import {
+  bottomTabs as companionBottomTabs,
+  currentTab,
+  feedTabsHass,
+  feedTabsNarrow,
+  mountTab,
+  newTabRuntime,
+  routeOpenTab,
+  tabArea,
+  topTabs as companionTopTabs,
+  wireTabBars,
+  type PanelTabRuntime,
+} from './panel-tabs';
 import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
@@ -89,6 +102,7 @@ import type {
   HomeKeeperOptions,
   ManagedBy,
   PanelInfo,
+  PanelTabInfo,
   PortableDocument,
   Profile,
   Task,
@@ -118,6 +132,7 @@ import {
   RELOAD_RETRY_MS,
   setTimeZone,
   hkStateSignal,
+  visiblePanelTabs,
 } from './utils';
 
 
@@ -159,6 +174,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       | null
       | undefined;
     if (mb) mb.narrow = value;
+    feedTabsNarrow(this, value);
   }
   get narrow(): boolean {
     return this._narrow;
@@ -223,7 +239,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _uploadShowTimer?: ReturnType<typeof setTimeout>;
   // One-shot: the upload-error key to scroll to on the next render.
   _scrollToError?: string;
-  _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
+  _view: PanelView = 'tasks';
+  // Every companion tab that a companion registered (loaded with the rest), the tab
+  // that the URL names with the path inside it (null on the panel's own views), and
+  // the elements and load states of the tabs, kept while the panel lives.
+  _panelTabs: PanelTabInfo[] = [];
+  _panelTab: { id: string; path: string } | null = null;
+  _tabRuntime: PanelTabRuntime = newTabRuntime();
   // Integration options for the Settings tab (loaded lazily with the rest).
   _options: HomeKeeperOptions | null = null;
   // Available mobile_app_* notify services (for the Notifications profile editor).
@@ -316,6 +338,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // reload — so without coalescing they can pass the check and run two concurrent full
   // loads. Callers await the same promise, so none no-ops and all see a completed render.
   private _refreshing: Promise<void> | null = null;
+  _detailLookup: string | null = null;
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
@@ -355,6 +378,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._hass = hass;
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
+    feedTabsHass(this, hass);
     if (first && !this._loaded) void this._refresh();
     else this._liveRefresh(hass);
   }
@@ -411,7 +435,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Adopt a parsed location into view/detail state, rendering only on change. */
   private _applyLocation(loc: PanelLocation): void {
     const section = loc.section ?? null;
+    const tabLoc = loc.view === 'tab' && loc.tab ? { id: loc.tab, path: loc.path ?? '' } : null;
+    // A move inside the open companion tab gives its element the new path. The panel
+    // around it stays as it is, so the tab keeps its own state.
+    if (tabLoc && this._view === 'tab' && this._panelTab?.id === tabLoc.id) {
+      if (this._panelTab.path !== tabLoc.path) {
+        this._panelTab = tabLoc;
+        routeOpenTab(this);
+      }
+      return;
+    }
+    // After the load, a tab id that no shown tab has goes to the task list.
+    if (tabLoc && this._loaded && !this._tabShown(tabLoc.id)) {
+      this._navigate({ view: 'tasks', detail: null }, true);
+      this._applyLocation({ view: 'tasks', detail: null });
+      return;
+    }
     const changed =
+      tabLoc?.id !== this._panelTab?.id ||
       loc.view !== this._view ||
       loc.detail?.kind !== this._detail?.kind ||
       loc.detail?.id !== this._detail?.id ||
@@ -437,6 +478,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._view = loc.view;
     this._detail = loc.detail;
     this._settingsSection = section;
+    this._panelTab = tabLoc;
     if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._setEdit({ open: false, task: null });
@@ -457,7 +499,35 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
     // Arriving at the task list is the other moment the suggestion dialog may open.
     if (loc.view === 'tasks' && !loc.detail) this._offerPresets();
+    this._lookUpDetail(loc.detail);
     this._render();
+  }
+
+  /**
+   * Load once more when the URL names a task or an appliance that the loaded lists do
+   * not have. Another surface can have added it after the last load, for example a
+   * companion tab that opens the task it just made. The page shows a spinner during
+   * the load, and the gone alert only if the item is still missing after it.
+   */
+  private _lookUpDetail(detail: PanelLocation['detail']): void {
+    if (!detail || !this._loaded) return;
+    const list: { id: string }[] = detail.kind === 'task' ? this._tasks : this._assets;
+    if (list.some((x) => x.id === detail.id)) return;
+    const key = `${detail.kind}:${detail.id}`;
+    if (this._detailLookup === key) return;
+    this._detailLookup = key;
+    void this._refresh().finally(() => {
+      if (this._detailLookup !== key) return;
+      this._detailLookup = null;
+      this._render();
+    });
+  }
+
+  /** Whether the tab bar shows the companion tab *id*. */
+  private _tabShown(id: string): boolean {
+    return visiblePanelTabs(this._panelTabs, this._options?.hidden_panel_tabs).some(
+      (tab) => tab.id === id,
+    );
   }
 
   /** Open the preset suggestion dialog when the page and the state allow it. */
@@ -938,6 +1008,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         tags,
         presets,
         presetNudge,
+        panelTabs,
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
@@ -965,6 +1036,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           ? Promise.resolve(null)
           : this._soft(api.listDeclarativePresets(this._hass), null),
         this._soft(api.getPresetNudge(this._hass), null),
+        // The companion tabs. A failed read shows the panel with no companion tab.
+        this._soft(api.getPanelTabs(this._hass), [] as PanelTabInfo[]),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -974,6 +1047,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
+      this._panelTabs = panelTabs ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
       if (!this._taskLayoutPicked) this._taskLayout = taskLayout;
@@ -1031,6 +1105,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         // The suggestion dialog opens on the first load only, never after an action's
         // refresh: a modal must not land in the middle of what the user is doing.
         if (!wasLoaded && this._loaded) this._offerPresets();
+        // The URL can name a companion tab that is not registered, or that the load
+        // left out. Then the panel goes to the task list.
+        if (this._loaded && this._panelTab && !this._tabShown(this._panelTab.id)) {
+          this._navigate({ view: 'tasks', detail: null }, true);
+          this._applyLocation({ view: 'tasks', detail: null });
+        }
         this._render();
       } finally {
         this._refreshing = null;
@@ -1943,6 +2023,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
         ${detailView(this)}`;
+    } else if (this._view === 'tab' && currentTab(this)) {
+      // A companion tab: the tab bar, and the area that `mountTab` fills in `_hydrate`.
+      inner = `
+        ${this._tabs()}
+        ${tabArea()}`;
+    } else if (this._view === 'tab') {
+      // The tab list has not loaded, or the redirect to the task list is on its way.
+      inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
     } else if (this._view === 'settings') {
       // Three things, all rendered at every width, with CSS choosing between them: an
       // anchor rail naming every section and what it is set to, a section index for a
@@ -2213,6 +2301,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <ha-tab-group>
         <ha-tab-group-tab id="tab-tasks" panel="tasks" ${v === 'tasks' ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
         <ha-tab-group-tab id="tab-appliances" panel="appliances" ${v === 'appliances' ? 'active' : ''}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
+        ${companionTopTabs(this)}
         <ha-tab-group-tab id="tab-settings" panel="settings" ${v === 'settings' ? 'active' : ''}>${escapeHTML(t('tab.settings'))}</ha-tab-group-tab>
       </ha-tab-group>`;
   }
@@ -2236,6 +2325,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <nav class="hk-bottombar" aria-label="${escapeHTML(t('app.title'))}">
         ${tab('tasks', 'mtab-tasks', t('tab.tasks'))}
         ${tab('appliances', 'mtab-appliances', t('tab.appliances'))}
+        ${companionBottomTabs(this)}
         ${tab('settings', 'mtab-settings', t('tab.settings'))}
       </nav>`;
   }
@@ -2309,6 +2399,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         }
       }),
     );
+    // The companion tabs in both tab bars, and the open companion tab's element.
+    wireTabBars(this, root);
+    mountTab(this, root);
 
     // A detail page's own controls: back, its action buttons, device chips and
     // completion-delete buttons. A task detail is a page of its own and stops here

@@ -13,6 +13,7 @@ import type {
   HomeKeeperOptions,
   NotifyRun,
   NotifyRunOptions,
+  PanelTabInfo,
   Part,
   PortableDocument,
   Profile,
@@ -44,6 +45,18 @@ export async function getCompanions(hass: Hass): Promise<Companion[]> {
     type: 'home_keeper/get_companions',
   });
   return res?.companions ?? [];
+}
+
+/**
+ * Read the companion panel tabs, with each title in the language of the panel.
+ * Admin-only, like the panel.
+ */
+export async function getPanelTabs(hass: Hass): Promise<PanelTabInfo[]> {
+  const res = await hass.callWS<{ tabs: PanelTabInfo[] }>({
+    type: 'home_keeper/get_panel_tabs',
+    ...(hass.language ? { language: hass.language } : {}),
+  });
+  return res?.tabs ?? [];
 }
 
 export async function getTasks(hass: Hass): Promise<Task[]> {

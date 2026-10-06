@@ -44,6 +44,36 @@ To add a companion or a [glue integration](../../GLUE_INTEGRATIONS.md) to the ca
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](../../images/21-panel-companions.png)
 
+##### Panel tabs
+
+Home Keeper supports companion integrations that add a tab to the panel. An example is
+Home Keeper Library, which tracks books. The tab shows between **Appliances** and
+**Settings**. Only an admin sees the panel, so only an admin sees the tab.
+
+![The panel with a companion tab named Library open, between Appliances and Settings](../../images/79-panel-companion-tab.png)
+
+The row of a companion that owns a tab has a **Panel tab** chip and a **Show** switch with
+the name of the tab. To hide the tab:
+
+1. Open **Settings → Companions** in the panel.
+2. Find the row of the companion that owns the tab.
+3. Turn off the **Show** switch of the tab.
+
+The tab is removed from the tab bar. The companion and its data stay. To show the tab
+again, turn the switch on. The `hidden_panel_tabs` field of `home_keeper.set_options` holds
+the IDs of the hidden tabs.
+
+![A companion row with the Connected and Panel tab chips and the Show Library tab switch](../../images/79b-panel-companion-tab-settings.png)
+
+On a phone, the tab is in the bottom tab bar.
+
+![The companion tab on a phone, with Library in the bottom tab bar](../../images/79c-panel-mobile-companion-tab.png)
+
+A tab can show a message in place of its content:
+
+- A message to update Home Keeper, if the tab needs a newer version.
+- An error with a **Retry** button, if the tab does not load.
+
 ##### Declarative companions (config-driven, no separate integration)
 
 A **declarative companion** targets an integration, or it matches entities through an
@@ -249,7 +279,7 @@ These integrations have presets:
 
 | Type of device | Integrations |
 |---|---|
-| Air and ventilation | Actron Air, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
+| Air and ventilation | Actron Air, CoolMasterNet, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Fjäråskupan, Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), homee, IKEA Trådfri (STARKVIND), IntelliClima, Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Sensibo, Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
 | Cars | Bosch eBike (Smart System & eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda) |
 | Garden and pool | Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision |
 | Heating and water | AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare |

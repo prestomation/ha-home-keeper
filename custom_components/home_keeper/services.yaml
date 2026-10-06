@@ -1582,6 +1582,12 @@ set_options:
       selector:
         text:
           multiple: true
+    hidden_panel_tabs:
+      name: Hidden panel tabs
+      description: The IDs of the companion tabs that the panel does not show.
+      selector:
+        text:
+          multiple: true
 
 register_companion:
   name: Register companion

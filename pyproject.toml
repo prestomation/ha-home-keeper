@@ -111,6 +111,9 @@ only_mutate = [
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",
+    # The companion panel tab contract: validation, titles and the registry. Imports
+    # Home Assistant only under ``TYPE_CHECKING``; driven by tests/unit/test_panel_tabs.py.
+    "custom_components/home_keeper/panel_tabs.py",
     # Declarative-companion logic: spec normalization, selection/expansion,
     # and the reconcile diff. Pure and covered by tests/unit/test_declarative_companions.py.
     # The HA-bound reconciler that wires it up (``declarative_companion_sync.py``) is

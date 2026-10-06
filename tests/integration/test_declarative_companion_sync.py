@@ -1051,7 +1051,10 @@ def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history(ha, specs
         assert off["source"]["declarative_companion"].get("paused") is True
     finally:
         _set_entity_disabled(ha, DEVICE_BATTERY, False)
-    back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True)
+    # Home Assistant reloads the entry of an entity that is enabled again only after
+    # 30 s (RELOAD_AFTER_UPDATE_DELAY). SETTLE left 15 s for the reload and the
+    # reconcile pass, and a slow CI runner went past it.
+    back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True, timeout=90)
     assert back["id"] == task["id"], "enabling the entity must bring the same task back"
     _wait_for_state(ha, DEVICE_BATTERY)
 
