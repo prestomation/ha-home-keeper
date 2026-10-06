@@ -791,7 +791,8 @@ export const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
-  .hk-comp-tab-switch { margin-top: 4px; }
+  /* The switch sits next to its label, not at the far edge of the text column. */
+  .hk-comp-tab-switch { margin-top: 4px; width: fit-content; max-width: 100%; }
   /* A companion tab: its element fills the content column. */
   .hk-tab-host { display: block; min-height: 120px; }
   .hk-tab-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
