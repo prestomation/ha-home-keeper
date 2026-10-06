@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Afviste ledsagere",
           "description": "Glue-integrationsdomæner, der skal skjules fra listen \"Foreslået\" under Indstillinger → Ledsagere. Afvisning dæmper kun et forslag; en tilsluttet parring vises altid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skjulte panelfaner",
+          "description": "ID'erne på de ledsagerfaner, som panelet ikke viser."
         }
       }
     },

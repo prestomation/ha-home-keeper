@@ -781,6 +781,23 @@ export const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
+  /* A companion that owns a panel tab: the accent pair, like the other info chips. */
+  ha-assist-chip.hk-comp-tab {
+    --ha-assist-chip-container-color: var(--hk-accent-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-accent-soft);
+    --md-assist-chip-label-text-color: var(--hk-accent-ink);
+    --ha-assist-chip-label-text-color: var(--hk-accent-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
+  .hk-comp-tab-switch { margin-top: 4px; }
+  /* A companion tab: its element fills the content column. */
+  .hk-tab-host { display: block; min-height: 120px; }
+  .hk-tab-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hk-bottomtab-label {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;

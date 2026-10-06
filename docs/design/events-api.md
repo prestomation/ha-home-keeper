@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: aea56fd14904
+source_hash: 1e72451349d5
 ---
 
 # Events and API surface
@@ -97,10 +97,11 @@ but only to choose which triggers to offer.
 service. With no loaded entry, a handler raises `integration_not_loaded`. Read services
 use `SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold all labels.
 
-`websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
-codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets
-no later translation. Each `WebsocketSpec` names its service twin, if there is one.
+`websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error codes.
+`backend_i18n.resolve_exception` localizes the text, because a websocket error gets no later
+translation. Each `WebsocketSpec` names its service twin, if there is one.
 `home_keeper/sign_task_photo_urls` signs a list, and its twin signs 1 photo.
+`home_keeper/get_panel_tabs` has no twin ([panel-tabs](panel-tabs.md)).
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.
@@ -114,9 +115,8 @@ the key unchanged, so the not-found error quotes the user's text. A delete of an
 uuid succeeds (`resolve.looks_like_id`).
 
 `service_errors.store_errors` turns a store `KeyError`, `TaskValidationError` or
-`AssetValidationError` into a `ServiceValidationError` with a translation key. The
-innermost id given picks the key: `unknown_task_photo` or `unknown_part` before
-`asset_not_found`.
+`AssetValidationError` into a `ServiceValidationError` with a translation key. The innermost id
+given picks the key: `unknown_task_photo` or `unknown_part` before `asset_not_found`.
 
 ### The declared surface
 

@@ -37,6 +37,7 @@ _FULL: dict[str, Any] = {
     const.OPTION_ONE_OFF_RETENTION_DAYS: 30,
     const.OPTION_SHOPPING_LIST_ENTITY: "todo.kitchen_list",
     const.OPTION_DISMISSED_COMPANIONS: ["acme_vacuum"],
+    const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [
         {"id": "p1", "name": "My chores", "filter": {"status": "overdue"}}
     ],
@@ -171,6 +172,8 @@ def test_saving_the_form_preserves_the_panel_options() -> None:
     assert saved[const.OPTION_PROFILES] == expected[const.OPTION_PROFILES]
     assert saved[const.OPTION_NOTIFICATIONS] == expected[const.OPTION_NOTIFICATIONS]
     assert saved[const.OPTION_DISMISSED_COMPANIONS] == ["acme_vacuum"]
+    # The options flow does not render the hidden tabs, so a save keeps them.
+    assert saved[const.OPTION_HIDDEN_PANEL_TABS] == ["library"]
     assert saved[const.OPTION_ONE_OFF_RETENTION_DAYS] == 7
     assert saved[const.OPTION_SYNC_PROBLEM_SENSORS] is False
     assert saved[const.OPTION_SHOPPING_LIST_ENTITY] == ""

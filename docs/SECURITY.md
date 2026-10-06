@@ -61,6 +61,20 @@ websocket command and the service.
 Home Keeper trusts calls with no user, such as a scheduled automation, the
 same way Home Assistant does.
 
+## Companion panel tabs
+
+A companion integration can add a tab to the panel. A tab is JavaScript that runs in the
+admin panel with the session of the admin. For this reason, only Python code that runs in
+the Home Assistant process can add a tab, through `panel_tabs.async_register_panel_tab`.
+That code already has full access to Home Assistant, so the API adds no new risk.
+
+The `home_keeper.register_companion` service does not accept a tab. Any user with service
+access can call that service.
+
+Home Keeper accepts only a same-origin module path for a tab, with no scheme and no `..`
+segment. The `home_keeper/get_panel_tabs` websocket command is admin-only, and only an
+admin sees the panel and its tabs.
+
 ## Open to any signed-in user
 
 Any signed-in user can use these surfaces:

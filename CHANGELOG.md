@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b4]
+
+### Added
+
+- **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
+  Companion integrations can add their own tab to the panel. To hide a tab, turn off its
+  switch on the companion row in **Settings → Companions**.
+
+### Fixed
+
+- **New task pages.** A link to a task or an appliance that another surface added after
+  the panel loaded now opens its page. Before, the page showed "This item no longer
+  exists" until a reload.
+
 ## [0.30.0b3]
 
 ### Added

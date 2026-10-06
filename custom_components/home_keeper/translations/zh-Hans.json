@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "已忽略的搭档",
           "description": "要从 设置 → 搭档 的“建议”列表中隐藏的粘合集成域。忽略仅会静默某个建议；已连接的配对始终会显示。"
+        },
+        "hidden_panel_tabs": {
+          "name": "隐藏的面板标签页",
+          "description": "面板不显示的伴侣标签页的 ID。"
         }
       }
     },

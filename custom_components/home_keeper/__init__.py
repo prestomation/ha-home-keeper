@@ -45,6 +45,7 @@ from . import (
     notifier,
     options,
     panel,
+    panel_tabs,
     profiles,
     recurrence,
     sensor_tasks,
@@ -62,6 +63,7 @@ from .const import (
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
@@ -825,6 +827,8 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
+        # The ids of the companion panel tabs that the panel does not show.
+        vol.Optional(OPTION_HIDDEN_PANEL_TABS): vol.All(cv.ensure_list, [cv.string]),
         # Profiles (saved filters, each carrying the to-do list it syncs onto) and
         # notifications (delivery) — the panel saves each whole list; normalization
         # happens in the matching profiles/notifications.normalize_* helper.
@@ -2177,6 +2181,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # at a backend that is never coming back.
     panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
+    # The companion tabs live for the Home Assistant run, like the sidebar panel, so
+    # a reload keeps them. With no Home Keeper entry, no panel shows them.
+    panel_tabs.async_clear_panel_tabs(hass)
     discard_edge_state(hass, entry.entry_id)
     async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)

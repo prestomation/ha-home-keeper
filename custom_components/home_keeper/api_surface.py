@@ -814,6 +814,10 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/get_options"),
     WebsocketSpec("home_keeper/set_options", admin_only=True, service="set_options"),
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
+    # The companion panel tabs. It has no service twin, because a tab is not data:
+    # a companion registers it in process (``panel_tabs.async_register_panel_tab``).
+    # Admin-only, because only the panel reads it and a tab is code for the panel.
+    WebsocketSpec("home_keeper/get_panel_tabs", admin_only=True),
     WebsocketSpec("home_keeper/get_profiles", service="list_profiles"),
     WebsocketSpec(
         "home_keeper/list_declarative_companions",
@@ -897,6 +901,7 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, in_flow=True),
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, in_flow=True),
     OptionSpec(const.OPTION_DISMISSED_COMPANIONS, in_flow=False),
+    OptionSpec(const.OPTION_HIDDEN_PANEL_TABS, in_flow=False),
 )
 
 
@@ -974,6 +979,13 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "published",
         "Integrations that work with Home Keeper self-register via "
         "`register_companion`, or are detected from a curated catalog.",
+    ),
+    SurfaceKind(
+        "Companion panel tabs",
+        "published",
+        "A companion integration adds a tab to the panel with the in-process Python "
+        "API `panel_tabs.async_register_panel_tab`; the registry is memory for the "
+        "Home Assistant run, not store state, so a change fires no bus event.",
     ),
     SurfaceKind(
         "Test helper",

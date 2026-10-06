@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Companions dispensados",
           "description": "Domínios de integrações de conexão a ocultar da lista \"Sugeridos\" em Configurações → Companions. Dispensar apenas silencia uma sugestão; um pareamento conectado é sempre exibido."
+        },
+        "hidden_panel_tabs": {
+          "name": "Abas ocultas do painel",
+          "description": "Os IDs das abas de companions que o painel não mostra."
         }
       }
     },

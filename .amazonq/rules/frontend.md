@@ -16,6 +16,13 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   closing a detail or deleting an object replaces.
 - Keep `parseRoute` and `buildPath` pure in `utils.ts`. An unknown path falls back to the
   task list. A detail URL for a deleted object shows the gone notice.
+- **A companion tab owns the URLs below `/home-keeper/<id>`.** A first segment with the
+  shape of a tab id waits for the tab list, then falls back to the task list. A move inside
+  the open tab only sets the element's `route`, with no redraw. A tab moves only through
+  `host.navigate`, which calls `_navigate`. A new panel page takes its first segment from
+  `FUTURE_TAB_IDS`. To add another segment, first add it to `RESERVED_TAB_IDS` in
+  `utils.ts` and `panel_tabs.py` in a release before the page. The entry of a tab can
+  move (tab bar, menu, launcher), because the contract fixes only the URL.
 - **A new URL segment keeps old URLs working.** Appliance devices store
   `/appliances/<id>` in `configuration_url`. `buildPath` leaves the default tab out.
 - Forms are not deep-linked. Opening the edit drawer does not change the URL, except an

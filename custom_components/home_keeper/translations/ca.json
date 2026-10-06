@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Companys descartats",
           "description": "Dominis d'integracions de connexió a amagar de la llista «Suggerits» a Configuració → Companys. Descartar només silencia un suggeriment; un aparellament connectat es mostra sempre."
+        },
+        "hidden_panel_tabs": {
+          "name": "Pestanyes ocultes del panell",
+          "description": "Els identificadors de les pestanyes de companions que el panell no mostra."
         }
       }
     },

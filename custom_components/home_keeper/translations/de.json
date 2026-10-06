@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",
           "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
+        },
+        "hidden_panel_tabs": {
+          "name": "Ausgeblendete Panel-Tabs",
+          "description": "Die IDs der Companion-Tabs, die das Panel nicht anzeigt."
         }
       }
     },

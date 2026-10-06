@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
           "description": "Domény propojovacích integrací, které se mají skrýt ze seznamu „Navrhované“ v Nastavení → Společníci. Zamítnutí pouze umlčí návrh; propojené párování se zobrazuje vždy."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skryté karty panelu",
+          "description": "ID karet doprovodných integrací, které panel nezobrazuje."
         }
       }
     },

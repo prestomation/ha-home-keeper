@@ -153,6 +153,10 @@ Details are in [profiles-notifications](../../docs/design/profiles-notifications
 
 - Companions are described in [companions-presets](../../docs/design/companions-presets.md).
   Store a self-registered descriptor as is, and never import a companion.
+- **A companion panel tab is a Python API, never a service.** A tab is code that runs in
+  the admin panel, so only in-process code registers one, through
+  `panel_tabs.async_register_panel_tab`. `register_companion` never accepts a tab. Details
+  are in [panel-tabs](../../docs/design/panel-tabs.md).
 - Keep the companion catalog short. Do not add inline settings for a companion: the
   Configure link opens the companion's own integration page.
 - A declarative companion is only called a declarative companion, never a recipe. In
