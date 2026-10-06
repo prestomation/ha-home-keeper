@@ -636,7 +636,10 @@ export const STYLES = `
   .hk-companion-desc {
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
-  .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  .hk-companion-actions {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto;
+    flex-wrap: wrap;
+  }
   /* Import and export section (Settings tab). */
   .hk-transfer-group {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);

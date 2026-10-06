@@ -1955,20 +1955,24 @@ function companionRow(c: Companion, tabs: PanelTabInfo[] = []): string {
   const icon = escapeHTML(c.icon || 'mdi:puzzle');
   const chipLabel = c.status === 'connected' ? t('companions.chip.connected') : t('companions.chip.suggested');
   const chipClass = c.status === 'connected' ? 'hk-comp-connected' : 'hk-comp-suggested';
-  const actions: string[] =
-    c.status === 'connected'
-      ? [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
-        ]
-      : [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
-          `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
-        ];
+  // The main button (Configure or Install) is always last, so it sits at the right
+  // edge of every row and the main buttons line up down the list.
+  const actions: string[] = [];
+  if (c.status !== 'connected') {
+    actions.push(
+      `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
+    );
+  }
   if (c.docs_url) {
     actions.push(
       `<ha-button ${btnAttrs('tertiary')} class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
     );
   }
+  actions.push(
+    c.status === 'connected'
+      ? `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`
+      : `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
+  );
   const desc = c.description
     ? `<div class="hk-companion-desc">${escapeHTML(c.description)}</div>`
     : '';

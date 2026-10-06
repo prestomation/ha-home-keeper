@@ -59,8 +59,11 @@ test('capture the companion panel tab', async ({ page }) => {
     await openTab(page, panel);
     await page.screenshot({ path: `${OUT}/79c-panel-mobile-companion-tab.png` });
 
-    const row = await companionRow(page, panel);
-    await row.screenshot({ path: `${OUT}/79d-panel-mobile-companion-tab-settings.png` });
+    // The whole card, so the shot shows that the Configure buttons line up.
+    await companionRow(page, panel);
+    await panel.locator('#hk-companions').screenshot({
+      path: `${OUT}/79d-panel-mobile-companion-tab-settings.png`,
+    });
   } finally {
     await callService('home_keeper', 'set_options', { hidden_panel_tabs: ['demo-tab'] });
   }
