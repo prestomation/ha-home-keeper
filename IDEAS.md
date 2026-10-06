@@ -37,9 +37,8 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **`set_due_today` on an overdue task.** The service does not refuse an overdue task.
   A call moves the due date later and clears the overdue state. The panel and the card
   hide the action, so only a service call can do this.
-- **Advanced fixed-schedule rules.** Add nth-weekday rules ("first Monday"), several
-  weekdays, `COUNT`/`UNTIL`, and custom durations. Consider `dateutil.rrule`, which adds a
-  Python requirement.
+- **Fixed schedules that end, and custom durations.** `normalize_rule` refuses `COUNT`
+  and `UNTIL`, so a fixed schedule cannot end. Calendar events are always 1 hour long.
 
 ## Completions
 
@@ -227,6 +226,13 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **Panel list actions.** Bulk actions, drag to reorder, and an activity log of
   completions.
 - **Per-task icons and colors.** Let a task carry an icon and a color for scanning.
+- **Follow the user's time zone setting.** The panel and the card always show and read
+  times in Home Assistant's zone (`setTimeZone(hass.config.time_zone)` in `panel.ts` and
+  `card.ts`, X04-7). A user away from home sees times that do not match the clock on the
+  device. Home Assistant has a per-user profile setting for this (`hass.locale.time_zone`:
+  local or server). Use it to show and read times, and keep "due today", overdue and the
+  day counts on Home Assistant's day, because the schedule, the to-do list and the
+  calendar use that day. Check which option Home Assistant uses as the default.
 
 ## Product ideas
 
