@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Dashboard card | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Dashboard card | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports a dashboard card, Home Keeper Tasks (custom:home-keeper-card),"><meta data-rh="true" property="og:description" content="Home Keeper supports a dashboard card, Home Keeper Tasks (custom:home-keeper-card),"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-434/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Dashboard card","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-434/docs/guide/dashboard-card"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-434/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-434/assets/js/runtime~main.fb9dd27b.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-434/assets/js/runtime~main.895f3050.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-434/assets/js/main.d551ab6e.js" defer="defer"></script>
 </head>
 <body>
@@ -84,6 +84,47 @@ number of completions. Use these card editor options to control each row:</p>
 and <code>show_labels</code>. If you turn off both <strong>Show schedule</strong> and <strong>Show completion count</strong>,
 the row shows the chips directly below the name. The status chip still shows the due date.</p>
 <p><img decoding="async" loading="lazy" alt="Home Keeper task card with the schedule and completion count turned off" src="/ha-home-keeper/pr-preview/pr-434/assets/images/card-row-compact-ff5a0a100858e86b4ed84971da114e28.png" width="330" height="565" class="img_ev3q"></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="start-groups-closed">Start groups closed<a href="#start-groups-closed" class="hash-link" aria-label="Direct link to Start groups closed" title="Direct link to Start groups closed" translate="no">​</a></h4>
+<p>A card that groups its tasks shows every group open at first. On an overview dashboard,
+you can start the groups closed. The group header and its count stay in view. Select a
+header to open the group. Use these card options:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Option</th><th>Default</th><th>Effect</th></tr></thead><tbody><tr><td><strong>Start groups closed</strong> (<code>collapsed</code>)</td><td>Off</td><td>Every group starts closed.</td></tr><tr><td><strong>Start these groups closed</strong> (<code>collapsed_groups</code>)</td><td>None</td><td>Only the groups in the list start closed.</td></tr><tr><td><strong>Start a group closed above</strong> (<code>collapse_above</code>)</td><td>0 (off)</td><td>A group that shows more tasks than this number starts closed.</td></tr></tbody></table>
+<p>If you set more than 1 option, a group starts closed when any option applies to it. The
+count for <code>collapse_above</code> is after the <strong>Max tasks shown</strong> limit. In
+<code>collapsed_groups</code>, write a status group as <code>overdue</code>, <code>shopping</code>, <code>counted</code>, <code>today</code>,
+<code>soon</code>, <code>later</code>, <code>monitored</code>, <code>none</code> or <code>disabled</code>. Write an area group or a device group
+as the area ID or the device ID. The name <code>none</code> is the group with no area or no device.</p>
+<div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> custom</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain">home</span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain">keeper</span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain">card</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">group_by</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> status</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">collapsed_groups</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> overdue</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> today</span><br></div></code></pre></div></div>
+<p>The options set only the first state. A group that you open or close keeps that state
+until you reload the page, unless you change a card option. Then the groups start over
+from the options. These options do nothing on a card without <code>group_by</code>.</p>
+<p><img decoding="async" loading="lazy" alt="Home Keeper task card with every status group closed" src="/ha-home-keeper/pr-preview/pr-434/assets/images/card-groups-collapsed-c204f955bb9ca392cc5d6fce6dd64e40.png" width="330" height="329" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Home Keeper task card with every status group closed, at phone width" src="/ha-home-keeper/pr-preview/pr-434/assets/images/card-groups-collapsed-mobile-d20975bf763d6618f083d497017300b2.png" width="374" height="329" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-photos-on-the-card">Task photos on the card<a href="#task-photos-on-the-card" class="hash-link" aria-label="Direct link to Task photos on the card" title="Direct link to Task photos on the card" translate="no">​</a></h4>
 <p>A task with <a class="" href="/ha-home-keeper/pr-preview/pr-434/docs/guide/task-photos">photos</a> shows its cover at the start of its row.
 Select the cover to open the full image. In the <strong>New task</strong> form, select <strong>Add photo</strong> to
