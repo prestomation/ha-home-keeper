@@ -65,6 +65,7 @@ import type {
   ImportReport,
   Notification,
   NotifyRunOptions,
+  PanelTabInfo,
   Profile,
   ProfileSync,
 } from './types';
@@ -1843,7 +1844,11 @@ function deleteNotification(p: PanelHost, id: string): Promise<void> {
  *  installed but its glue isn't) offer an install link and can be dismissed. */
 function renderCompanions(p: PanelHost, host: HTMLElement): void {
   const all = p._companions ?? [];
-  const connected = all.filter((c) => c.status === 'connected');
+  const tabs = p._panelTabs ?? [];
+  const connected = [
+    ...all.filter((c) => c.status === 'connected'),
+    ...tabOwnersWithoutRow(all, tabs),
+  ];
   const suggested = all.filter((c) => c.status === 'suggested');
 
   const card = document.createElement('ha-card');
@@ -1865,13 +1870,13 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
   if (connected.length) {
     sections.push(
       `<div class="hk-companion-group">${escapeHTML(t('companions.connected'))}</div>`,
-      ...connected.map((c) => companionRow(c)),
+      ...connected.map((c) => companionRow(c, tabsOf(tabs, c.domain))),
     );
   }
   if (suggested.length) {
     sections.push(
       `<div class="hk-companion-group">${escapeHTML(t('companions.suggested'))}</div>`,
-      ...suggested.map((c) => companionRow(c)),
+      ...suggested.map((c) => companionRow(c, tabsOf(tabs, c.domain))),
     );
   }
   // Declarative companions close the card: Home Keeper runs them itself, so they
@@ -1882,29 +1887,92 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
   card.appendChild(inner);
   host.appendChild(card);
   wireCompanions(p, inner);
+  wireTabSwitches(p, inner, tabs);
   wireDeclarativeSection(p, inner);
 }
 
-/** One companion row's HTML (icon, name + status chip, description, actions). Takes
- *  no `PanelHost`: a row is a pure function of the companion it describes. */
-function companionRow(c: Companion): string {
+/** The panel tabs that the companion *domain* owns. */
+function tabsOf(tabs: PanelTabInfo[], domain: string): PanelTabInfo[] {
+  return tabs.filter((tab) => tab.companion === domain);
+}
+
+/**
+ * A connected row for each companion that owns a tab but did not call
+ * `register_companion`, so each tab has a row with its switch.
+ */
+function tabOwnersWithoutRow(all: Companion[], tabs: PanelTabInfo[]): Companion[] {
+  const known = new Set(all.map((c) => c.domain));
+  const rows: Companion[] = [];
+  for (const tab of tabs) {
+    if (known.has(tab.companion)) continue;
+    known.add(tab.companion);
+    rows.push({ domain: tab.companion, name: tab.companion, icon: tab.icon, status: 'connected' });
+  }
+  return rows;
+}
+
+/**
+ * Build the "Show <title> tab" switch of each panel tab into its row. A switch is an
+ * `ha-form` with 1 boolean field, named by the tab id.
+ */
+function wireTabSwitches(p: PanelHost, root: HTMLElement, tabs: PanelTabInfo[]): void {
+  root.querySelectorAll<HTMLElement>('.hk-comp-tab-switch').forEach((slot) => {
+    const tab = tabs.find((x) => x.id === slot.dataset.panelTabId);
+    if (!tab) return;
+    const hidden = p._options?.hidden_panel_tabs ?? [];
+    const form = p._makeForm(
+      [{ name: tab.id, selector: { boolean: {} } }],
+      { [tab.id]: !hidden.includes(tab.id) },
+      (value) => {
+        if (tab.id in value) void setTabShown(p, tab.id, Boolean(value[tab.id]));
+      },
+      { computeLabel: () => t('companions.showTab', { title: tab.title }) },
+    );
+    slot.appendChild(form);
+  });
+}
+
+/** Show or hide a panel tab: write the `hidden_panel_tabs` option, then draw again. */
+async function setTabShown(p: PanelHost, id: string, shown: boolean): Promise<void> {
+  if (!p._hass) return;
+  const current = p._options?.hidden_panel_tabs ?? [];
+  const hidden_panel_tabs = shown
+    ? current.filter((x) => x !== id)
+    : [...current.filter((x) => x !== id), id];
+  try {
+    await queuedSetOptions(p, p._hass, { hidden_panel_tabs });
+    await p._refresh();
+  } catch (err) {
+    toast(p, String((err as { message?: string })?.message || err));
+    await p._refresh();
+  }
+}
+
+/** One companion row's HTML (icon, name + status chip, description, actions, and a
+ *  switch for each panel tab it owns). Takes no `PanelHost`: a row is a pure function
+ *  of the companion it describes. */
+function companionRow(c: Companion, tabs: PanelTabInfo[] = []): string {
   const icon = escapeHTML(c.icon || 'mdi:puzzle');
   const chipLabel = c.status === 'connected' ? t('companions.chip.connected') : t('companions.chip.suggested');
   const chipClass = c.status === 'connected' ? 'hk-comp-connected' : 'hk-comp-suggested';
-  const actions: string[] =
-    c.status === 'connected'
-      ? [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
-        ]
-      : [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
-          `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
-        ];
+  // The main button (Configure or Install) is always last, so it sits at the right
+  // edge of every row and the main buttons line up down the list.
+  const actions: string[] = [];
+  if (c.status !== 'connected') {
+    actions.push(
+      `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
+    );
+  }
   if (c.docs_url) {
     actions.push(
       `<ha-button ${btnAttrs('tertiary')} class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
     );
   }
+  actions.push(
+    c.status === 'connected'
+      ? `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`
+      : `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
+  );
   const desc = c.description
     ? `<div class="hk-companion-desc">${escapeHTML(c.description)}</div>`
     : '';
@@ -1915,8 +1983,19 @@ function companionRow(c: Companion): string {
           <div class="hk-companion-name">
             ${escapeHTML(c.name)}
             <ha-assist-chip class="${chipClass}" label="${escapeHTML(chipLabel)}"></ha-assist-chip>
+            ${
+              tabs.length
+                ? `<ha-assist-chip class="hk-comp-tab" label="${escapeHTML(t('companions.chip.panelTab'))}"></ha-assist-chip>`
+                : ''
+            }
           </div>
           ${desc}
+          ${tabs
+            .map(
+              (tab) =>
+                `<div class="hk-comp-tab-switch" data-panel-tab-id="${escapeHTML(tab.id)}"></div>`,
+            )
+            .join('')}
         </div>
         <div class="hk-companion-actions">${actions.join('')}</div>
       </div>`;

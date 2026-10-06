@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Companions descartados",
           "description": "Dominios de integración de enlace que ocultar de la lista «Sugerido» de Ajustes → Companions. Descartar solo silencia una sugerencia; un emparejamiento conectado siempre se muestra."
+        },
+        "hidden_panel_tabs": {
+          "name": "Pestañas ocultas del panel",
+          "description": "Los ID de las pestañas de companions que el panel no muestra."
         }
       }
     },

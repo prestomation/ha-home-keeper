@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",
           "description": "Domäner för kopplingsintegrationer att dölja från listan ”Föreslagna” under Inställningar → Kompanjoner. Att avfärda tystar bara ett förslag; en ansluten koppling visas alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Dolda panelflikar",
+          "description": "ID:n för de följeflikar som panelen inte visar."
         }
       }
     },

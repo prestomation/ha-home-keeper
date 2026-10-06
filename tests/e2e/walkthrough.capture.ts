@@ -983,6 +983,33 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
 
+  // 6b. A companion panel tab. The demo companion owns a Library tab, which the
+  //     seeded options hide. Its row has the Panel tab chip and a Show switch: turn it
+  //     on, open the tab, let the tab move to a sub-page through the host, then come
+  //     back and turn the switch off again, so the seed stays as it was.
+  const tabRow = panel.locator('#hk-companions .hk-companion').filter({ hasText: 'Demo library' });
+  await tabRow.scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT);
+  await tabRow.locator('.hk-comp-tab-switch ha-switch').first().click();
+  const libraryTab = panel.locator('#tab-x-demo-tab');
+  await expect(libraryTab).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(BEAT);
+  await libraryTab.click();
+  const demoTab = panel.locator('home-keeper-demo-tab');
+  await expect(demoTab.locator('#demo-path')).toHaveText('/', { timeout: 30_000 });
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  await demoTab.locator('#demo-go').click();
+  await expect(demoTab.locator('#demo-path')).toHaveText('/sub');
+  await page.waitForTimeout(BEAT);
+  await gotoTab(panel, 'settings');
+  await tabRow.scrollIntoViewIfNeeded();
+  await tabRow.locator('.hk-comp-tab-switch ha-switch').first().click();
+  await expect(libraryTab).toHaveCount(0, { timeout: 30_000 });
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT);
+
   // 6a. Declarative companions — the same card's last section: specs Home Keeper
   //     runs itself, one managed task per matching entity, no glue integration.
   //     "Add from preset" opens the bundled presets; picking Firmware update

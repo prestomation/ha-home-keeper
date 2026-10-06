@@ -636,7 +636,10 @@ export const STYLES = `
   .hk-companion-desc {
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
-  .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  .hk-companion-actions {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto;
+    flex-wrap: wrap;
+  }
   /* Import and export section (Settings tab). */
   .hk-transfer-group {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -780,6 +783,24 @@ export const STYLES = `
     --md-assist-chip-outline-color: transparent;
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
+  }
+  /* A companion that owns a panel tab: the accent pair, like the other info chips. */
+  ha-assist-chip.hk-comp-tab {
+    --ha-assist-chip-container-color: var(--hk-accent-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-accent-soft);
+    --md-assist-chip-label-text-color: var(--hk-accent-ink);
+    --ha-assist-chip-label-text-color: var(--hk-accent-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
+  /* The switch sits next to its label, not at the far edge of the text column. */
+  .hk-comp-tab-switch { margin-top: 4px; width: fit-content; max-width: 100%; }
+  /* A companion tab: its element fills the content column. */
+  .hk-tab-host { display: block; min-height: 120px; }
+  .hk-tab-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hk-bottomtab-label {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);

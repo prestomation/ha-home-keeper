@@ -1312,7 +1312,9 @@ describe('parseRoute', () => {
     expect(parseRoute('/tasks/a%20b').detail.id).toBe('a b');
   });
   it('defaults empty/unknown paths to the tasks list', () => {
-    for (const p of ['', '/', undefined, null, '/bogus']) {
+    // A first segment that cannot be a companion tab id also falls back. One that can
+    // is kept as a tab location (see panel-tab-routes.test.js).
+    for (const p of ['', '/', undefined, null, '/Bogus', '/b', '/1bogus', '/bo_gus']) {
       expect(parseRoute(p)).toEqual({ view: 'tasks', detail: null });
     }
   });

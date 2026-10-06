@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Odrzuceni towarzysze",
           "description": "Domeny integracji łączących do ukrycia z listy „Sugerowane” w Ustawienia → Towarzysze. Odrzucenie jedynie wycisza sugestię; połączone powiązanie jest zawsze wyświetlane."
+        },
+        "hidden_panel_tabs": {
+          "name": "Ukryte karty panelu",
+          "description": "Identyfikatory kart integracji towarzyszących, których panel nie pokazuje."
         }
       }
     },

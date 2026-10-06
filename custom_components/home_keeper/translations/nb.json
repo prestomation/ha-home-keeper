@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Avviste følgesvenner",
           "description": "Glue-integrasjonsdomener som skal skjules fra \"Foreslått\"-listen under Innstillinger → Følgesvenner. Avvisning demper kun et forslag; en tilkoblet paring vises alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skjulte panelfaner",
+          "description": "ID-ene til følgefanene som panelet ikke viser."
         }
       }
     },

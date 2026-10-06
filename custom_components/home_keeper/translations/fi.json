@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",
           "description": "Glue-integraatiodomeenit, jotka piilotetaan kohdan Asetukset → Kumppanit \"Ehdotetut\"-luettelosta. Hylkääminen vain vaimentaa ehdotuksen; yhdistetty pariliitos näytetään aina."
+        },
+        "hidden_panel_tabs": {
+          "name": "Piilotetut paneelin välilehdet",
+          "description": "Niiden kumppanivälilehtien tunnisteet, joita paneeli ei näytä."
         }
       }
     },

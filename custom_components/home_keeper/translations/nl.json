@@ -735,6 +735,10 @@
         "dismissed_companions": {
           "name": "Genegeerde companions",
           "description": "Glue-integratiedomeinen om te verbergen uit de lijst \"Voorgesteld\" onder Instellingen → Companions. Negeren dempt alleen een suggestie; een verbonden koppeling wordt altijd getoond."
+        },
+        "hidden_panel_tabs": {
+          "name": "Verborgen paneeltabbladen",
+          "description": "De ID's van de companion-tabbladen die het paneel niet toont."
         }
       }
     },

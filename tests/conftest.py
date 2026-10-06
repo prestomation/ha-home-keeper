@@ -58,6 +58,8 @@ _PURE_MODULES = (
     "sensor_tasks",
     "appliance_report",
     "companions_catalog",
+    # The companion panel tab contract. It imports only ``const`` at run time.
+    "panel_tabs",
     "profiles",
     # ``task_counts`` imports ``profiles`` and ``recurrence``, so it comes after both:
     # a module first pulled in by a sibling and then re-executed here would leave two

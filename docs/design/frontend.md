@@ -30,7 +30,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications]
-source_hash: 09875a07b1b0
+source_hash: 0efe44b41e2d
 ---
 
 # Frontend
@@ -80,18 +80,18 @@ stale values over another. `dialogs.makeDialog` is the one `ha-dialog` builder.
 
 ### Routes
 
-`utils.parseRoute` and `utils.buildPath` are pure and round-trip. Paths: `/tasks`,
-`/tasks/<id>`, `/appliances`, `/appliances/<id>`, `/appliances/<id>/<tab>` (`ASSET_TABS`) and
-`/settings/<section>` (`SETTINGS_SECTIONS`). An unknown path gives the task list. `set route`
-is the only place that changes `_view` and `_detail`, via `_applyLocation`. Code navigates with
-`_navigate(loc, replace)`: opening a detail pushes; a tab switch, a close or a delete replaces.
-A form is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible mark.
+`utils.parseRoute` and `utils.buildPath` are pure and round-trip. Paths: `/tasks`, `/tasks/<id>`,
+`/appliances`, `/appliances/<id>`, `/appliances/<id>/<tab>` (`ASSET_TABS`), `/settings/<section>`
+(`SETTINGS_SECTIONS`) and `/<tab id>/<path>` for a companion tab ([panel-tabs](panel-tabs.md)).
+Other paths give the task list. Only `set route` changes `_view` and `_detail` (`_applyLocation`).
+`_navigate(loc, replace)`: a detail pushes; a tab switch, a close or a delete replaces. A form
+is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible mark.
 
 ### Data and refresh
 
-`api.ts` wraps the websocket commands; `types.ts` declares their shapes. `_refresh` loads all
-data. On each `hass` push, `_liveRefresh` compares `utils.hkStateSignal` and loads again when
-a task changed elsewhere, but not while a form or a dialog is open.
+`api.ts` wraps the websocket commands and `types.ts` their shapes. `_refresh` loads all data.
+`_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
+open. `_lookUpDetail` loads again, with a spinner, for a detail id that the lists do not have.
 
 ### Task layouts and preferences
 
