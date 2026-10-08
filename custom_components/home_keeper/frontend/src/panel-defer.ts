@@ -23,7 +23,7 @@ import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import { setIcon } from './panel-history';
 import type { Task } from './types';
-import { toast, type BtnWeight } from './utils';
+import { setDueTime, toast, type BtnWeight } from './utils';
 
 /**
  * Which deferral verbs *task* can actually take, given the global switches.
@@ -45,7 +45,7 @@ export function deferMenu(
 }
 
 export function openSnooze(p: PanelHost, task: Task): void {
-  p._snooze = snoozeStateFor(task);
+  p._snooze = snoozeStateFor(task, undefined, setDueTime(p._options));
   p._render();
 }
 

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
           "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "shopping_list_entity": "Einkaufsliste",
-          "shopping_line_style": "Text auf der Einkaufsliste"
+          "shopping_line_style": "Text auf der Einkaufsliste",
+          "due_time_mode": "Fälligkeitszeit",
+          "due_time": "Feste Fälligkeitszeit"
         },
         "data_description": {
           "sync_problem_sensors": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
           "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
           "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten.",
-          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“."
+          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“.",
+          "due_time_mode": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. Mit einer festen Uhrzeit ist die Aufgabe an ihrem Fälligkeitstag zu dieser Uhrzeit fällig. Auch ein Aufschub endet zu dieser Uhrzeit.",
+          "due_time": "Die lokale Uhrzeit, zu der diese Aufgaben fällig sind. Gilt nur bei einer festen Uhrzeit."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Text auf der Einkaufsliste",
           "description": "So erscheint eine Kauferinnerung auf der Einkaufsliste. with_verb (Standard) zeigt den Namen der Erinnerung, zum Beispiel „Weichspüler kaufen“. product_only zeigt nur den Namen des Teils."
         },
+        "due_time_mode": {
+          "name": "Fälligkeitszeit",
+          "description": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. completion (Standard) behält die Uhrzeit der letzten Erledigung, des Aufschubs oder des Überspringens. set_time macht sie an ihrem Fälligkeitstag um due_time fällig."
+        },
+        "due_time": {
+          "name": "Feste Fälligkeitszeit",
+          "description": "Die lokale Uhrzeit (HH:MM) für set_time. Standard ist 08:00."
+        },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",
           "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Mit Verb",
         "product_only": "Nur Produkt"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Zeit der Erledigung",
+        "set_time": "Feste Uhrzeit"
       }
     }
   },

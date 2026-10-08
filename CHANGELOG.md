@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b5]
+
+### Added
+
+- **[Set due time](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#due-time).**
+  Make every task that repeats after each completion due at 1 time of day that you
+  choose, such as 08:00, in place of the time it was last done. A morning summary
+  then includes the tasks that are due that day, and overdue triggers fire at that time.
+  (Fixes #438)
+
 ## [0.30.0b4]
 
 ### Added

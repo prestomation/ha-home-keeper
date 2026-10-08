@@ -631,6 +631,10 @@ export interface HomeKeeperOptions {
   allow_snooze: boolean;
   allow_skip: boolean;
   allow_due_today: boolean;
+  // When a floating task is due: at the clock time of its completion, or at
+  // `due_time` (local "HH:MM") on its due date (#438). Absent reads as 'completion'.
+  due_time_mode?: 'completion' | 'set_time';
+  due_time?: string;
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];

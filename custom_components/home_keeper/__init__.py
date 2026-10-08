@@ -58,11 +58,14 @@ from .assets import card_projection, has_archived_completion
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_DUE_TIME,
+    OPTION_DUE_TIME_MODE,
     OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -803,6 +806,10 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
+        # When a floating task is due: at the completion time, or at 1 set local
+        # time on its date (#438). ``options.normalize_due_time`` reads the time.
+        vol.Optional(OPTION_DUE_TIME_MODE): vol.In(DUE_TIME_MODES),
+        vol.Optional(OPTION_DUE_TIME): vol.All(cv.time, vol.Coerce(str)),
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
             vol.Coerce(int), vol.Range(min=0, max=MAX_ONE_OFF_RETENTION_DAYS)
         ),
@@ -879,6 +886,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     store = HomeKeeperStore(hass)
     await store.load()
+    # Before anything reads a due date. An options change reloads the entry, so a
+    # new set due time moves the stored future floating dates here (#438).
+    await store.async_apply_due_time(
+        options.due_time_of(options.current_options(entry))
+    )
 
     # Warn once for each setup about a stored notify target that the allowlist drops.
     # A read of the options runs on each refresh and does not warn (B16-11).

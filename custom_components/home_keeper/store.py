@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable, Collection
+from datetime import time
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
@@ -309,6 +310,30 @@ class HomeKeeperStore:
         # it matters most is after the task — or the sync — is deleted, since that
         # is when the item has to come off the list. See ``get_todo_list_items``.
         self._todo_list_items: dict[str, dict[str, Any]] = {}
+        # The set due time for floating tasks (#438), or ``None`` in the
+        # ``completion`` mode. Setup sets it from the options with
+        # ``async_apply_due_time``, and every recurrence call below passes it on.
+        self._due_time: time | None = None
+
+    async def async_apply_due_time(self, due_time: time | None) -> None:
+        """Set the set due time, and move the stored future floating dates to it.
+
+        Setup calls this after ``load`` on each entry load, so an options change,
+        which reloads the entry, applies at once. Each moved task fires
+        ``home_keeper_task_updated`` with ``changed_fields: ["next_due"]``.
+        """
+        self._due_time = due_time
+        moved = recurrence.snap_future_floating(
+            self._tasks, due_time, now=dt_util.now()
+        )
+        if not moved:
+            return
+        await self._save()
+        for task in moved:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["next_due"]}),
+            )
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
@@ -526,7 +551,7 @@ class HomeKeeperStore:
                     f"source keys {sorted(reserved)} are reserved for Home Keeper's "
                     "own task reconcilers and cannot be set via add_task"
                 )
-        task = models.build_task(data, now=dt_util.now())
+        task = models.build_task(data, now=dt_util.now(), due_time=self._due_time)
         self._check_template_syntax(task)
         self._tasks[task["id"]] = task
         await self._save()
@@ -587,7 +612,9 @@ class HomeKeeperStore:
         source = models.merge_source(
             existing.get("source"), source_update, reserved=_RESERVED_SOURCE_NAMESPACES
         )
-        merged = models.merge_update(existing, updates, now=dt_util.now())
+        merged = models.merge_update(
+            existing, updates, now=dt_util.now(), due_time=self._due_time
+        )
         if source_update:
             merged["source"] = source
         if "sensor" in updates:
@@ -783,9 +810,16 @@ class HomeKeeperStore:
                 "is currently scheduled. Re-arm it instead (undo a completion, or wait "
                 "for its condition/sensor)."
             )
+        now = dt_util.now()
+        if existing.get("recurrence_type") == recurrence.REC_FLOATING:
+            # With a set due time, a snooze lands on the first set time at or after
+            # *until*, so it never ends earlier than the user asked (#438).
+            until = recurrence.snap_to_due_time(
+                dt_util.as_local(until), self._due_time, round_up=True
+            )
         # ``defer`` also keeps the grid occurrence of a fixed task, so a later Done
         # moves the schedule past it (B07-5).
-        recurrence.defer(existing, until, now=dt_util.now())
+        recurrence.defer(existing, until, now=now)
         await self._save()
         _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])
         self._hass.bus.async_fire(
@@ -902,7 +936,7 @@ class HomeKeeperStore:
             if reading is not None:
                 clean_metadata["reading"] = reading
         updated = recurrence.skip_occurrence(
-            dict(existing), now=now, metadata=clean_metadata
+            dict(existing), now=now, metadata=clean_metadata, due_time=self._due_time
         )
         # Record the baseline this skip is about to replace *on the skip*, before the
         # reset below overwrites it, so deleting the skip restores the meter progress
@@ -1980,6 +2014,12 @@ class HomeKeeperStore:
             language=language,
             now=dt_util.now(),
         )
+        # The pure reconciler measures a wear-part task from ``last_replaced`` with
+        # no set due time. Snap its future dates here (#438).
+        if recurrence.snap_future_floating(
+            new_tasks, self._due_time, now=dt_util.now()
+        ):
+            changed = True
         if changed:
             # A part-derived task dropped here means its wear part was removed while
             # the appliance remains; preserve its history on the appliance. (Deleting
@@ -2519,7 +2559,11 @@ class HomeKeeperStore:
             if reading is not None:
                 clean_metadata["reading"] = reading
         updated = recurrence.apply_completion(
-            dict(existing), when, now=now, metadata=clean_metadata
+            dict(existing),
+            when,
+            now=now,
+            metadata=clean_metadata,
+            due_time=self._due_time,
         )
         # Record the baseline this completion is about to replace *on the completion*
         # (``meter_start``), before the reset below overwrites it. Undoing the
@@ -2681,7 +2725,9 @@ class HomeKeeperStore:
         # last — undoing a completion that a later skip has since superseded must not
         # rewind the baseline the skip set.
         was_latest = ts == sensor_tasks.latest_decision_ts(existing)
-        updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
+        updated = recurrence.remove_completion(
+            dict(existing), ts, now=dt_util.now(), due_time=self._due_time
+        )
         # Undoing the anchoring completion of a usage meter restores the baseline it
         # moved — putting the partial progress the user had back, instead of leaving
         # the meter stuck at zero. Only the anchoring entry counts, so undoing an
@@ -2739,7 +2785,7 @@ class HomeKeeperStore:
         )
         try:
             updated = recurrence.move_completion(
-                dict(existing), old_ts, new_ts, now=now
+                dict(existing), old_ts, new_ts, now=now, due_time=self._due_time
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err

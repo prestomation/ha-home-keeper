@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etiquetas excluidas",
           "one_off_retention_days": "Conservación de tareas únicas (días)",
           "shopping_list_entity": "Lista de la compra",
-          "shopping_line_style": "Texto en la lista de la compra"
+          "shopping_line_style": "Texto en la lista de la compra",
+          "due_time_mode": "Hora de vencimiento",
+          "due_time": "Hora de vencimiento fija"
         },
         "data_description": {
           "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
           "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
           "shopping_list_entity": "Sincroniza los recordatorios de compra automática con esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo.",
-          "shopping_line_style": "Cómo aparece un recordatorio de compra en la lista de la compra. «Solo producto» muestra el nombre del repuesto sin el verbo, por ejemplo «Suavizante» en lugar de «Comprar suavizante»."
+          "shopping_line_style": "Cómo aparece un recordatorio de compra en la lista de la compra. «Solo producto» muestra el nombre del repuesto sin el verbo, por ejemplo «Suavizante» en lugar de «Comprar suavizante».",
+          "due_time_mode": "Cuándo vence una tarea que se repite tras cada realización. Con una hora fija, la tarea vence a esa hora en su fecha de vencimiento. Un aplazamiento también termina a esa hora.",
+          "due_time": "La hora local a la que vencen estas tareas. Solo se usa con una hora fija."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Texto en la lista de la compra",
           "description": "Cómo aparece un recordatorio de compra en la lista de la compra. with_verb (predeterminado) muestra el nombre del recordatorio, por ejemplo «Comprar suavizante». product_only muestra solo el nombre del repuesto."
         },
+        "due_time_mode": {
+          "name": "Hora de vencimiento",
+          "description": "Cuándo vence una tarea que se repite tras cada realización. completion (predeterminado) mantiene la hora de la última realización, aplazamiento u omisión. set_time hace que venza a due_time en su fecha de vencimiento."
+        },
+        "due_time": {
+          "name": "Hora de vencimiento fija",
+          "description": "La hora local (HH:MM) para set_time. El valor predeterminado es 08:00."
+        },
         "dismissed_companions": {
           "name": "Companions descartados",
           "description": "Dominios de integración de enlace que ocultar de la lista «Sugerido» de Ajustes → Companions. Descartar solo silencia una sugerencia; un emparejamiento conectado siempre se muestra."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Con verbo",
         "product_only": "Solo producto"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Hora de realización",
+        "set_time": "Hora fija"
       }
     }
   },

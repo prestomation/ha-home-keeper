@@ -24,15 +24,22 @@ exercise the merge rules without the HA test harness. Keep it that way — see
 
 from __future__ import annotations
 
+from datetime import time
 from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    DEFAULT_DUE_TIME,
+    DUE_TIME_MODE_COMPLETION,
+    DUE_TIME_MODE_SET_TIME,
+    DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_DUE_TIME,
+    OPTION_DUE_TIME_MODE,
     OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -92,6 +99,8 @@ def _empty_options() -> dict[str, Any]:
         OPTION_ALLOW_SNOOZE: True,
         OPTION_ALLOW_SKIP: True,
         OPTION_ALLOW_DUE_TODAY: True,
+        OPTION_DUE_TIME_MODE: DUE_TIME_MODE_COMPLETION,
+        OPTION_DUE_TIME: DEFAULT_DUE_TIME,
         OPTION_ONE_OFF_RETENTION_DAYS: 0,
         OPTION_SHOPPING_LIST_ENTITY: "",
         OPTION_SHOPPING_LINE_STYLE: shopping.LINE_STYLE_WITH_VERB,
@@ -120,6 +129,8 @@ FLOW_OPTIONS: tuple[str, ...] = (
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SHOPPING_LINE_STYLE,
+    OPTION_DUE_TIME_MODE,
+    OPTION_DUE_TIME,
 )
 
 # Entry ids whose reload an explicit caller (the ``set_options`` service / the
@@ -157,6 +168,31 @@ def take_retention_grace(entry_id: str) -> bool:
         _RETENTION_GRACE.discard(entry_id)
         return True
     return False
+
+
+def normalize_due_time(value: Any) -> str:
+    """*value* as a local ``"HH:MM"``, or ``DEFAULT_DUE_TIME`` when it is not a time.
+
+    A time selector sends ``"HH:MM:SS"``, and a service caller may send ``"8:00"``.
+    Seconds are dropped: a due time is a time of day, not a moment.
+    """
+    if isinstance(value, time):
+        return f"{value.hour:02d}:{value.minute:02d}"
+    parts = str(value or "").strip().split(":")
+    if len(parts) not in (2, 3) or not all(p.isdigit() for p in parts):
+        return DEFAULT_DUE_TIME
+    hour, minute = int(parts[0]), int(parts[1])
+    if hour > 23 or minute > 59:
+        return DEFAULT_DUE_TIME
+    return f"{hour:02d}:{minute:02d}"
+
+
+def due_time_of(opts: dict[str, Any]) -> time | None:
+    """The set due time of normalized *opts*, or ``None`` in the ``completion`` mode."""
+    if opts.get(OPTION_DUE_TIME_MODE) != DUE_TIME_MODE_SET_TIME:
+        return None
+    hour, minute = normalize_due_time(opts.get(OPTION_DUE_TIME)).split(":")
+    return time(int(hour), int(minute))
 
 
 def current_options(entry: ConfigEntry) -> dict[str, Any]:
@@ -269,6 +305,8 @@ def _normalize(
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
     - **the shopping line style** — anything unknown reads as ``with_verb``
+    - **the due time mode** — anything unknown reads as ``completion``; the due time
+      reads as ``"HH:MM"``, and anything that is not a time as ``08:00``
     - **profiles / notifications** — their own normalizers fill in per-item defaults
       (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
@@ -296,6 +334,13 @@ def _normalize(
         merged[OPTION_SHOPPING_LIST_ENTITY] = shopping.normalize_target(
             updates[OPTION_SHOPPING_LIST_ENTITY]
         )
+    if OPTION_DUE_TIME_MODE in updates:
+        mode = updates[OPTION_DUE_TIME_MODE]
+        merged[OPTION_DUE_TIME_MODE] = (
+            mode if mode in DUE_TIME_MODES else DUE_TIME_MODE_COMPLETION
+        )
+    if OPTION_DUE_TIME in updates:
+        merged[OPTION_DUE_TIME] = normalize_due_time(updates[OPTION_DUE_TIME])
     if OPTION_SHOPPING_LINE_STYLE in updates:
         merged[OPTION_SHOPPING_LINE_STYLE] = shopping.normalize_line_style(
             updates[OPTION_SHOPPING_LINE_STYLE]

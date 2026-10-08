@@ -75,6 +75,7 @@ import {
   scanRequired,
   countedProgress,
   setBtnWeight,
+  setDueTime,
   statusChipHtml,
   toast,
   guardWrite,
@@ -439,7 +440,12 @@ export class HomeKeeperCard extends HTMLElement {
   /** The integration's options, for the skip/snooze switches. Both default on, so
    *  an empty object until the first load reads as "offer both" rather than
    *  flickering the caret in once the fetch lands. */
-  private _options: { allow_snooze?: unknown; allow_skip?: unknown } = {};
+  private _options: {
+    allow_snooze?: unknown;
+    allow_skip?: unknown;
+    due_time_mode?: unknown;
+    due_time?: unknown;
+  } = {};
   private _snooze: SnoozeState = emptySnoozeState();
   private _skip: SkipState = emptySkipState();
 
@@ -1445,7 +1451,7 @@ export class HomeKeeperCard extends HTMLElement {
       });
     };
     wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
-      this._snooze = snoozeStateFor(task);
+      this._snooze = snoozeStateFor(task, undefined, setDueTime(this._options));
       this._render();
     });
     wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
