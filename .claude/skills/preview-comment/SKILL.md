@@ -61,6 +61,19 @@ paragraph on 1 line: GitHub shows each line break in a comment.
 joined with "and" for 2 links or commas for more. Without guide links, leave out the
 whole "The docs for it are here" sentence.
 
+Add these when the PR has them:
+
+- **A usage sentence.** When the fix adds something the user must turn on or use, add
+  1 sentence after the version sentence that says where it is and what it does for
+  the reporter's case. Example: "To use it, go to **Settings → Due time**, choose
+  **At a set time** and pick a time such as 08:00, and ...". A bug fix that needs no
+  action gets no usage sentence.
+- **The PR screenshots.** When the PR body embeds screenshots, put each one under the
+  paragraph, on its own line, with the same SHA-pinned
+  `raw.githubusercontent.com` URL, `alt` text and `width` as in the PR body. Put a
+  blank line between the paragraph and the first image. Check that each URL returns
+  HTTP 200 before you show the text.
+
 Small liberties are fine, so the comment does not read the same on every issue:
 
 - Open with one short, plain thank-you: "Thanks for the suggestion." for a feature
@@ -70,7 +83,8 @@ Small liberties are fine, so the comment does not read the same on every issue:
   about the maintainer's own thinking ("I hadn't thought of that").
 - The rest may be reworded a little, but it must keep all of these: the exact
   version, the 3 install steps (Redownload, Show beta versions, pick the version),
-  each guide link from step 1, and the note that the merge may wait for feedback.
+  each guide link from step 1, the usage sentence and screenshots when the PR has
+  them, and the note that the merge may wait for feedback.
 - The maintainer approves every comment before it is posted, so these liberties
   never reach an issue without their review.
 
