@@ -3,6 +3,7 @@
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
+import hk_models as m
 import hk_recurrence as r
 
 TZ = ZoneInfo("America/Los_Angeles")
@@ -184,3 +185,52 @@ def test_snap_future_floating_reads_the_stored_offset_in_the_local_zone():
     tasks = {"a": floating(next_due="2027-01-06T06:42:00+00:00")}
     r.snap_future_floating(tasks, EIGHT, now=dt(2026, 10, 7))
     assert tasks["a"]["next_due"] == dt(2027, 1, 5, 8).isoformat()
+
+
+def test_snap_future_floating_goes_past_tasks_it_leaves():
+    # A task that stays (fixed, or due at exactly now) does not stop the walk.
+    now = dt(2026, 10, 7, 10)
+    tasks = {
+        "fixed": {
+            "recurrence_type": "fixed",
+            "next_due": dt(2027, 1, 5, 19).isoformat(),
+        },
+        "exactly_now": floating(next_due=now.isoformat()),
+        "future": floating(next_due=dt(2027, 1, 5, 22, 42).isoformat()),
+    }
+    assert r.snap_future_floating(tasks, EIGHT, now=now) == [tasks["future"]]
+    assert tasks["exactly_now"]["next_due"] == now.isoformat()
+    assert tasks["future"]["next_due"] == dt(2027, 1, 5, 8).isoformat()
+
+
+# ── models: creation and edit ────────────────────────────────────────────────
+
+
+def test_build_task_snaps_a_seeded_completion():
+    now = dt(2026, 10, 8, 9)
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "interval": 90,
+            "unit": "days",
+            "last_completed": dt(2026, 10, 7, 22, 42).isoformat(),
+        },
+        now=now,
+        due_time=EIGHT,
+    )
+    assert task["next_due"] == dt(2027, 1, 5, 8).isoformat()
+
+
+def test_merge_update_snaps_a_new_interval():
+    now = dt(2026, 10, 8, 9)
+    task = m.build_task(
+        {
+            "name": "Furnace filter",
+            "interval": 90,
+            "unit": "days",
+            "last_completed": dt(2026, 10, 7, 22, 42).isoformat(),
+        },
+        now=now,
+    )
+    merged = m.merge_update(task, {"interval": 30}, now=now, due_time=EIGHT)
+    assert merged["next_due"] == dt(2026, 11, 6, 8).isoformat()
