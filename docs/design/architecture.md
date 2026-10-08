@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: a3d56f56e3ed
+source_hash: 8be667730479
 ---
 
 # Architecture
@@ -74,8 +74,8 @@ stay through reloads. A handler raises `integration_not_loaded` when no entry is
 Each websocket command calls the same store method as its service twin.
 `async_setup_entry` then runs these steps in order:
 
-1. Load the backend strings in the executor. Load `HomeKeeperStore` and repair split
-   device ids (`devices.async_heal_split_device_ids`).
+1. Load the backend strings, then `HomeKeeperStore`, and apply the set due time
+   (`store.async_apply_due_time`). Repair split device ids (`devices.async_heal_split_device_ids`).
 2. Create `HomeKeeperCoordinator`, refresh it, and store it as `entry.runtime_data`.
 3. Reconcile asset devices, part tasks, buy tasks, problem sensors and declarative
    companions, so the tasks exist before the platforms read them.

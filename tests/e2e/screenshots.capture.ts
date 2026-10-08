@@ -1949,6 +1949,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     .locator('#hk-settings-skipsnooze')
     .screenshot({ path: `${OUT}/45c-panel-settings-skipsnooze.png` });
 
+  // 45f. The Due time card with a set time chosen (#438). The choice autosaves and
+  // moves the stored floating dates, so it is put back at once: the shots below show
+  // the default.
+  await setDueTimeMode(panel, 'At a set time');
+  await panel.locator('#hk-settings-duetime').screenshot({
+    path: `${OUT}/45f-panel-settings-duetime.png`,
+  });
+  await setDueTimeMode(panel, 'At the time of completion');
+
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
   // public set_options service so both editors render populated. "Upstairs" carries an
@@ -2553,6 +2562,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/45e-panel-mobile-settings-shopping.png` });
 
+  // 45g. The Due time section on a phone, with a set time chosen and then put back.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="duetime"]').click();
+  await setDueTimeMode(panel, 'At a set time');
+  await page.screenshot({ path: `${OUT}/45g-panel-mobile-settings-duetime.png` });
+  await setDueTimeMode(panel, 'At the time of completion');
+
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and
   // the Triggers group saying that a trigger sets the moment rather than the contents.
@@ -2762,3 +2779,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.setViewportSize(DESKTOP);
 });
+
+/** Choose a Due time mode on the Settings card and wait for the save to land. */
+async function setDueTimeMode(panel: Locator, label: string): Promise<void> {
+  const card = panel.locator('#hk-settings-duetime');
+  await card.scrollIntoViewIfNeeded();
+  await card.getByText(label, { exact: true }).click();
+  await expect(card.locator('ha-selector-time')).toHaveCount(label === 'At a set time' ? 1 : 0);
+  await expect(card.locator('.hk-save-status.saved')).toBeVisible({ timeout: 30_000 });
+  await panel.page().waitForTimeout(600);
+}

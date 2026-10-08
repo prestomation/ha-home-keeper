@@ -49,6 +49,10 @@ to **Usual length** to use the usual lengths again.
 The `snooze_hours` field of `home_keeper.add_task` and `home_keeper.update_task`
 sets the same length in hours. Send an empty value to clear it.
 
+When **Settings → Due time** is a set time, a snooze of a task that repeats after each
+completion ends at the set time. Home Keeper moves the end to the first set time at
+or after the snooze length. See [Due time](../views/settings.md#due-time).
+
 Home Keeper records a skip in the task history, in a list separate from the
 completions. A skip is never counted as a completion, so the completion tally and
 the average interval do not include it. Each entry stores a note and the person

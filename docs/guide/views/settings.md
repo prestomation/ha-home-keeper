@@ -5,10 +5,12 @@ Home Assistant options flow and saves each change immediately. The same options 
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
 
-The tab has 7 sections:
+The tab has 9 sections:
 
 - **General** sets how long completed one-off tasks are kept. This number saves
   when you leave the box or press Enter.
+- **Due time** sets when a task that repeats after each completion is due. See
+  [Due time](#due-time).
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](../appliances/appliances.md#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See
@@ -17,12 +19,55 @@ The tab has 7 sections:
   [Notifications](./notifications.md).
 - **Problem sensor sync** has the sync switch and the exclusions for entities and
   devices and areas and labels. The exclusions apply only when the sync is on.
+- **Snooze, skip and due today** turns each of these actions on or off. See
+  [Snooze, skip and due today](../tasks/snooze-and-skip.md).
 - **Companions** lists the integrations that work with Home Keeper.
 - **Import and export** saves your data to a file and reads a file back. It also
   holds the [appliance report](../automation/import-export.md#appliance-report).
   See [Import and export](../automation/import-export.md).
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](../../images/17-panel-settings.png)
+
+#### Due time
+
+A task that repeats after each completion is due 1 interval after its last completion.
+By default it is also due at the time of day of that completion. If you mark the
+furnace filter done at 22:42, the next one is due at 22:42 three months later.
+
+For most household tasks only the day is important. Select **At a set time** and
+set a time of day, such as 08:00. Each of these tasks is then due at that time on
+its due date:
+
+- A morning summary from an automation that sends `home_keeper.notify` with the
+  `overdue` status includes every task that is due that day.
+- The overdue triggers and events fire at the set time, not late at night.
+- A snooze ends at the set time. A snooze of 1 hour at 22:00 ends at 08:00 the next
+  day. The custom snooze choice is a date.
+- The task page shows only the date of a task that is due at the set time.
+
+The setting has these limits:
+
+- It changes only tasks that repeat after each completion. A fixed schedule keeps the
+  time of its start date. A one-off task keeps its due time.
+- A task that is due now stays due now. This is a new task that was never done, or a
+  task that you moved with **Due today**.
+- When you save the setting, each task that is due later moves to the set time on the
+  same date. A task that was due later today can become overdue at once.
+- When you select **At the time of completion** again, the tasks keep the set time
+  until their next completion.
+
+You can also set it with the `home_keeper.set_options` service:
+
+```yaml
+action: home_keeper.set_options
+data:
+  due_time_mode: set_time
+  due_time: "08:00"
+```
+
+![The Due time settings card, with At a set time selected and the time 08:00](../../images/45f-panel-settings-duetime.png)
+
+![The Due time settings section on a phone](../../images/45g-panel-mobile-settings-duetime.png)
 
 #### Companions
 
