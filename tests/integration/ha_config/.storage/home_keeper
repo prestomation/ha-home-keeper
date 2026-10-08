@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-10-07T20:16:05.988685-04:00",
-        "next_due": "2026-11-07T20:16:05.988685-05:00",
+        "last_completed": "2026-09-10T11:38:05.228245-04:00",
+        "next_due": "2026-10-10T11:39:20.155259-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -45,11 +45,6 @@
           {
             "ts": "2026-09-10T11:38:05.228245-04:00",
             "note": "E2E completion dialog regression check"
-          },
-          {
-            "ts": "2026-10-07T20:16:05.988685-04:00",
-            "note": "E2E completion dialog regression check",
-            "prior_due": "2026-10-10T11:39:20.155259-04:00"
           }
         ],
         "labels": [
@@ -84,7 +79,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "9a8e336427f1de743e2c4a0a711bb160",
+        "device_id": "90c2b3684e965ec513be7ef5b88a56d9",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -489,7 +484,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "9a8e336427f1de743e2c4a0a711bb160",
+        "device_id": "90c2b3684e965ec513be7ef5b88a56d9",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -608,7 +603,7 @@
       "d3a5b7c9-2f4e-4d6b-9c8a-0e1f3b5d7a29": {
         "id": "d3a5b7c9-2f4e-4d6b-9c8a-0e1f3b5d7a29",
         "created": "2026-04-02T09:00:00-04:00",
-        "last_completed": "2026-10-07T20:16:15.721724-04:00",
+        "last_completed": "2026-09-08T18:30:00-04:00",
         "completions": [
           {
             "ts": "2026-08-07T18:30:00-04:00"
@@ -660,12 +655,6 @@
           },
           {
             "ts": "2026-09-08T18:30:00-04:00"
-          },
-          {
-            "ts": "2026-10-07T20:16:15.492423-04:00"
-          },
-          {
-            "ts": "2026-10-07T20:16:15.721724-04:00"
           }
         ],
         "skips": [],
@@ -686,7 +675,7 @@
         "name": "Wear rain jacket",
         "notes": "",
         "recurrence_type": "use",
-        "device_id": "40b02e18d5f8376226c3c15dd7f5c31e",
+        "device_id": "742aeba92077ead6da2801df39df61fb",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -720,64 +709,12 @@
         "name": "Renew DWR coating (Rain jacket)",
         "notes": "",
         "recurrence_type": "triggered",
-        "device_id": "40b02e18d5f8376226c3c15dd7f5c31e",
+        "device_id": "742aeba92077ead6da2801df39df61fb",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
         "active_season": null,
-        "next_due": null
-      },
-      "37274a6b-16b7-4574-94a8-6f2af83e6967": {
-        "id": "37274a6b-16b7-4574-94a8-6f2af83e6967",
-        "created": "2026-10-07T20:16:29.393885-04:00",
-        "last_completed": null,
-        "completions": [],
-        "skips": [],
-        "source": {
-          "declarative_companion": {
-            "spec_id": "a8df5fb4d4c74f90a624c37df5b2b58c",
-            "entity_registry_id": "28268e109702f3fd55223842302cbd61",
-            "entity_id": "binary_sensor.hk_demo_water_tank_low"
-          }
-        },
-        "managed_by": {
-          "integration": "home_keeper",
-          "display_name": "E2E overlap probe",
-          "config_entry_id": "home_keeper_test_entry",
-          "deletion_protected": true,
-          "locked_fields": [
-            "name",
-            "recurrence_type",
-            "device_id",
-            "area_id",
-            "sensor"
-          ],
-          "completion_blocked": true,
-          "completion_prompt": "Opened by the declarative companion “E2E overlap probe”. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand."
-        },
-        "external_id": "",
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "snooze_hours": null,
-        "name": "E2E overlap probe: HK demo water tank low",
-        "notes": "",
-        "recurrence_type": "sensor",
-        "device_id": null,
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "active_season": null,
-        "sensor": {
-          "entity_id": "binary_sensor.hk_demo_water_tank_low",
-          "mode": "state",
-          "state": "on",
-          "clear_on_recover": true
-        },
         "next_due": null
       }
     },
@@ -786,7 +723,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "9a8e336427f1de743e2c4a0a711bb160",
+        "device_id": "90c2b3684e965ec513be7ef5b88a56d9",
         "identifiers": [
           [
             "home_keeper",
@@ -955,7 +892,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "096da6344ae40df5d014cd92d3ed929b",
+        "device_id": "0a8425fd35c20a8f292710b98333255a",
         "identifiers": [
           [
             "home_keeper",
@@ -980,7 +917,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "baedd1dad964e932cec7b3160b31ec60",
+        "device_id": "2a1bb6032e19cd86becdffae5df20855",
         "identifiers": [
           [
             "home_keeper",
@@ -1006,7 +943,7 @@
         "name": "Rain jacket",
         "kind": "virtual",
         "external_id": "",
-        "device_id": "40b02e18d5f8376226c3c15dd7f5c31e",
+        "device_id": "742aeba92077ead6da2801df39df61fb",
         "area_id": null,
         "manufacturer": "Fjallraven",
         "model": "Keb Eco-Shell",
@@ -1057,7 +994,7 @@
         "id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
         "kind": "virtual",
         "name": "Batteries",
-        "device_id": "0d5fe507d8e4044bf1f3d779243c0e7e",
+        "device_id": "0816f2cf373a0fcf77f9372598b6b837",
         "identifiers": [
           [
             "home_keeper",
@@ -1158,39 +1095,7 @@
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
-    "declarative_companions": {
-      "a8df5fb4d4c74f90a624c37df5b2b58c": {
-        "id": "a8df5fb4d4c74f90a624c37df5b2b58c",
-        "name": "E2E overlap probe",
-        "description": "",
-        "enabled": true,
-        "preset_id": null,
-        "selection": {
-          "domain": "binary_sensor",
-          "entity_regex": "binary_sensor\\.hk_demo_water_tank_low",
-          "device_ids": [],
-          "area_ids": [],
-          "label_ids": [],
-          "exclude_entity_ids": [],
-          "exclude_device_ids": [],
-          "exclude_area_ids": [],
-          "exclude_label_ids": []
-        },
-        "trigger": {
-          "mode": "state",
-          "state": "on",
-          "clear_on_recover": true
-        },
-        "task_template": {
-          "name_template": "E2E overlap probe: {{ device_name or friendly_name }}",
-          "notes_template": "",
-          "labels": []
-        },
-        "per_entity_overrides": {},
-        "created": "2026-10-07T20:16:29.388780-04:00",
-        "updated": "2026-10-07T20:16:29.388780-04:00"
-      }
-    },
+    "declarative_companions": {},
     "todo_list_items": {}
   }
 }
