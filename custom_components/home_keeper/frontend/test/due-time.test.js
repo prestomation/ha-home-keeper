@@ -152,6 +152,9 @@ describe('dueTimeSchema', () => {
     expect(dueTimeSchema('completion').map((f) => f.name)).toEqual(['due_time_mode']);
     expect(dueTimeSchema(undefined).map((f) => f.name)).toEqual(['due_time_mode']);
     expect(dueTimeSchema('set_time').map((f) => f.name)).toEqual(['due_time_mode', 'due_time']);
-    expect(dueTimeSchema('set_time')[1].selector).toEqual({ time: {} });
+    expect(dueTimeSchema('set_time')[1]).toMatchObject({
+      required: true,
+      selector: { time: { no_second: true } },
+    });
   });
 });

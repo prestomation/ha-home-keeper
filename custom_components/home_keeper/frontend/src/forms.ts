@@ -92,7 +92,7 @@ export const selNumber = (min = 0, step?: number | 'any', max?: number): Selecto
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });
-export const selTime = (): Selector => ({ time: {} });
+export const selTime = (): Selector => ({ time: { no_second: true } });
 export const selDevice = (multiple = false): Selector => ({
   device: multiple ? { multiple: true } : {},
 });
@@ -1710,7 +1710,8 @@ export function dueTimeSchema(mode?: string): FormField[] {
       ),
     },
   ];
-  if (mode === 'set_time') fields.push({ name: 'due_time', selector: selTime() });
+  // Required, so the field has no clear button: an empty time has no meaning here.
+  if (mode === 'set_time') fields.push({ name: 'due_time', required: true, selector: selTime() });
   return fields;
 }
 
