@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 8a99e867f567
+source_hash: 96a075fbad19
 ---
 
 # Architecture
@@ -99,8 +99,7 @@ tabs, the card resource, the storage document and the uploaded files.
 ### Config entry and options
 
 The config flow is 1 confirmation step with no data. `options.py` defines every option key
-and default (`options.ALL_OPTIONS`). The options flow, the `set_options` service and the
-panel Settings tab edit them.
+and default (`options.ALL_OPTIONS`). The options flow, `set_options` and Settings edit them.
 
 - The service and the panel send a partial update to `options.async_set_options`. It
   merges, refuses a save that strands a notification (`options.ProfileInUseError`),
@@ -132,6 +131,7 @@ keys in `diagnostics.TO_REDACT`, because users attach dumps to public issues.
 | [events-api](events-api.md) | Events, device triggers and the API surface model |
 | [transfer](transfer.md) | Import and export |
 | [frontend](frontend.md) | The panel and the dashboard card |
+| [qr-labels](qr-labels.md) | QR code labels that link to a panel page |
 
 ## Trade-offs
 

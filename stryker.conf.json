@@ -38,6 +38,7 @@
     "custom_components/home_keeper/frontend/src/defer.ts",
     "custom_components/home_keeper/frontend/src/shopping-preview.ts",
     "custom_components/home_keeper/frontend/src/declarative-filters.ts",
+    "custom_components/home_keeper/frontend/src/qr-labels.ts",
     "custom_components/home_keeper/frontend/src/preset-picker.ts",
     "custom_components/home_keeper/frontend/src/preset-nudge.ts",
     "custom_components/home_keeper/frontend/src/preset-summary.ts",

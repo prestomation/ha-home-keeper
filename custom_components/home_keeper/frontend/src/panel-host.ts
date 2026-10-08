@@ -22,6 +22,7 @@
  *   commit at a time, alongside the region that needs it.
  */
 
+import type { LabelDialogState } from './panel-labels';
 import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
 import type { TaskPhotoUrlCache } from './task-photos';
@@ -149,6 +150,8 @@ export interface PanelHost extends HTMLElement {
   _presetNudge: PresetNudgeState | null;
   /** The one-time "Presets you can use" dialog. */
   _presetDialog: PresetDialogState;
+  /** The QR label dialog (`panel-labels.ts`). */
+  _labelDialog: LabelDialogState;
   /** The last queued write of `_presetNudge`, so the writes land in order. */
   _presetNudgeSaving: Promise<void>;
   /** Delete a task outright (already confirmed). */

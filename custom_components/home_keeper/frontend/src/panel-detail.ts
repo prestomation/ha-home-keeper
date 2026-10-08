@@ -39,6 +39,7 @@ import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
+import { openLabelDialog } from './panel-labels';
 import {
   MDI_CONSUMABLE,
   MDI_EDIT,
@@ -359,7 +360,10 @@ function taskDetail(p: PanelHost, task: Task): string {
   // A source-owned task offers no Edit and no Delete, but it still gets the greyed
   // Duplicate: "you can't copy this either, and here is why" is information the
   // sourceOwned caption above doesn't carry.
-  manage = `${dupBtn}${manage}`;
+  // A label only links to this page, so every task gets one, a managed task too. It is
+  // benign, so it sits before Delete, as Duplicate does.
+  const labelBtn = qrLabelButton();
+  manage = `${dupBtn}${sourceOwned ? labelBtn : ''}${manage}`;
   if (!sourceOwned) {
     // A companion declares what it owns through `managed_by.locked_fields`, and the
     // form drops every one of them. Claim the lot and the drawer opens with no rows in
@@ -404,7 +408,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         : '';
     // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
     // and putting a benign action past a destructive one reads badly.
-    manage = `${editBtn}${dupBtn}${companionBtn}${deleteBtn}${openInBtn}`;
+    manage = `${editBtn}${dupBtn}${companionBtn}${labelBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -603,6 +607,7 @@ function assetDetail(p: PanelHost, asset: Asset): string {
     ? ''
     : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
   const archived = Boolean(asset.archived_at);
+  const labelBtn = qrLabelButton();
   const archiveOrRestoreBtn = archived
     ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
     : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
@@ -637,6 +642,7 @@ function assetDetail(p: PanelHost, asset: Asset): string {
         <div class="hk-detail-actions">
           ${editBtn}
           ${archiveOrRestoreBtn}
+          ${labelBtn}
           ${deleteBtn}
           ${managedInfo}
         </div>
@@ -1196,6 +1202,11 @@ export function wireDetailOpeners(p: PanelHost, root: ParentNode): void {
 }
 
 /** Wire the detail page's Done / Edit / Delete / Open-in buttons. */
+/** The QR label button of a detail page. It opens the label dialog for this object. */
+function qrLabelButton(): string {
+  return `<ha-button ${btnAttrs('tertiary')} class="d-label">${escapeHTML(t('labels.button'))}</ha-button>`;
+}
+
 function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   const d = p._detail;
   if (!d) return;
@@ -1208,6 +1219,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
     if (!task) return;
     const done = root.querySelector('.d-done');
     done?.addEventListener('click', () => void p._complete(task, done));
+    root.querySelector('.d-label')?.addEventListener('click', () => openLabelDialog(p, 'task', task.id));
     const doneBlocked = root.querySelector<HTMLElement>('.d-done-blocked-wrap');
     if (doneBlocked) onActivate(doneBlocked, () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
@@ -1281,6 +1293,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   wireStockSteppers(p, root, asset);
   p._wireNoteEditor(root, { kind: 'asset', id: asset.id });
   root.querySelector('.d-archive')?.addEventListener('click', () => void p._archiveAsset(asset));
+  root.querySelector('.d-label')?.addEventListener('click', () => openLabelDialog(p, 'asset', asset.id));
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));
   root.querySelector('.d-del')?.addEventListener('click', () => {
     const name = assetTitle(asset, p._hass?.devices);

@@ -194,6 +194,7 @@ export const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 export const LS_PROFILE = 'home-keeper.profile';
 export const LS_ASSET_VIEW = 'home-keeper.assetView';
 export const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
+export const LS_LABELS = 'home-keeper.labels';
 
 /**
  * The Import and export card's state.
