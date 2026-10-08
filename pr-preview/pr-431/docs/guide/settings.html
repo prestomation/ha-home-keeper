@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-431/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-431/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-431/assets/js/runtime~main.6b3e1e85.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-431/assets/js/runtime~main.0cb16576.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-431/assets/js/main.95e8f34e.js" defer="defer"></script>
 </head>
 <body>
@@ -15,10 +15,12 @@
 Home Assistant options flow and saves each change immediately. The same options are
 available in the options flow under <strong>Settings → Devices &amp; services → Configure</strong> and
 through the <code>home_keeper.set_options</code> service.</p>
-<p>The tab has 7 sections:</p>
+<p>The tab has 9 sections:</p>
 <ul>
 <li class=""><strong>General</strong> sets how long completed one-off tasks are kept. This number saves
 when you leave the box or press Enter.</li>
+<li class=""><strong>Due time</strong> sets when a task that repeats after each completion is due. See
+<a href="#due-time" class="">Due time</a>.</li>
 <li class=""><strong>Shopping list</strong> selects the to-do list that
 <a class="" href="/ha-home-keeper/pr-preview/pr-431/docs/guide/appliances#send-buy-reminders-to-your-shopping-list">buy reminders are synced to</a>.</li>
 <li class=""><strong>Profiles</strong> holds the saved filters. See
@@ -27,12 +29,44 @@ when you leave the box or press Enter.</li>
 <a class="" href="/ha-home-keeper/pr-preview/pr-431/docs/guide/notifications">Notifications</a>.</li>
 <li class=""><strong>Problem sensor sync</strong> has the sync switch and the exclusions for entities and
 devices and areas and labels. The exclusions apply only when the sync is on.</li>
+<li class=""><strong>Snooze, skip and due today</strong> turns each of these actions on or off. See
+<a class="" href="/ha-home-keeper/pr-preview/pr-431/docs/guide/snooze-and-skip">Snooze, skip and due today</a>.</li>
 <li class=""><strong>Companions</strong> lists the integrations that work with Home Keeper.</li>
 <li class=""><strong>Import and export</strong> saves your data to a file and reads a file back. It also
 holds the <a class="" href="/ha-home-keeper/pr-preview/pr-431/docs/guide/import-export#appliance-report">appliance report</a>.
 See <a class="" href="/ha-home-keeper/pr-preview/pr-431/docs/guide/import-export">Import and export</a>.</li>
 </ul>
 <p><img decoding="async" loading="lazy" alt="The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards" src="/ha-home-keeper/pr-preview/pr-431/assets/images/17-panel-settings-b5380311c27eae1f66f02b8b6b2025dc.png" width="1280" height="3479" class="img_ev3q"></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="due-time">Due time<a href="#due-time" class="hash-link" aria-label="Direct link to Due time" title="Direct link to Due time" translate="no">​</a></h4>
+<p>A task that repeats after each completion is due 1 interval after its last completion.
+By default it is also due at the time of day of that completion. If you mark the
+furnace filter done at 22:42, the next one is due at 22:42 three months later.</p>
+<p>For most household tasks only the day is important. Select <strong>At a set time</strong> and
+set a time of day, such as 08:00. Each of these tasks is then due at that time on
+its due date:</p>
+<ul>
+<li class="">A morning summary from an automation that sends <code>home_keeper.notify</code> with the
+<code>overdue</code> status includes every task that is due that day.</li>
+<li class="">The overdue triggers and events fire at the set time, not late at night.</li>
+<li class="">A snooze ends at the set time. A snooze of 1 hour at 22:00 ends at 08:00 the next
+day. The custom snooze choice is a date.</li>
+<li class="">The task page shows only the date of a task that is due at the set time.</li>
+</ul>
+<p>The setting has these limits:</p>
+<ul>
+<li class="">It changes only tasks that repeat after each completion. A fixed schedule keeps the
+time of its start date. A one-off task keeps its due time.</li>
+<li class="">A task that is due now stays due now. This is a new task that was never done, or a
+task that you moved with <strong>Due today</strong>.</li>
+<li class="">When you save the setting, each task that is due later moves to the set time on the
+same date. A task that was due later today can become overdue at once.</li>
+<li class="">When you select <strong>At the time of completion</strong> again, the tasks keep the set time
+until their next completion.</li>
+</ul>
+<p>You can also set it with the <code>home_keeper.set_options</code> service:</p>
+<div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">action</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> home_keeper.set_options</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">data</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token key atrule" style="color:#00a4db">due_time_mode</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> set_time</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token key atrule" style="color:#00a4db">due_time</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;08:00&quot;</span><br></div></code></pre></div></div>
+<p><img decoding="async" loading="lazy" alt="The Due time settings card, with At a set time selected and the time 08:00" src="/ha-home-keeper/pr-preview/pr-431/assets/images/45f-panel-settings-duetime-6fb5e530c4d02466593feaa5523a92ad.png" width="736" height="375" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Due time settings section on a phone" src="/ha-home-keeper/pr-preview/pr-431/assets/images/45g-panel-mobile-settings-duetime-1910740d8e9e0f0703a387e4d5c35a0f.png" width="390" height="844" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="companions">Companions<a href="#companions" class="hash-link" aria-label="Direct link to Companions" title="Direct link to Companions" translate="no">​</a></h4>
 <p>A companion is an integration that works with Home Keeper. Examples are a pet-care
 tracker that creates recurring tasks and a glue integration that turns a low battery

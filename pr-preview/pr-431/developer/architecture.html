@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><meta data-rh="true" property="og:description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-431/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-431/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-431/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-431/assets/js/runtime~main.6b3e1e85.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-431/assets/js/runtime~main.0cb16576.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-431/assets/js/main.95e8f34e.js" defer="defer"></script>
 </head>
 <body>
@@ -86,8 +86,8 @@ stay through reloads. A handler raises <code>integration_not_loaded</code> when 
 Each websocket command calls the same store method as its service twin.
 <code>async_setup_entry</code> then runs these steps in order:</p>
 <ol>
-<li class="">Load the backend strings in the executor. Load <code>HomeKeeperStore</code> and repair split
-device ids (<code>devices.async_heal_split_device_ids</code>).</li>
+<li class="">Load the backend strings, then <code>HomeKeeperStore</code>, and apply the set due time
+(<code>store.async_apply_due_time</code>). Repair split device ids (<code>devices.async_heal_split_device_ids</code>).</li>
 <li class="">Create <code>HomeKeeperCoordinator</code>, refresh it, and store it as <code>entry.runtime_data</code>.</li>
 <li class="">Reconcile asset devices, part tasks, buy tasks, problem sensors and declarative
 companions, so the tasks exist before the platforms read them.</li>
