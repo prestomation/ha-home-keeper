@@ -809,6 +809,59 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
   });
 }
 
+// ── The set due time of floating tasks (#438) ───────────────────────────────
+const HH_MM = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+
+/**
+ * The set due time of *options* as `"HH:MM"`, or `null` in the `completion` mode.
+ *
+ * Mirrors the backend's `options.due_time_of`: a value that is not a time reads as
+ * 08:00, the default.
+ */
+export function setDueTime(
+  options: { due_time_mode?: unknown; due_time?: unknown } | null | undefined,
+): string | null {
+  if (options?.due_time_mode !== 'set_time') return null;
+  const m = HH_MM.exec(String(options.due_time ?? ''));
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return '08:00';
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+/**
+ * *at* moved to *dueTime* on its date in Home Assistant's zone. With *roundUp*, the
+ * first set time at or after *at* — the rule a snooze follows, so the panel shows
+ * the date the backend writes (`recurrence.snap_to_due_time`).
+ */
+export function snapToDueTime(at: Date, dueTime: string | null, roundUp = false): Date {
+  if (!dueTime) return at;
+  const [hh, mm] = dueTime.split(':').map(Number);
+  const [y, mo, d] = zonedParts(at.getTime(), haTimeZone);
+  let snapped = zonedTimeToMs([y, mo, d, hh, mm, 0], haTimeZone);
+  if (roundUp && snapped < at.getTime()) {
+    snapped = zonedTimeToMs([y, mo, d + 1, hh, mm, 0], haTimeZone);
+  }
+  return new Date(snapped);
+}
+
+/**
+ * A due date, without its time of day when that time is the set due time.
+ *
+ * With a set due time every floating task is due at that time, so the time says
+ * nothing and only the date is shown. Any other time (a task that is due now, or a
+ * fixed schedule) keeps it.
+ */
+export function formatDue(
+  value: string | null | undefined,
+  dueTime: string | null,
+  lang?: string,
+): string {
+  const d = value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return dueTime && snapToDueTime(d, dueTime).getTime() === d.getTime()
+    ? formatDate(d, lang)
+    : formatDateTime(d, lang);
+}
+
 /**
  * "today" / "yesterday" / "N days ago" for a past date, counted in calendar days.
  *
@@ -1603,6 +1656,7 @@ export const DEFAULT_TASK_TAB: TaskTab = 'schedule';
  */
 export const SETTINGS_SECTIONS = [
   'general',
+  'duetime',
   'shopping',
   'problem',
   'skipsnooze',

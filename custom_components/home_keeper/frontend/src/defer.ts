@@ -18,9 +18,11 @@ import {
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  formatDue,
   isOverdue,
   scanRequired,
   resolveSnoozePreset,
+  snapToDueTime,
   snoozePresetForHours,
   taskSnoozeHours,
 } from './utils';
@@ -180,6 +182,10 @@ export interface SnoozeState {
   task: Task | null;
   preset: SnoozePresetId;
   customAt?: string;
+  /** The set due time ("HH:MM") of a floating task, or null (#438). A snooze then
+   *  lands on the first set time at or after its target, as the backend writes it,
+   *  and the custom choice is a date. */
+  dueTime?: string | null;
   error?: string;
 }
 
@@ -209,13 +215,28 @@ export const emptySkipState = (): SkipState => ({ open: false, task: null, data:
  * date that length gives from *now* already filled in. A task with no length of its
  * own opens on the usual preset.
  */
-export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState {
+export function snoozeStateFor(
+  task: Task,
+  now: Date = new Date(),
+  setDueTime: string | null = null,
+): SnoozeState {
+  // Only a floating task snaps. A fixed task keeps the time of its schedule.
+  const dueTime = task.recurrence_type === 'floating' ? setDueTime : null;
+  const snap = dueTime ? { dueTime } : {};
   const hours = taskSnoozeHours(task);
-  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET, ...snap };
   const preset = snoozePresetForHours(hours);
-  if (preset) return { open: true, task, preset };
+  if (preset) return { open: true, task, preset, ...snap };
   const at = new Date(snoozeFrom(task, now).getTime() + hours * 3_600_000);
-  return { open: true, task, preset: 'custom', customAt: isoToHaDateTime(at.toISOString()) };
+  const customAt = isoToHaDateTime(at.toISOString());
+  // With a set due time the custom choice is a date only.
+  return {
+    open: true,
+    task,
+    preset: 'custom',
+    customAt: dueTime ? customAt?.slice(0, 10) : customAt,
+    ...snap,
+  };
 }
 
 /**
@@ -230,10 +251,14 @@ export function snoozeFrom(task: Task | null | undefined, now: Date = new Date()
   return Number.isNaN(due) ? now : new Date(Math.max(due, now.getTime()));
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 /** The typed custom date, or `null` when there is none or it will not parse. */
 function customDate(s: SnoozeState): Date | null {
   if (!s.customAt) return null;
-  const iso = haDateTimeToIso(s.customAt);
+  // A date picker sends "YYYY-MM-DD": its day starts at midnight in HA's zone.
+  const value = DATE_ONLY.test(s.customAt) ? `${s.customAt} 00:00:00` : s.customAt;
+  const iso = haDateTimeToIso(value);
   if (!iso) return null;
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -246,16 +271,23 @@ function customDate(s: SnoozeState): Date | null {
  */
 export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
   const from = snoozeFrom(s.task, now);
-  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, from);
+  const dueTime = s.dueTime ?? null;
+  if (s.preset !== 'custom') {
+    const at = resolveSnoozePreset(s.preset, from);
+    return at && snapToDueTime(at, dueTime, true);
+  }
   const at = customDate(s);
-  return at && at.getTime() > from.getTime() ? at : null;
+  const snapped = at && snapToDueTime(at, dueTime, true);
+  return snapped && snapped.getTime() > from.getTime() ? snapped : null;
 }
 
 /** The line stating where the current choice lands, or a prompt if unset. */
 export function snoozeHintText(s: SnoozeState, lang?: string, now: Date = new Date()): string {
   const until = snoozeTarget(s, now);
   if (until) {
-    return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+    return t('defer.snoozeResolves', {
+      date: formatDue(until.toISOString(), s.dueTime ?? null, lang),
+    });
   }
   // A typed date that is too early gets its own line, so the user knows why the
   // Snooze button does nothing (F10-2).
