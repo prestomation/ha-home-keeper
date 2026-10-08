@@ -6,6 +6,34 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0] - 2026-10-08
+
+### Added
+
+- **[Set due time](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#due-time).**
+  Make every task that repeats after each completion due at 1 time of day that you
+  choose, such as 08:00, in place of the time it was last done. A morning summary
+  then includes the tasks that are due that day, and overdue triggers fire at that time.
+  (Fixes #438)
+- **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
+  Companion integrations can add their own tab to the panel. To hide a tab, turn off its
+  switch on the companion row in **Settings → Companions**.
+- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+  Make a grouped card start with all groups closed, only chosen groups closed, or every
+  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
+- **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
+  Turn off **Show schedule** or **Show completion count** in the card editor to remove
+  that text from each row. (Fixes #432)
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
+
+### Fixed
+
+- **New task pages.** A link to a task or an appliance that another surface added after
+  the panel loaded now opens its page. Before, the page showed "This item no longer
+  exists" until a reload.
+
 ## [0.30.0b5]
 
 ### Added
