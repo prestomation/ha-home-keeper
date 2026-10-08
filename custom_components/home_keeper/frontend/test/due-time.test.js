@@ -129,6 +129,36 @@ describe('snooze with a set due time', () => {
     expect(s.customAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  it('rounds a custom date and time up to the next set time', () => {
+    // A date and time still typed from before (22:00) is not read as a date only, and
+    // its set time is the next day.
+    const s = {
+      ...snoozeStateFor(floating, NOW, '08:00'),
+      preset: 'custom',
+      customAt: '2026-09-20 22:00:00',
+    };
+    expect(snoozeTarget(s, NOW)?.toISOString()).toBe('2026-09-21T15:00:00.000Z');
+  });
+
+  it('reads a custom date as that day in the zone of Home Assistant', () => {
+    // In Tokyo, UTC midnight is 09:00, after the set time. A date read as UTC would
+    // land on the next day.
+    setTimeZone('Asia/Tokyo');
+    const now = new Date('2026-09-15T00:00:00Z');
+    const s = {
+      ...snoozeStateFor(floating, now, '08:00'),
+      preset: 'custom',
+      customAt: '2026-09-20',
+    };
+    // 08:00 in Tokyo (UTC+9) is 23:00 UTC the day before.
+    expect(snoozeTarget(s, now)?.toISOString()).toBe('2026-09-19T23:00:00.000Z');
+  });
+
+  it('opens a custom length without a set time as a date and time', () => {
+    const s = snoozeStateFor({ ...floating, snooze_hours: 30 }, NOW);
+    expect(s.customAt).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
   it('refuses a custom date whose set time is not later than now', () => {
     const s = {
       ...snoozeStateFor(floating, NOW, '08:00'),
@@ -152,6 +182,12 @@ describe('dueTimeSchema', () => {
     expect(dueTimeSchema('completion').map((f) => f.name)).toEqual(['due_time_mode']);
     expect(dueTimeSchema(undefined).map((f) => f.name)).toEqual(['due_time_mode']);
     expect(dueTimeSchema('set_time').map((f) => f.name)).toEqual(['due_time_mode', 'due_time']);
+    expect(dueTimeSchema('set_time')[0].selector.select).toMatchObject({
+      options: [
+        { value: 'completion', label: t('settings.due_time_mode_completion') },
+        { value: 'set_time', label: t('settings.due_time_mode_set_time') },
+      ],
+    });
     expect(dueTimeSchema('set_time')[1]).toMatchObject({
       required: true,
       selector: { time: { no_second: true } },
