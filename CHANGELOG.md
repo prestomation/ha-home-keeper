@@ -18,13 +18,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
   Companion integrations can add their own tab to the panel. To hide a tab, turn off its
   switch on the companion row in **Settings → Companions**.
-- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+- **[Collapsed card groups](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
   Make a grouped card start with all groups closed, only chosen groups closed, or every
   group above a set size closed. The group headers and counts stay in view. (Fixes #435)
 - **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
   Turn off **Show schedule** or **Show completion count** in the card editor to remove
   that text from each row. (Fixes #432)
-- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+- **[More filter presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
   New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
   or Sensibo report that a filter needs care.
 
