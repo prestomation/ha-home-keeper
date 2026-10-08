@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Wykluczone etykiety",
           "one_off_retention_days": "Przechowywanie jednorazowych (dni)",
           "shopping_list_entity": "Lista zakupów",
-          "shopping_line_style": "Tekst na liście zakupów"
+          "shopping_line_style": "Tekst na liście zakupów",
+          "due_time_mode": "Godzina terminu",
+          "due_time": "Stała godzina terminu"
         },
         "data_description": {
           "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
           "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze.",
           "shopping_list_entity": "Synchronizuje automatyczne przypomnienia o zakupie z tą listą zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć synchronizację.",
-          "shopping_line_style": "Jak przypomnienie o zakupie wygląda na liście zakupów. „Tylko produkt” pokazuje nazwę części bez czasownika, na przykład „Płyn do płukania” zamiast „Kup płyn do płukania”."
+          "shopping_line_style": "Jak przypomnienie o zakupie wygląda na liście zakupów. „Tylko produkt” pokazuje nazwę części bez czasownika, na przykład „Płyn do płukania” zamiast „Kup płyn do płukania”.",
+          "due_time_mode": "Kiedy przypada termin zadania, które powtarza się po każdym wykonaniu. Przy stałej godzinie termin zadania przypada o tej godzinie w dniu terminu. Odłożenie też kończy się o tej godzinie.",
+          "due_time": "Godzina lokalna, o której przypada termin tych zadań. Używana tylko przy stałej godzinie."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Tekst na liście zakupów",
           "description": "Jak przypomnienie o zakupie wygląda na liście zakupów. with_verb (domyślnie) pokazuje nazwę przypomnienia, na przykład „Kup płyn do płukania”. product_only pokazuje tylko nazwę części."
         },
+        "due_time_mode": {
+          "name": "Godzina terminu",
+          "description": "Kiedy przypada termin zadania, które powtarza się po każdym wykonaniu. completion (domyślnie) zachowuje godzinę ostatniego wykonania, odłożenia lub pominięcia. set_time ustawia termin na due_time w dniu terminu."
+        },
+        "due_time": {
+          "name": "Stała godzina terminu",
+          "description": "Godzina lokalna (HH:MM) dla set_time. Domyślnie 08:00."
+        },
         "dismissed_companions": {
           "name": "Odrzuceni towarzysze",
           "description": "Domeny integracji łączących do ukrycia z listy „Sugerowane” w Ustawienia → Towarzysze. Odrzucenie jedynie wycisza sugestię; połączone powiązanie jest zawsze wyświetlane."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Z czasownikiem",
         "product_only": "Tylko produkt"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Godzina wykonania",
+        "set_time": "Stała godzina"
       }
     }
   },

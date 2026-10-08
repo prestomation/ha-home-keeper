@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/defer-dialogs.ts
   - custom_components/home_keeper/frontend/src/panel-defer.ts
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: f868863c0b09
+source_hash: d67a00e10d69
 ---
 
 # Task model and recurrence
@@ -62,9 +62,8 @@ A `last_completed` seed goes through `recurrence.apply_completion` as the first 
 - Fields in `managed_by.locked_fields` are removed from the update first.
 - A type change reads `due` and `sensor` only from the update, and removes each key in
   `_TYPE_SCHEDULE_KEYS` that the new type does not use.
-- `next_due` is calculated again only if a recurrence field changed its value.
-  `models._same_schedule_value` compares `due` and `anchor` as instants to the second, and
-  seasons as month-day pairs. Thus a rename keeps a snooze and keeps a finished one-off done.
+- `next_due` is calculated again only if a recurrence field changed its value
+  (`models._same_schedule_value`), so a rename keeps a snooze and a finished one-off done.
 - Labels, card links, chips, `external_id`, the tag and `snooze_hours` change only if sent.
 
 ### How `next_due` is calculated
@@ -78,22 +77,25 @@ arms them: the owner calls `trigger_task`, and the watcher arms a sensor task. O
 `recurrence.add_months` clamps the day (Jan 31 + 1 month is Feb 28). `recurrence._fast_forward`
 jumps near the target, so an old anchor costs few steps; a monthly grid first steps to day 28.
 
+In the `set_time` due time mode the store passes `due_time` to each call.
+`recurrence._floating_due` adds the interval, clamps to the season, and `snap_to_due_time` sets
+that time on the date. A due `now` does not snap, and a floating snooze rounds up. Each entry
+load runs `snap_future_floating`, which moves each future floating date to the set time.
+
 ### Time zones
 
-Every datetime is aware. The caller passes `now` from Home Assistant, so tests fix the clock.
-A stored ISO string keeps only a UTC offset, not a zone. `recurrence._regrid` and
-`recurrence._local` move the anchor and `last_completed` into the zone of `now` before any
-arithmetic. A task at 10:00 thus stays at 10:00 local time after a daylight-saving change.
-A naive input gets the configured zone with `replace(tzinfo=...)`, which keeps wall time.
+Every datetime is aware, and the caller passes `now`. A stored ISO string keeps only a UTC
+offset, so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed`
+into the zone of `now` before any arithmetic: 10:00 stays 10:00 after a daylight-saving
+change. A naive input gets the configured zone with `replace(tzinfo=...)`.
 
 ### Completion and skip
 
 `recurrence.apply_completion` writes the log entry and moves `next_due`. A completion older
-than the latest one only fills in the log. For a fixed task,
-`recurrence._advance_fixed_schedule` moves past `max(now, next_due)`. Done before the time of
-day clears today's occurrence, and an overdue task jumps over all missed occurrences in
-1 step. The entry keeps `prior_due`, so `recurrence.remove_completion` can restore it. A
-floating entry keeps it only after a snooze, a due today or a moved date.
+than the latest one only fills in the log. For a fixed task, `_advance_fixed_schedule` moves
+past `max(now, next_due)`: Done before the time of day clears today's occurrence, and an
+overdue task skips all missed ones in 1 step. The entry keeps `prior_due` for
+`remove_completion`; a floating entry only after a snooze, a due today or a moved date.
 
 `recurrence.skip_occurrence` writes to `skips`, never to `completions`, and does not change
 `last_completed`. A floating task becomes due 1 interval from `now`. A fixed task moves as it
@@ -102,28 +104,25 @@ one-off at `due` only when it has no completion and no other skip.
 
 ### Snooze and due today
 
-Both call `recurrence.defer`, which sets `next_due` and records no log entry. On a fixed task
-it stores the grid occurrence in `deferred_from`. A later completion moves past that
-occurrence, and so the user loses no occurrence between the old date and the new date.
-`recurrence.snooze_from` counts a snooze from the due date if that is later than `now`, so a
-snooze never makes a task due earlier. The store rejects both on a dormant task.
+Both call `recurrence.defer`, which sets `next_due` and records no log entry. On a fixed task it
+keeps the grid occurrence in `deferred_from`, so a later completion loses none.
+`recurrence.snooze_from` counts a snooze from the due date when that is later than `now`. The
+store rejects both on a dormant task.
 
-In the frontend, `defer.deferVerbs` decides which actions to show. All need a `next_due`.
-Skip also needs a task that is not `completion_blocked`. Due today also needs a task that is
-not overdue. Each action has an option switch. The details item opens the completion dialog
-on a one-tap task that is not blocked or scan-only. `defer.snoozeTarget` repeats the
-`snooze_from` rule and refuses a custom date that is not later. `defer-dialogs.ts` holds the
-menu controller and both dialogs, which the panel and the card share. `panel-defer.ts` binds
-them to the panel host.
+In the frontend, `defer.deferVerbs` decides which actions to show: all need a `next_due`, Skip
+a task that is not `completion_blocked`, Due today one that is not overdue, and each has an
+option switch. The details item opens the completion dialog on a one-tap task.
+`defer.snoozeTarget` repeats `snooze_from` and the set-time round-up, and refuses a custom
+date that is not later. `defer-dialogs.ts` holds the menu and both dialogs for the panel and
+the card; `panel-defer.ts` binds them to the panel host.
 
 ### Dormant, disabled and one-off
 
 A task with `next_due` set to `None` is dormant. `recurrence.is_overdue` and
-`recurrence.is_due_soon` return false for it. A surface that lists tasks must skip it by
-itself. `enabled: false` keeps `next_due` but removes the task from the to-do list, the
-calendar, the per-task entities and the transition events. `recurrence.one_off_completed`
-identifies a finished one-off. `recurrence.one_off_expired` adds the retention option, and the
-coordinator deletes an expired task.
+`recurrence.is_due_soon` return false for it, and a surface that lists tasks skips it.
+`enabled: false` keeps `next_due` but removes the task from the to-do list, the calendar, the
+per-task entities and the transition events. `recurrence.one_off_expired` adds the retention
+option to `one_off_completed`, and the coordinator deletes an expired task.
 
 ### Seasons
 
@@ -148,3 +147,4 @@ the grid and agrees with the calendar.
   the internal `prior_due` (completion entry) and `deferred_from` (task).
 - Services that set them: `add_task`, `update_task`, `snooze_task` (`hours` or `until`),
   `skip_task`, `set_due_today`, `trigger_task`. See [INTEGRATING](../INTEGRATING.md).
+- Options: `due_time_mode` (`completion`, `set_time`) and `due_time` (`HH:MM`).

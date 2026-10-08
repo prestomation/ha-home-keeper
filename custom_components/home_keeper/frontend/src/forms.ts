@@ -92,6 +92,7 @@ export const selNumber = (min = 0, step?: number | 'any', max?: number): Selecto
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });
+export const selTime = (): Selector => ({ time: { no_second: true } });
 export const selDevice = (multiple = false): Selector => ({
   device: multiple ? { multiple: true } : {},
 });
@@ -1689,6 +1690,29 @@ export function generalSchema(): FormField[] {
       selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
     },
   ];
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Due time** card (#438): when a
+ * floating task is due, and the time of day, which shows only for a set time.
+ */
+export function dueTimeSchema(mode?: string): FormField[] {
+  const fields: FormField[] = [
+    {
+      name: 'due_time_mode',
+      selector: selSelect(
+        [
+          { value: 'completion', label: t('settings.due_time_mode_completion') },
+          { value: 'set_time', label: t('settings.due_time_mode_set_time') },
+        ],
+        false,
+        'list',
+      ),
+    },
+  ];
+  // Required, so the field has no clear button: an empty time has no meaning here.
+  if (mode === 'set_time') fields.push({ name: 'due_time', required: true, selector: selTime() });
+  return fields;
 }
 
 /**

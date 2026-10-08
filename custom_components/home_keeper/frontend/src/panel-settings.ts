@@ -25,6 +25,7 @@ import * as api from './api';
 import { profileHasAnyTask } from './card-filter';
 import {
   companionOptions,
+  dueTimeSchema,
   generalSchema,
   notificationDeliverySchema,
   notificationProfileSchema,
@@ -75,6 +76,7 @@ import {
   navigateTo,
   notifyRowChip,
   setBtnWeight,
+  setDueTime,
   toast,
   writeQueue,
   type QueuedWrite,
@@ -130,6 +132,12 @@ export function settingsSectionList(p: PanelHost): {
     p._declarativeCompanions.length;
   const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
     { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
+    {
+      key: 'duetime',
+      card: 'hk-settings-duetime',
+      label: t('settings.duetime_heading'),
+      mark: dot(setDueTime(opts) ? 'on' : 'off'),
+    },
     {
       key: 'shopping',
       card: 'hk-settings-shopping',
@@ -272,9 +280,10 @@ export function settingsBackbar(p: PanelHost): string {
 }
 
 /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
- *  each change (the backend reloads + re-runs the problem sync). Three cards: a
+ *  each change (the backend reloads + re-runs the problem sync). The cards: a
  *  **General** card for settings (like one-off retention) that aren't tied to any
- *  single feature, the **Shopping list** mirror, and problem-sensor sync. The two
+ *  single feature, the **Due time** of floating tasks, the **Shopping list** mirror,
+ *  problem-sensor sync, and the deferral switches. The two
  *  feature cards each carry a paragraph, because both do something to the user's
  *  data they should read about before switching it on. */
 function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
@@ -310,6 +319,8 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       { commitOnLeave: true },
     ),
   );
+  // Due time — when a floating task is due (#438).
+  host.appendChild(dueTimeCard(p, opts));
   // Shopping list — where auto-buy reminders are mirrored, and how they read there.
   host.appendChild(shoppingCard(p, opts));
   // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor). The
@@ -505,6 +516,10 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
     const days = Number(opts.one_off_retention_days) || 0;
     return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');
   }
+  if (id === 'hk-settings-duetime') {
+    const due = setDueTime(opts);
+    return due ? t('settings.duetime_on', { time: due }) : t('settings.duetime_off');
+  }
   if (id === 'hk-settings-shopping') {
     const entity = String(opts.shopping_list_entity ?? '');
     if (!entity) return t('settings.shopping_off');
@@ -540,6 +555,51 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
 /** A to-do entity's name as Home Assistant shows it, or its id. */
 function listName(p: PanelHost, entity: string): string {
   return String(p._hass?.states?.[entity]?.attributes?.friendly_name || entity);
+}
+
+/**
+ * The Due time card: the mode, and the time of day once the mode is a set time.
+ *
+ * Like the Shopping list card, a change cannot re-render the card, so the change
+ * handler shows or hides the time field and updates the summary in place. The card
+ * saves only its 2 keys. A time selector sends "HH:MM:SS", and the backend keeps
+ * "HH:MM".
+ */
+function dueTimeCard(p: PanelHost, opts: HomeKeeperOptions): HTMLElement {
+  let form: HaFormElement | null = null;
+  let card: HTMLElement | null = null;
+  const own = (value: Partial<HomeKeeperOptions>): Partial<HomeKeeperOptions> => ({
+    due_time_mode: value.due_time_mode === 'set_time' ? 'set_time' : 'completion',
+    due_time: String(value.due_time || '08:00').slice(0, 5),
+  });
+  const refresh = (value: Partial<HomeKeeperOptions>): void => {
+    if (form) {
+      form.schema = dueTimeSchema(value.due_time_mode);
+      form.data = own(value);
+    }
+    const summary = card?.querySelector('.hk-settings-value');
+    if (summary) {
+      summary.textContent = settingsSummary(p, 'hk-settings-duetime', value as HomeKeeperOptions);
+    }
+  };
+  card = settingsCard(
+    p,
+    'hk-settings-duetime',
+    'settings.duetime_heading',
+    'settings.duetime_help',
+    dueTimeSchema(opts.due_time_mode),
+    opts,
+    {
+      coerce: (raw) => {
+        const value = own(raw as Partial<HomeKeeperOptions>);
+        refresh(value);
+        return value;
+      },
+    },
+  );
+  form = card.querySelector('ha-form') as HaFormElement | null;
+  if (form) form.data = own(opts);
+  return card;
 }
 
 /**

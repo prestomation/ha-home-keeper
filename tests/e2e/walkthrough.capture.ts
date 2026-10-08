@@ -984,9 +984,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
-  // 5. Settings → Shopping list — where auto-buy reminders get mirrored onto an
-  //    existing to-do list, so "go buy more" reaches a voice assistant.
+  // 5. Settings → Due time — when a task that repeats after each completion is due:
+  //    at the time it was done, or at 1 set time on its date (#438). Shown, not
+  //    changed: a save reloads the entry and moves the stored dates.
   await gotoTab(panel, 'settings');
+  await expect(panel.locator('#hk-settings-duetime ha-form')).toBeVisible();
+  await panel.locator('#hk-settings-duetime').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+
+  //    Settings → Shopping list — where auto-buy reminders get mirrored onto an
+  //    existing to-do list, so "go buy more" reaches a voice assistant.
   await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
   await page.waitForTimeout(BEAT);
   await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();

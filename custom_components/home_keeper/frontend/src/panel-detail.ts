@@ -69,6 +69,7 @@ import {
   escapeHTML,
   formatDate,
   formatDateTime,
+  formatDue,
   formatQuantity,
   intervalText,
   isBuyTask,
@@ -82,6 +83,7 @@ import {
   safeFileHref,
   safeHref,
   scanRequired,
+  setDueTime,
   snapStock,
   typedStock,
   countedProgress,
@@ -425,7 +427,8 @@ function taskDetail(p: PanelHost, task: Task): string {
     : completedOneOff
       ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, p._lang()) })
       : task.next_due
-        ? formatDateTime(task.next_due, p._lang())
+        ? // With a set due time (#438), a date at that time shows without it.
+          formatDue(task.next_due, setDueTime(p._options), p._lang())
         : // A use task has no due date and never will, so "-" reads as a date that is
           // missing. `dueLabel` answers "Counting" for exactly this case, which is what
           // every list row already shows — the detail page said something else.

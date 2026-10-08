@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import calendar as _calendar
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from .const import (
     FREQ_DAILY,
@@ -231,6 +231,70 @@ def compute_floating_next_due(
     if last_completed is None:
         return now
     return add_interval(last_completed, interval, unit)
+
+
+def snap_to_due_time(
+    value: datetime, due_time: time | None, *, round_up: bool = False
+) -> datetime:
+    """Return *value* moved to *due_time* on its local date (the set due time, #438).
+
+    *due_time* ``None`` means the ``completion`` mode: *value* is returned as it is.
+    The caller passes *value* in Home Assistant's zone. ``datetime.combine`` keeps the
+    wall time across a daylight-saving change.
+
+    * ``round_up=False`` keeps the date. A completion and a skip use it: 22:42 plus
+      90 days becomes the set time on that date.
+    * ``round_up=True`` gives the first set time at or after *value*. A snooze uses it,
+      so a snooze never makes a task due earlier than the length the user chose.
+    """
+    if due_time is None:
+        return value
+    snapped = datetime.combine(value.date(), due_time, tzinfo=value.tzinfo)
+    if round_up and snapped < value:
+        snapped = datetime.combine(
+            value.date() + timedelta(days=1), due_time, tzinfo=value.tzinfo
+        )
+    return snapped
+
+
+def snap_future_floating(
+    tasks: dict[str, dict], due_time: time | None, *, now: datetime
+) -> list[dict]:
+    """Move each future floating due date to *due_time* on its date (#438).
+
+    Mutates the tasks in place and returns the ones that changed. A due date at or
+    before *now* stays: the task is already due, and a task that is due now (never
+    done, or due today) must not become due later. In the ``set_time`` mode every
+    other path writes a date at the set time already, so a second run changes
+    nothing.
+    """
+    changed: list[dict] = []
+    if due_time is None:
+        return changed
+    for task in tasks.values():
+        if task.get("recurrence_type") != REC_FLOATING:
+            continue
+        due = _local(_parse(task.get("next_due")), now)
+        if due is None or due <= now:
+            continue
+        snapped = snap_to_due_time(due, due_time)
+        if snapped != due:
+            task["next_due"] = snapped.isoformat()
+            changed.append(task)
+    return changed
+
+
+def _floating_due(base: datetime, task: dict, *, due_time: time | None) -> datetime:
+    """*base* plus the task's interval, clamped to its season, then snapped.
+
+    The 1 rule for a floating due date that a completion or a skip sets. The snap
+    comes after the season clamp. A season starts at local midnight, so the snap
+    keeps the date inside the season.
+    """
+    return snap_to_due_time(
+        _clamp_season(add_interval(base, int(task["interval"]), task["unit"]), task),
+        due_time,
+    )
 
 
 def _step(dt: datetime, freq: str, interval: int) -> datetime:
@@ -445,19 +509,20 @@ def latest_completion(completions: Iterable[dict]) -> dict | None:
     return latest
 
 
-def compute_next_due(task: dict, *, now: datetime) -> datetime:
-    """Compute next_due for *task* from its current state (no mutation)."""
+def compute_next_due(
+    task: dict, *, now: datetime, due_time: time | None = None
+) -> datetime:
+    """Compute next_due for *task* from its current state (no mutation).
+
+    *due_time* is the set due time for floating tasks (see :func:`snap_to_due_time`).
+    A floating task that was never completed is due ``now`` and does not snap.
+    """
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
-        return _clamp_season(
-            compute_floating_next_due(
-                _local(_parse(task.get("last_completed")), now),
-                int(task["interval"]),
-                task["unit"],
-                now=now,
-            ),
-            task,
-        )
+        last = _local(_parse(task.get("last_completed")), now)
+        if last is None:
+            return _clamp_season(now, task)
+        return _floating_due(last, task, due_time=due_time)
     if rec_type == REC_FIXED:
         anchor = _parse(task["anchor"])
         assert anchor is not None
@@ -614,6 +679,7 @@ def apply_completion(
     *,
     now: datetime,
     metadata: dict | None = None,
+    due_time: time | None = None,
 ) -> dict:
     """Return *task* mutated to reflect a completion at *completed_at*.
 
@@ -653,7 +719,7 @@ def apply_completion(
     entry: dict = {"ts": ts_iso}
     if metadata:
         entry.update(metadata)
-    if not backfill and _keeps_prior_due(task, rec_type, now=now):
+    if not backfill and _keeps_prior_due(task, rec_type, now=now, due_time=due_time):
         # Keep the due date this completion replaces, so that an undo can put it
         # back (B07-1).
         entry[PRIOR_DUE] = task.get("next_due")
@@ -664,14 +730,9 @@ def apply_completion(
         task["last_completed"] = ts_iso
 
     if rec_type == REC_FLOATING:
-        task["next_due"] = _clamp_season(
-            # The interval counts on Home Assistant's wall clock (see ``_local``).
-            add_interval(
-                completed_at.astimezone(now.tzinfo),
-                int(task["interval"]),
-                task["unit"],
-            ),
-            task,
+        # The interval counts on Home Assistant's wall clock (see ``_local``).
+        task["next_due"] = _floating_due(
+            completed_at.astimezone(now.tzinfo), task, due_time=due_time
         ).isoformat()
     elif rec_type == REC_FIXED:
         task["next_due"] = _advance_fixed_schedule(task, now=now)
@@ -695,7 +756,13 @@ def apply_completion(
     return task
 
 
-def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) -> dict:
+def skip_occurrence(
+    task: dict,
+    *,
+    now: datetime,
+    metadata: dict | None = None,
+    due_time: time | None = None,
+) -> dict:
     """Return *task* advanced past its current occurrence with **no** completion.
 
     "Skip this one" — move the task forward off every time surface without recording
@@ -732,9 +799,7 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
 
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
-        task["next_due"] = _clamp_season(
-            add_interval(now, int(task["interval"]), task["unit"]), task
-        ).isoformat()
+        task["next_due"] = _floating_due(now, task, due_time=due_time).isoformat()
     elif rec_type == REC_FIXED:
         task["next_due"] = _advance_fixed_schedule(task, now=now)
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR, REC_USE):
@@ -819,7 +884,9 @@ def _rewinds(task: dict, previous: str | None, moment: datetime) -> bool:
     return skipped is None or skipped < moment
 
 
-def _keeps_prior_due(task: dict, rec_type: str, *, now: datetime) -> bool:
+def _keeps_prior_due(
+    task: dict, rec_type: str, *, now: datetime, due_time: time | None
+) -> bool:
     """Whether a completion must record the due date it replaces.
 
     A fixed schedule cannot calculate that date again from the log, so it always
@@ -834,10 +901,12 @@ def _keeps_prior_due(task: dict, rec_type: str, *, now: datetime) -> bool:
         return True
     if rec_type != REC_FLOATING:
         return False
-    return compute_next_due(task, now=now) != due
+    return compute_next_due(task, now=now, due_time=due_time) != due
 
 
-def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
+def remove_completion(
+    task: dict, ts: str, *, now: datetime, due_time: time | None = None
+) -> dict:
     """Return *task* with the completion at ISO timestamp *ts* removed.
 
     Undoes an accidental completion: drops the first matching history entry,
@@ -884,7 +953,9 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
             compute_next_due(task, now=now).isoformat() if not history else None
         )
     elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE):
-        task["next_due"] = compute_next_due(task, now=now).isoformat()
+        task["next_due"] = compute_next_due(
+            task, now=now, due_time=due_time
+        ).isoformat()
     return task
 
 
@@ -927,7 +998,14 @@ def update_completion(
     return task, replaced_photo
 
 
-def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> dict:
+def move_completion(
+    task: dict,
+    old_ts: str,
+    new_ts: str,
+    *,
+    now: datetime,
+    due_time: time | None = None,
+) -> dict:
     """Return *task* with the completion at *old_ts* re-timestamped to *new_ts*.
 
     Back-dates (or corrects) an already-recorded completion — distinct from
@@ -1004,7 +1082,9 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
         # re-arms via remove_completion, which can genuinely empty history.
         task["next_due"] = None
     elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_FIXED, REC_USE):
-        task["next_due"] = compute_next_due(task, now=now).isoformat()
+        task["next_due"] = compute_next_due(
+            task, now=now, due_time=due_time
+        ).isoformat()
     return task
 
 

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ekskluderte etiketter",
           "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)",
           "shopping_list_entity": "Handleliste",
-          "shopping_line_style": "Tekst på handlelisten"
+          "shopping_line_style": "Tekst på handlelisten",
+          "due_time_mode": "Forfallstid",
+          "due_time": "Fast forfallstid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Påminnelser for den tilbyr Utsett i stedet for Ferdig.",
           "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
           "shopping_list_entity": "Synkroniserer automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av synkroniseringen.",
-          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner»."
+          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner».",
+          "due_time_mode": "Når en oppgave som gjentas etter hver utførelse, forfaller. Med et fast klokkeslett forfaller oppgaven på det klokkeslettet på forfallsdatoen. En utsettelse slutter også på det klokkeslettet.",
+          "due_time": "Det lokale klokkeslettet da disse oppgavene forfaller. Brukes bare med et fast klokkeslett."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Tekst på handlelisten",
           "description": "Slik vises en kjøpspåminnelse på handlelisten. with_verb (standard) viser navnet på påminnelsen, for eksempel «Kjøp tøymykner». product_only viser bare navnet på delen."
         },
+        "due_time_mode": {
+          "name": "Forfallstid",
+          "description": "Når en oppgave som gjentas etter hver utførelse, forfaller. completion (standard) beholder klokkeslettet for siste utførelse, utsettelse eller hopp. set_time gjør at den forfaller kl. due_time på forfallsdatoen."
+        },
+        "due_time": {
+          "name": "Fast forfallstid",
+          "description": "Det lokale klokkeslettet (TT:MM) for set_time. Standard er 08:00."
+        },
         "dismissed_companions": {
           "name": "Avviste følgesvenner",
           "description": "Glue-integrasjonsdomener som skal skjules fra \"Foreslått\"-listen under Innstillinger → Følgesvenner. Avvisning demper kun et forslag; en tilkoblet paring vises alltid."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Med verb",
         "product_only": "Bare produkt"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tidspunkt for utførelse",
+        "set_time": "Fast klokkeslett"
       }
     }
   },
