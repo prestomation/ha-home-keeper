@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, time
 from typing import Any
 
 from . import recurrence
@@ -1014,7 +1014,7 @@ def infer_recurrence_type(data: dict) -> str:
     return REC_ONE_OFF
 
 
-def build_task(data: dict, *, now: datetime) -> dict:
+def build_task(data: dict, *, now: datetime, due_time: time | None = None) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due).
 
     An optional ``last_completed`` seed records an initial completion so the task
@@ -1027,6 +1027,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
 
     A one-off task without an explicit ``due`` defaults to *now* (due today), so the
     service / a caller can create a do-once task with just a name.
+
+    *due_time* is the set due time for floating tasks (see
+    ``recurrence.snap_to_due_time``), or ``None``.
     """
     rec_type = infer_recurrence_type(data)
     if rec_type != data.get("recurrence_type"):
@@ -1099,7 +1102,11 @@ def build_task(data: dict, *, now: datetime) -> dict:
         if baseline is not None and task_records_reading(task):
             meta["reading"] = baseline
         recurrence.apply_completion(
-            task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
+            task,
+            _coerce_seed(seed, tz=now.tzinfo),
+            now=now,
+            metadata=meta,
+            due_time=due_time,
         )
     elif task["recurrence_type"] in (REC_SENSOR, REC_USE):
         # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
@@ -1110,7 +1117,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # arms nothing.
         task["next_due"] = None
     else:
-        task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+        task["next_due"] = recurrence.compute_next_due(
+            task, now=now, due_time=due_time
+        ).isoformat()
     return task
 
 
@@ -1150,7 +1159,9 @@ def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
 _TYPE_SCHEDULE_KEYS = ("interval", "unit", "freq", "anchor", "due", "sensor")
 
 
-def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
+def merge_update(
+    existing: dict, updates: dict, *, now: datetime, due_time: time | None = None
+) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
     Only the recurrence-relevant fields trigger a next_due recompute; editing the
@@ -1324,7 +1335,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         for key in recurrence_keys
     )
     if new_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE) and recurrence_changed:
-        merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
+        merged["next_due"] = recurrence.compute_next_due(
+            merged, now=now, due_time=due_time
+        ).isoformat()
     elif new_type == REC_USE:
         # A use task has no due date to recompute, in either direction. Converting an
         # existing scheduled task into one drops its stale schedule date (carried

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
           "one_off_retention_days": "Kertaluonteisten säilytys (päivää)",
           "shopping_list_entity": "Ostoslista",
-          "shopping_line_style": "Teksti ostoslistalla"
+          "shopping_line_style": "Teksti ostoslistalla",
+          "due_time_mode": "Erääntymisaika",
+          "due_time": "Kiinteä erääntymisaika"
         },
         "data_description": {
           "sync_problem_sensors": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
           "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
           "shopping_list_entity": "Synkronoi automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi synkronoinnin pois käytöstä.",
-          "shopping_line_style": "Miten ostomuistutus näkyy ostoslistalla. ”Vain tuote” näyttää varaosan nimen ilman verbiä, esimerkiksi ”Huuhteluaine” eikä ”Osta huuhteluaine”."
+          "shopping_line_style": "Miten ostomuistutus näkyy ostoslistalla. ”Vain tuote” näyttää varaosan nimen ilman verbiä, esimerkiksi ”Huuhteluaine” eikä ”Osta huuhteluaine”.",
+          "due_time_mode": "Milloin jokaisen suorituksen jälkeen toistuva tehtävä erääntyy. Kiinteällä ajalla tehtävä erääntyy tuohon aikaan eräpäivänään. Myös lykkäys päättyy tuohon aikaan.",
+          "due_time": "Paikallinen kellonaika, jolloin nämä tehtävät erääntyvät. Käytetään vain kiinteän ajan kanssa."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Teksti ostoslistalla",
           "description": "Miten ostomuistutus näkyy ostoslistalla. with_verb (oletus) näyttää muistutuksen nimen, esimerkiksi ”Osta huuhteluaine”. product_only näyttää vain varaosan nimen."
         },
+        "due_time_mode": {
+          "name": "Erääntymisaika",
+          "description": "Milloin jokaisen suorituksen jälkeen toistuva tehtävä erääntyy. completion (oletus) säilyttää viimeisen suorituksen, lykkäyksen tai ohituksen kellonajan. set_time asettaa erääntymisen eräpäivän kellonaikaan due_time."
+        },
+        "due_time": {
+          "name": "Kiinteä erääntymisaika",
+          "description": "Paikallinen kellonaika (HH:MM) asetukselle set_time. Oletus on 08:00."
+        },
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",
           "description": "Glue-integraatiodomeenit, jotka piilotetaan kohdan Asetukset → Kumppanit \"Ehdotetut\"-luettelosta. Hylkääminen vain vaimentaa ehdotuksen; yhdistetty pariliitos näytetään aina."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Verbin kanssa",
         "product_only": "Vain tuote"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Suorituksen aika",
+        "set_time": "Kiinteä aika"
       }
     }
   },

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Étiquettes exclues",
           "one_off_retention_days": "Conservation des tâches ponctuelles (jours)",
           "shopping_list_entity": "Liste de courses",
-          "shopping_line_style": "Texte sur la liste de courses"
+          "shopping_line_style": "Texte sur la liste de courses",
+          "due_time_mode": "Heure d'échéance",
+          "due_time": "Heure d'échéance fixe"
         },
         "data_description": {
           "sync_problem_sensors": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
           "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
           "shopping_list_entity": "Synchronise les rappels d'achat automatiques avec cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la synchronisation.",
-          "shopping_line_style": "Comment un rappel d'achat apparaît sur la liste de courses. « Produit seul » affiche le nom de la pièce sans verbe, par exemple « Adoucissant » au lieu de « Acheter adoucissant »."
+          "shopping_line_style": "Comment un rappel d'achat apparaît sur la liste de courses. « Produit seul » affiche le nom de la pièce sans verbe, par exemple « Adoucissant » au lieu de « Acheter adoucissant ».",
+          "due_time_mode": "Quand une tâche qui se répète après chaque réalisation arrive à échéance. Avec une heure fixe, la tâche est due à cette heure le jour de son échéance. Un report se termine aussi à cette heure.",
+          "due_time": "L'heure locale à laquelle ces tâches sont dues. Utilisée uniquement avec une heure fixe."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Texte sur la liste de courses",
           "description": "Comment un rappel d'achat apparaît sur la liste de courses. with_verb (par défaut) affiche le nom du rappel, par exemple « Acheter adoucissant ». product_only affiche seulement le nom de la pièce."
         },
+        "due_time_mode": {
+          "name": "Heure d'échéance",
+          "description": "Quand une tâche qui se répète après chaque réalisation arrive à échéance. completion (par défaut) garde l'heure de la dernière réalisation, du report ou du saut. set_time la rend due à due_time le jour de son échéance."
+        },
+        "due_time": {
+          "name": "Heure d'échéance fixe",
+          "description": "L'heure locale (HH:MM) pour set_time. La valeur par défaut est 08:00."
+        },
         "dismissed_companions": {
           "name": "Companions ignorés",
           "description": "Domaines d'intégration de liaison à masquer de la liste « Suggéré » de Paramètres → Companions. Ignorer ne fait que masquer une suggestion ; un appairage connecté est toujours affiché."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Avec verbe",
         "product_only": "Produit seul"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Heure de réalisation",
+        "set_time": "Heure fixe"
       }
     }
   },

@@ -1546,6 +1546,24 @@ set_options:
           options:
             - with_verb
             - product_only
+    due_time_mode:
+      name: Due time
+      description: >-
+        When a task that repeats after each completion is due. completion (the
+        default) keeps the time of the last completion, snooze or skip. set_time
+        makes it due at due_time on its due date.
+      selector:
+        select:
+          translation_key: due_time_mode
+          options:
+            - completion
+            - set_time
+    due_time:
+      name: Set due time
+      description: >-
+        The local time of day (HH:MM) for set_time. The default is 08:00.
+      selector:
+        time:
     problem_sensor_exclude_entities:
       name: Excluded sensors
       description: Problem binary sensors to leave out of syncing.

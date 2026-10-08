@@ -318,6 +318,17 @@ MAX_ONE_OFF_RETENTION_DAYS = 3650
 OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
 OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
 OPTION_ALLOW_DUE_TODAY = "allow_due_today"  # bool, default True
+# When a floating task is due (#438). ``completion`` (the default) keeps the clock
+# time of the completion, snooze or skip that set the date. ``set_time`` puts every
+# floating due date at ``OPTION_DUE_TIME`` on its local date. An enum, so later modes
+# can join it. See ``recurrence.snap_to_due_time``.
+OPTION_DUE_TIME_MODE = "due_time_mode"
+DUE_TIME_MODE_COMPLETION = "completion"
+DUE_TIME_MODE_SET_TIME = "set_time"
+DUE_TIME_MODES = (DUE_TIME_MODE_COMPLETION, DUE_TIME_MODE_SET_TIME)
+# The set due time, local ``"HH:MM"``. Read only in the ``set_time`` mode.
+OPTION_DUE_TIME = "due_time"
+DEFAULT_DUE_TIME = "08:00"
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.

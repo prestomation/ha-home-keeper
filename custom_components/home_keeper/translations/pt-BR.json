@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etiquetas excluídas",
           "one_off_retention_days": "Retenção de tarefas avulsas (dias)",
           "shopping_list_entity": "Lista de compras",
-          "shopping_line_style": "Texto na lista de compras"
+          "shopping_line_style": "Texto na lista de compras",
+          "due_time_mode": "Horário de vencimento",
+          "due_time": "Horário de vencimento fixo"
         },
         "data_description": {
           "sync_problem_sensors": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os lembretes dela oferecem Adiar no lugar de Concluído.",
           "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre.",
           "shopping_list_entity": "Sincroniza os lembretes de compra automática com esta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar a sincronização.",
-          "shopping_line_style": "Como um lembrete de compra aparece na lista de compras. \"Só o produto\" mostra o nome da peça sem o verbo, por exemplo \"Amaciante\" em vez de \"Comprar amaciante\"."
+          "shopping_line_style": "Como um lembrete de compra aparece na lista de compras. \"Só o produto\" mostra o nome da peça sem o verbo, por exemplo \"Amaciante\" em vez de \"Comprar amaciante\".",
+          "due_time_mode": "Quando vence uma tarefa que se repete após cada conclusão. Com um horário fixo, a tarefa vence nesse horário na data de vencimento. Um adiamento também termina nesse horário.",
+          "due_time": "O horário local em que essas tarefas vencem. Usado apenas com um horário fixo."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Texto na lista de compras",
           "description": "Como um lembrete de compra aparece na lista de compras. with_verb (padrão) mostra o nome do lembrete, por exemplo \"Comprar amaciante\". product_only mostra só o nome da peça."
         },
+        "due_time_mode": {
+          "name": "Horário de vencimento",
+          "description": "Quando vence uma tarefa que se repete após cada conclusão. completion (padrão) mantém o horário da última conclusão, adiamento ou pulo. set_time faz a tarefa vencer em due_time na data de vencimento."
+        },
+        "due_time": {
+          "name": "Horário de vencimento fixo",
+          "description": "O horário local (HH:MM) para set_time. O padrão é 08:00."
+        },
         "dismissed_companions": {
           "name": "Companions dispensados",
           "description": "Domínios de integrações de conexão a ocultar da lista \"Sugeridos\" em Configurações → Companions. Dispensar apenas silencia uma sugestão; um pareamento conectado é sempre exibido."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Com verbo",
         "product_only": "Só o produto"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Horário da conclusão",
+        "set_time": "Horário fixo"
       }
     }
   },

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Vyloučené štítky",
           "one_off_retention_days": "Uchování jednorázových úkolů (dny)",
           "shopping_list_entity": "Nákupní seznam",
-          "shopping_line_style": "Text na nákupním seznamu"
+          "shopping_line_style": "Text na nákupním seznamu",
+          "due_time_mode": "Čas splatnosti",
+          "due_time": "Pevný čas splatnosti"
         },
         "data_description": {
           "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
           "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí.",
-          "shopping_line_style": "Jak se nákupní připomínka zobrazí na nákupním seznamu. „Jen produkt“ zobrazí název dílu bez slovesa, například „Aviváž“ místo „Koupit aviváž“."
+          "shopping_line_style": "Jak se nákupní připomínka zobrazí na nákupním seznamu. „Jen produkt“ zobrazí název dílu bez slovesa, například „Aviváž“ místo „Koupit aviváž“.",
+          "due_time_mode": "Kdy je splatný úkol, který se opakuje po každém dokončení. S pevným časem je úkol splatný v tento čas v den splatnosti. Odložení také končí v tento čas.",
+          "due_time": "Místní čas, kdy jsou tyto úkoly splatné. Používá se jen s pevným časem."
         }
       }
     }
@@ -732,6 +736,14 @@
           "name": "Text na nákupním seznamu",
           "description": "Jak se nákupní připomínka zobrazí na nákupním seznamu. with_verb (výchozí) zobrazí název připomínky, například „Koupit aviváž“. product_only zobrazí jen název dílu."
         },
+        "due_time_mode": {
+          "name": "Čas splatnosti",
+          "description": "Kdy je splatný úkol, který se opakuje po každém dokončení. completion (výchozí) zachová čas posledního dokončení, odložení nebo přeskočení. set_time nastaví splatnost na due_time v den splatnosti."
+        },
+        "due_time": {
+          "name": "Pevný čas splatnosti",
+          "description": "Místní čas (HH:MM) pro set_time. Výchozí je 08:00."
+        },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
           "description": "Domény propojovacích integrací, které se mají skrýt ze seznamu „Navrhované“ v Nastavení → Společníci. Zamítnutí pouze umlčí návrh; propojené párování se zobrazuje vždy."
@@ -1060,6 +1072,12 @@
       "options": {
         "with_verb": "Se slovesem",
         "product_only": "Jen produkt"
+      }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Čas dokončení",
+        "set_time": "Pevný čas"
       }
     }
   },
