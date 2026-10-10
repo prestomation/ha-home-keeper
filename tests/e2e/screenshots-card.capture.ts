@@ -311,6 +311,11 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
 
+  // 6b. The device chip on a row is a link (#446). The water-filter row's chip names
+  // its appliance device and opens the appliance page, the same as the panel's chip.
+  await expect(card.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, card, `${OUT}/card-device-chip.png`, 3);
+
   // 7a. Rows with the schedule and the completion count turned off (#432). Compare
   // with card-note-chip.png, which shows the same 3 rows with the defaults.
   const compact = {
@@ -341,6 +346,10 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await shotDialog(page, mobileNoteDialog, `${OUT}/card-note-dialog-mobile.png`);
   await mobileNoteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7b1. The device chip link from step 6b at phone width (#446).
+  await expect(mobileCard.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, mobileCard, `${OUT}/card-device-chip-mobile.png`, 3);
 
   // 7b2. The compact rows from step 7a at phone width (#432).
   await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);

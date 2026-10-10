@@ -32,6 +32,7 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   `.hk-chip-ext` mark.
 - A device chip on a task opens the appliance page in the panel. On an appliance it opens
   the device page. `assetForTask` in `utils.ts` is the 1 ranking for a task's appliance.
+  The card's device chip does the same for an admin. For other users it is not a link.
 
 ## Markup and text
 

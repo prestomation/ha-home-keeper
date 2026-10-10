@@ -60,6 +60,7 @@ import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
+  assetForTask,
   deviceName,
   dueLabel,
   escapeHTML,
@@ -743,8 +744,12 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
       // explicit card_links or a linked part's product URL); fetch best-effort and
-      // only when a task actually references one.
-      this._assets = this._tasks.some((tk) => tk.card_links?.length || tk.source?.part)
+      // only when a task actually references one. An admin also needs it to point a
+      // device chip at its appliance page; for other users the call is refused.
+      const admin = this._hass.user?.is_admin === true;
+      this._assets = this._tasks.some(
+        (tk) => tk.card_links?.length || tk.source?.part || (admin && tk.device_id),
+      )
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
@@ -1255,8 +1260,8 @@ export class HomeKeeperCard extends HTMLElement {
     if (this._config.show_area !== false) {
       const area = areaName(this._hass?.areas, task.area_id);
       const dev = task.device_id ? deviceName(this._hass?.devices, task.device_id) : '';
-      const label = area || dev;
-      if (label) areaChip = `<ha-assist-chip label="${escapeHTML(label)}"></ha-assist-chip>`;
+      if (area) areaChip = `<ha-assist-chip label="${escapeHTML(area)}"></ha-assist-chip>`;
+      if (dev) areaChip += this._deviceChip(task, dev);
     }
     // The NFC/RFID binding. The card never fetches HA's tag registry (it stays as
     // light as it can), so the chip is a generic marker rather than the tag's name —
@@ -1333,6 +1338,27 @@ export class HomeKeeperCard extends HTMLElement {
         </div>
         <div class="hk-acts">${this._deferActions(task)}${done}</div>
       </div>`;
+  }
+
+  /**
+   * The chip for the task's device. For an admin it is a link, the same as the
+   * panel's device chip: it opens the appliance page when an appliance has the
+   * device, else the Home Assistant device page (#446). Both pages are admin-only,
+   * so for other users the chip only shows the name.
+   */
+  private _deviceChip(task: Task, name: string): string {
+    const label = escapeHTML(name);
+    if (!this._hass?.user?.is_admin || !task.device_id) {
+      return `<ha-assist-chip label="${label}"></ha-assist-chip>`;
+    }
+    const asset = assetForTask(task, this._assets);
+    const href = asset
+      ? `/home-keeper/appliances/${encodeURIComponent(asset.id)}`
+      : `/config/devices/device/${encodeURIComponent(task.device_id)}`;
+    const tip = escapeHTML(asset ? t('chip.device.appliance.tip') : t('chip.device.tip'));
+    return `<ha-assist-chip class="hk-device-chip hk-link-chip" role="link" tabindex="0" data-href="${escapeHTML(
+      href,
+    )}" label="${label}" title="${tip}"></ha-assist-chip>`;
   }
 
   /** Snooze and Skip for this row, ahead of Done. Empty when neither is on offer. */
@@ -1466,6 +1492,23 @@ export class HomeKeeperCard extends HTMLElement {
       (task) => void this._setDueToday(task),
       'defer.dueTodayPress',
     );
+
+    root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
+      const href = chip.dataset.href;
+      if (!href) return;
+      const go = (e: Event): void => {
+        e.stopPropagation();
+        navigateTo(href);
+      };
+      chip.addEventListener('click', go);
+      chip.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go(e);
+        }
+      });
+    });
 
     root.querySelectorAll<HTMLElement>('.hk-note-chip').forEach((chip) => {
       chip.addEventListener('click', (e) => {
