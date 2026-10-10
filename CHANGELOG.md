@@ -10,9 +10,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **Card device chip link.** On the dashboard card, an admin can now click the
-  device chip on a task to open its appliance page, or the device page if no appliance has
-  the device, the same as in the panel. (Fixes #446)
+- **Card device chip link.** On the dashboard card, the device chip on a task is now a
+  link for an admin, as it is in the panel. It opens the appliance page, else the device
+  page. (Fixes #446)
 
 ## [0.31.0b1]
 
