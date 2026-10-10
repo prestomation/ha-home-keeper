@@ -79,9 +79,12 @@ describe('X11-5: deferral menu keyboard', () => {
     const { caret, items } = mount();
     caret.click();
     key(items[0], 'Escape');
-    items[2].focus();
-    key(items[2], 'Home');
-    expect(document.activeElement).toBe(items[2]);
+    // jsdom 30.1.2 and browsers do not focus an item in the hidden menu, so the
+    // test does not move focus. A live key handler calls preventDefault on Home.
+    const before = document.activeElement;
+    const home = key(items[2], 'Home');
+    expect(home.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(before);
     expect(caret.focus).toHaveBeenCalledTimes(1);
   });
 });
