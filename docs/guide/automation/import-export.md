@@ -175,6 +175,11 @@ checks every section first, and the companion checks its own section. If 1 secti
 an error, the import writes no record in any section. Home Keeper imports its own
 records first, then each companion.
 
+A clean preview does not stop all failures. If a companion fails while it writes, its
+section gets an error in the report. The Home Keeper records stay written. Fix the
+cause and import the same file again. The import updates the records that are
+already there, so it makes no copies.
+
 The `home_keeper` block names each companion that is not in the file, under
 `skipped.companions`:
 

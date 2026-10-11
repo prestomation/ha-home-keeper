@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.31.0b3]
+
+### Added
+
+- **[Companion data in export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  1 export now holds your tasks and appliances and the data of your companions, such as
+  Home Keeper Library and Pawsistant, and 1 import brings it all back. A new bundle
+  (.zip) export also holds your manuals, receipts, task photos, book covers and settings.
+
 ## [0.31.0b2]
 
 ### Fixed
