@@ -1,6 +1,7 @@
 """Appliance device reconcile in ``devices.py``.
 
 * B17-5: a recovered existing-device appliance takes its tasks to the new device.
+  A virtual appliance whose device Home Assistant makes again does the same.
 * B17-8: a stored parent that is not a virtual appliance gives no ``via_device``
   link.
 * B17-9: an area that a user sets on the device page stays until the area of the
@@ -295,3 +296,74 @@ def test_b17_9_the_reconcile_keeps_a_device_page_area():
     asset["area_id"] = "kitchen"
     _reconcile(registry, store, asset, hass)
     assert registry.device.area_id == "kitchen"
+
+
+# ── A re-created virtual device takes its tasks ──────────────────────────────
+def _reconcile_all(registry, store):
+    original = devices.area_exists
+    devices.area_exists = lambda hass, area_id: True
+    try:
+        _run(
+            devices.async_reconcile_assets(
+                types.SimpleNamespace(data={}), FakeEntry(), store
+            ),
+            registry,
+        )
+    finally:
+        devices.area_exists = original
+
+
+def test_a_recreated_virtual_device_takes_its_tasks():
+    asset = _virtual("a1", device_id="dev_old")
+    store = _Store(
+        tasks={
+            "t1": task("t1", "dev_old"),
+            "t2": task("t2", None, source={"glue": {"device_id": "dev_old"}}),
+        },
+        assets=[asset],
+    )
+
+    _reconcile_all(_registry(_VirtualDevice("dev_new", name="Asset a1")), store)
+
+    assert store.device_ids == {"a1": "dev_new"}
+    assert store.get_tasks()["t1"]["device_id"] == "dev_new"
+    assert store.get_tasks()["t2"]["source"]["glue"]["device_id"] == "dev_new"
+
+
+def test_a_task_on_another_lost_device_stays():
+    # The task was never on the device of the appliance. Its own device is gone too,
+    # but the reconcile has no replacement for that id.
+    asset = _virtual("a1", device_id="dev_old")
+    store = _Store(
+        tasks={"t1": task("t1", "dev_lost"), "t2": task("t2", "dev_old")},
+        assets=[asset],
+    )
+
+    _reconcile_all(_registry(_VirtualDevice("dev_new", name="Asset a1")), store)
+
+    assert store.get_tasks()["t1"]["device_id"] == "dev_lost"
+    assert store.get_tasks()["t2"]["device_id"] == "dev_new"
+
+
+@pytest.mark.parametrize("old_id", [None, ""])
+def test_a_first_virtual_device_moves_no_task(old_id):
+    asset = _virtual("a1", device_id=old_id)
+    store = _Store(tasks={"t1": task("t1", old_id)}, assets=[asset])
+
+    _reconcile_all(_registry(_VirtualDevice("dev_new", name="Asset a1")), store)
+
+    assert store.device_ids == {"a1": "dev_new"}
+    assert store.get_tasks()["t1"]["device_id"] == old_id
+    assert "repoint" not in store.calls
+    assert store.saves == 0
+
+
+def test_a_live_virtual_device_moves_no_task():
+    asset = _virtual("a1", device_id="dev1")
+    store = _Store(tasks={"t1": task("t1", "dev1")}, assets=[asset])
+
+    _reconcile_all(_registry(_VirtualDevice("dev1", name="Asset a1")), store)
+
+    assert store.get_tasks()["t1"]["device_id"] == "dev1"
+    assert "repoint" not in store.calls
+    assert store.saves == 0

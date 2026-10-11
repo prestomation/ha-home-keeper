@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: b7cd2fb3d0e8
+source_hash: 83b837a4f13d
 ---
 
 # Appliances and parts
@@ -59,7 +59,8 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
 
 - **Virtual.** `devices._reconcile_virtual` registers `(home_keeper, asset_<id>)`, apart
   from task devices keyed on the bare task id. It syncs name, make, model, parent and a
-  `configuration_url` to the appliance page, and writes the device id back. The serial
+  `configuration_url` to the appliance page, and writes the device id back. If Home
+  Assistant made a new device, the tasks on the old id move to the new one. The serial
   number stays off the device, because any signed-in user can list devices.
 - **Existing.** `devices._reconcile_existing` refreshes an `identifiers`/`connections`
   snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the device that the

@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **Paste box.** The text box on Settings → Import and export now shows the first time you
+  open the panel.
+- **Tasks after device change.** When Home Assistant makes a new device for an appliance,
+  the tasks on the old device move to the new one.
+
 ## [0.31.0b3]
 
 ### Added

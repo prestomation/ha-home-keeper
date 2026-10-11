@@ -144,12 +144,18 @@ async def async_reconcile_assets(
     # has a resolved device id when we link it.
     recovered: dict[str, str] = {}
     for asset in sorted(store.list_assets(), key=lambda a: _ancestor_depth(store, a)):
+        old_device_id = asset.get("device_id")
         if asset.get("kind") == ASSET_KIND_VIRTUAL:
-            # _reconcile_virtual persists its own device_id write-back.
-            await _reconcile_virtual(hass, entry, store, registry, asset)
+            # _reconcile_virtual persists its own device_id write-back. If Home
+            # Assistant made a new device for the appliance, the tasks on the old
+            # device move with it, the same as for an existing-device appliance.
+            new_device_id = await _reconcile_virtual(
+                hass, entry, store, registry, asset
+            )
+            if old_device_id and new_device_id != old_device_id:
+                recovered[old_device_id] = new_device_id
             wanted_identifiers.add(asset_model.asset_device_identifier(asset["id"]))
             continue
-        old_device_id = asset.get("device_id")
         if _reconcile_existing(registry, asset):
             dirty = True
             if old_device_id and asset.get("device_id") != old_device_id:
@@ -160,9 +166,9 @@ async def async_reconcile_assets(
     # restart and snapshot recovery can never work.
     if dirty:
         await store.async_persist()
-    # The tasks on a recovered device move with the appliance (B17-5). The heal at
-    # the next setup finds no snapshot that names the old id after this pass, so it
-    # cannot move them later.
+    # The tasks on a recovered or re-created device move with the appliance (B17-5).
+    # The heal at the next setup finds no snapshot that names the old id after this
+    # pass, so it cannot move them later.
     if recovered:
         await store.async_repoint_device_ids(recovered)
 
@@ -465,7 +471,8 @@ async def _reconcile_virtual(
     store: HomeKeeperStore,
     registry: dr.DeviceRegistry,
     asset: dict[str, Any],
-) -> None:
+) -> str:
+    """Create or update the device of a virtual asset; return its device id."""
     identifier = asset_model.asset_device_identifier(asset["id"])
 
     # Resolve the native via_device parent (only our own virtual subdevices). A
@@ -538,6 +545,7 @@ async def _reconcile_virtual(
             device = updated
 
     await store.set_asset_device_id(asset["id"], device.id)
+    return device.id
 
 
 def _reconcile_existing(registry: dr.DeviceRegistry, asset: dict[str, Any]) -> bool:
