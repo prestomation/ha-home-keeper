@@ -1831,7 +1831,8 @@ def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | No
     the first appliance that owns or relates to the task's device. Returns None for
     a standalone task — its history is dropped on delete.
     """
-    part_asset = assets_by_id.get(_part_asset_id(task) or "")
+    part_id = _part_asset_id(task)
+    part_asset = assets_by_id.get(part_id) if part_id else None
     if part_asset is not None:
         return part_asset
     device_id = task.get("device_id")

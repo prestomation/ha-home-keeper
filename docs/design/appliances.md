@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: dbd87433fa34
+source_hash: 121219dfcc5d
 ---
 
 # Appliances and parts
