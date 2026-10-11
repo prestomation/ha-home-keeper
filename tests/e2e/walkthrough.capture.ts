@@ -1234,14 +1234,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     await page.waitForTimeout(BEAT * 2);
   }
 
-  // 7a. Import and export — the last stop on the rail. A document goes into the box
-  //     and Preview answers before anything is written: what it would add, how much
-  //     history rides along, and anything wrong with the file.
+  // 7a. Import and export — the last stop on the rail. The export lists Home Keeper,
+  //     each companion that joins the export (the stub Pawsistant), the files and
+  //     the settings, and the Settings row adds them to a bundle. Then a document
+  //     goes into the box and Preview answers before anything is written: what it
+  //     would add, how much history rides along, and anything wrong with the file.
   await panel.locator('.hk-rail-link[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
   await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
-  await page.waitForTimeout(BEAT * 2);
+  await expect(panel.locator('input[data-transfer-source="pawsistant"]')).toBeChecked();
+  await page.waitForTimeout(BEAT);
+  await panel.locator('input[data-transfer-source="settings"]').check();
+  await page.waitForTimeout(BEAT);
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1489,6 +1494,7 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   //    importing it would change before anything is written.
   await panel.locator('.hk-index-row[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await expect(panel.locator('input[data-transfer-source="pawsistant"]')).toBeChecked();
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;

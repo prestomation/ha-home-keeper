@@ -877,10 +877,15 @@ export interface ImportReport {
   counts: {
     completions: number;
     skips: number;
-    [section: string]: number | { created: number; updated: number };
+    // A section's `{created, updated}`, the files' `{created, unchanged}`, or the
+    // settings, which hold 1 count object per settings section.
+    [section: string]: number | { created: number; updated: number } | Record<string, unknown>;
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+  /** The report of each companion section, keyed by its domain, as the companion
+   *  returned it. Each companion owns the shape of its `counts`. */
+  sections?: Record<string, { counts?: unknown; [key: string]: unknown }>;
 }
 
 /** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */

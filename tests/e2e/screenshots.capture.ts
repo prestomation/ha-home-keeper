@@ -76,6 +76,34 @@ async function withOrphanedAppliance(page: Page, body: () => Promise<void>): Pro
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
+/**
+ * Export a bundle from the Import and export card with the settings on, choose that
+ * file back in, and preview it with the settings. The card then shows the line
+ * after the export, the chosen file, and a preview with 1 row per section.
+ */
+async function previewOwnBundle(page: Page, panel: Locator): Promise<void> {
+  const settings = panel.locator('input[data-transfer-source="settings"]');
+  if (!(await settings.isChecked())) await settings.check();
+  const [zip] = await Promise.all([
+    page.waitForEvent('download'),
+    panel.locator('#transfer-export-bundle').click(),
+  ]);
+  const zipPath = path.join(fs.mkdtempSync('/tmp/hk-bundle-'), zip.suggestedFilename());
+  await zip.saveAs(zipPath);
+  await expect(panel.locator('.hk-transfer-exported')).toContainText('Settings');
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    panel.locator('#transfer-pick').click(),
+  ]);
+  await chooser.setFiles(zipPath);
+  await panel.locator('#transfer-preview').click();
+  await panel.locator('#transfer-settings').check();
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('tr[data-part="settings"]')).toBeVisible();
+  await expect(panel.locator('tr[data-part="pawsistant"]')).toBeVisible();
+  await page.waitForTimeout(700);
+}
+
 
 
 
@@ -2150,27 +2178,25 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
-  // 60. Settings → Import and export — the whole surface at once: the Export button
-  // that saves everything to one file, the box a document is pasted into, and a
-  // preview of what importing it would change. The preview is the shot's point: it
-  // is what stands between a generated file and the store, so it has to show its
-  // verdict and its counts rather than an empty box.
+  // 60. Settings → Import and export — the whole surface at once: the export list
+  // with the companion row (the stub Pawsistant registers `import_export`), the 2
+  // export buttons and the line after an export, then that bundle chosen back in
+  // and its preview. The preview is the shot's point: 1 row per section, the
+  // companion's included, with the notes beside each, and the settings offer that
+  // only a bundle with settings shows.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
-  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
-    (el as HTMLTextAreaElement & { value: string }).value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
-  await panel.locator('#transfer-preview').click();
-  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
-  await page.waitForTimeout(700);
+  await previewOwnBundle(page, panel);
   // The card alone, not the whole Settings page: it sits last, so a full-page shot
   // renders it a thumbnail at the bottom of eight others.
   await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(300);
   await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60-panel-transfer.png` });
+  // Back to the text box for the next shot.
+  await panel.locator('#transfer-clear').click();
+  await expect(panel.locator('#transfer-text')).toHaveCount(1);
 
   // 60c. The refusal for a document too large to import from the panel. Worth its own
   // shot because it is the one refusal the browser decides by itself: Home Assistant
@@ -2602,29 +2628,35 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/22c-panel-mobile-notify-triggers.png` });
 
   // 60b. Import and export on a phone. Below 700px the section opens on its own with
-  // the back bar, and the two action rows wrap so each button keeps a full tap
-  // target rather than being squeezed onto one line beside its neighbour.
+  // the back bar, the export buttons and the tags take their short labels, and each
+  // row of the preview puts its notes on a line below its counts.
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await panel.locator('.hk-index-row[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
-  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
-    (el as HTMLTextAreaElement & { value: string }).value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
-  await panel.locator('#transfer-preview').click();
-  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
-  // Wheel the actions into frame rather than `scrollIntoViewIfNeeded`, which does
+  // The export half first: the list of sources and the 2 buttons.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60e-panel-mobile-transfer-export.png` });
+  await previewOwnBundle(page, panel);
+  // Wheel the table into frame rather than `scrollIntoViewIfNeeded`, which does
   // nothing here: the panel sits inside Home Assistant's own scroller, so the
-  // element is "in view" of a container that is itself scrolled to the top. The two
-  // buttons taking a row of their own is the phone-specific half of this card, and
-  // a shot that cuts them off documents none of it.
+  // element is "in view" of a container that is itself scrolled to the top.
   await page.mouse.move(200, 500);
-  await page.mouse.wheel(0, 300);
+  for (let i = 0; i < 12; i++) {
+    if (await panel.locator('#transfer-import').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom <= window.innerHeight - 80;
+    })) break;
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(150);
+  }
   await expect(panel.locator('#transfer-import')).toBeInViewport();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60b-panel-mobile-transfer.png` });
+  await panel.locator('#transfer-clear').click();
+  await expect(panel.locator('#transfer-text')).toHaveCount(1);
 
   // 60d. The same refusal on a phone. The message is two sentences and names an
   // action id, so this is where it either wraps inside the card or pushes the layout

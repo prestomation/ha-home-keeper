@@ -18,6 +18,14 @@ import {
 import { setLanguage, t, tn } from './i18n';
 import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES, importFitsWebsocket } from './limits';
 import {
+  exportInclude,
+  exportSources,
+  exportedSources,
+  isBundleFile,
+  missingCompanions,
+  reportHasSettings,
+} from './transfer-view';
+import {
   createPreview,
   ensureMarkdown,
   markdownBlock,
@@ -43,6 +51,7 @@ import type { PanelHost } from './panel-host';
 import { REQUIRED_COMPONENTS } from './panel-icons';
 import { assetsList, renderActionSheet, tasksList, wireLists } from './panel-lists';
 import {
+  exportedLine,
   settingsBackbar,
   settingsIndex,
   settingsRail,
@@ -274,6 +283,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     busy: false,
     error: '',
     filename: '',
+    file: null,
+    hasSettings: false,
+    includeSettings: false,
+    picked: {},
+    exporting: false,
+    exported: '',
   };
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
@@ -1762,7 +1777,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
-   * Save every task and appliance as one YAML file.
+   * Save the checked sources as one YAML file.
    *
    * The same document `_runImport` reads, so this file is also the worked example of
    * the format — which is what makes "show an assistant your export and ask for
@@ -1770,14 +1785,59 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * JSON Schema, so an editor checks it as you edit it.
    */
   async _exportData(): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._transfer.exporting) return;
+    const sources = exportSources(this._companions);
+    const include = exportInclude(sources, this._transfer.picked, 'yaml');
+    if (!include) return;
+    this._transfer.exporting = true;
+    this._transfer.exported = '';
+    this._render();
     try {
-      const { yaml } = await api.exportData(this._hass);
+      const result = await api.exportData(this._hass, include);
       const stamp = new Date().toISOString().slice(0, 10);
-      this._downloadFile(`home-keeper-${stamp}.yaml`, yaml, 'application/yaml');
+      this._downloadFile(`home-keeper-${stamp}.yaml`, result.yaml, 'application/yaml');
+      const doc = (result.document ?? {}) as unknown as Record<string, unknown>;
+      this._transfer.exported = exportedLine(
+        exportedSources(sources, include, doc),
+        missingCompanions(sources, include, doc),
+      );
     } catch (err) {
       console.error('home-keeper: data export failed', err);
       toast(this, t('error.exportFailed'));
+    } finally {
+      this._transfer.exporting = false;
+      this._render();
+    }
+  }
+
+  /**
+   * Save the checked sources as a bundle: the data, the uploaded files, and the
+   * settings if that row is checked. The bundle comes over HTTP, because it is
+   * binary and can be larger than a websocket message.
+   */
+  async _exportBundle(): Promise<void> {
+    if (!this._hass || this._transfer.exporting) return;
+    const sources = exportSources(this._companions);
+    const include = exportInclude(sources, this._transfer.picked, 'bundle');
+    if (!include) return;
+    this._transfer.exporting = true;
+    this._transfer.exported = '';
+    this._render();
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const { blob, filename } = await api.exportBundle(
+        this._hass,
+        include,
+        `home-keeper-${stamp}.zip`,
+      );
+      this._downloadBlob(filename, blob);
+      this._transfer.exported = exportedLine(exportedSources(sources, include, null), []);
+    } catch (err) {
+      console.error('home-keeper: bundle export failed', err);
+      toast(this, t('error.exportFailed'));
+    } finally {
+      this._transfer.exporting = false;
+      this._render();
     }
   }
 
@@ -1803,43 +1863,55 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /**
    * Preview and import are one call with `dryRun` flipped, so the preview cannot
    * describe anything but what the import will actually do.
+   *
+   * A chosen bundle, or a YAML file over the websocket limit, goes to the upload view
+   * (`_transfer.file`). The text box goes over the websocket.
    */
   private async _transferCall(dryRun: boolean): Promise<void> {
     if (!this._hass || this._transfer.busy) return;
-    this._transfer.error = '';
+    const state = this._transfer;
+    state.error = '';
     // Refuse an oversized document here rather than sending it. Home Assistant does
     // not raise on a frame past aiohttp's 4 MiB default — it closes the connection
     // ("Decompressed message exceeds size limit"), so the panel loses its link to
     // Home Assistant and the only thing left to show is a generic failure. Pressing
-    // the button again drops the connection again. The backend's own 8 MiB ceiling
-    // and its "split the migration" message sit on the far side of a socket the
-    // document cannot cross, so this is the one place a useful answer can be given.
-    if (!importFitsWebsocket(this._transfer.text)) {
-      this._transfer.report = null;
-      this._transfer.error = t('transfer.tooLarge', {
+    // the button again drops the connection again. A larger file goes in through the
+    // file picker, which sends it to the upload view.
+    if (!state.file && !importFitsWebsocket(state.text)) {
+      state.report = null;
+      state.error = t('transfer.tooLarge', {
         mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
-        // The service's ceiling, which is the larger one the message points at.
+        // The upload's ceiling, which is the larger one the message points at.
         max: MAX_IMPORT_BYTES / (1024 * 1024),
       });
       this._render();
       return;
     }
-    this._transfer.busy = true;
+    state.busy = true;
     this._render();
+    const opts = { dryRun, includeSettings: state.hasSettings && state.includeSettings };
     try {
       // The pasted text goes over as text. The backend reads it, so there is one
       // parser rather than a second one here that could accept a slightly different
       // dialect — and a syntax error comes back as an ordinary problem row naming the
       // line and column, which a parse in the browser could not have told us.
-      this._transfer.report = await api.importData(this._hass, this._transfer.text, {
-        dryRun,
-      });
+      state.report = state.file
+        ? await api.importUpload(this._hass, state.file, opts)
+        : await api.importData(this._hass, state.text, opts);
+      // Only a bundle offers its settings. Once a preview shows settings, the offer
+      // stays for this file, also while the box is off and the report has no counts.
+      if (state.file && isBundleFile(state.file) && reportHasSettings(state.report)) {
+        state.hasSettings = true;
+      }
     } catch (err) {
       console.error('home-keeper: import failed', err);
-      this._transfer.report = null;
-      this._transfer.error = t('error.actionFailed');
+      state.report = null;
+      // The upload view answers a refusal (too large, not a bundle) with a message in
+      // the user's language. Show it. Any other failure gets the generic text.
+      const failure = err as { serverMessage?: boolean; message?: string } | null;
+      state.error = failure?.serverMessage ? String(failure.message) : t('error.actionFailed');
     } finally {
-      this._transfer.busy = false;
+      state.busy = false;
       this._render();
     }
   }
@@ -1863,7 +1935,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Trigger a client-side file download (no server round-trip for the blob). */
   private _downloadFile(filename: string, contents: string, mime: string): void {
-    const blob = new Blob([contents], { type: `${mime};charset=utf-8` });
+    this._downloadBlob(filename, new Blob([contents], { type: `${mime};charset=utf-8` }));
+  }
+
+  /** Save *blob* as *filename* through a temporary object URL. */
+  private _downloadBlob(filename: string, blob: Blob): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

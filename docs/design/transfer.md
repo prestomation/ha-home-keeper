@@ -6,8 +6,9 @@ implements:
   - custom_components/home_keeper/transfer_bundle.py
   - custom_components/home_keeper/transfer_runner.py
   - custom_components/home_keeper/transfer_http.py
+  - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 81decbc06155
+source_hash: b487cadd63b2
 ---
 
 # Import and export
@@ -88,7 +89,9 @@ skipped. The service writes `EXPORTS_SUBDIR/home-keeper-<date>.zip` and returns 
 symlink, an encrypted entry or more than `MAX_BUNDLE_ENTRIES` entries, before it writes. It
 counts the real bytes it writes and stops above `MAX_BUNDLE_BYTES`. `import_data` takes a
 bundle by its file name in `EXPORTS_SUBDIR`; `HomeKeeperImportUploadView` takes an uploaded
-zip or YAML file, streamed to the run folder in chunks.
+zip or YAML file, streamed to the run folder in chunks. The panel uploads a chosen zip, or a YAML
+file over `MAX_IMPORT_WS_BYTES` (`transfer-view.fileRoute`). Its export buttons send the
+`include` of the checked rows (`transfer-view.exportInclude`).
 
 ### Planning an import
 
@@ -103,10 +106,9 @@ a message and a severity: an `error` blocks, a `warning` is applied. Appliances 
 4. `transfer.apply_history` folds `history` and `skips` onto the record.
 5. `transfer._colliding_external_ids` and `transfer._looping_parents` refuse clashes and loops.
 
-A stated `area_id` or `device_id` that exists wins, else the name. A task's `appliance`
-resolves in the document, then in the store; a planned one gets a `hk-planned-asset:`
-placeholder. `transfer._claim_id` keeps a free uuid. History replays through
-`recurrence.apply_completion`.
+A stated `area_id` or `device_id` that exists wins, else the name. A task's `appliance` resolves in
+the document, then in the store; a planned one gets a `hk-planned-asset:` placeholder.
+`transfer._claim_id` keeps a free uuid. History replays through `recurrence.apply_completion`.
 
 The settings plan (`transfer_bundle.plan_settings`) runs only with `include_settings`. It
 upserts profiles and notifications by id, then name, and warns on a notify target or to-do
@@ -134,11 +136,9 @@ store key, option or file that does not travel, or an exclusion with no reason, 
 ## Trade-offs
 
 - **Excluded-key tables** over **an exported-key list**: a list goes stale as the model grows.
-- **Validate all, then write** over **a write per record**: a bad file writes no record. A
-  failure after the first write gives a warning, not a rollback.
+- **Validate all, then write** over **a write per record**: a bad file writes no record.
 - **Keep a stated uuid** over **new ids**: entities and automations survive a restore.
-- **Companion sections as is** over **a Home Keeper schema for them**: each companion owns its
-  format, and Home Keeper never reads its data.
+- **Companion sections as is** over **a Home Keeper schema**: each companion owns its format.
 
 ## One-way doors
 

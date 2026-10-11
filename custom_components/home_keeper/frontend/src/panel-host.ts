@@ -172,8 +172,10 @@ export interface PanelHost extends HTMLElement {
   _entryDomains: Record<string, string>;
   /** Download the appliance report (Settings -> Import and export). */
   _exportApplianceReport(): Promise<void>;
-  /** Save every task and appliance as one YAML file (Settings -> Import and export). */
+  /** Save the checked sources as one YAML file (Settings -> Import and export). */
   _exportData(): Promise<void>;
+  /** Save the checked sources, the files and the settings as a zip file. */
+  _exportBundle(): Promise<void>;
   /** The import card's state: the pasted or picked document text, the last preview,
    *  and whether a call is in flight. */
   _transfer: TransferState;

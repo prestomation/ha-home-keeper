@@ -669,6 +669,67 @@ export const STYLES = `
     font-size: 0.85em; background: var(--secondary-background-color);
     padding: 1px 4px; border-radius: 4px;
   }
+  /* The export list: 1 checkbox row per source. The whole row is the label, so the
+     tap target is the row, not the box. */
+  .hk-transfer-checks { display: grid; gap: 2px; }
+  .hk-transfer-check {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px;
+    align-items: start; padding: 6px 0; min-height: var(--hk-tap); box-sizing: border-box;
+    cursor: pointer;
+  }
+  .hk-transfer-check input {
+    width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--hk-accent);
+  }
+  .hk-transfer-check input:disabled { cursor: default; }
+  .hk-transfer-check-text { display: grid; gap: 2px; min-width: 0; }
+  .hk-transfer-check-name { font-weight: 500; overflow-wrap: anywhere; }
+  .hk-transfer-check-sub { color: var(--hk-ink-2); font-size: 0.85rem; line-height: 1.4; }
+  .hk-transfer-tag {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px;
+    background: var(--hk-line-soft); color: var(--hk-ink-2);
+    font-size: 0.75rem; font-weight: 400; vertical-align: 1px;
+  }
+  .hk-transfer-exported { margin-top: 8px; color: var(--hk-ink-2); font-size: 0.9rem; }
+  /* The preview table. It scrolls inside its box, so a long part name cannot push
+     the page sideways. */
+  .hk-transfer-table { overflow-x: auto; margin-top: 8px; }
+  table.hk-transfer-counts {
+    width: 100%; border-collapse: collapse; font-size: 0.9rem;
+    font-variant-numeric: tabular-nums; margin: 0; padding: 0;
+  }
+  .hk-transfer-counts th, .hk-transfer-counts td {
+    text-align: left; padding: 6px; border-bottom: 1px solid var(--hk-line);
+    vertical-align: top;
+  }
+  .hk-transfer-counts thead th { color: var(--hk-ink-2); font-weight: 500; font-size: 0.8rem; }
+  .hk-transfer-counts tbody th { font-weight: 400; }
+  .hk-transfer-counts .hk-num { text-align: right; white-space: nowrap; width: 1%; }
+  .hk-transfer-notes .hk-transfer-problems { padding-left: 16px; margin: 0; }
+  .hk-transfer-fact { color: var(--hk-ink-2); }
+  .hk-transfer-optin {
+    display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .hk-transfer-optin input {
+    flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--hk-accent);
+  }
+  /* Text with a long form and a short form. Below 700px the short text shows. */
+  .hk-narrow-text { display: none; }
+  @media (max-width: 700px) {
+    .hk-wide-text { display: none; }
+    .hk-narrow-text { display: inline; }
+    /* A phone has no room for a Notes column: each row becomes a grid, and its
+       notes take a line of their own below the counts. */
+    .hk-transfer-counts thead th.hk-transfer-notes { display: none; }
+    .hk-transfer-counts tr {
+      display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px;
+      border-bottom: 1px solid var(--hk-line);
+    }
+    .hk-transfer-counts th, .hk-transfer-counts td { display: block; border-bottom: 0; }
+    .hk-transfer-counts .hk-num { width: auto; }
+    .hk-transfer-counts td.hk-transfer-notes { grid-column: 1 / -1; padding-top: 0; }
+    .hk-transfer-counts td.hk-transfer-notes:empty { display: none; }
+  }
   /* Individual collapsible profile/notification items. */
   .hk-item-card {
     border: 1px solid var(--divider-color); border-radius: 8px;

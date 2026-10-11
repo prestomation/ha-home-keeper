@@ -82,11 +82,10 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
 
     await panel.locator('#transfer-preview').click();
     await expect(panel.locator('.hk-transfer-report')).toBeVisible();
-    await expect(panel.locator('.hk-transfer-counts')).toContainText('Tasks: 1 new');
-    await expect(panel.locator('.hk-transfer-counts')).toContainText(
-      'Appliances: 1 new',
-    );
-    await expect(panel.locator('.hk-transfer-counts')).toContainText('History entries: 1');
+    // 1 row per section: New, then Updated, then the notes.
+    await expect(panel.locator('tr[data-part="tasks"] td').first()).toHaveText('1');
+    await expect(panel.locator('tr[data-part="appliances"] td').first()).toHaveText('1');
+    await expect(panel.locator('tr[data-part="tasks"]')).toContainText('History entries: 1');
     await expect(panel.locator('#transfer-import')).not.toHaveAttribute('disabled', '');
 
     await panel.locator('#transfer-import').click();
@@ -121,8 +120,8 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     );
     await panel.locator('#transfer-preview').click();
 
-    await expect(panel.locator('.hk-transfer-problems')).toBeVisible();
-    await expect(panel.locator('.hk-transfer-problems')).toContainText('tasks[0]');
+    await expect(panel.locator('tr[data-part="tasks"] .hk-transfer-problems')).toBeVisible();
+    await expect(panel.locator('.hk-transfer-report')).toContainText('tasks[0]');
     // Import stays shut, so a document with an error cannot be applied by mistake.
     await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
 
@@ -143,7 +142,7 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     await typeDocument(panel, 'tasks:\n  - name: A\n   bad: B\n');
     await panel.locator('#transfer-preview').click();
 
-    await expect(panel.locator('.hk-transfer-problems')).toContainText('line 3');
+    await expect(panel.locator('.hk-transfer-report')).toContainText('line 3');
     await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
@@ -180,8 +179,8 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     );
     await panel.locator('#transfer-preview').click();
 
-    const problems = panel.locator('.hk-transfer-problems');
-    await expect(problems).toBeVisible();
+    const problems = panel.locator('.hk-transfer-report');
+    await expect(problems.locator('.hk-transfer-problems')).toBeVisible();
     await expect(problems).toContainText('tasks[0].history[0].notes');
     await expect(problems.locator('li.warning')).toHaveCount(1);
     await expect(problems.locator('li.error')).toHaveCount(0);
@@ -268,10 +267,73 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     );
     await panel.locator('#transfer-preview').click();
 
-    const problems = panel.locator('.hk-transfer-problems');
+    const problems = panel.locator('.hk-transfer-report');
     await expect(problems).toContainText('tasks[0], tasks[1]');
     await expect(problems.locator('li.error')).toHaveCount(2);
     await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('exports a bundle with the companion, then previews it as an upload', async ({
+    page,
+  }, testInfo) => {
+    // The stub Pawsistant registers `import_export`, so it is a row of the export
+    // list and a section of the bundle. The chosen zip goes to the upload view, and
+    // the preview has a row for the companion with its note.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'transfer');
+
+    const box = (key: string) => panel.locator(`input[data-transfer-source="${key}"]`);
+    await expect(box('home_keeper')).toBeChecked();
+    await expect(box('pawsistant')).toBeChecked();
+    await expect(box('files')).toBeChecked();
+    await expect(box('files')).toBeDisabled();
+    await expect(box('settings')).not.toBeChecked();
+
+    // The YAML file holds the data rows.
+    const [yaml] = await Promise.all([
+      page.waitForEvent('download'),
+      panel.locator('#transfer-export').click(),
+    ]);
+    expect(yaml.suggestedFilename()).toMatch(/^home-keeper-\d{4}-\d{2}-\d{2}\.yaml$/);
+    await expect(panel.locator('.hk-transfer-exported')).toContainText('Pawsistant');
+
+    // The bundle holds the settings too, when the row is on.
+    await box('settings').check();
+    const [zip] = await Promise.all([
+      page.waitForEvent('download'),
+      panel.locator('#transfer-export-bundle').click(),
+    ]);
+    expect(zip.suggestedFilename()).toMatch(/^home-keeper-\d{4}-\d{2}-\d{2}\.zip$/);
+    const zipPath = testInfo.outputPath('bundle.zip');
+    await zip.saveAs(zipPath);
+    await expect(panel.locator('.hk-transfer-exported')).toContainText('Settings');
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      panel.locator('#transfer-pick').click(),
+    ]);
+    await chooser.setFiles(zipPath);
+    await expect(panel.locator('#transfer-text')).toHaveCount(0);
+    await expect(panel.locator('.hk-transfer-file')).toHaveText('bundle.zip');
+    await panel.locator('#transfer-preview').click();
+
+    const row = panel.locator('tr[data-part="pawsistant"]');
+    await expect(row).toContainText('Pawsistant');
+    await expect(row).toContainText('Care tasks are made again after the import.');
+    await expect(panel.locator('tr[data-part="files"]')).toBeVisible();
+    // The bundle has settings, so the card offers them. A change asks for a new preview.
+    const settings = panel.locator('#transfer-settings');
+    await expect(settings).not.toBeChecked();
+    await expect(panel.locator('#transfer-import')).not.toHaveAttribute('disabled', '');
+    await settings.check();
+    await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
+    await panel.locator('#transfer-preview').click();
+    await expect(panel.locator('tr[data-part="settings"]')).toBeVisible();
+    await expect(panel.locator('#transfer-import')).not.toHaveAttribute('disabled', '');
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

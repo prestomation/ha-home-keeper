@@ -6,10 +6,34 @@ in a spreadsheet or an old app.
 
 **Settings → Import and export** has both halves.
 
-- **Export** saves every task and appliance, with the history, as a YAML file.
-- **Import** reads such a file. Paste it, or choose it from disk, then press
-  **Preview**. Preview only reports what would change. **Import** stays off until a
-  preview of that exact text comes back clean.
+**Save to a file** lists the sources of an export. Clear each source that you do not
+want in the file.
+
+| Source | What it holds | Export |
+| --- | --- | --- |
+| Tasks and appliances | The Home Keeper records, with the history | Data and bundle |
+| A companion | The data of a [companion](#companion-data) that supports import and export | Data and bundle |
+| Files | The manuals, receipts, task photos and companion files | Bundle only |
+| Settings | The profiles, notifications and options | Bundle only. Off by default. |
+
+- **Export data (.yaml)** saves the checked data sources as a YAML file.
+- **Export bundle (.zip)** saves a [bundle](#bundles) with the checked sources and the
+  files.
+
+After an export, the card names the sources that the file holds. If a companion
+export fails, the card names that companion too.
+
+**Read from a file** imports a file.
+
+1. Paste a YAML file into the box, or press **Choose a file**. Choose a bundle, because
+   a bundle cannot be pasted.
+2. Press **Preview**. Preview only reports what would change. The table has 1 row for
+   each section of the file, with the new and the updated records. The Notes column
+   shows the problems of each section.
+3. If the bundle has settings, select **Also import the settings from the bundle**.
+   Then press **Preview** again.
+4. Press **Import**. **Import** stays off until a preview of that exact input comes
+   back clean.
 
 Both halves are also actions, so a script or an automation can call them:
 `home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only. Each
@@ -179,8 +203,8 @@ cannot hold:
 - the settings: the profiles, the notifications and the other options.
 
 The YAML file is `home_keeper.yaml` at the root of the zip file. A `files` section in it
-lists each uploaded file and its record. The panel downloads a bundle from Settings →
-Import and export. An action writes one with `kind: bundle`:
+lists each uploaded file and its record. In the panel, press **Export bundle (.zip)** in
+Settings → Import and export. An action writes a bundle with `kind: bundle`:
 
 ```yaml
 action: home_keeper.export_data
@@ -192,7 +216,7 @@ The action writes the file to the `home_keeper_exports` folder in your configura
 folder, as `home-keeper-YYYY-MM-DD.zip`. A second export on the same day replaces that
 file. The response holds the `path` and the `size` of the file.
 
-To import a bundle, upload it in the panel, or give its file name to the action:
+To import a bundle, choose it in the panel, or give its file name to the action:
 
 ```yaml
 action: home_keeper.import_data
@@ -206,8 +230,9 @@ missing file gives a warning, and the import continues without it.
 
 #### Settings
 
-An import reads the settings only if you set `include_settings: true`. Else the
-preview names each settings section that it skips.
+An import reads the settings only if you set `include_settings: true`. In the panel,
+select **Also import the settings from the bundle**. Else the preview names each
+settings section that it skips.
 
 - A profile or a notification updates the one with the same id, then the one with the
   same name. Any other profile or notification is added. The import never deletes a
@@ -247,8 +272,8 @@ The panel and the service each hold their own limit.
 
 | Path | Limit | Reason |
 | --- | --- | --- |
-| Paste a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. |
-| Upload a YAML file, or call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on a YAML document. |
+| Paste a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. A larger YAML file goes in through **Choose a file**. |
+| Choose a YAML file in the panel, or call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on a YAML document. |
 | Upload or import a bundle | 500 MB | Home Keeper's limit on the files in a bundle, when they are extracted. |
 
 A YAML file over 8 MB must go in as several files. Each of `tasks` and `appliances`
@@ -296,6 +321,8 @@ is what an import needs to read them back.
 So use the export to move your data, and the report to state what you own and what
 it is worth.
 
-![Settings, Import and export, with a preview of what an import would change](../../images/60-panel-transfer.png)
+![Settings, Import and export, with the sources, a bundle export and the preview of that bundle](../../images/60-panel-transfer.png)
 
-![The same card on a phone, with the Preview and Import buttons on a row of their own](../../images/60b-panel-mobile-transfer.png)
+![The sources and the 2 export buttons on a phone](../../images/60e-panel-mobile-transfer-export.png)
+
+![The preview of a bundle on a phone, with the notes of each section below its counts](../../images/60b-panel-mobile-transfer.png)

@@ -191,9 +191,12 @@ describe('Settings — Import and export', () => {
     const panel = await mount(hass);
     await type(panel, '{"home_keeper":{"format":1}}');
     await panel._previewImport();
-    const text = panel.shadowRoot.querySelector('#hk-transfer').textContent;
-    expect(text).toContain('Tasks: 2 new, 1 updated');
-    expect(text).toContain('History entries: 5');
+    const root = panel.shadowRoot;
+    const cells = (part) =>
+      [...root.querySelectorAll(`tr[data-part="${part}"] td`)].map((td) => td.textContent);
+    expect(cells('tasks').slice(0, 2)).toEqual(['2', '1']);
+    expect(cells('appliances').slice(0, 2)).toEqual(['0', '0']);
+    expect(cells('tasks')[2]).toContain('History entries: 5');
   });
 
   it('keeps Import shut when the preview found errors, and lists them', async () => {
@@ -215,7 +218,7 @@ describe('Settings — Import and export', () => {
     const panel = await mount(hass);
     await type(panel, '{"home_keeper":{"format":1}}');
     await panel._previewImport();
-    const items = [...panel.shadowRoot.querySelectorAll('.hk-transfer-problems li')];
+    const items = [...panel.shadowRoot.querySelectorAll('td.hk-transfer-notes li')];
     expect(items.map((li) => li.className)).toEqual(['error', 'warning']);
   });
 
@@ -395,7 +398,7 @@ describe('F03-4: the import file picker', () => {
     let read = 0;
     const big = {
       name: 'big.yaml',
-      size: 4 * 1024 * 1024 + 1,
+      size: 8 * 1024 * 1024 + 1,
       text: () => {
         read++;
         return Promise.resolve('x');
@@ -404,13 +407,59 @@ describe('F03-4: the import file picker', () => {
     await pick(panel, big);
     expect(read).toBe(0);
     expect(panel._transfer.text).toBe('');
-    expect(panel._transfer.error).toContain("over the panel's 4 MB limit");
-    expect(panel._transfer.error).toContain('up to 8 MB');
+    expect(panel._transfer.file).toBe(null);
+    expect(panel._transfer.error).toBe(
+      'This file is over the 8 MB limit. Split it into smaller files.',
+    );
     // A file at the limit is read.
     await pick(panel, { ...big, size: 4 * 1024 * 1024 });
     expect(read).toBe(1);
     expect(panel._transfer.text).toBe('x');
     expect(panel._transfer.error).toBe('');
+  });
+
+  it('keeps a text file over the websocket limit for the upload, unread', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    let read = 0;
+    const file = {
+      name: 'large.yaml',
+      size: 4 * 1024 * 1024 + 1,
+      text: () => {
+        read++;
+        return Promise.resolve('x');
+      },
+    };
+    await pick(panel, file);
+    expect(read).toBe(0);
+    expect(panel._transfer.file).toBe(file);
+    expect(panel._transfer.error).toBe('');
+    const root = panel.shadowRoot;
+    // The text box is gone, the file name shows, and Preview is on.
+    expect(root.querySelector('#transfer-text')).toBe(null);
+    expect(root.querySelector('.hk-transfer-file').textContent).toBe('large.yaml');
+    expect(buttons(root).preview.hasAttribute('disabled')).toBe(false);
+    expect(buttons(root).run.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('refuses a bundle over the bundle limit', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await pick(panel, { name: 'home.zip', size: 500 * 1024 * 1024 + 1, text: () => Promise.resolve('') });
+    expect(panel._transfer.file).toBe(null);
+    expect(panel._transfer.error).toContain('500 MB');
+  });
+
+  it('clears a chosen file and shows the text box again', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await pick(panel, { name: 'home.zip', size: 10, text: () => Promise.resolve('') });
+    panel.shadowRoot.querySelector('#transfer-clear').click();
+    await Promise.resolve();
+    expect(panel._transfer.file).toBe(null);
+    expect(panel._transfer.filename).toBe('');
+    expect(panel.shadowRoot.querySelector('#transfer-text')).toBeTruthy();
+    expect(buttons(panel.shadowRoot).preview.hasAttribute('disabled')).toBe(true);
   });
 
   it('says so when the read fails', async () => {
@@ -425,5 +474,383 @@ describe('F03-4: the import file picker', () => {
     expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
       'The panel cannot read the file',
     );
+  });
+});
+
+// ── Sources, bundles and companions ──────────────────────────────────────────
+
+const PAWSISTANT = {
+  domain: 'pawsistant',
+  name: 'Pawsistant',
+  status: 'connected',
+  capabilities: ['care_schedules', 'import_export'],
+};
+
+/** A hass whose companion list and export document can be set per test. */
+function makeCompanionHass({ companions = [PAWSISTANT], document, report = OK_REPORT } = {}) {
+  const base = makeHass(report);
+  const callWS = base.hass.callWS.bind(base.hass);
+  base.hass.callWS = (msg) => {
+    if (msg.type === 'home_keeper/get_companions') {
+      base.calls.push(msg);
+      return Promise.resolve({ companions });
+    }
+    if (msg.type === 'home_keeper/export_data') {
+      base.calls.push(msg);
+      return Promise.resolve({
+        document: document ?? Object.fromEntries((msg.include ?? []).map((k) => [k, []])),
+        yaml: 'home_keeper:\n  format: 1\n',
+      });
+    }
+    return callWS(msg);
+  };
+  return base;
+}
+
+const sourceBoxes = (root) =>
+  Object.fromEntries(
+    [...root.querySelectorAll('input[data-transfer-source]')].map((box) => [
+      box.dataset.transferSource,
+      box,
+    ]),
+  );
+
+async function toggle(panel, key) {
+  const box = sourceBoxes(panel.shadowRoot)[key];
+  box.checked = !box.checked;
+  box.dispatchEvent(new Event('change'));
+  await Promise.resolve();
+}
+
+describe('Import and export: the export list', () => {
+  it('lists Home Keeper, each companion that joins the export, the files and the settings', async () => {
+    const { hass } = makeCompanionHass({
+      companions: [
+        PAWSISTANT,
+        { domain: 'no_cap', name: 'No capability', status: 'connected', capabilities: [] },
+        { domain: 'later', name: 'Suggested', status: 'suggested', capabilities: ['import_export'] },
+      ],
+    });
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    const boxes = sourceBoxes(panel.shadowRoot);
+    expect(Object.keys(boxes)).toEqual(['home_keeper', 'pawsistant', 'files', 'settings']);
+    expect(boxes.home_keeper.checked).toBe(true);
+    expect(boxes.pawsistant.checked).toBe(true);
+    // A bundle always holds the files, so the row is on and cannot be cleared.
+    expect(boxes.files.checked).toBe(true);
+    expect(boxes.files.disabled).toBe(true);
+    // The settings are off until the user asks for them.
+    expect(boxes.settings.checked).toBe(false);
+    const card = panel.shadowRoot.querySelector('#hk-transfer').textContent;
+    expect(card).toContain('Pawsistant');
+    expect(card).toContain('Bundle only');
+    expect(card).not.toContain('No capability');
+  });
+
+  it('escapes a companion name', async () => {
+    const { hass } = makeCompanionHass({
+      companions: [{ ...PAWSISTANT, name: '<img src=x onerror=alert(1)>' }],
+    });
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    expect(panel.shadowRoot.querySelector('#hk-transfer img')).toBe(null);
+    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain('<img src=x');
+  });
+
+  it('exports the checked data rows as YAML and says what the file holds', async () => {
+    const { hass, calls } = makeCompanionHass();
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    panel._downloadFile = () => {};
+    await panel._exportData();
+    const sent = calls.filter((c) => c.type === 'home_keeper/export_data');
+    expect(sent.at(-1).include).toEqual(['appliances', 'tasks', 'pawsistant']);
+    expect(panel.shadowRoot.querySelector('.hk-transfer-exported').textContent).toBe(
+      'Exported: Tasks and appliances and Pawsistant.',
+    );
+  });
+
+  it('names a companion that the file does not hold', async () => {
+    const { hass } = makeCompanionHass({ document: { home_keeper: {}, tasks: [], appliances: [] } });
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    panel._downloadFile = () => {};
+    await panel._exportData();
+    expect(panel._transfer.exported).toBe(
+      'Exported: Tasks and appliances. Not in the file: Pawsistant. The log has the reason.',
+    );
+  });
+
+  it('sends only the rows that stay checked', async () => {
+    const { hass, calls } = makeCompanionHass();
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    panel._downloadFile = () => {};
+    await toggle(panel, 'home_keeper');
+    await panel._exportData();
+    expect(calls.filter((c) => c.type === 'home_keeper/export_data').at(-1).include).toEqual([
+      'pawsistant',
+    ]);
+  });
+
+  it('turns off a button that has no section to export', async () => {
+    const { hass, calls } = makeCompanionHass();
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    await toggle(panel, 'home_keeper');
+    await toggle(panel, 'pawsistant');
+    const root = panel.shadowRoot;
+    expect(root.querySelector('#transfer-export').hasAttribute('disabled')).toBe(true);
+    expect(root.querySelector('#transfer-export-bundle').hasAttribute('disabled')).toBe(true);
+    await panel._exportData();
+    expect(calls.some((c) => c.type === 'home_keeper/export_data')).toBe(false);
+    // The settings alone are a bundle, never a YAML file.
+    await toggle(panel, 'settings');
+    expect(root.querySelector('#transfer-export').hasAttribute('disabled')).toBe(true);
+    expect(root.querySelector('#transfer-export-bundle').hasAttribute('disabled')).toBe(false);
+  });
+});
+
+describe('Import and export: the bundle download', () => {
+  let realFetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function stubFetch(responses) {
+    realFetch = globalThis.fetch;
+    const seen = [];
+    globalThis.fetch = (url, init) => {
+      seen.push({ url, init });
+      return Promise.resolve(responses.shift());
+    };
+    return seen;
+  }
+
+  // A plain object, because the Response of Node does not take the Blob of jsdom.
+  const fakeResponse = (status, { headers = {}, body = {} } = {}) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(headers),
+    blob: () => Promise.resolve(new Blob(['PK'])),
+    json: () => Promise.resolve(body),
+  });
+  const zipResponse = () =>
+    fakeResponse(200, {
+      headers: { 'Content-Disposition': 'inline; filename="home-keeper-2026-10-11.zip"' },
+    });
+
+  it('downloads the bundle with the token and the checked rows', async () => {
+    const { hass } = makeCompanionHass();
+    hass.auth = { data: { access_token: 'tok' } };
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    await toggle(panel, 'settings');
+    const seen = stubFetch([zipResponse()]);
+    const saved = [];
+    panel._downloadBlob = (name, blob) => saved.push({ name, blob });
+    await panel._exportBundle();
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).toBe(
+      '/api/home_keeper/export_bundle?include=appliances%2Ctasks%2Cpawsistant%2Csettings',
+    );
+    expect(seen[0].init.headers.Authorization).toBe('Bearer tok');
+    expect(saved.map((s) => s.name)).toEqual(['home-keeper-2026-10-11.zip']);
+    expect(panel._transfer.exported).toBe(
+      'Exported: Tasks and appliances, Pawsistant, Files, and Settings.',
+    );
+  });
+
+  it('leaves the settings out of a bundle when the row is off', async () => {
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    const seen = stubFetch([zipResponse()]);
+    panel._downloadBlob = () => {};
+    await panel._exportBundle();
+    expect(seen[0].url).toBe('/api/home_keeper/export_bundle?include=appliances%2Ctasks%2Cpawsistant');
+  });
+
+  it('tries once more with a fresh token after a 401', async () => {
+    const { hass } = makeCompanionHass();
+    let token = 'old';
+    hass.auth = {
+      get accessToken() {
+        return token;
+      },
+      refreshAccessToken: () => {
+        token = 'new';
+        return Promise.resolve();
+      },
+    };
+    const panel = await mount(hass);
+    const seen = stubFetch([fakeResponse(401), zipResponse()]);
+    panel._downloadBlob = () => {};
+    await panel._exportBundle();
+    expect(seen.map((s) => s.init.headers.Authorization)).toEqual(['Bearer old', 'Bearer new']);
+  });
+
+  it('shows no result line when the download fails', async () => {
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    stubFetch([fakeResponse(400, { body: { message: 'No' } })]);
+    const saved = [];
+    panel._downloadBlob = (name) => saved.push(name);
+    await panel._exportBundle();
+    expect(saved).toEqual([]);
+    expect(panel._transfer.exported).toBe('');
+    expect(panel._transfer.exporting).toBe(false);
+  });
+});
+
+describe('Import and export: a chosen bundle', () => {
+  let RealXHR;
+  afterEach(() => {
+    globalThis.XMLHttpRequest = RealXHR;
+  });
+
+  /** A stand-in for XMLHttpRequest that answers each send with the next report. */
+  function stubXHR(reports) {
+    RealXHR = globalThis.XMLHttpRequest;
+    const sent = [];
+    class FakeXHR {
+      constructor() {
+        this.upload = { addEventListener() {} };
+        this.listeners = {};
+        this.headers = {};
+      }
+      open(method, url) {
+        this.method = method;
+        this.url = url;
+      }
+      setRequestHeader(k, v) {
+        this.headers[k] = v;
+      }
+      addEventListener(type, fn) {
+        this.listeners[type] = fn;
+      }
+      send(body) {
+        sent.push({ url: this.url, method: this.method, body, headers: this.headers });
+        const next = reports.shift();
+        this.status = next.status ?? 200;
+        this.responseText = JSON.stringify(next.body ?? next);
+        setTimeout(() => this.listeners.load?.(), 0);
+      }
+    }
+    globalThis.XMLHttpRequest = FakeXHR;
+    return sent;
+  }
+
+  async function pickFile(panel, file) {
+    const picker = panel.shadowRoot.querySelector('#hk-transfer input[type="file"]');
+    Object.defineProperty(picker, 'files', { value: [file], configurable: true });
+    picker.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  const zip = () => new File(['PK\u0003\u0004'], 'home-keeper.zip', { type: 'application/zip' });
+
+  const BUNDLE_REPORT = {
+    ...OK_REPORT,
+    counts: { ...OK_REPORT.counts, files: { created: 3, unchanged: 1 } },
+    sections: {
+      pawsistant: {
+        ok: true,
+        counts: { events: { created: 40, updated: 0, unchanged: 2 }, dogs: { created: 1, updated: 1 } },
+      },
+    },
+    problems: [
+      { section: 'profiles', index: null, path: 'profiles', message: '"profiles" was skipped, because include_settings is off', severity: 'warning' },
+      { section: 'pawsistant', index: null, path: 'pawsistant.dogs[0].name', message: 'Biscuit <b>is</b> new', severity: 'warning' },
+    ],
+  };
+
+  it('sends a bundle to the upload view, and the preview shows each section', async () => {
+    const sent = stubXHR([BUNDLE_REPORT]);
+    const { hass, calls } = makeCompanionHass();
+    const panel = await mount(hass);
+    await waitFor(() => sourceBoxes(panel.shadowRoot).pawsistant);
+    await pickFile(panel, zip());
+    await panel._previewImport();
+    expect(calls.some((c) => c.type === 'home_keeper/import_data')).toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].url).toBe('/api/home_keeper/import_upload');
+    expect(sent[0].body.get('dry_run')).toBe('true');
+    expect(sent[0].body.get('include_settings')).toBe('false');
+    expect(sent[0].body.get('match')).toBe('auto');
+    expect(sent[0].body.get('file').name).toBe('home-keeper.zip');
+
+    const root = panel.shadowRoot;
+    const row = (part) => root.querySelector(`tr[data-part="${part}"]`);
+    expect([...row('pawsistant').querySelectorAll('td')].map((td) => td.textContent).slice(0, 2)).toEqual([
+      '41',
+      '1',
+    ]);
+    expect(row('pawsistant').querySelector('th').textContent).toContain('Pawsistant');
+    // The note of a companion is in its own row, as text.
+    expect(row('pawsistant').querySelector('td.hk-transfer-notes').textContent).toContain(
+      'Biscuit <b>is</b> new',
+    );
+    expect(row('pawsistant').querySelector('b')).toBe(null);
+    expect(row('files').querySelector('td').textContent).toBe('3');
+    expect(row('files').textContent).toContain('Unchanged: 1');
+    // A clean preview of this file licenses Import.
+    expect(buttons(root).run.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('offers the settings of a bundle, and a change asks for a new preview', async () => {
+    const sent = stubXHR([BUNDLE_REPORT, BUNDLE_REPORT, { ...BUNDLE_REPORT, dry_run: false }]);
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    await pickFile(panel, zip());
+    const root = panel.shadowRoot;
+    expect(root.querySelector('#transfer-settings')).toBe(null);
+    await panel._previewImport();
+    const box = root.querySelector('#transfer-settings');
+    expect(box).toBeTruthy();
+    expect(box.checked).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await Promise.resolve();
+    // The preview was of an import without the settings.
+    expect(panel._transfer.report).toBe(null);
+    expect(buttons(root).run.hasAttribute('disabled')).toBe(true);
+    expect(root.querySelector('#transfer-settings').checked).toBe(true);
+    await panel._previewImport();
+    expect(sent[1].body.get('include_settings')).toBe('true');
+    await panel._runImport();
+    expect(sent[2].body.get('dry_run')).toBe('false');
+    expect(sent[2].body.get('include_settings')).toBe('true');
+  });
+
+  it('does not offer settings for a bundle that has none', async () => {
+    stubXHR([OK_REPORT]);
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    await pickFile(panel, zip());
+    await panel._previewImport();
+    expect(panel.shadowRoot.querySelector('#transfer-settings')).toBe(null);
+  });
+
+  it('shows the message of the upload view when it refuses the file', async () => {
+    stubXHR([{ status: 413, body: { message: 'The file is over the 500 MB limit.' } }]);
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    await pickFile(panel, zip());
+    await panel._previewImport();
+    expect(panel._transfer.report).toBe(null);
+    expect(panel._transfer.error).toBe('The file is over the 500 MB limit.');
+  });
+
+  it('drops a chosen file when a small text file is picked next', async () => {
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    await pickFile(panel, zip());
+    expect(panel._transfer.file).toBeTruthy();
+    await pickFile(panel, new File(['tasks: []\n'], 'small.yaml'));
+    await waitFor(() => panel._transfer.text);
+    expect(panel._transfer.file).toBe(null);
+    expect(panel._transfer.text).toBe('tasks: []\n');
   });
 });
