@@ -13,7 +13,9 @@ import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
 import {
   authToken,
+  callService,
   gotoTab,
+  listTasks,
   openPanel,
   openDashboard,
   openPart,
@@ -128,20 +130,14 @@ const FORM_PHOTOS = ['filter-housing', 'cartridge-label'].map((stem) => {
 async function captureFormPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
   await openPanel(page);
   const section = panel.locator('#hk-task-form .hk-form-photos');
-  // The page before this one can still finish a navigation, which reloads the panel
-  // and closes the form. So open the form and pick the photos again until both hold.
-  await expect(async () => {
-    if (!(await section.isVisible())) await panel.locator('#add-btn').click({ timeout: 5_000 });
-    await panel
-      .locator('#hk-task-form ha-selector-text')
-      .first()
-      .locator('input, textarea')
-      .fill('Replace the under-sink filter', { timeout: 5_000 });
-    await section
-      .locator('.hk-staged-add + input[type="file"]')
-      .setInputFiles(FORM_PHOTOS, { timeout: 5_000 });
-    await expect(section.locator('.hk-staged')).toHaveCount(2, { timeout: 5_000 });
-  }).toPass({ timeout: 45_000 });
+  await panel.locator('#add-btn').click();
+  await panel
+    .locator('#hk-task-form ha-selector-text')
+    .first()
+    .locator('input, textarea')
+    .fill('Replace the under-sink filter');
+  await section.locator('.hk-staged-add + input[type="file"]').setInputFiles(FORM_PHOTOS);
+  await expect(section.locator('.hk-staged')).toHaveCount(2);
   for (const img of await section.locator('.hk-staged img').all()) {
     await expect
       .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
@@ -419,13 +415,79 @@ async function showPresetSuggestions(
   await expect(panel.locator('.hk-preset-nudge')).toHaveCount(0);
 }
 
-test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
+/**
+ * Make sure that the fridge filter task is due in about 4 weeks, not overdue.
+ *
+ * The seed has fixed dates, and this monthly task becomes overdue 1 month after its
+ * last completion. The shots of its page show the Due today entry, which an overdue
+ * task does not get, so the capture failed on each day after that due date. This
+ * moves the last completion to 2 days ago, through the public service. The history
+ * keeps the same entries.
+ */
+async function keepFridgeFilterDueLater(): Promise<void> {
+  const task = (await listTasks()).find((t) => t.id === TASK.fridgeFilter);
+  if (!task) throw new Error('no seeded fridge filter task');
+  const soon = Date.now() + 7 * 24 * 3600 * 1000;
+  if (task.next_due && new Date(task.next_due).getTime() > soon) return;
+  const completions = (task.completions ?? []) as Array<{ ts: string }>;
+  const latest = completions.reduce((a, b) => (new Date(a.ts) > new Date(b.ts) ? a : b));
+  await callService('home_keeper', 'move_completion', {
+    task_id: TASK.fridgeFilter,
+    old_ts: latest.ts,
+    new_completed_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+  });
+  const moved = (await listTasks()).find((t) => t.id === TASK.fridgeFilter);
+  expect(new Date(moved?.next_due).getTime()).toBeGreaterThan(soon);
+}
+
+/**
+ * The capture is 1 walk through every documented surface, so it is cut into serial
+ * tests that share 1 page. Each test has its own time limit, and a failure names the
+ * part where it occurred. A test starts on the page that the test before it left, so
+ * the order of the tests is important.
+ */
+test.describe.configure({ mode: 'serial' });
+
+let page: Page;
+let panel: Locator;
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  // The `page` fixture is per test, so make the shared page from the same settings
+  // that the fixture uses.
+  const use = testInfo.project.use;
+  const context = await browser.newContext({
+    baseURL: use.baseURL,
+    storageState: use.storageState,
+    viewport: use.viewport,
+    userAgent: use.userAgent,
+    deviceScaleFactor: use.deviceScaleFactor,
+    isMobile: use.isMobile,
+    hasTouch: use.hasTouch,
+    locale: use.locale ?? 'en-US',
+    serviceWorkers: use.serviceWorkers,
+  });
+  page = await context.newPage();
+  panel = page.locator('home-keeper-panel').first();
+  await keepFridgeFilterDueLater();
+});
+
+test.afterAll(async () => {
+  if (!page) return;
+
+  // The task layout is stored per user on the server, so it outlives this capture
+  // and would greet the next run — and the e2e suite — in whatever the last shot
+  // left. The steps above each put it back themselves; this is the backstop for a
+  // run that died between one of them and its reset.
+  await setTaskLayout(page, 'rows');
+  await page.context().close();
+});
+
+test('capture the task list and the task page', async () => {
   // Step 0 shows the first-run intro, so start with it not dismissed: an earlier run
   // on the same container dismisses it.
   await setUserData(authToken(), INTRO_KEY, false);
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
-  const panel = page.locator('home-keeper-panel').first();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
   // Home Assistant raises a "Home Assistant has started!" toast on a cold boot, and
@@ -688,7 +750,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
+});
 
+test('capture managed and sensor tasks, layouts and the task form', async () => {
   // 1c. Managed-task detail page — a task owned by another integration
   // (Pawsistant). Shows the "Managed by Pawsistant" chip, the completion prompt,
   // and deletion guidance in place of a Delete button.
@@ -1326,7 +1390,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
+});
 
+test('capture the appliances, parts and stock', async () => {
   // 5. Appliances tab — the asset list with the seeded virtual device.
   await panel.locator('#tab-appliances').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
@@ -1934,7 +2000,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
   await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
   await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+});
 
+test('capture Settings and the usage surfaces', async () => {
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
   // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
@@ -2342,7 +2410,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       enabled: true,
     });
   }, { TASK });
+});
 
+test('capture the phone layout', async () => {
   // 50-53. The phone layout, which is different enough from the desktop one that the
   // shots above document none of it: the tabs are along the bottom, Add floats, and
   // Settings opens on an index rather than six expanded sections. Asserted in
@@ -2802,12 +2872,6 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await captureAfterPhotos(page, panel, true);
   // 58l. Photos in the New task form (#399), phone.
   await captureFormPhotos(page, panel, true);
-
-  // The task layout is stored per user on the server, so it outlives this capture
-  // and would greet the next run — and the e2e suite — in whatever the last shot
-  // left. The steps above each put it back themselves; this is the backstop for a
-  // run that died between one of them and its reset.
-  await setTaskLayout(page, 'rows');
 
   await page.setViewportSize(DESKTOP);
 });

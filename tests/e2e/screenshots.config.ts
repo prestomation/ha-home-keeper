@@ -2,10 +2,13 @@
 import { captureConfig } from './capture-config';
 
 export default captureConfig('screenshots.capture.ts', {
-  // The capture keeps growing (one `test()` walks every documented surface); bump past
-  // the shared 60s default so a slow CI/sandbox run doesn't starve the later shots.
-  // Raised again when the Duplicate drawer joined the walk: a cold container was
-  // spending the whole budget before the last third of the shots. Raised again for
-  // the per-task snooze length, which sets and clears the field through the form.
+  // The capture is a serial group of tests that share 1 page. This limit applies to
+  // each test, not to the whole group, so a part that grows does not take time from
+  // the parts after it.
   timeout: 300_000,
+  use: {
+    // A stuck step fails in seconds and names itself, before the test limit.
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
+  },
 });
