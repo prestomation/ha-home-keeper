@@ -2246,6 +2246,19 @@ test('capture Settings and the usage surfaces', async () => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
+  // 60f. Settings → Import and export on a fresh load, with the box still empty. A
+  // fresh page has loaded no other Home Assistant page. A lazy Home Assistant element
+  // stays an empty box with no size there, so this shot shows that the native box
+  // has its label, its size and its helper line before anything else loads.
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await expect(panel.locator('#transfer-text')).toBeVisible();
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60f-panel-transfer-paste.png` });
+
   // 60. Settings → Import and export — the whole surface at once: the export list
   // with the companion row (the stub Pawsistant registers `import_export`), the 2
   // export buttons and the line after an export, then that bundle chosen back in
@@ -2741,6 +2754,24 @@ test('capture the phone layout', async () => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 60g. The empty box on a phone after a fresh load. The fresh load is the point:
+  // the steps above opened other pages first, and those pages can load a lazy Home
+  // Assistant element that the panel does not load.
+  await openPanel(page);
+  await panel.locator('#mtab-settings').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="transfer"]').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await expect(panel.locator('#transfer-text')).toBeVisible();
+  // Wheel the box into frame, for the same reason as in 60b. Stop at 260px, so that
+  // the frame keeps the end of the Save to a file text above the Export button.
+  await page.mouse.move(200, 500);
+  await page.mouse.wheel(0, 260);
+  await expect(panel.locator('#transfer-text')).toBeInViewport();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60g-panel-mobile-transfer-paste.png` });
 
   // 70e. The managed appliance on a phone. The owner chip wraps under the title, the
   // actions row holds Archive alone, and the three part rows stack with their
