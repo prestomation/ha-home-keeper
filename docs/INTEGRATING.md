@@ -346,8 +346,8 @@ domain. Home Keeper stores your export response there as is, and does not read i
 
 - `format` is an integer that you own. Increase it only when the meaning of a key changes.
   Refuse a `document` with a higher `format`. `skipped` maps a name to a count.
-- `document` is your section: the export response, after the user edited it, maybe on a
-  different install. Import is an upsert: match by your id, then by a natural key such as a
+- `document` is your section as the export returned it. The user can edit it and import it
+  on a different install. Import is an upsert: match by your id, then by a natural key such as a
   name. Never delete a record that is not in `document`.
 - `problems` is a list of `{level, path, message}`. `level` is `error` or `warning`. `path`
   starts in `data`, such as `dogs[2].name`. An `error` blocks the whole import.
@@ -357,8 +357,8 @@ domain. Home Keeper stores your export response there as is, and does not read i
   it and put the relative paths in `data`. On import, read them from it. Refuse a
   `files_dir` that is not below `.storage/home_keeper_import_export/`, and refuse a
   relative path with `..`. Home Keeper skips a symbolic link in it.
-- Each call has 300 seconds. A failed export puts `failed` in `skipped.companions` of the
-  Home Keeper envelope. A failed import is an `error` for your section.
+- Each call has 300 seconds. When an export fails, Home Keeper puts `failed` in
+  `skipped.companions` of its envelope. When an import fails, your section gets an `error`.
 
 Make the data portable:
 
