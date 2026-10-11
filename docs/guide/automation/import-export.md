@@ -6,8 +6,8 @@ in a spreadsheet or an old app.
 
 **Settings → Import and export** has both halves.
 
-**Save to a file** lists the sources of an export. Clear each source that you do not
-want in the file.
+**Save to a file** lists the sources of an export, and you clear each source that you
+do not want in the file.
 
 | Source | What it holds | Export |
 | --- | --- | --- |
