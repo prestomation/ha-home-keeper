@@ -655,7 +655,11 @@ export const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
   }
-  #hk-transfer ha-textarea { display: block; width: 100%; margin-top: 12px; }
+  .hk-transfer-label { display: block; margin-top: 12px; font-size: 0.9rem; }
+  #hk-transfer #transfer-text { display: block; margin-top: 4px; }
+  .hk-transfer-helper {
+    margin-top: 4px; color: var(--secondary-text-color); font-size: 0.8rem;
+  }
   .hk-transfer-report { margin-top: 12px; }
   .hk-transfer-counts, .hk-transfer-problems {
     margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.5;

@@ -2229,14 +2229,18 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
       : '',
     `</div>`,
     // A chosen bundle or a large file goes to the backend as it is, so there is no
-    // text to show. The box comes back when the file is cleared.
+    // text to show. The box comes back when the file is cleared. The box is a native
+    // textarea: HA loads `ha-textarea` lazily and nothing on this panel loads it, so on
+    // a fresh load an `ha-textarea` did not show until another HA page loaded it.
     state.file
       ? ''
       : [
-          `<ha-textarea id="transfer-text" rows="6" autogrow`,
-          ` label="${escapeHTML(t('transfer.documentLabel'))}"`,
-          ` helper="${escapeHTML(t('transfer.documentHelp'))}"`,
-          `${busy ? ' disabled' : ''}></ha-textarea>`,
+          `<label class="hk-transfer-label" for="transfer-text">`,
+          `${escapeHTML(t('transfer.documentLabel'))}</label>`,
+          `<textarea id="transfer-text" class="hk-note-input" rows="6"`,
+          ` aria-describedby="transfer-text-help"${busy ? ' disabled' : ''}></textarea>`,
+          `<div class="hk-transfer-helper" id="transfer-text-help">`,
+          `${escapeHTML(t('transfer.documentHelp'))}</div>`,
         ].join(''),
     state.error
       ? `<ha-alert class="hk-transfer-error" alert-type="error">${escapeHTML(

@@ -23,7 +23,6 @@ beforeAll(() => {
     'ha-svg-icon',
     'ha-spinner',
     'ha-icon',
-    'ha-textarea',
   ]) {
     if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement {});
   }
@@ -139,6 +138,53 @@ describe('Settings — Import and export', () => {
     expect(buttons(root).exportBtn).toBeTruthy();
     expect(root.querySelector('#transfer-text')).toBeTruthy();
     expect(root.querySelector('#transfer-pick')).toBeTruthy();
+  });
+
+  it('uses a native textarea, so the box shows without a lazy HA element', async () => {
+    // HA loads ha-textarea lazily and the panel does not load it. This file registers
+    // no ha-textarea, so only a native element can render a usable box here.
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const root = panel.shadowRoot;
+    const box = root.querySelector('#transfer-text');
+    expect(box.tagName).toBe('TEXTAREA');
+    expect(box.classList.contains('hk-note-input')).toBe(true);
+    expect(box.disabled).toBe(false);
+    const label = root.querySelector('label[for="transfer-text"]');
+    expect(label?.textContent).toBe('Document');
+    const help = root.querySelector(`#${box.getAttribute('aria-describedby')}`);
+    expect(help?.textContent).toBe(
+      'The contents of an exported file, or a file written in the same shape.',
+    );
+  });
+
+  it('escapes the label and the helper text', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const root = panel.shadowRoot;
+    expect(root.querySelector('label[for="transfer-text"] *')).toBeNull();
+    expect(root.querySelector('#transfer-text-help *')).toBeNull();
+  });
+
+  it('disables the box while a preview runs and keeps the text', async () => {
+    const { hass } = makeHass();
+    let release;
+    const callWS = hass.callWS;
+    hass.callWS = (msg) =>
+      msg.type === 'home_keeper/import_data'
+        ? new Promise((r) => { release = () => r(callWS(msg)); })
+        : callWS(msg);
+    const panel = await mount(hass);
+    await type(panel, 'tasks: []\n');
+    const pending = panel._previewImport();
+    const busyBox = await waitFor(() => panel.shadowRoot.querySelector('#transfer-text[disabled]'));
+    expect(busyBox).toBeTruthy();
+    expect(busyBox.value).toBe('tasks: []\n');
+    release();
+    await pending;
+    const box = panel.shadowRoot.querySelector('#transfer-text');
+    expect(box.disabled).toBe(false);
+    expect(box.value).toBe('tasks: []\n');
   });
 
   it('links to the documentation for the file format', async () => {

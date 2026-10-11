@@ -51,8 +51,8 @@ function makeDocument(tag: string): string {
 }
 
 async function typeDocument(panel: import('@playwright/test').Locator, text: string) {
-  // `ha-textarea` wraps a real textarea in its own shadow root; drive the inner one
-  // and dispatch the event the card listens for, exactly as a paste would.
+  // Set the value of the native textarea and send the event that the card listens
+  // for, as a paste does.
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -60,6 +60,20 @@ async function typeDocument(panel: import('@playwright/test').Locator, text: str
 }
 
 test.describe('Home Keeper panel — Import and export', { tag: '@responsive' }, () => {
+  test('shows the paste box on a fresh load', async ({ page }) => {
+    // A fresh page has loaded no other Home Assistant page, so a lazy HA element that
+    // the panel does not load stays an empty box with no size.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'transfer');
+    const box = panel.locator('#transfer-text');
+    await expect(box).toBeVisible();
+    await expect(box).toBeEditable();
+    await expect(panel.locator('label[for="transfer-text"]')).toBeVisible();
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('previews a document, then imports it', async ({ page }, testInfo) => {
     const tag = `${testInfo.project.name}-${Date.now().toString(36)}`;
     const taskName = `E2E flush the boiler ${tag}`;
