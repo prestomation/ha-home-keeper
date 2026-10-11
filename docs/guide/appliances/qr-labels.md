@@ -5,8 +5,8 @@ page of its appliance or task in the Home Keeper panel. Print the labels on a la
 or on a label printer. Put a label on the appliance.
 Then scan it with a phone camera to open the page in the panel.
 
-The panel is for admins only, so the link opens only for an admin. To complete a task
-with a scan, use a Home Assistant tag. See [NFC and RFID tags](../tasks/nfc-tags.md).
+The link opens for any user. A user who is not an admin sees a read view of the
+appliance. To complete a task with a scan, use a Home Assistant tag. See [NFC and RFID tags](../tasks/nfc-tags.md).
 
 ## Print 1 label
 

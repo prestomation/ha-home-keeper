@@ -10,22 +10,22 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 3a3482b08602
+source_hash: 3400211898da
 ---
 
 # Architecture
 
 Home Keeper is a Home Assistant integration that tracks home maintenance and chores.
 Administrators manage tasks and appliances in a sidebar panel. All household members use
-the tasks through native entities, such as the to-do list and the calendar.
+the tasks through native entities, such as the to-do list and the calendar, and the panel.
 
 ## Goals
 
 - **G1. Testable core.** The rules for schedules, tasks, assets and options run without
   Home Assistant, so the fast unit tier and the mutation gate can check them.
 - **G2. Native usage.** Daily use goes through native entities. The panel is for
-  administration only.
-- **G3. One privilege line.** Administration is admin-only on every path. Usage is open.
+  administration. Other users can open it to use the tasks and read the appliances.
+- **G3. One privilege line.** Writes to appliances and settings are admin-only. Usage is open.
 - **G4. Services first.** Each data action is a `home_keeper.*` service, so automations,
   scripts, voice and other integrations can do what the panel does.
 - **G5. Safe reloads.** A reload keeps services, the panel and saved options intact.
@@ -53,19 +53,18 @@ The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the fir
 ### Administration, usage and privilege
 
 `panel.async_register_panel` registers a `custom` panel at `/home-keeper` with
-`require_admin=True`. It serves only `frontend/dist/`, because Home Assistant serves
+`require_admin=False`. It serves only `frontend/dist/`, because Home Assistant serves
 static paths before authentication. `panel.cache_token` hashes the bundle into its URL.
-A non-admin uses tasks from the to-do list, the calendar, the per-task entities and the
-card ([SECURITY.md](../SECURITY.md)).
+A non-admin uses tasks from the native entities, the card and the panel, and reads the
+appliances in the panel ([SECURITY.md](../SECURITY.md)).
 
 A websocket command and its service twin are the same operation. An admin-only operation
 has `@websocket_api.require_admin` on the command, and its service handler calls the
 local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
 `context.user_id` comes from an automation or from the core and is trusted.
 The gate covers appliance edits, asset documents, part files and stock, declarative
-companion edits, the orphan and archive deletes, `set_options`, the appliance report,
-and data export and import. Other task writes, task photos included, are open. Appliance reads
-are open, but a non-admin gets `assets.card_projection`, the fields that the card shows.
+companion edits, the orphan and archive deletes, `set_options`, the appliance report, data
+export and import, `list_entity_keys` and the companion preview. All else is open.
 
 ### Setup
 

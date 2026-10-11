@@ -421,6 +421,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._hass;
   }
 
+  /** True if the user is not an admin. The panel is then view only (#444). An
+   *  unknown user counts as admin, so the admin view does not change. The backend
+   *  stays the authority: every write is admin-only there. */
+  _readOnly(): boolean {
+    return this._hass?.user?.is_admin === false;
+  }
+
   /**
    * HA sets `route = { prefix, path }` on the panel element for every in-panel
    * URL change, including browser Back/Forward. We treat it as the single source
@@ -494,7 +501,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._pendingEdit = null;
     }
     if (this._pendingAssetEdit) {
-      this._assetEdit = { ...this._pendingAssetEdit, open: true };
+      // A view-only user gets the page under the form, not the form.
+      if (!this._readOnly()) this._assetEdit = { ...this._pendingAssetEdit, open: true };
       this._pendingAssetEdit = null;
     }
     // Arriving at the task list is the other moment the suggestion dialog may open.
@@ -532,6 +540,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Open the preset suggestion dialog when the page and the state allow it. */
   private _offerPresets(): void {
+    // The preset add is admin-only, so a view-only user does not get the dialog.
+    if (this._readOnly()) return;
     if (!this._loaded || this._loadError) return;
     if (this._editingOpen()) return;
     if (this._confirmDelete.open) return;
@@ -1610,13 +1620,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── asset form lifecycle ────────────────────────────────────────────────────
+  // Every appliance write is admin-only on the backend. The guards below keep a
+  // view-only user out of a form or a call that can only fail.
   _openCreateAsset(): void {
+    if (this._readOnly()) return;
     this._rememberDrawerOpener();
     this._abortUpload();
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
   _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void {
+    if (this._readOnly()) return;
     this._rememberDrawerOpener();
     // Opens beside the page it was pressed on — the appliance's own page keeps its
     // parts, documents and history in view while the form is up. See `_openEdit` for
@@ -1663,7 +1677,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _submitAssetForm(button?: Element | null): Promise<void> {
-    if (!this._hass || !this._assetEdit.asset) return;
+    if (!this._hass || !this._assetEdit.asset || this._readOnly()) return;
     // A second press while the first save runs must not create a second appliance.
     await guardWrite(this._assetEdit, () => this._saveAssetForm(), button);
   }
@@ -1703,7 +1717,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _deleteAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.deleteAsset(this._hass, asset.id);
     } catch (err) {
@@ -1716,7 +1730,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Hide an appliance from the default list without deleting its data;
    *  reversible via {@link _restoreAsset}. */
   async _archiveAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.archiveAsset(this._hass, asset.id);
       await this._refresh();
@@ -1727,7 +1741,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _restoreAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.restoreAsset(this._hass, asset.id);
       await this._refresh();
@@ -2031,6 +2045,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     } else if (this._view === 'tab') {
       // The tab list has not loaded, or the redirect to the task list is on its way.
       inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    } else if (this._view === 'settings' && this._readOnly()) {
+      // Every setting is admin-only, so a view-only user gets 1 card that says so in
+      // place of the sections. `wireSettings` builds nothing without the hosts.
+      inner = `
+        ${this._tabs()}
+        <ha-card class="hk-form-card hk-admin-only"><div class="hk-form-inner">
+          <div class="hk-form-title"><ha-icon icon="mdi:lock" class="hk-admin-only-ic"></ha-icon>${escapeHTML(
+            t('settings.adminOnly.title'),
+          )}</div>
+          <div class="hk-settings-intro">${escapeHTML(t('settings.adminOnly.body'))}</div>
+          <div class="hk-settings-intro">${escapeHTML(t('settings.adminOnly.ask'))}</div>
+        </div></ha-card>`;
     } else if (this._view === 'settings') {
       // Three things, all rendered at every width, with CSS choosing between them: an
       // anchor rail naming every section and what it is set to, a section index for a
@@ -2333,7 +2359,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Appliance notes — always present (even when empty) so the Edit affordance is
    *  discoverable, matching the task detail page. */
   _assetNotesSection(asset: Asset): string {
-    return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', true);
+    // An appliance note is an appliance write, which is admin-only.
+    return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', !this._readOnly());
   }
 
   // ── hydration: build/configure live HA components ───────────────────────────

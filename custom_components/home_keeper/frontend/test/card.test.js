@@ -938,17 +938,19 @@ describe('HomeKeeperCard event subscription (F09-1)', () => {
   });
 });
 
-describe('HomeKeeperCard counted wear progress for a non-admin (F09-2)', () => {
-  // The part exactly as `assets.card_projection` sends it to a non-admin: only the
-  // allowlisted keys, with no cost, vendor or part number.
-  const PROJECTED = {
+describe('HomeKeeperCard counted wear progress for a non-admin (#444)', () => {
+  // `get_assets` sends the full appliance record to every user (#444).
+  const FULL = {
     id: 'a1',
+    name: 'Jacket',
+    kind: 'virtual',
     documents: [],
     metadata: [],
     parts: [
       {
         id: 'p1',
         name: 'Shell',
+        type: 'wear',
         url: null,
         stock: 0,
         reorder_at: 0,
@@ -956,6 +958,9 @@ describe('HomeKeeperCard counted wear progress for a non-admin (F09-2)', () => {
         replace_interval: 25,
         use_noun: 'wears',
         carried_uses: 17,
+        cost: 120,
+        vendor: 'Outdoor shop',
+        part_number: 'SH-1',
       },
     ],
   };
@@ -968,7 +973,7 @@ describe('HomeKeeperCard counted wear progress for a non-admin (F09-2)', () => {
     source: { part: { asset_id: 'a1', part_id: 'p1', role: 'use' } },
   };
 
-  it('F09-2: shows "17 of 25 wears" from the projected part', async () => {
+  it('shows "17 of 25 wears" from the full part record', async () => {
     const card = makeCard();
     card.hass = {
       language: 'en',
@@ -977,7 +982,7 @@ describe('HomeKeeperCard counted wear progress for a non-admin (F09-2)', () => {
         msg.type === 'home_keeper/get_tasks'
           ? { tasks: [useTask] }
           : msg.type === 'home_keeper/get_assets'
-            ? { assets: [PROJECTED] }
+            ? { assets: [FULL] }
             : {},
     };
     await waitFor(() => sr(card)?.querySelector('.hk-counted'));

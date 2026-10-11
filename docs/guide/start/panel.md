@@ -1,6 +1,7 @@
 # Getting around the panel
 
-The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
+The panel has the tabs **Tasks**, **Appliances**, and **Settings**. Any user can open
+the panel. For a user who is not an admin, see [Household users](household-users.md).
 
 ![The Tasks tab: scope pills with counts, a task row per line with its status at the end](../../images/1-panel-task-list.png)
 

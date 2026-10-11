@@ -65,7 +65,8 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   button, sensor and binary sensor. Decide if a task without a device gets them too.
 - **Spares number entity is open to every user.** A non-admin can change a part's spare
   count from the dashboard. Gate it (the dashboard control then fails for non-admins), or
-  state in `docs/SECURITY.md` that the write is open by design.
+  state in `docs/SECURITY.md` that the write is open by design. The panel stock stepper
+  is admin-only, so the 2 paths do not agree now.
 
 ## Appliances
 

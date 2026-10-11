@@ -744,11 +744,10 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
       // explicit card_links or a linked part's product URL); fetch best-effort and
-      // only when a task actually references one. An admin also needs it to point a
-      // device chip at its appliance page; for other users the call is refused.
-      const admin = this._hass.user?.is_admin === true;
+      // only when a task actually references one. A device chip also needs it, to
+      // point at its appliance page.
       this._assets = this._tasks.some(
-        (tk) => tk.card_links?.length || tk.source?.part || (admin && tk.device_id),
+        (tk) => tk.card_links?.length || tk.source?.part || tk.device_id,
       )
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
@@ -1341,17 +1340,18 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   /**
-   * The chip for the task's device. For an admin it is a link, the same as the
-   * panel's device chip: it opens the appliance page when an appliance has the
-   * device, else the Home Assistant device page (#446). Both pages are admin-only,
-   * so for other users the chip only shows the name.
+   * The chip for the task's device. It is a link, the same as the panel's device
+   * chip: it opens the appliance page when an appliance has the device (#446). The
+   * panel shows that page to every user (#444). Else an admin gets the Home Assistant
+   * device page. That page is admin-only, so for other users the chip then only
+   * shows the name.
    */
   private _deviceChip(task: Task, name: string): string {
     const label = escapeHTML(name);
-    if (!this._hass?.user?.is_admin || !task.device_id) {
+    const asset = task.device_id ? assetForTask(task, this._assets) : undefined;
+    if (!task.device_id || (!asset && !this._hass?.user?.is_admin)) {
       return `<ha-assist-chip label="${label}"></ha-assist-chip>`;
     }
-    const asset = assetForTask(task, this._assets);
     const href = asset
       ? `/home-keeper/appliances/${encodeURIComponent(asset.id)}`
       : `/config/devices/device/${encodeURIComponent(task.device_id)}`;

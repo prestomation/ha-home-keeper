@@ -12,6 +12,8 @@ This file gives the rules for code that changes it.
 
 - **Administration lives in the panel.** Task and appliance create, edit and delete,
   recurrence settings and device links belong there. Never put management UI in a card.
+- **The panel is also a read view.** Any user opens it. `HomeKeeperPanel._readOnly` hides
+  each control that calls an admin-only command, and Settings shows an "admin only" card.
 - **Usage goes through native entities**: the `todo` list, the `calendar`, and the
   per-task `button`, `sensor` and `binary_sensor` entities. Prefer them and Home
   Assistant's own cards to a custom usage card.
@@ -20,10 +22,10 @@ This file gives the rules for code that changes it.
 
 ## Privilege model
 
-The admin and usage split is also the security boundary ([SECURITY.md](../../docs/SECURITY.md)).
+Writes are admin-only and reads are open ([SECURITY.md](../../docs/SECURITY.md)).
 
-- The panel is registered with `require_admin=True`. A command that only the panel uses
-  is administration.
+- The panel is registered with `require_admin=False`. A write that only the panel uses is
+  administration. Hide its control from a non-admin, and gate it in the backend too.
 - **Gate both halves of an admin-only operation.** Put `@websocket_api.require_admin` on
   the websocket command, and call `_verify_admin(call)` in its service handler. A gate on
   the command alone is no gate: `call_service` goes around it. The list of gated
@@ -32,11 +34,9 @@ The admin and usage split is also the security boundary ([SECURITY.md](../../doc
 - Raise the bare `Unauthorized`. It is the 1 exception to localized exceptions, and the
   websocket and REST layers map it to `unauthorized` and 401.
 - Usage stays open: task reads, create, edit, delete, complete, snooze and skip, task
-  photos, profiles, companions, and the card's reads.
-- **An appliance read projects for a non-admin.** A non-admin gets
-  `assets.card_projection`, a whitelist of the fields that the card shows. A new field is
-  private until someone adds it to the whitelist. A mutation that echoes the whole asset
-  is admin-gated.
+  photos, profiles, companions, and the reads of the panel and the card.
+- **An appliance read is the full record for every user.** Home Keeper has no private
+  appliance field.
 - **Allowlist notify targets where they are stored.** `notifications.split_targets` keeps
   `mobile_app_*` and `persistent_notification` and drops the rest. A rejected `target:`
   on `home_keeper.notify` fails the call.
@@ -50,9 +50,9 @@ result in the plan's Security section ([pr-workflow.md](pr-workflow.md)).
 
 - **Open: a task and its data.** A field, file or list on a task follows the task. A user
   who can create a task can also edit it, delete it and add its photos.
-- **Open: a read that the card or a native entity needs.**
-- **Admin-only: appliances and parts.** They own Home Assistant devices, and they hold
-  costs and serial numbers.
+- **Open: a read of Home Keeper data**, such as a read that the panel, the card or a native
+  entity needs.
+- **Admin-only: writes to appliances and parts.** They own Home Assistant devices.
 - **Admin-only: settings, profiles and notification delivery**, and each operation that
   can send text to a place the caller cannot reach.
 - **Admin-only: bulk and whole-store operations**: the orphan delete, import, export and

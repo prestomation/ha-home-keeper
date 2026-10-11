@@ -14,13 +14,16 @@
  *    suggestion dialog opens by itself on the Tasks tab, and a modal that no spec
  *    expects would block the clicks of every spec after it. A spec or capture that
  *    shows the suggestions calls `suggestOnly` and `markAllPresetsSeen` after.
+ * 6. Make a second user who is not an admin (`viewer`), and save its storage state
+ *    and token beside the first. A capture that shows the view-only panel opens a
+ *    browser context with that state (`VIEWER_STATE_PATH`).
  *
  * The API flow mirrors tests/integration/conftest.py.
  */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
-import { markAllPresetsSeen } from './user-data';
+import { INTRO_KEY, markAllPresetsSeen, setUserData, wsCommand } from './user-data';
 
 const HA_URL = process.env.HA_URL || 'http://localhost:8123';
 const CLIENT_ID = `${HA_URL}/`;
@@ -28,6 +31,10 @@ const STATE_PATH = resolve(__dirname, '.auth/state.json');
 const TOKEN_PATH = resolve(__dirname, '.auth/token.json');
 const USERNAME = 'test';
 const PASSWORD = 'testtest1';
+export const VIEWER_STATE_PATH = resolve(__dirname, '.auth/viewer-state.json');
+export const VIEWER_TOKEN_PATH = resolve(__dirname, '.auth/viewer-token.json');
+const VIEWER_USERNAME = 'viewer';
+const VIEWER_PASSWORD = 'viewerpass1';
 
 async function waitForHA(timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -60,6 +67,54 @@ async function exchangeCode(code: string): Promise<Tokens> {
   return (await r.json()) as Tokens;
 }
 
+/** Log in over the auth API and return an access token. Throws on bad credentials. */
+async function login(username: string, password: string): Promise<string> {
+  let lf = await fetch(`${HA_URL}/auth/login_flow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      handler: ['homeassistant', null],
+      redirect_uri: `${HA_URL}/?auth_callback=1`,
+    }),
+  });
+  const flowId = (await lf.json()).flow_id;
+  lf = await fetch(`${HA_URL}/auth/login_flow/${flowId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, client_id: CLIENT_ID }),
+  });
+  const result = (await lf.json()).result;
+  if (typeof result !== 'string') throw new Error(`login failed for ${username}`);
+  return (await exchangeCode(result)).access_token;
+}
+
+/**
+ * The token of the `viewer` user, who is not an admin. Log in first and make the user
+ * only when that fails: Home Assistant keeps users across runs against the same
+ * container, and to make the credentials twice is an error. The same flow as the
+ * `non_admin_token` fixture in tests/integration/test_admin_gates.py.
+ */
+async function ensureViewer(ownerToken: string): Promise<string> {
+  try {
+    return await login(VIEWER_USERNAME, VIEWER_PASSWORD);
+  } catch {
+    /* not made yet */
+  }
+  const created = await wsCommand(ownerToken, {
+    type: 'config/auth/create',
+    name: 'Sam',
+    group_ids: ['system-users'],
+  });
+  await wsCommand(ownerToken, {
+    type: 'config/auth_provider/homeassistant/create',
+    user_id: created.user.id,
+    username: VIEWER_USERNAME,
+    password: VIEWER_PASSWORD,
+  });
+  return login(VIEWER_USERNAME, VIEWER_PASSWORD);
+}
+
 async function ensureOnboarded(): Promise<string> {
   const r = await fetch(`${HA_URL}/api/onboarding/users`, {
     method: 'POST',
@@ -76,22 +131,7 @@ async function ensureOnboarded(): Promise<string> {
   if (r.status === 403 || r.status === 404) {
     // Onboarding already completed (403), or the endpoint is gone post-onboarding
     // (404 on some HA versions / leftover local state) — just log in instead.
-    let lf = await fetch(`${HA_URL}/auth/login_flow`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        handler: ['homeassistant', null],
-        redirect_uri: `${HA_URL}/?auth_callback=1`,
-      }),
-    });
-    const flowId = (await lf.json()).flow_id;
-    lf = await fetch(`${HA_URL}/auth/login_flow/${flowId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: USERNAME, password: PASSWORD, client_id: CLIENT_ID }),
-    });
-    return (await exchangeCode((await lf.json()).result)).access_token;
+    return login(USERNAME, PASSWORD);
   }
   if (!r.ok) throw new Error(`onboarding users failed: ${r.status} ${await r.text()}`);
 
@@ -140,6 +180,18 @@ export default async function globalSetup(): Promise<void> {
   await waitForTasks(token);
   await markAllPresetsSeen(token);
 
+  const viewerToken = await ensureViewer(token);
+  await markAllPresetsSeen(viewerToken);
+  await setUserData(viewerToken, INTRO_KEY, true);
+
+  await browserLogin(USERNAME, PASSWORD, STATE_PATH);
+  writeFileSync(TOKEN_PATH, JSON.stringify({ access_token: token }), 'utf8');
+  await browserLogin(VIEWER_USERNAME, VIEWER_PASSWORD, VIEWER_STATE_PATH);
+  writeFileSync(VIEWER_TOKEN_PATH, JSON.stringify({ access_token: viewerToken }), 'utf8');
+}
+
+/** Log in once in a real browser and save the storage state at *statePath*. */
+async function browserLogin(username: string, password: string, statePath: string): Promise<void> {
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_EXEC || undefined,
   });
@@ -147,21 +199,20 @@ export default async function globalSetup(): Promise<void> {
   const page = await context.newPage();
   try {
     await page.goto(`${HA_URL}/`, { waitUntil: 'domcontentloaded' });
-    const username = page.locator('input[autocomplete="username"]');
-    await username.waitFor({ state: 'visible', timeout: 30_000 });
-    await username.fill(USERNAME);
-    await page.locator('input[autocomplete="current-password"]').fill(PASSWORD);
+    const field = page.locator('input[autocomplete="username"]');
+    await field.waitFor({ state: 'visible', timeout: 30_000 });
+    await field.fill(username);
+    await page.locator('input[autocomplete="current-password"]').fill(password);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => !!window.localStorage.getItem('hassTokens'), null, {
       timeout: 30_000,
     });
     await page.waitForLoadState('networkidle');
 
-    mkdirSync(dirname(STATE_PATH), { recursive: true });
-    await context.storageState({ path: STATE_PATH });
-    writeFileSync(TOKEN_PATH, JSON.stringify({ access_token: token }), 'utf8');
+    mkdirSync(dirname(statePath), { recursive: true });
+    await context.storageState({ path: statePath });
     // eslint-disable-next-line no-console
-    console.log(`[global-setup] saved authenticated storage state to ${STATE_PATH}`);
+    console.log(`[global-setup] saved authenticated storage state to ${statePath}`);
   } finally {
     await browser.close();
   }

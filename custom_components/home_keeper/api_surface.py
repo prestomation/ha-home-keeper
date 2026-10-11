@@ -816,7 +816,7 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
     # The companion panel tabs. It has no service twin, because a tab is not data:
     # a companion registers it in process (``panel_tabs.async_register_panel_tab``).
-    # Admin-only, because only the panel reads it and a tab is code for the panel.
+    # Admin-only, because a tab is code that runs in the panel with the admin's session.
     WebsocketSpec("home_keeper/get_panel_tabs", admin_only=True),
     WebsocketSpec("home_keeper/get_profiles", service="list_profiles"),
     WebsocketSpec(
@@ -945,7 +945,7 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "Entity platforms",
         "published",
         "todo, calendar, sensor, binary_sensor, button and number — usage surfaces, "
-        "as opposed to the admin-only panel.",
+        "next to the panel.",
     ),
     SurfaceKind(
         "Entity attributes",
@@ -1024,8 +1024,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "Sidebar panel",
         "internal",
-        "The admin-only management UI, served from a static path; it is a client of "
-        "the surfaces above, not one itself.",
+        "The management UI, open to every user, with its write controls shown only to "
+        "an admin. It is served from a static path; it is a client of the surfaces "
+        "above, not one itself.",
     ),
     SurfaceKind(
         "Dispatcher signals",

@@ -401,6 +401,14 @@ export const STYLES = `
      shrinking until "Remove orphaned tasks" wrapped onto three lines. The label
      can't be shortened (it is translated in 17 locales), so stop the shrink. */
   .hk-orphan-banner ha-button { min-width: max-content; flex: none; }
+  /* The view-only banner above the appliance list (#444). The phone rules show the
+     short text in place of the long one. */
+  .hk-view-only-banner { display: block; margin-bottom: 16px; }
+  .hk-view-only-short { display: none; }
+  /* The card that replaces the Settings sections for a user who is not an admin. */
+  .hk-admin-only { max-width: 640px; }
+  .hk-admin-only .hk-settings-intro:last-child { margin-bottom: 0; }
+  .hk-admin-only-ic { color: var(--hk-ink-2); --mdc-icon-size: 22px; }
   /* First-run orientation banner above the task list (dismissible, persisted). */
   .hk-intro {
     border: 1px solid var(--divider-color);
@@ -2000,6 +2008,8 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    .hk-view-only-long { display: none; }
+    .hk-view-only-short { display: inline; }
     /* A phone has no room beside the name, so the task cover goes full width above
        it (#399), and the photo strip scrolls sideways rather than wrapping. */
     .hk-head-with-cover { flex-direction: column; gap: 12px; }

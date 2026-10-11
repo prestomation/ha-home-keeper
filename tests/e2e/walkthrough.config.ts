@@ -79,6 +79,11 @@ export default captureConfig('walkthrough.capture.ts', {
   // container ran the tour about 50s slower than the 222s above with or without the
   // beat, so the cap stays 360s. A CI run near the cap pays by shortening the walk.
   //
+  // The view-only panel PR (#444) added 6 beats to the phone walk only (sign in as a
+  // user who is not an admin, the appliance list, an appliance, Settings). Measured:
+  // 55s for the phone walk in the dev container, against 40s before. The desktop walk
+  // is unchanged, so the cap stays 360s.
+  //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
   // a fixed duration, so anything that eats the whole budget is a *call that never

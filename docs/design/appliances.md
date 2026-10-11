@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: b7cd2fb3d0e8
+source_hash: dbd87433fa34
 ---
 
 # Appliances and parts
@@ -51,7 +51,6 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
   `assets.would_create_cycle` rejects a loop. `related_device_ids` is panel-only.
 - `managed_by` and `source` are create-only. An update with `managed_by: null` hands the
   appliance back to the user. `task_history` keeps completions of deleted tasks.
-- `assets.card_projection` is the allowlist of fields a non-admin dashboard card reads.
 
 ### Virtual and existing devices
 

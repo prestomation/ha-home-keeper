@@ -454,6 +454,7 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     consumableOptions(p, task),
     documentOptions(p, task),
     p._tags,
+    { readOnly: p._readOnly() },
   );
   // The form seeds defaults the edit state does not carry — a fresh sensor task
   // shows "on" as the state it waits for, without that ever having been typed.

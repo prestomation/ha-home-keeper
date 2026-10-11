@@ -314,8 +314,9 @@ export interface Hass {
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
   };
-  // The signed-in user. The card reads `is_admin`: Home Assistant refuses a
-  // non-admin subscription to a custom event and logs an error for each refusal.
+  // The signed-in user. The panel reads `is_admin` for its view-only mode. The card
+  // reads it because Home Assistant refuses a non-admin subscription to a custom
+  // event and logs an error for each refusal.
   user?: { is_admin?: boolean };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed

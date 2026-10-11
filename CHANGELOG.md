@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.31.0b3]
+
+### Added
+
+- **[View-only panel for household members](https://prestomation.github.io/ha-home-keeper/docs/guide/household-users).**
+  Users who are not admins can now open the Home Keeper panel. They can use their tasks
+  and read all appliance data, parts and manuals. Only an admin can change appliances
+  and settings. (Fixes #444)
+
 ## [0.31.0b2]
 
 ### Fixed

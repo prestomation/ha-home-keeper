@@ -488,6 +488,7 @@ export function taskSchemaSections(
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
   tags: { value: string; label: string }[] = [],
+  opts: { readOnly?: boolean } = {},
 ): TaskSchemaSection[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
@@ -606,8 +607,11 @@ export function taskSchemaSections(
             { value: 'availability', label: t('opt.sensor_mode.availability') },
             // Last, like the declarative companion dialog's own list: the four above
             // each answer one plain question, and a user who wants one of those must
-            // not have to read past Jinja to find it.
-            { value: 'template', label: t('opt.sensor_mode.template') },
+            // not have to read past Jinja to find it. A template binding is
+            // admin-only, so a view-only user gets it only on a task that has one.
+            ...(opts.readOnly && sensorMode !== 'template'
+              ? []
+              : [{ value: 'template', label: t('opt.sensor_mode.template') }]),
           ]),
         },
         // Availability watches for the entity to go away, so it has no condition of

@@ -160,6 +160,8 @@ export function tasksList(p: PanelHost): string {
  * integration owns any more.
  */
 function orphanBanner(p: PanelHost): string {
+  // The cleanup is admin-only, so a view-only user does not get the banner.
+  if (p._readOnly()) return '';
   const n = p._tasks.filter((task) => isManagedOrphan(p, task)).length;
   if (!n) return '';
   return `
@@ -197,7 +199,29 @@ async function removeOrphans(p: PanelHost): Promise<void> {
   await p._refresh();
 }
 
+/**
+ * The appliance list. A view-only user gets a banner above it that says why the page
+ * has no way to add or change an appliance.
+ */
 export function assetsList(p: PanelHost): string {
+  return `${viewOnlyBanner(p)}${assetsListBody(p)}`;
+}
+
+/**
+ * The banner above the appliance list for a user who is not an admin, or ''. Both
+ * texts are in the markup, and the phone rules show the short one.
+ */
+function viewOnlyBanner(p: PanelHost): string {
+  if (!p._readOnly()) return '';
+  return `
+      <ha-alert alert-type="info" class="hk-view-only-banner">
+        <b>${escapeHTML(t('appliances.viewOnly.title'))}</b>
+        <span class="hk-view-only-long">${escapeHTML(t('appliances.viewOnly.body'))}</span>
+        <span class="hk-view-only-short">${escapeHTML(t('appliances.viewOnly.short'))}</span>
+      </ha-alert>`;
+}
+
+function assetsListBody(p: PanelHost): string {
   if (!p._assets.length) {
     return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
   }

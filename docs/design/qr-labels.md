@@ -25,8 +25,8 @@ field and no event.
 
 ## Non-goals
 
-- A scan by a user who is not an admin. The panel is admin-only, so the link is too.
-  To complete a task with a scan, use a Home Assistant tag (`tag_listener.py`).
+- A scan that completes a task. A scan opens a page. To complete a task with a scan, use a
+  Home Assistant tag (`tag_listener.py`).
 - A server-made PDF or a PDF library. The browser's print dialog gives Save as PDF.
 - A driver or a protocol for a label printer. The admin prints from the printer's app.
 

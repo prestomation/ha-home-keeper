@@ -1,9 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { HomeKeeperCard } from '../src/card.ts';
 
-// #446: a task's device chip on the card is a link for an admin, the same as on
-// the panel. It opens the appliance page if an appliance has the device, else the
-// device page. For other users it is a plain chip.
+// #446: a task's device chip on the card is a link, the same as on the panel. It
+// opens the appliance page if an appliance has the device. The panel shows that
+// page to every user (#444). Else an admin gets the device page, which is
+// admin-only, so for other users the chip is then plain.
 beforeAll(() => {
   for (const tag of ['ha-card', 'ha-icon-button', 'ha-assist-chip', 'ha-alert', 'ha-spinner', 'ha-icon']) {
     if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement {});
@@ -51,10 +52,7 @@ function mount({ admin, assets = [], config = {} }) {
     areas: { kitchen: { area_id: 'kitchen', name: 'Kitchen' } },
     callWS: async (msg) => {
       calls.push(msg.type);
-      if (msg.type === 'home_keeper/get_assets') {
-        if (!admin) throw new Error('unauthorized');
-        return { assets };
-      }
+      if (msg.type === 'home_keeper/get_assets') return { assets };
       return { tasks: [task] };
     },
   };
@@ -94,12 +92,22 @@ describe('card device chip (#446)', () => {
     expect(labels).toContain('Dishwasher');
   });
 
-  it('is a plain chip for a non-admin, and does not ask for appliances', async () => {
-    const { card, calls } = mount({ admin: false });
+  it('opens the appliance page for a non-admin too (#444)', async () => {
+    const { card, calls } = mount({
+      admin: false,
+      assets: [{ id: 'a1', name: 'Dishwasher', device_id: 'dev1' }],
+    });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-device-chip'));
+    const chip = card.shadowRoot.querySelector('.hk-device-chip');
+    expect(chip.dataset.href).toBe('/home-keeper/appliances/a1');
+    expect(calls).toContain('home_keeper/get_assets');
+  });
+
+  it('is a plain chip for a non-admin when no appliance has the device', async () => {
+    const { card } = mount({ admin: false });
     await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
     expect(card.shadowRoot.querySelector('.hk-device-chip')).toBeNull();
     expect(chips(card).map((c) => c.getAttribute('label'))).toContain('Dishwasher');
-    expect(calls).not.toContain('home_keeper/get_assets');
   });
 
   it('shows no area or device chip when show_area is off', async () => {

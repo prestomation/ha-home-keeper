@@ -162,12 +162,18 @@ export function controls(p: PanelHost): string {
   const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
   // Print labels opens a checklist of what the list shows (`panel-labels.ts`). It is
   // secondary: Add stays the 1 primary action of the row.
+  // A view-only user can add a task but not an appliance: only the task services
+  // are open to every user.
+  const addBtn =
+    !onTasks && p._readOnly()
+      ? ''
+      : `<ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
   const actions = `
       <span class="hk-controls-spacer"></span>
       <ha-button ${btnAttrs('secondary')} id="labels-btn" class="hk-labels-btn">${escapeHTML(
         t('labels.printButton'),
       )}</ha-button>
-      <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
+      ${addBtn}`;
   return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
 

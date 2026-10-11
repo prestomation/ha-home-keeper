@@ -29,7 +29,7 @@ from . import (
     options,
     panel_tabs,
 )
-from .assets import AssetValidationError, card_projection
+from .assets import AssetValidationError
 from .backend_i18n import resolve_exception
 from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
 from .coordinator import (
@@ -745,17 +745,13 @@ async def ws_get_assets(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    """Return the appliances — in full for an admin, projected for anyone else.
+    """Return the appliances in full, to every user.
 
-    Not ``require_admin``: the dashboard card is a usage surface open to every
-    household member and it reads appliance data to resolve a task's card links. So
-    a non-admin gets :func:`assets.card_projection` — the link-rendering subset —
-    rather than the costs and serial numbers ``export_appliance_report`` is gated on.
+    Not ``require_admin``: the panel shows the appliances to every user as a read
+    view, and the dashboard card reads them to resolve a task's card links. The
+    writes to an appliance are admin-only.
     """
-    assets = coord.store.list_assets()
-    if not connection.user.is_admin:
-        assets = card_projection(assets)
-    connection.send_result(msg["id"], {"assets": assets})
+    connection.send_result(msg["id"], {"assets": coord.store.list_assets()})
 
 
 @websocket_api.websocket_command(

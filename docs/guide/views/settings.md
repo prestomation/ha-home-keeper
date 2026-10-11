@@ -93,7 +93,7 @@ To add a companion or a [glue integration](../../GLUE_INTEGRATIONS.md) to the ca
 
 Home Keeper supports companion integrations that add a tab to the panel. An example is
 Home Keeper Library, which tracks books. The tab shows between **Appliances** and
-**Settings**. Only an admin sees the panel, so only an admin sees the tab.
+**Settings**. Only an admin sees the tab.
 
 ![The panel with a companion tab named Library open, between Appliances and Settings](../../images/79-panel-companion-tab.png)
 

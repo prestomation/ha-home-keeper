@@ -52,6 +52,7 @@ import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
 const STATE_PATH = resolve(__dirname, '.auth/state.json');
+const VIEWER_STATE_PATH = resolve(__dirname, '.auth/viewer-state.json');
 
 /** A readable pause so motion in the recording is easy to follow. */
 const BEAT = 900;
@@ -1498,6 +1499,36 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
+
+  // 7. The same panel for a household member who is not an admin. Sign in as
+  //    `viewer` (global-setup.ts) in this context: the appliances are a read view
+  //    with a View only note, and Settings is for admins only.
+  await signInAsViewer(page);
+  await openPanel(page);
+  await gotoTab(panel, 'appliances');
+  await expect(panel.locator('.hk-view-only-banner')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.hk-subtab[data-tab="documents"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-view-only')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await gotoTab(panel, 'settings');
+  await expect(panel.locator('.hk-admin-only')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+}
+
+/**
+ * Swap this page's Home Assistant session for the one of the `viewer` user. The
+ * frontend keeps its tokens in localStorage, so the saved state of that user is
+ * enough. The video stays in 1 context.
+ */
+async function signInAsViewer(page: Page): Promise<void> {
+  const state = JSON.parse(fs.readFileSync(VIEWER_STATE_PATH, 'utf8'));
+  const origin = state.origins.find((o: { origin: string }) => page.url().startsWith(o.origin));
+  if (!origin) throw new Error('no saved viewer session for this origin');
+  await page.evaluate((items: Array<{ name: string; value: string }>) => {
+    for (const { name, value } of items) window.localStorage.setItem(name, value);
+  }, origin.localStorage);
 }
 
 const TOURS: Tour[] = [

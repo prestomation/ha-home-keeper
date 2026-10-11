@@ -1,6 +1,6 @@
 ---
 title: Frontend
-summary: The admin sidebar panel, the dashboard task card, and the text both show in the user's language.
+summary: The sidebar panel, the dashboard task card, and the text both show in the user's language.
 implements:
   - custom_components/home_keeper/frontend/src/panel.ts
   - custom_components/home_keeper/frontend/src/panel-host.ts
@@ -30,7 +30,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications]
-source_hash: dbb644393f2e
+source_hash: 9a41761a40b4
 ---
 
 # Frontend
@@ -59,7 +59,8 @@ on a dashboard that any user can see.
 Rollup builds `src/index.ts` and `src/card-index.ts` into 2 IIFE files in `frontend/dist/`.
 `panel.async_register_panel` serves only `dist/` as a static path, because Home Assistant
 serves static paths before authentication. Each module URL has a `?v=` content hash from
-`panel.cache_token`, so a rebuild busts caches. The panel registers with `require_admin=True`.
+`panel.cache_token`, so a rebuild busts caches. The panel has `require_admin=False`, and
+`HomeKeeperPanel._readOnly` hides each admin-only control from a non-admin.
 Both entry files check the registry before `customElements.define`, so a second load is safe.
 `global.d.ts` types the `panel-version` module that Rollup fills from `const.py`.
 
@@ -96,8 +97,7 @@ open. `_lookUpDetail` loads again, with a spinner, for a detail id that the list
 ### Task layouts and preferences
 
 The Tasks tab draws a list as Rows, Tiles or a Board. `task-layout.ts` holds the pure part:
-`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action-sheet actions, which
-follow `defer.deferVerbs`.
+`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action sheet (`defer.deferVerbs`).
 `panel-lists.ts` draws the markup; `panel-controls.groupTasks` gives the board columns.
 
 - **Per browser:** a choice about this screen (group by, filter, tree collapse) goes in

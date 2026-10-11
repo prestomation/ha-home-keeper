@@ -54,7 +54,7 @@ from . import (
     transfer,
     websocket_api,
 )
-from .assets import card_projection, has_archived_completion
+from .assets import has_archived_completion
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
@@ -1576,16 +1576,8 @@ def _register_services(hass: HomeAssistant) -> None:
             )
 
     async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
-        # The service twin of ``ws_get_assets``, and gated the same way: a non-admin
-        # gets the card-link projection, not the costs and serial numbers
-        # ``export_appliance_report`` is admin-only to protect. Without this the
-        # projection on the websocket read would be trivially side-stepped by
-        # calling the service instead.
-        coord = _coordinator()
-        assets = coord.store.list_assets()
-        if not await _caller_is_admin(call):
-            assets = card_projection(assets)
-        return {"assets": assets}
+        # The service twin of ``ws_get_assets``: the full record, to every user.
+        return {"assets": _coordinator().store.list_assets()}
 
     async def handle_adjust_part_stock(call: ServiceCall) -> dict[str, Any]:
         await _verify_admin(call)

@@ -70,7 +70,8 @@ function savePresetNudge(p: PanelHost): void {
 /** The card above the task list, or '' when there is nothing to suggest. */
 export function presetNudgeCard(p: PanelHost): string {
   // Hidden while the dialog is open, and while its add runs after an early close.
-  if (!p._presetNudge || p._presetDialog.open || p._presetDialog.busy) return '';
+  // A view-only user does not get it: the preset add is admin-only.
+  if (p._readOnly() || !p._presetNudge || p._presetDialog.open || p._presetDialog.busy) return '';
   const presets = cardPresets(usable(p), p._presetNudge);
   if (!presets.length) return '';
   const rows = presets

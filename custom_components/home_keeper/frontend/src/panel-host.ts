@@ -277,6 +277,9 @@ export interface PanelHost extends HTMLElement {
   /** The text both lists filter on ('' = no text filter). Session-only: it is not
    *  persisted, so every panel load starts with the whole list. */
   _query: string;
+  /** True if the user is not a Home Assistant admin. The panel is then view only:
+   *  every write is admin-only on the backend, so the panel hides those controls. */
+  _readOnly(): boolean;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
   /** Reload every collection from the backend *without* re-rendering — for a save that
