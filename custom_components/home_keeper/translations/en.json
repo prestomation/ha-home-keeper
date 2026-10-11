@@ -817,7 +817,11 @@
       "fields": {
         "include": {
           "name": "Include",
-          "description": "Which sections to export. Both by default."
+          "description": "Which sections to export: appliances, tasks, settings or a companion domain. All by default."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "\"data\" returns the YAML document. \"bundle\" writes a zip file with the uploaded files and the settings to the home_keeper_exports folder, and returns its path."
         }
       }
     },
@@ -829,6 +833,10 @@
           "name": "Document",
           "description": "The document to read, in the shape export_data returns. Give it as a mapping, or as the whole file in one string."
         },
+        "bundle": {
+          "name": "Bundle",
+          "description": "The name of a bundle file in the home_keeper_exports folder. Use it in place of the document."
+        },
         "dry_run": {
           "name": "Preview only",
           "description": "Check the document and report what would change, without writing anything."
@@ -836,6 +844,10 @@
         "match": {
           "name": "Match",
           "description": "How to find the record a document record refers to. \"auto\" matches on id, then external_id, then name. \"none\" creates every record."
+        },
+        "include_settings": {
+          "name": "Include settings",
+          "description": "Also import the profiles, the notifications and the options of the document."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper cannot delete these profiles: {profiles}. These notifications use them: {notifications}. Change or delete each notification, and then save again."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper cannot export these sections: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Only an admin user can export or import Home Keeper data."
+    },
+    "import_not_text": {
+      "message": "The file is not a zip file or UTF-8 text."
+    },
+    "import_needs_document": {
+      "message": "Give a document or a bundle to import."
     }
   }
 }

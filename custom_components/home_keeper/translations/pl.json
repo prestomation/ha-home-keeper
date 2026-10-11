@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Uwzględnij",
-          "description": "Które sekcje wyeksportować. Domyślnie obie."
+          "description": "Które sekcje wyeksportować: urządzenia, zadania, ustawienia lub domena towarzysza. Domyślnie wszystkie."
+        },
+        "kind": {
+          "name": "Rodzaj",
+          "description": "\"data\" zwraca dokument YAML. \"bundle\" zapisuje plik zip z przesłanymi plikami i ustawieniami w folderze home_keeper_exports i zwraca jego ścieżkę."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Dokument",
           "description": "Dokument do odczytania, w postaci zwracanej przez export_data. Podaj go jako mapowanie albo jako cały plik w jednym ciągu znaków."
         },
+        "bundle": {
+          "name": "Pakiet",
+          "description": "Nazwa pliku pakietu w folderze home_keeper_exports. Użyj jej zamiast dokumentu."
+        },
         "dry_run": {
           "name": "Tylko podgląd",
           "description": "Sprawdza dokument i zgłasza, co by się zmieniło, bez zapisywania czegokolwiek."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Dopasowanie",
           "description": "Jak odnaleźć wskazany wpis. \"auto\" szuka po id, potem external_id, potem po nazwie. \"none\" tworzy każdy wpis od nowa."
+        },
+        "include_settings": {
+          "name": "Uwzględnij ustawienia",
+          "description": "Importuje także profile, powiadomienia i opcje z dokumentu."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nie może usunąć tych profili: {profiles}. Te powiadomienia ich używają: {notifications}. Zmień lub usuń każde powiadomienie, a następnie zapisz ponownie."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper nie może wyeksportować tych sekcji: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Tylko administrator może eksportować lub importować dane Home Keeper."
+    },
+    "import_not_text": {
+      "message": "Plik nie jest plikiem zip ani tekstem UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Podaj dokument lub pakiet do zaimportowania."
     }
   }
 }

@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Ota mukaan",
-          "description": "Mitkä osat viedään. Oletuksena molemmat."
+          "description": "Mitkä osat viedään: laitteet, tehtävät, asetukset tai kumppanin toimialue. Oletuksena kaikki."
+        },
+        "kind": {
+          "name": "Laji",
+          "description": "\"data\" palauttaa YAML-asiakirjan. \"bundle\" kirjoittaa zip-tiedoston, jossa on ladatut tiedostot ja asetukset, kansioon home_keeper_exports ja palauttaa sen polun."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Asiakirja",
           "description": "Luettava asiakirja siinä muodossa, jonka export_data palauttaa. Anna se kuvauksena tai koko tiedostona yhtenä merkkijonona."
         },
+        "bundle": {
+          "name": "Paketti",
+          "description": "Pakettitiedoston nimi kansiossa home_keeper_exports. Käytä sitä asiakirjan sijaan."
+        },
         "dry_run": {
           "name": "Vain esikatselu",
           "description": "Tarkistaa asiakirjan ja kertoo, mikä muuttuisi, kirjoittamatta mitään."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Vastaavuus",
           "description": "Miten tarkoitettu tietue haetaan. \"auto\" hakee tunnuksella, sitten external_id-arvolla, sitten nimellä. \"none\" luo jokaisen tietueen."
+        },
+        "include_settings": {
+          "name": "Sisällytä asetukset",
+          "description": "Tuo myös asiakirjan profiilit, ilmoitukset ja asetukset."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ei voi poistaa näitä profiileja: {profiles}. Nämä ilmoitukset käyttävät niitä: {notifications}. Muuta tai poista jokainen ilmoitus ja tallenna sitten uudelleen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper ei voi viedä näitä osia: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Vain järjestelmänvalvoja voi viedä tai tuoda Home Keeperin tietoja."
+    },
+    "import_not_text": {
+      "message": "Tiedosto ei ole zip-tiedosto eikä UTF-8-tekstiä."
+    },
+    "import_needs_document": {
+      "message": "Anna tuotava asiakirja tai paketti."
     }
   }
 }

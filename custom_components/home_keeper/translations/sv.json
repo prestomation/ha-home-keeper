@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Vilka delar som exporteras. Båda som standard."
+          "description": "Vilka delar som exporteras: apparater, uppgifter, inställningar eller domänen för en följeslagare. Alla som standard."
+        },
+        "kind": {
+          "name": "Sort",
+          "description": "\"data\" returnerar YAML-dokumentet. \"bundle\" skriver en zip-fil med de uppladdade filerna och inställningarna till mappen home_keeper_exports och returnerar dess sökväg."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Dokument",
           "description": "Dokumentet som läses, i den form export_data ger. Ange det som en avbildning eller som hela filen i en sträng."
         },
+        "bundle": {
+          "name": "Paket",
+          "description": "Namnet på en paketfil i mappen home_keeper_exports. Använd det i stället för dokumentet."
+        },
         "dry_run": {
           "name": "Endast förhandsgranskning",
           "description": "Kontrollerar dokumentet och rapporterar vad som skulle ändras, utan att skriva något."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Träff",
           "description": "Hur posten som avses hittas. \"auto\" söker på id, sedan external_id, sedan namnet. \"none\" skapar varje post."
+        },
+        "include_settings": {
+          "name": "Ta med inställningar",
+          "description": "Importerar även profilerna, aviseringarna och alternativen i dokumentet."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan inte ta bort dessa profiler: {profiles}. Dessa aviseringar använder dem: {notifications}. Ändra eller ta bort varje avisering och spara sedan igen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan inte exportera dessa delar: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Endast en administratör kan exportera eller importera Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen är varken en zip-fil eller UTF-8-text."
+    },
+    "import_needs_document": {
+      "message": "Ange ett dokument eller ett paket att importera."
     }
   }
 }

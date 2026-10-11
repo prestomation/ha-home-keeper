@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Inclure",
-          "description": "Les sections à exporter. Les deux par défaut."
+          "description": "Les sections à exporter : appareils, tâches, paramètres ou le domaine d'un compagnon. Toutes par défaut."
+        },
+        "kind": {
+          "name": "Type",
+          "description": "« data » renvoie le document YAML. « bundle » écrit un fichier zip avec les fichiers téléversés et les paramètres dans le dossier home_keeper_exports, et renvoie son chemin."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Document",
           "description": "Le document à lire, dans la forme que renvoie export_data. Donnez-le sous forme de dictionnaire ou de fichier entier en une chaîne."
         },
+        "bundle": {
+          "name": "Paquet",
+          "description": "Le nom d'un fichier de paquet dans le dossier home_keeper_exports. À utiliser à la place du document."
+        },
         "dry_run": {
           "name": "Aperçu seulement",
           "description": "Vérifie le document et indique ce qui changerait, sans rien écrire."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Correspondance",
           "description": "Comment trouver l'enregistrement visé. \"auto\" cherche par id, puis external_id, puis le nom. \"none\" crée chaque enregistrement."
+        },
+        "include_settings": {
+          "name": "Inclure les paramètres",
+          "description": "Importe aussi les profils, les notifications et les options du document."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ne peut pas supprimer ces profils : {profiles}. Ces notifications les utilisent : {notifications}. Modifiez ou supprimez chaque notification, puis enregistrez à nouveau."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper ne peut pas exporter ces sections : {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Seul un administrateur peut exporter ou importer les données de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "Le fichier n'est ni un fichier zip ni du texte UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indiquez un document ou un paquet à importer."
     }
   }
 }

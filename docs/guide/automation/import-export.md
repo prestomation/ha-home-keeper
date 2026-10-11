@@ -12,7 +12,9 @@ in a spreadsheet or an old app.
   preview of that exact text comes back clean.
 
 Both halves are also actions, so a script or an automation can call them:
-`home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only.
+`home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only. Each
+export fires `home_keeper_data_exported`, and each applied import fires
+`home_keeper_data_imported`, with a count for each section.
 
 The same card holds the [appliance report](#appliance-report), which answers a
 different question. See below.
@@ -126,15 +128,104 @@ When 2 appliances have the same name, an `appliance` or `parent_asset_id` that
 gives this name is an error. Use the `external_id` or the id of the appliance. An
 export names such an appliance by its id.
 
+#### Companion data
+
+A companion can add its own data to the export. The companion must support import and
+export. Its data goes in a section of its own, with the domain of the companion as the
+key:
+
+```yaml
+home_keeper:
+  format: 1
+tasks: []
+home_keeper_library:
+  format: 1
+  version: 1.2.0
+  data:
+    books:
+      - title: Dune
+```
+
+Home Keeper writes the section as the companion returns it. On import, Home Keeper
+checks every section first, and the companion checks its own section. If 1 section has
+an error, the import writes no record in any section. Home Keeper imports its own
+records first, then each companion.
+
+The `home_keeper` block names each companion that is not in the file, under
+`skipped.companions`:
+
+| Value | Meaning |
+| --- | --- |
+| `no_import_export` | The companion does not support import and export. |
+| `no_service` | The companion has no `export_data` service. |
+| `failed` | The export of the companion failed. The log has the reason. |
+
+If a file has a section for a companion that is not installed, the import skips that
+section with a warning. To export some companions only, give their domains in
+`include`, such as `include: [tasks, home_keeper_library]`.
+
+The import report has a `sections` key. It holds the report of each companion,
+keyed by its domain. The `problems` list also holds the companion problems, with the
+domain at the start of each path, such as `home_keeper_library.books[0].title`.
+
+#### Bundles
+
+A bundle is a `.zip` file. It holds the YAML file and the data that a YAML file
+cannot hold:
+
+- the uploaded appliance documents and part files;
+- the task photos;
+- the files of each companion;
+- the settings: the profiles, the notifications and the other options.
+
+The YAML file is `home_keeper.yaml` at the root of the zip file. A `files` section in it
+lists each uploaded file and its record. The panel downloads a bundle from Settings →
+Import and export. An action writes one with `kind: bundle`:
+
+```yaml
+action: home_keeper.export_data
+data:
+  kind: bundle
+```
+
+The action writes the file to the `home_keeper_exports` folder in your configuration
+folder, as `home-keeper-YYYY-MM-DD.zip`. A second export on the same day replaces that
+file. The response holds the `path` and the `size` of the file.
+
+To import a bundle, upload it in the panel, or give its file name to the action:
+
+```yaml
+action: home_keeper.import_data
+data:
+  bundle: home-keeper-2026-10-11.zip
+  dry_run: true
+```
+
+The import adds a file to a record only if the record does not have it. A bad or a
+missing file gives a warning, and the import continues without it.
+
+#### Settings
+
+An import reads the settings only if you set `include_settings: true`. Else the
+preview names each settings section that it skips.
+
+- A profile or a notification updates the one with the same id, then the one with the
+  same name. Any other profile or notification is added. The import never deletes a
+  profile or a notification.
+- Home Keeper warns about a notify target or a to-do list that this Home Assistant
+  does not have. Fix them in Settings after the import.
+
+A YAML export holds the settings only if `include` names `settings`.
+
 #### Import/Export Limitations
 
 The file does not hold every record. What an export leaves out is listed in its own
 `home_keeper` block, and the preview names every field that Home Keeper did not read
 on the way back in.
 
-- **Uploaded manuals and receipts.** A text file has no room for a picture or a
-  PDF, so upload those again after an import. A link to a document is only text,
-  so it stays.
+- **Uploaded manuals, receipts and photos in a YAML file.** A text file has no room
+  for a picture or a PDF. Use a [bundle](#bundles) to keep them. A link to a document
+  is only text, so it stays.
 - **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
   reminder, a buy reminder, a problem-sensor mirror, or a declarative companion task.
   Home Keeper builds these again from the appliance and its parts, which the file does
@@ -147,8 +238,8 @@ on the way back in.
   import.
 - **Appliances that a companion manages**, with their stock counts. The companion
   builds the appliance again after an import. Enter the counts again.
-- **Settings, profiles, notifications and declarative companions.** These stay in the
-  config entry.
+- **Declarative companions.** These stay in Home Keeper.
+- **Records that are not in the file.** An import never deletes a record.
 
 #### How big a file can be
 
@@ -156,12 +247,12 @@ The panel and the service each hold their own limit.
 
 | Path | Limit | Reason |
 | --- | --- | --- |
-| Paste or choose a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. |
-| Call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on that service. |
+| Paste a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. |
+| Upload a YAML file, or call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on a YAML document. |
+| Upload or import a bundle | 500 MB | Home Keeper's limit on the files in a bundle, when they are extracted. |
 
-A file between 4 MB and 8 MB must go through `home_keeper.import_data`. A file
-over 8 MB must go in as several files. Each of `tasks` and `appliances` also
-holds at most 2000 records.
+A YAML file over 8 MB must go in as several files. Each of `tasks` and `appliances`
+also holds at most 2000 records. A bundle holds at most 20000 files.
 
 #### Ask an AI agent to write one
 

@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: c31caf4d5706
+source_hash: 4ff70f9e82c0
 ---
 
 # Companions and presets
@@ -50,7 +50,7 @@ entity it selects. A preset is a declarative companion spec that ships as data.
 
 - **Push.** An integration calls `home_keeper.register_companion`.
   `companions.REGISTER_COMPANION_SCHEMA` bounds each field and accepts only an http(s)
-  `docs_url`. `companions.CompanionRegistry` keeps the descriptors in memory on `hass.data`.
+  `docs_url`. `companions.CompanionRegistry` keeps the descriptors in order on `hass.data`.
   At setup Home Keeper fires `home_keeper_register_companions`, so companions register again.
 - **Pull.** `companions_catalog.CATALOG` maps a popular upstream to its glue. The pure
   merge, `companions_catalog.build_companion_list`, marks a registered companion or an

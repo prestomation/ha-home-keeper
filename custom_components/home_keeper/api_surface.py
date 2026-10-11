@@ -133,6 +133,17 @@ class HttpViewSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CompanionCapabilitySpec:
+    """A ``capabilities`` token of ``register_companion`` that Home Keeper reads."""
+
+    name: str
+    services: tuple[str, ...] = ()
+    """The services ``<domain>.<name>`` that a companion with the token provides."""
+    summary: str = ""
+    """What Home Keeper does for a companion with the token."""
+
+
+@dataclass(frozen=True, slots=True)
 class OptionSpec:
     """A config-entry option key."""
 
@@ -331,6 +342,16 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "the bundled preset the declarative companion was seeded from, or None for "
             "one written by hand",
+        ),
+    ),
+    "data_transfer": (
+        Field("kind", "str", "data (a YAML document) / bundle (a zip file)"),
+        Field(
+            "sections",
+            "dict",
+            "a count for each section: the number of records in an export; "
+            "created / updated in an import, and for a companion section the counts "
+            "that the companion returned",
         ),
     ),
 }
@@ -608,6 +629,22 @@ EVENTS: tuple[EventSpec, ...] = (
         extra=(_MATCH_COUNT,),
     ),
     EventSpec(
+        const.EVENT_DATA_EXPORTED,
+        "EVENT_DATA_EXPORTED",
+        "fired",
+        "data_transfer",
+        "export_data, its websocket twin or the bundle download writes an export, "
+        "with the companion sections in it",
+    ),
+    EventSpec(
+        const.EVENT_DATA_IMPORTED,
+        "EVENT_DATA_IMPORTED",
+        "fired",
+        "data_transfer",
+        "an import is applied; a dry run fires nothing. The records it writes also "
+        "fire their own created and updated events",
+    ),
+    EventSpec(
         const.EVENT_REGISTER_COMPANIONS,
         "EVENT_REGISTER_COMPANIONS",
         "fired",
@@ -872,6 +909,38 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
         const.TASK_PHOTO_URL_PREFIX + "/{task_id}/{photo_id}",
         ("GET", "POST"),
     ),
+    # The bundle download and the import upload (``transfer_http.py``). Admin-only,
+    # like the export_data and import_data services they share their code with.
+    HttpViewSpec(
+        "api:home_keeper:export_bundle",
+        const.BUNDLE_EXPORT_URL,
+        ("GET",),
+        admin_methods=("GET",),
+    ),
+    HttpViewSpec(
+        "api:home_keeper:import_upload",
+        const.IMPORT_UPLOAD_URL,
+        ("POST",),
+        admin_methods=("POST",),
+    ),
+)
+
+
+# ── Companion capabilities ───────────────────────────────────────────────────
+#
+# The tokens that a companion can put in ``capabilities`` of ``register_companion``
+# and that change what Home Keeper does with it. Any other token is stored and shown,
+# and changes nothing.
+
+COMPANION_CAPABILITIES: tuple[CompanionCapabilitySpec, ...] = (
+    CompanionCapabilitySpec(
+        const.COMPANION_CAPABILITY_IMPORT_EXPORT,
+        services=("export_data", "import_data"),
+        summary="the companion's data is a top-level section of the Home Keeper "
+        "export, keyed by its domain; Home Keeper calls <domain>.export_data and "
+        "<domain>.import_data (admin-only, with a response) with the caller's "
+        "context, and a bundle passes files_dir",
+    ),
 )
 
 
@@ -1006,7 +1075,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "published",
         "Tasks and appliances move as one YAML document with a published JSON "
         "Schema, which `export_data` writes and `import_data` reads, upserting on "
-        "a stated primary key.",
+        "a stated primary key. A companion with the `import_export` capability "
+        "adds its own section, and a bundle (a zip file) adds the uploaded files "
+        "and the settings.",
     ),
     SurfaceKind(
         "WebSocket commands",
@@ -1017,9 +1088,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "HTTP views",
         "internal",
-        "Two authenticated routes for document and part-file upload and download — a "
-        "binary can't ride a service call, so this is the one non-service mutation "
-        "path.",
+        "Authenticated routes for document, part-file and task-photo upload and "
+        "download, and for the bundle download and the import upload — a binary "
+        "can't ride a service call, so these are the non-service paths.",
     ),
     SurfaceKind(
         "Sidebar panel",
@@ -1088,6 +1159,7 @@ def events_by_payload(payload: str) -> tuple[EventSpec, ...]:
 
 
 __all__ = [
+    "COMPANION_CAPABILITIES",
     "DEVICE_TRIGGERS",
     "ENTITY_PLATFORMS",
     "EVENTS",
@@ -1099,6 +1171,7 @@ __all__ = [
     "STATUSES",
     "SURFACE_KINDS",
     "WEBSOCKET_COMMANDS",
+    "CompanionCapabilitySpec",
     "DeviceTriggerSpec",
     "EntityPlatformSpec",
     "EventSpec",

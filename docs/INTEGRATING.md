@@ -1,8 +1,8 @@
 ---
 title: Integrating with Home Keeper
 summary: How another integration adds tasks and appliances to Home Keeper and keeps them in sync.
-max_lines: 350
-exception: The panel tab contract needs its full Python example and the host API types.
+max_lines: 400
+exception: The panel tab and export contracts need their Python example and service tables.
 ---
 
 # Integrating with Home Keeper
@@ -328,6 +328,51 @@ and `applianceLink` for an `href`. The panel opens a plain left click on a link 
 `download` attribute, or a click that the tab handled, goes to the browser. For a
 `host_api` that is higher than the panel supports, the panel asks the user to update Home
 Keeper. An import that fails or takes more than 10 seconds gives an error with **Retry**.
+
+## 11. Join the export and import
+
+The Home Keeper export can hold the data of your integration. Then a user does 1 export
+and 1 import for all of it. Your data goes in a top-level section with the key of your
+domain. Home Keeper stores your export response there as is, and does not read it.
+
+1. Add `import_export` to `capabilities` in `register_companion` (§9).
+2. Make 2 admin-only services that return a response. Check admin in each service, because a
+   user can call them directly. Home Keeper calls them with the context of its caller.
+
+| Service | Fields | Response |
+|---|---|---|
+| `<domain>.export_data` | `files_dir` (optional) | `{format, version, data, skipped}` |
+| `<domain>.import_data` | `document`, `dry_run`, `files_dir` (optional) | `{ok, dry_run, counts, records, problems}` |
+
+- `format` is an integer that you own. Increase it only when the meaning of a key changes.
+  Refuse a `document` with a higher `format`. `skipped` maps a name to a count.
+- `document` is your section: the export response, after the user edited it, maybe on a
+  different install. Import is an upsert: match by your id, then by a natural key such as a
+  name. Never delete a record that is not in `document`.
+- `problems` is a list of `{level, path, message}`. `level` is `error` or `warning`. `path`
+  starts in `data`, such as `dogs[2].name`. An `error` blocks the whole import.
+- With `dry_run: true`, write nothing and return the report. Home Keeper does a dry run of
+  every section first. It applies a section only if all of them are clean.
+- `files_dir` is set only for a bundle (a `.zip` export). On export, copy your files into
+  it and put the relative paths in `data`. On import, read them from it. Refuse a
+  `files_dir` that is not below `.storage/home_keeper_import_export/`, and refuse a
+  relative path with `..`. Home Keeper skips a symbolic link in it.
+- Each call has 300 seconds. A failed export puts `failed` in `skipped.companions` of the
+  Home Keeper envelope. A failed import is an `error` for your section.
+
+Make the data portable:
+
+- Do not export an id that only one install knows, such as a Home Keeper task id or a to-do
+  item uid. Your reconcile makes them again.
+- Next to a person, area or entity id, export its name. On import use the id if it exists,
+  else the name, else return a `warning`.
+- Home Keeper does not export a task that has `managed_by`. Make your managed tasks again
+  after the import, in your normal reconcile.
+
+Home Keeper imports its own sections first, then each companion in the order of
+registration. A companion that is not installed, or that has no `import_export`, gets a
+`warning` and is skipped. The import report has your report under `sections.<domain>`, and
+your problems in `problems` with the path `<domain>.<path>`.
 
 ## Testing your integration
 

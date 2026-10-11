@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Hvilke deler som eksporteres. Begge som standard."
+          "description": "Hvilke deler som eksporteres: apparater, oppgaver, innstillinger eller domenet til en følgesvenn. Alle som standard."
+        },
+        "kind": {
+          "name": "Slag",
+          "description": "\"data\" returnerer YAML-dokumentet. \"bundle\" skriver en zip-fil med de opplastede filene og innstillingene til mappen home_keeper_exports og returnerer banen."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Dokument",
           "description": "Dokumentet som leses, i formen export_data gir. Oppgi det som et oppslag eller som hele fila i én streng."
         },
+        "bundle": {
+          "name": "Pakke",
+          "description": "Navnet på en pakkefil i mappen home_keeper_exports. Bruk den i stedet for dokumentet."
+        },
         "dry_run": {
           "name": "Bare forhåndsvisning",
           "description": "Sjekker dokumentet og melder hva som ville endret seg, uten å skrive noe."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Treff",
           "description": "Hvordan oppføringen det gjelder finnes. \"auto\" søker på id, så external_id, så navnet. \"none\" oppretter hver oppføring."
+        },
+        "include_settings": {
+          "name": "Ta med innstillinger",
+          "description": "Importer også profilene, varslene og alternativene i dokumentet."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan ikke slette disse profilene: {profiles}. Disse varslene bruker dem: {notifications}. Endre eller slett hvert varsel, og lagre deretter på nytt."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan ikke eksportere disse delene: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Bare en administrator kan eksportere eller importere Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen er verken en zip-fil eller UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Oppgi et dokument eller en pakke som skal importeres."
     }
   }
 }

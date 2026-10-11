@@ -108,6 +108,9 @@ only_mutate = [
     # chronological history fold. Pure, and covered by the three tests/unit/test_transfer*
     # files — the round-trip one is what keeps a newly added field travelling.
     "custom_components/home_keeper/transfer.py",
+    # The bundle: safe zip extraction, the files section and the settings sections.
+    # Pure, and covered by tests/unit/test_transfer_bundle.py.
+    "custom_components/home_keeper/transfer_bundle.py",
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",

@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 3a3482b08602
+source_hash: d691757ba6e0
 ---
 
 # Architecture
@@ -42,9 +42,9 @@ the tasks through native entities, such as the to-do list and the calendar.
 
 | Layer | Modules | Rule |
 |---|---|---|
-| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
+| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
-| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
+| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `transfer_runner.py`, `transfer_http.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
 
 The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the first 2 rows.
@@ -59,13 +59,13 @@ A non-admin uses tasks from the to-do list, the calendar, the per-task entities 
 card ([SECURITY.md](../SECURITY.md)).
 
 A websocket command and its service twin are the same operation. An admin-only operation
-has `@websocket_api.require_admin` on the command, and its service handler calls the
-local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
-`context.user_id` comes from an automation or from the core and is trusted.
-The gate covers appliance edits, asset documents, part files and stock, declarative
-companion edits, the orphan and archive deletes, `set_options`, the appliance report,
-and data export and import. Other task writes, task photos included, are open. Appliance reads
-are open, but a non-admin gets `assets.card_projection`, the fields that the card shows.
+has `@websocket_api.require_admin` on the command, and its service handler calls the local
+`_verify_admin`, which raises the bare `Unauthorized`. A call with no `context.user_id`
+comes from an automation or from the core and is trusted. The gate covers appliance edits,
+asset documents, part files and stock, declarative companion edits, the orphan and archive
+deletes, `set_options`, the appliance report, and data export and import with their HTTP
+views. Other task writes, task photos included, are open. Appliance reads are open, but a
+non-admin gets `assets.card_projection`, the fields that the card shows.
 
 ### Setup
 
@@ -79,8 +79,8 @@ Each websocket command calls the same store method as its service twin.
 2. Create `HomeKeeperCoordinator`, refresh it, and store it as `entry.runtime_data`.
 3. Reconcile asset devices, part tasks, buy tasks, problem sensors and declarative
    companions, so the tasks exist before the platforms read them.
-4. Register the panel, the card, the file HTTP views and the websocket commands, and remove
-   stale task photo folders. Forward `const.PLATFORMS` and prune devices with no entities.
+4. Register the panel, the card, the HTTP views and the websocket commands. Remove stale
+   photo and import folders. Forward `const.PLATFORMS` and prune devices with no entities.
 5. Ask companions to register again. Add the options and language listeners, which reload.
 6. Start the sensor watcher. Start the list syncs when the Home Assistant start is done.
 7. Enable transition events, start the 5-minute clock, refresh 1 more time, and set the

@@ -1729,14 +1729,29 @@ export_data:
     include:
       name: Include
       description: >-
-        Which sections to export. Both by default.
+        Which sections to export: appliances, tasks, settings or a companion
+        domain. All by default.
       example: '["tasks"]'
       selector:
         select:
           multiple: true
+          custom_value: true
           options:
             - appliances
             - tasks
+            - settings
+    kind:
+      name: Kind
+      description: >-
+        "data" returns the YAML document. "bundle" writes a zip file with the
+        uploaded files and the settings to the home_keeper_exports folder, and
+        returns its path.
+      default: data
+      selector:
+        select:
+          options:
+            - data
+            - bundle
 
 import_data:
   name: Import data
@@ -1752,10 +1767,17 @@ import_data:
       description: >-
         The document to read, in the shape export_data returns. Give it as a
         mapping, or as the whole file in one string.
-      required: true
       example: '{"home_keeper": {"format": 1}, "tasks": [{"name": "Replace furnace filter", "interval": 3, "unit": "months"}]}'
       selector:
         object:
+    bundle:
+      name: Bundle
+      description: >-
+        The name of a bundle file in the home_keeper_exports folder. Use it in
+        place of the document.
+      example: home-keeper-2026-10-11.zip
+      selector:
+        text:
     dry_run:
       name: Preview only
       description: >-
@@ -1775,3 +1797,11 @@ import_data:
           options:
             - auto
             - none
+    include_settings:
+      name: Include settings
+      description: >-
+        Also import the profiles, the notifications and the options of the
+        document.
+      default: false
+      selector:
+        boolean:

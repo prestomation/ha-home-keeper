@@ -52,6 +52,7 @@ from . import (
     shopping,
     tag_listener,
     transfer,
+    transfer_http,
     websocket_api,
 )
 from .assets import card_projection, has_archived_completion
@@ -118,7 +119,8 @@ from .store import HomeKeeperStore
 from .task_entities import entity_set_key
 from .todo_list_sync import TodoListSync
 from .transfer_runner import (
-    async_export_document,
+    async_cleanup_runs,
+    async_export,
     async_import_document,
 )
 
@@ -648,15 +650,29 @@ EXPORT_APPLIANCE_REPORT_SCHEMA = vol.Schema({})
 # there is one YAML parser rather than a second one in the browser.
 #
 # The published JSON Schema is a *separate* declaration, below, for documentation only.
+#
+# ``include`` names Home Keeper sections, ``settings`` and companion domains. The
+# companions are known only at call time, so ``transfer_runner`` checks the names.
+# ``kind: bundle`` writes a zip file to ``<config>/home_keeper_exports/`` and returns
+# its path. ``bundle`` on an import names such a file. ``document`` or ``bundle`` is
+# required, and ``transfer_runner`` reports a bundle that is not there.
 EXPORT_DATA_SCHEMA = vol.Schema(
-    {vol.Optional("include"): vol.All(cv.ensure_list, [vol.In(transfer.SECTIONS)])}
-)
-IMPORT_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("document"): vol.Any(dict, cv.string),
-        vol.Optional("dry_run", default=False): cv.boolean,
-        vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+        vol.Optional("include"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("kind", default="data"): vol.In(("data", "bundle")),
     }
+)
+IMPORT_DATA_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Exclusive("document", "source"): vol.Any(dict, cv.string),
+            vol.Exclusive("bundle", "source"): cv.string,
+            vol.Optional("dry_run", default=False): cv.boolean,
+            vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+            vol.Optional("include_settings", default=False): cv.boolean,
+        }
+    ),
+    cv.has_at_least_one_key("document", "bundle"),
 )
 
 
@@ -939,8 +955,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await panel.async_register_panel(hass)
     await card.async_register_card(hass)
     manuals.async_register_http(hass)
+    transfer_http.async_register_http(hass)
     # Uploads spool to a temp file; a restart mid-upload would otherwise strand it.
     await manuals.async_cleanup_temp_uploads(hass)
+    # The same for the run folders of a bundle export or import.
+    await async_cleanup_runs(hass)
     # Photo folders of tasks deleted while the files could not go (#399).
     await manuals.async_sweep_task_photos(hass, store.get_tasks())
     websocket_api.async_register(hass)
@@ -1759,14 +1778,18 @@ def _register_services(hass: HomeAssistant) -> None:
         # Admin-only: the document is every task, note, serial number and cost in
         # the store. Mirrors ``ws_export_data``'s ``require_admin``.
         await _verify_admin(call)
-        return await async_export_document(hass, _coordinator(), dict(call.data))
+        return await async_export(
+            hass, _coordinator(), dict(call.data), context=call.context
+        )
 
     async def handle_import_data(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: it writes tasks and appliances wholesale. Mirrors
         # ``ws_import_data``'s ``require_admin``.
         await _verify_admin(call)
         with _store_errors():
-            return await async_import_document(hass, _coordinator(), dict(call.data))
+            return await async_import_document(
+                hass, _coordinator(), dict(call.data), context=call.context
+            )
 
     hass.services.async_register(
         DOMAIN,

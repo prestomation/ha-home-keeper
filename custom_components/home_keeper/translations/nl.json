@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Meenemen",
-          "description": "Welke onderdelen worden geëxporteerd. Standaard allebei."
+          "description": "Welke onderdelen worden geëxporteerd: apparaten, taken, instellingen of het domein van een metgezel. Standaard alle."
+        },
+        "kind": {
+          "name": "Soort",
+          "description": "\"data\" geeft het YAML-document terug. \"bundle\" schrijft een zip-bestand met de geüploade bestanden en de instellingen naar de map home_keeper_exports en geeft het pad terug."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Document",
           "description": "Het document dat wordt gelezen, in de vorm die export_data teruggeeft. Geef het als toewijzing of als het hele bestand in één tekenreeks."
         },
+        "bundle": {
+          "name": "Pakket",
+          "description": "De naam van een pakketbestand in de map home_keeper_exports. Gebruik dit in plaats van het document."
+        },
         "dry_run": {
           "name": "Alleen voorbeeld",
           "description": "Controleert het document en meldt wat er zou veranderen, zonder iets te schrijven."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Koppeling",
           "description": "Hoe het bedoelde item wordt gezocht. \"auto\" zoekt op id, dan external_id, dan de naam. \"none\" maakt elk item nieuw aan."
+        },
+        "include_settings": {
+          "name": "Instellingen meenemen",
+          "description": "Importeert ook de profielen, de meldingen en de opties van het document."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan deze profielen niet verwijderen: {profiles}. Deze meldingen gebruiken ze: {notifications}. Wijzig of verwijder elke melding en sla daarna opnieuw op."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan deze onderdelen niet exporteren: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Alleen een beheerder kan Home Keeper-gegevens exporteren of importeren."
+    },
+    "import_not_text": {
+      "message": "Het bestand is geen zip-bestand en geen UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Geef een document of een pakket om te importeren."
     }
   }
 }

@@ -1264,7 +1264,15 @@ async def ws_export_appliance_report(
     connection.send_result(msg["id"], {"report": report, "csv": csv})
 
 
-@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_data"})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/export_data",
+        # Home Keeper sections, ``settings`` and companion domains, as for the
+        # service. A bundle is binary, so the panel downloads it over HTTP
+        # (``transfer_http.HomeKeeperBundleExportView``), and this command has no kind.
+        vol.Optional("include"): [str],
+    }
+)
 @websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
@@ -1280,7 +1288,10 @@ async def ws_export_data(
     store, which a non-admin household member should not be able to walk off with.
     """
     connection.send_result(
-        msg["id"], await async_export_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_export_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 
@@ -1289,9 +1300,11 @@ async def ws_export_data(
         vol.Required("type"): "home_keeper/import_data",
         # A mapping, or the whole file as text. Kept identical to
         # ``IMPORT_DATA_SCHEMA``: a gate the service twin does not share is not a gate.
-        vol.Required("document"): vol.Any(dict, str),
+        vol.Exclusive("document", "source"): vol.Any(dict, str),
+        vol.Exclusive("bundle", "source"): str,
         vol.Optional("dry_run", default=False): bool,
         vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+        vol.Optional("include_settings", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -1312,8 +1325,20 @@ async def ws_import_data(
     Admin-only: it writes tasks and appliances wholesale. Mirrors
     ``handle_import_data``'s ``_verify_admin``.
     """
+    if "document" not in msg and "bundle" not in msg:
+        _err(
+            hass,
+            connection,
+            msg,
+            websocket_api.ERR_INVALID_FORMAT,
+            "import_needs_document",
+        )
+        return
     connection.send_result(
-        msg["id"], await async_import_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_import_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 

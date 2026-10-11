@@ -188,8 +188,11 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   tasks import without their appliance. Only a warning shows.
 - **Completion photos do not travel.** A site-relative photo exports as text, the image
   does not, and the skipped count does not include it.
-- **Sections not in the document.** Declarative companions, profiles, notifications,
-  options and uploaded file contents.
+- **Sections not in the document.** Declarative companions.
+- **Sync mode.** An opt-in import that deletes records not in the file, with the deletes
+  in the preview. Today an import is an upsert and never deletes.
+- **Companion files in a bundle are not checked.** Home Keeper skips a symbolic link, but
+  the companion's own `import_data` checks the type and size of its files.
 - **Spare stock on an integration-owned appliance.** The export leaves out a managed
   appliance, so the user's counts (`stock`, `reorder_at` and the other user keys) are
   lost on a new install. Export the user keys by source namespace and part name, or give

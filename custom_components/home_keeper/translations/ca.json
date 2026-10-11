@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Inclou",
-          "description": "Quines seccions s'exporten. Totes dues per defecte."
+          "description": "Quines seccions s'exporten: aparells, tasques, configuració o el domini d'un complement. Totes per defecte."
+        },
+        "kind": {
+          "name": "Tipus",
+          "description": "\"data\" retorna el document YAML. \"bundle\" escriu un fitxer zip amb els fitxers pujats i la configuració a la carpeta home_keeper_exports i en retorna el camí."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Document",
           "description": "El document que es llegirà, amb la forma que retorna export_data. Doneu-lo com a mapa o com tot el fitxer en una cadena."
         },
+        "bundle": {
+          "name": "Paquet",
+          "description": "El nom d'un fitxer de paquet de la carpeta home_keeper_exports. Fes-lo servir en lloc del document."
+        },
         "dry_run": {
           "name": "Només vista prèvia",
           "description": "Comprova el document i informa de què canviaria, sense escriure res."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Coincidència",
           "description": "Com es busca el registre a què es refereix. \"auto\" cerca per id, després external_id i després el nom. \"none\" crea cada registre."
+        },
+        "include_settings": {
+          "name": "Inclou la configuració",
+          "description": "Importa també els perfils, les notificacions i les opcions del document."
         }
       }
     },
@@ -1235,6 +1247,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no pot suprimir aquests perfils: {profiles}. Aquestes notificacions els utilitzen: {notifications}. Canvia o suprimeix cada notificació i torna a desar."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper no pot exportar aquestes seccions: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Només un usuari administrador pot exportar o importar les dades de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "El fitxer no és un fitxer zip ni text UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un document o un paquet per importar."
     }
   }
 }

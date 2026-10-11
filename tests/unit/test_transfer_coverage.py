@@ -251,3 +251,50 @@ def _null_paths(value: object, path: str = "") -> list[str]:
             for found in _null_paths(item, f"{path}/{index}")
         ]
     return [path] if value is None else []
+
+
+# ── What a bundle adds ───────────────────────────────────────────────────────
+
+
+def test_every_option_travels_in_the_settings_sections_of_a_bundle():
+    """A bundle carries every option key, so a new option travels with no edit.
+
+    The settings sections are ``profiles``, ``notifications`` and ``options``, which
+    holds every other key of ``options._empty_options``.
+    """
+    import hk_options as options_model
+    import hk_transfer_bundle as tb
+
+    sections = tb.settings_sections(options_model._empty_options())
+    assert set(sections) == set(tr.SETTINGS_SECTIONS)
+    carried = {"profiles", "notifications", *sections["options"]}
+    assert carried == set(options_model.ALL_OPTIONS)
+
+
+def test_every_uploaded_file_that_a_yaml_export_counts_travels_in_a_bundle():
+    """The files that ``skipped`` counts are the files that a bundle carries."""
+    import hk_transfer_bundle as tb
+
+    asset = {
+        "id": "asset-1",
+        "name": "Furnace",
+        "documents": [
+            {"id": "d1", "kind": "file", "filename": "a.pdf"},
+            {"id": "d2", "kind": "file", "filename": "b.pdf"},
+            {"id": "d3", "kind": "link", "url": "https://example.com"},
+        ],
+        "parts": [{"id": "p1", "file_name": "c.pdf"}, {"id": "p2"}],
+    }
+    task = {
+        "id": "task-1",
+        "name": "Clean",
+        "photos": [
+            {"id": "f1", "filename": "x.png"},
+            {"id": "f2", "filename": "y.png"},
+        ],
+    }
+    plain = tr.build_document([task], [asset], now=NOW)
+    counted = sum(plain["home_keeper"]["skipped"].values())
+    assert counted == len(tb.bundled_files([asset], [task])) == 5
+    bundle = tr.build_document([task], [asset], now=NOW, files_travel=True)
+    assert "skipped" not in bundle["home_keeper"]

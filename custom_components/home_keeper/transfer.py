@@ -87,8 +87,8 @@ EXCLUDED_TASK_KEYS: tuple[tuple[str, str], ...] = (
     ("managed_by", "an owning integration's block; such a task is not exported"),
     (
         "photos",
-        "uploaded files, which a text document has no room for; counted in "
-        "`skipped`, like an appliance's uploaded documents",
+        "uploaded files, which a text document has no room for; a bundle carries "
+        "them in its `files` section, and a YAML export counts them in `skipped`",
     ),
 )
 """``(key, reason)`` for every stored task key the document deliberately drops.
@@ -131,7 +131,8 @@ EXCLUDED_PART_KEYS: tuple[tuple[str, str], ...] = (
     (
         "file_name",
         "the part's single uploaded file, which a text document has no room for; "
-        "counted in the envelope's `skipped` instead, and re-uploaded by hand",
+        "a bundle carries it in its `files` section, and a YAML export counts it "
+        "in the envelope's `skipped`",
     ),
     ("file_content_type", "the same uploaded file, its media type"),
     ("file_size", "the same uploaded file, its size"),
@@ -608,9 +609,15 @@ def build_document(
     version: str = "",
     now: datetime,
     include: tuple[str, ...] | list[str] | None = None,
+    files_travel: bool = False,
 ) -> dict[str, Any]:
-    """Render the store's tasks and appliances as one portable document."""
-    wanted = tuple(include) if include else SECTIONS
+    """Render the store's tasks and appliances as one portable document.
+
+    *include* names the sections to write. ``None`` writes every section, and a name
+    that is not in :data:`SECTIONS` is ignored. *files_travel* is set for a bundle,
+    which carries the uploaded files, so the envelope does not count them.
+    """
+    wanted = SECTIONS if include is None else tuple(include)
     names = area_names or {}
     document: dict[str, Any] = {
         "home_keeper": {
@@ -628,7 +635,7 @@ def build_document(
             _asset_out(a, area_names=names, counted_uses=counted)
             for a in portable_assets
         ]
-        if files := count_file_documents(portable_assets):
+        if not files_travel and (files := count_file_documents(portable_assets)):
             skipped["file_documents"] = files
     if "tasks" in wanted:
         # Every stored appliance, not only the portable ones: a task attached to an
@@ -646,7 +653,7 @@ def build_document(
         ]
         if links := count_consumable_links(tasks):
             skipped["consumable_links"] = links
-        if photos := count_task_photos(tasks):
+        if not files_travel and (photos := count_task_photos(tasks)):
             skipped["task_photos"] = photos
     if skipped:
         document["home_keeper"]["skipped"] = skipped
@@ -2185,3 +2192,207 @@ def _entries(
             )
         out.append(entry)
     return out
+
+
+# ── Companion and bundle sections ────────────────────────────────────────────
+#
+# A document can hold more than the 2 Home Keeper sections. A companion that
+# registers the ``import_export`` capability owns a top-level section with the key of
+# its domain (docs/INTEGRATING.md §11). The settings sections and the ``files`` section
+# are Home Keeper's own, and ``transfer_bundle.py`` reads them. The functions below
+# only sort the keys and merge the reports. They call no service.
+
+SETTINGS_SECTIONS: tuple[str, ...] = ("profiles", "notifications", "options")
+"""The sections of the settings. A bundle writes them, and an import reads them only
+when the caller sets ``include_settings``."""
+
+FILES_SECTION = "files"
+"""The list of the uploaded files in a bundle. Only a bundle import reads it."""
+
+SETTINGS_INCLUDE = "settings"
+"""The ``include`` name that selects the 3 :data:`SETTINGS_SECTIONS`."""
+
+RESERVED_SECTIONS: tuple[str, ...] = (
+    "home_keeper",
+    *SECTIONS,
+    *SETTINGS_SECTIONS,
+    FILES_SECTION,
+)
+"""The top-level keys that Home Keeper owns. A companion domain with 1 of these names
+cannot have a section."""
+
+COMPANION_READY = "ready"
+COMPANION_NO_CAPABILITY = "no_import_export"
+COMPANION_NO_SERVICE = "no_service"
+COMPANION_FAILED = "failed"
+"""The reasons in ``home_keeper.skipped.companions``, and the states of a companion."""
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentParts:
+    """A document, sorted by the owner of each top-level key."""
+
+    home_keeper: dict[str, Any]
+    """The envelope and the Home Keeper sections, for :func:`plan_import`."""
+    companions: dict[str, Any]
+    """The section of each ready companion, in the order of registration."""
+    settings: dict[str, Any]
+    """The settings sections that the document has."""
+    files: Any = None
+    """The ``files`` section, or ``None`` when the document has none."""
+    problems: tuple[Problem, ...] = ()
+
+
+def split_document(
+    document: dict[str, Any], *, companions: dict[str, str]
+) -> DocumentParts:
+    """Sort the top-level keys of *document* by their owner.
+
+    *companions* maps each registered companion domain to its state
+    (:data:`COMPANION_READY`, :data:`COMPANION_NO_CAPABILITY` or
+    :data:`COMPANION_NO_SERVICE`), in the order of registration. A section of a
+    companion that is not ready, or that is not installed, gets a warning and is
+    skipped. A companion section that is not a mapping is an error.
+    """
+    home_keeper: dict[str, Any] = {}
+    found: dict[str, Any] = {}
+    settings: dict[str, Any] = {}
+    files: Any = None
+    problems: list[Problem] = []
+    for key, value in document.items():
+        if key == "home_keeper" or key in SECTIONS:
+            home_keeper[key] = value
+        elif key in SETTINGS_SECTIONS:
+            settings[key] = value
+        elif key == FILES_SECTION:
+            files = value
+        elif companions.get(key) == COMPANION_READY:
+            if isinstance(value, dict):
+                found[key] = value
+            else:
+                problems.append(
+                    Problem(key, None, key, f'the "{key}" section must be a mapping')
+                )
+        else:
+            problems.append(_skipped_section(key, companions.get(key)))
+    ordered = {domain: found[domain] for domain in companions if domain in found}
+    return DocumentParts(
+        home_keeper=home_keeper,
+        companions=ordered,
+        settings=settings,
+        files=files,
+        problems=tuple(problems),
+    )
+
+
+def _skipped_section(key: str, state: str | None) -> Problem:
+    """The warning for a top-level key that no reader takes."""
+    if state == COMPANION_NO_CAPABILITY:
+        message = (
+            f'"{key}" is the section of a companion that does not support import '
+            "and export, so it was skipped"
+        )
+    elif state == COMPANION_NO_SERVICE:
+        message = (
+            f'"{key}" is the section of a companion that has no import_data '
+            "service, so it was skipped"
+        )
+    else:
+        message = (
+            f'"{key}" is not a section this version of Home Keeper reads, and no '
+            "companion with that domain is installed, so it was skipped"
+        )
+    return Problem(key, None, key, message, severity="warning")
+
+
+def resolve_include(
+    include: list[str] | tuple[str, ...] | None,
+    *,
+    companions: list[str] | tuple[str, ...],
+    bundle: bool,
+) -> tuple[tuple[str, ...], tuple[str, ...], bool, tuple[str, ...]]:
+    """Split the ``include`` of an export into its parts.
+
+    Returns the Home Keeper sections, the companion domains, whether to write the
+    settings, and the names that match no section. ``None`` or an empty list selects
+    every section and every companion in *companions*. Then a bundle writes the
+    settings, and a YAML document does not.
+    """
+    if not include:
+        return SECTIONS, tuple(companions), bundle, ()
+    wanted = list(dict.fromkeys(str(name) for name in include))
+    sections = tuple(name for name in SECTIONS if name in wanted)
+    domains = tuple(domain for domain in companions if domain in wanted)
+    settings = SETTINGS_INCLUDE in wanted
+    known = {*SECTIONS, SETTINGS_INCLUDE, *companions}
+    unknown = tuple(name for name in wanted if name not in known)
+    return sections, domains, settings, unknown
+
+
+def companion_problems(domain: str, report: Any) -> list[Problem]:
+    """The problems of a companion's import report, in the shape of Home Keeper's.
+
+    A companion problem is ``{level, path, message}`` with a path that starts at its
+    own document. The path gets the prefix ``<domain>.``, so 1 report can hold the
+    problems of all sections. A report that is not a mapping, or that says
+    ``ok: false`` with no error, is an error, because the import cannot be applied.
+    """
+    if not isinstance(report, dict):
+        return [
+            Problem(
+                domain,
+                None,
+                domain,
+                f"the companion {domain} returned no import report",
+            )
+        ]
+    problems: list[Problem] = []
+    raw = report.get("problems")
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        level = item.get("level")
+        path = str(item.get("path") or "")
+        problems.append(
+            Problem(
+                section=domain,
+                index=None,
+                path=f"{domain}.{path}" if path else domain,
+                message=str(item.get("message") or ""),
+                severity="warning" if level == "warning" else "error",
+            )
+        )
+    if report.get("ok") is False and not any(p.severity == "error" for p in problems):
+        problems.append(
+            Problem(
+                domain,
+                None,
+                domain,
+                f"the companion {domain} reported that its section cannot be applied",
+            )
+        )
+    return problems
+
+
+def merge_reports(
+    report: dict[str, Any],
+    *,
+    sections: dict[str, Any],
+    problems: list[Problem] | tuple[Problem, ...] = (),
+) -> dict[str, Any]:
+    """Add the companion reports and more problems to a Home Keeper report.
+
+    The keys of :meth:`ImportPlan.as_report` stay as they are. ``sections`` maps each
+    companion domain to its own report, as is. *problems* are the problems that the
+    Home Keeper plan did not find: the split, the settings, the files and the
+    companion problems from :func:`companion_problems`. ``ok`` is false if 1 problem
+    of all of them is an error.
+    """
+    merged = dict(report)
+    merged["problems"] = [
+        *report.get("problems", []),
+        *(problem.as_dict() for problem in problems),
+    ]
+    merged["sections"] = dict(sections)
+    merged["ok"] = not any(p.get("severity") == "error" for p in merged["problems"])
+    return merged
