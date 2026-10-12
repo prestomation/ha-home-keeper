@@ -107,6 +107,9 @@ with the `set_task_meter` service fires `home_keeper_task_updated` with
 photo or makes a photo the cover, Home Keeper fires `home_keeper_task_updated` with
 `changed_fields: ["photos"]`. There is no separate photo event.
 
+**New appliance device.** If an appliance gets a new device, each moved task and appliance fires
+an `_updated` event with `device_id`, `source` or `related_device_ids` in `changed_fields`.
+
 **Shopping list.** When *Settings → Shopping list* names a to-do list, each automatic
 "Buy {part}" reminder goes on it. The completion has
 `source: {"buy": {"asset_id": …, "part_id": …}}`. It restocks the part by its restock

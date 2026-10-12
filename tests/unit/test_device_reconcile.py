@@ -19,6 +19,7 @@ from dataclasses import dataclass, replace
 
 import pytest
 from test_device_heal import (
+    FakeConfigEntries,
     FakeDevice,
     FakeEntry,
     FakeRegistry,
@@ -367,3 +368,68 @@ def test_a_live_virtual_device_moves_no_task():
     assert store.get_tasks()["t1"]["device_id"] == "dev1"
     assert "repoint" not in store.calls
     assert store.saves == 0
+
+
+class _LiveRegistry(_VirtualRegistry):
+    """A virtual registry in which the devices in *live* still exist."""
+
+    def __init__(self, device: _VirtualDevice, live: set[str]) -> None:
+        super().__init__(device)
+        self.live = live
+
+    def async_get(self, device_id):
+        if device_id in self.live:
+            return types.SimpleNamespace(id=device_id)
+        return super().async_get(device_id)
+
+
+def _reconcile_with_options(registry, store, options):
+    entry = FakeEntry(options=options)
+    hass = types.SimpleNamespace(data={}, config_entries=FakeConfigEntries())
+    original = devices.area_exists
+    devices.area_exists = lambda hass, area_id: True
+    try:
+        _run(devices.async_reconcile_assets(hass, entry, store), registry)
+    finally:
+        devices.area_exists = original
+    return entry, hass.config_entries
+
+
+def test_a_recreated_virtual_device_moves_the_related_ids_and_the_options():
+    asset = _virtual("a1", device_id="dev_old", related_device_ids=["dev_old", "x"])
+    store = _Store(tasks={"t1": task("t1", "dev_old")}, assets=[asset])
+    options = {
+        "problem_sensor_exclude_devices": ["dev_old"],
+        "profiles": [{"id": "p", "name": "P", "filter": {"devices": ["dev_old"]}}],
+    }
+
+    entry, entries = _reconcile_with_options(
+        _registry(_VirtualDevice("dev_new", name="Asset a1")), store, options
+    )
+
+    assert store.get_tasks()["t1"]["device_id"] == "dev_new"
+    assert asset["related_device_ids"] == ["dev_new", "x"]
+    assert len(entries.updates) == 1
+    assert entry.options["problem_sensor_exclude_devices"] == ["dev_new"]
+    assert entry.options["profiles"][0]["filter"]["devices"] == ["dev_new"]
+
+
+def test_a_stored_id_of_a_device_that_still_exists_moves_no_task():
+    # 2 virtual appliances that hold the same stored device id. The device is the
+    # other appliance's and still exists, so its tasks stay on it.
+    asset = _virtual("a2", device_id="dev_shared", related_device_ids=["dev_shared"])
+    store = _Store(tasks={"t1": task("t1", "dev_shared")}, assets=[asset])
+    options = {"problem_sensor_exclude_devices": ["dev_shared"]}
+
+    entry, entries = _reconcile_with_options(
+        _LiveRegistry(_VirtualDevice("dev_a2", name="Asset a2"), {"dev_shared"}),
+        store,
+        options,
+    )
+
+    assert store.device_ids == {"a2": "dev_a2"}
+    assert store.get_tasks()["t1"]["device_id"] == "dev_shared"
+    assert asset["related_device_ids"] == ["dev_shared"]
+    assert "repoint" not in store.calls
+    assert entries.updates == []
+    assert entry.options == options

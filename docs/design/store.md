@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 05b98a051919
+source_hash: f3651a3c0664
 ---
 
 # Store
@@ -102,8 +102,8 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
   pure pass, save once, and fire the lifecycle events the pass implies.
 - **Declarative specs:** add, update and delete, then dispatch
   `SIGNAL_DECLARATIVE_SPECS_CHANGED` so the companion sync runs without a reload.
-- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids`,
-  `async_merge_split_duplicates` and `detach_tasks_from_device`.
+- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids` (1
+  updated event per moved record), `async_merge_split_duplicates`, `detach_tasks_from_device`.
 - **Import:** `async_import_records` writes a validated plan under stated ids with one
   save. It fires one created or updated event per record, not one per completion.
 

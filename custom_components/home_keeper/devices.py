@@ -168,9 +168,14 @@ async def async_reconcile_assets(
         await store.async_persist()
     # The tasks on a recovered or re-created device move with the appliance (B17-5).
     # The heal at the next setup finds no snapshot that names the old id after this
-    # pass, so it cannot move them later.
+    # pass, so it cannot move them later. Only an id whose device is gone moves: 2
+    # virtual appliances that hold the same stored id must not take each other's
+    # tasks.
+    recovered = {
+        old: new for old, new in recovered.items() if registry.async_get(old) is None
+    }
     if recovered:
-        await store.async_repoint_device_ids(recovered)
+        await _async_repoint_device_ids(hass, entry, store, recovered)
 
     # Prune asset devices we own that no longer correspond to an asset. Guard
     # against ever removing a per-task self-owned device — those key on the bare
@@ -185,6 +190,27 @@ async def async_reconcile_assets(
         ):
             _LOGGER.debug("Removing orphaned asset device %s", device.id)
             registry.async_remove_device(device.id)
+
+
+async def _async_repoint_device_ids(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    store: HomeKeeperStore,
+    mapping: dict[str, str],
+) -> tuple[int, int]:
+    """Move every stored reference to a dead device id in *mapping* to its live id.
+
+    The references are the tasks, the appliances (their device and their related
+    devices) and the options (problem-sensor exclusions and profile filters). The
+    store fires the updated events. After setup, the options write starts the reload
+    of the update listener. Returns the task and appliance reference counts.
+    """
+    changed_tasks = await store.async_repoint_device_ids(mapping)
+    changed_assets = await store.async_repoint_asset_device_ids(mapping)
+    new_options = options.repoint_device_ids(dict(entry.options), mapping)
+    if new_options is not None:
+        hass.config_entries.async_update_entry(entry, options=new_options)
+    return changed_tasks, changed_assets
 
 
 def _split_successor(
@@ -348,12 +374,11 @@ async def async_heal_split_device_ids(
         _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)
 
     if mapping:
-        changed_tasks = await store.async_repoint_device_ids(mapping)
-        changed_assets = await store.async_repoint_asset_device_ids(mapping)
-        new_options = options.repoint_device_ids(dict(entry.options), mapping)
-        if new_options is not None:
-            # Setup has not added the update listener yet, so this does not reload.
-            hass.config_entries.async_update_entry(entry, options=new_options)
+        # Setup has not added the update listener yet, so the options write does
+        # not reload.
+        changed_tasks, changed_assets = await _async_repoint_device_ids(
+            hass, entry, store, mapping
+        )
         _LOGGER.info(
             "Repaired %s task and %s asset device reference(s) across %s device(s) "
             "that Home Assistant 2026.8 split into one device per config entry",

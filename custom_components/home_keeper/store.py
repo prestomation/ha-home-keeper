@@ -1602,20 +1602,35 @@ class HomeKeeperStore:
         optional: contributors match their existing tasks on their own copy, so healing
         only ``task["device_id"]`` leaves them unable to find the task and they create a
         duplicate instead (measured in ``tests/upgrade``).
+
+        One write for the batch, then one ``home_keeper_task_updated`` event per task
+        that moved, with ``device_id`` and ``source`` as its changed fields.
         """
         changed = 0
+        moved: list[tuple[dict[str, Any], list[str]]] = []
         for task in self._tasks.values():
+            fields: list[str] = []
             if (new_id := mapping.get(task.get("device_id") or "")) is not None:
                 task["device_id"] = new_id
                 changed += 1
+                fields.append("device_id")
             for payload in (task.get("source") or {}).values():
                 if not isinstance(payload, dict):
                     continue
                 if (new_id := mapping.get(payload.get("device_id") or "")) is not None:
                     payload["device_id"] = new_id
                     changed += 1
+                    if "source" not in fields:
+                        fields.append("source")
+            if fields:
+                moved.append((task, fields))
         if changed:
             await self._save()
+        for task, fields in moved:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": fields}),
+            )
         return changed
 
     async def async_repoint_sensor_entity(
@@ -1680,20 +1695,32 @@ class HomeKeeperStore:
 
         ``related_device_ids`` moves too (X03-8): a task relates to an appliance
         through that list, so a dead id there drops the task from the appliance.
+        Each appliance that moved fires 1 ``home_keeper_asset_updated`` event.
         """
         changed = 0
+        moved: list[tuple[dict[str, Any], list[str]]] = []
         for asset in self._assets.values():
+            fields: list[str] = []
             if (new_id := mapping.get(asset.get("device_id") or "")) is not None:
                 asset["device_id"] = new_id
                 changed += 1
+                fields.append("device_id")
             related = asset.get("related_device_ids") or []
             if any(device_id in mapping for device_id in related):
                 asset["related_device_ids"] = list(
                     dict.fromkeys(mapping.get(d, d) for d in related)
                 )
                 changed += 1
+                fields.append("related_device_ids")
+            if fields:
+                moved.append((asset, fields))
         if changed:
             await self._save()
+        for asset, fields in moved:
+            self._hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(asset, extra={"changed_fields": fields}),
+            )
         return changed
 
     async def async_merge_split_duplicates(self, canonical: dict[str, str]) -> int:
