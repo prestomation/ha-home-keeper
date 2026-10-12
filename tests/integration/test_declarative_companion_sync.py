@@ -1043,12 +1043,16 @@ def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history(ha, specs
     """
     spec = specs(_device_battery_spec(name="HK battery disable"))
     task = _one_task(ha, spec["id"])
+    # Only a task with history is paused (#454), so record a completion first.
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task["id"]})
+    _poll_task(ha, spec["id"], lambda t: len(t.get("completions") or []) == 1)
 
     _set_entity_disabled(ha, DEVICE_BATTERY, True)
     try:
         off = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is False)
         assert off["id"] == task["id"], "a disabled entity must not delete the task"
         assert off["source"]["declarative_companion"].get("paused") is True
+        assert len(off["completions"]) == 1, "the history must survive the disable"
     finally:
         _set_entity_disabled(ha, DEVICE_BATTERY, False)
     # Home Assistant reloads the entry of an entity that is enabled again only after
@@ -1056,6 +1060,27 @@ def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history(ha, specs
     # reconcile pass, and a slow CI runner went past it.
     back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True, timeout=90)
     assert back["id"] == task["id"], "enabling the entity must bring the same task back"
+    assert len(back["completions"]) == 1
+    _wait_for_state(ha, DEVICE_BATTERY)
+
+
+def test_454_a_disabled_entity_removes_its_task_with_no_history(ha, specs):
+    """A task with no history is removed, and enabling the entity makes a new one.
+
+    A paused task with nothing to keep only cluttered the task list (#454).
+    """
+    spec = specs(_device_battery_spec(name="HK battery no history"))
+    task = _one_task(ha, spec["id"])
+
+    _set_entity_disabled(ha, DEVICE_BATTERY, True)
+    try:
+        _poll_spec_tasks(ha, spec["id"], lambda tasks: not tasks)
+    finally:
+        _set_entity_disabled(ha, DEVICE_BATTERY, False)
+    # The same 30 s reload delay as above.
+    back = _one_task(ha, spec["id"], timeout=90)
+    assert back["id"] != task["id"], "enabling the entity must make a new task"
+    assert back.get("enabled", True) is True
     _wait_for_state(ha, DEVICE_BATTERY)
 
 
