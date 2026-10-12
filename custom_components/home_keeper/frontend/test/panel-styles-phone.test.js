@@ -67,3 +67,9 @@ describe('phone layout rules', () => {
     expect(ring).toContain('inset: calc((24px - var(--hk-tap)) / 2)');
   });
 });
+
+describe('the QR label preview', () => {
+  it('wraps a long word inside the dashed box, like the printed label', () => {
+    expect(rule(STYLES, '.hk-label-text')).toContain('overflow-wrap: anywhere');
+  });
+});

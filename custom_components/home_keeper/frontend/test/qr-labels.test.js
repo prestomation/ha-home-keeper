@@ -28,6 +28,7 @@ import {
   pngSize,
   qrPixelPlan,
   rollSheetHtml,
+  textChars,
   wrapText,
   cssNum,
   defaultPaper,
@@ -297,7 +298,11 @@ describe('labelSheetHtml', () => {
 
   it('is a whole document with the sheet size and no page margin', () => {
     const html = labelSheetHtml([label(1)], 'letter30', 0, 'QR labels');
-    expect(html.startsWith('<!doctype html><html><head><meta charset="utf-8"><title>QR labels</title>')).toBe(true);
+    expect(
+      html.startsWith(
+        '<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>QR labels</title>',
+      ),
+    ).toBe(true);
     expect(html).toContain('@page{size:letter;margin:0}');
     expect(html).toContain('.page{position:relative;width:8.5in;height:11in;');
     expect(html).toContain('.label{position:absolute;width:2.625in;height:1in;padding:0.06in;');
@@ -597,7 +602,7 @@ describe('layoutText', () => {
 
   it('leaves out the rows that do not fit the box height', () => {
     const rows = layoutText(['Heater', 'Garage', 'Bosch'], 40, l1 * 1.15 + ptMm + ln * 1.2, mono);
-    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage']);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage…']);
     expect(rows[0].top).toBeCloseTo(0, 9);
     expect(layoutText(['Heater'], 40, l1, mono)).toEqual([]);
   });
@@ -700,5 +705,123 @@ describe('labelPrintHtml', () => {
   it('prints a roll for a roll paper, and ignores the skip', () => {
     const opts = { ...defaultLabelOpts('a4_21'), paper: 'roll_40x30' };
     expect(labelPrintHtml(labels, opts, 2, 'T')).toBe(rollSheetHtml(labels, opts, 'T'));
+  });
+});
+
+describe('wrapText and code points', () => {
+  it('never cuts an emoji in 2 halves of a surrogate pair', () => {
+    // 1 mm per UTF-16 unit: each emoji is 2 units, so a row of 3 holds 1 emoji.
+    const rows = wrapText('😀😀😀', 4, (row) => row.length <= 3);
+    expect(rows).toEqual(['😀', '😀', '😀']);
+    for (const row of rows) expect(row).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  });
+
+  it('keeps a joined emoji whole when it cuts a word', () => {
+    const family = '👨‍👩‍👧';
+    // The family is 5 code points and 8 UTF-16 units. A row of 6 units holds no
+    // whole family, so each row holds 1 family and is not cut inside it.
+    const rows = wrapText(`${family}${family}`, 3, (row) => row.length <= 6);
+    expect(rows).toEqual([family, family]);
+  });
+
+  it('cuts the ellipsis row by code points', () => {
+    // "😀😀…" is 5 units and does not fit 4, so the row drops 1 emoji, not 1 unit.
+    const tail = wrapText('a 😀😀 b', 2, (row) => row.length <= 4);
+    expect(tail).toEqual(['a', '😀…']);
+  });
+});
+
+describe('layoutText ellipsis', () => {
+  const ptMm = 25.4 / 72;
+  const l1 = 8.5 * ptMm;
+  const ln = 7 * ptMm;
+
+  it('ends the last row with an ellipsis when a line is left out', () => {
+    const rows = layoutText(['Heater', 'Garage', 'Bosch'], 40, l1 * 1.15 + ptMm + ln * 1.2, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage…']);
+  });
+
+  it('shortens the last row so that the ellipsis fits the width', () => {
+    const rows = layoutText(['Heater', 'Garage'], 6, l1 * 1.15 + 0.01, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heate…']);
+  });
+
+  it('leaves out every line after a row that does not fit', () => {
+    // A smaller line can fit where the larger row did not. It is left out too.
+    const box = l1 * 1.15 * 2 + ptMm + ln * 1.2 + 0.04;
+    const rows = layoutText(['a b c', 'Garage'], 2, box, mono);
+    expect(rows.map((r) => r.text)).toEqual(['a', 'b…']);
+  });
+
+  it('adds no ellipsis when every row fits', () => {
+    expect(layoutText(['Heater', 'Garage'], 40, 40, mono).map((r) => r.text)).toEqual([
+      'Heater',
+      'Garage',
+    ]);
+  });
+});
+
+describe('print documents: language, direction and measured rows', () => {
+  const labels = [{ url: URL_A, lines: ['Replace battery: Batteries Monitored', 'Garage', 'Bosch'] }];
+  const roll30 = { ...defaultLabelOpts('a4_21'), paper: 'roll_30x15' };
+
+  it('sets the language and the direction of the page', () => {
+    expect(rollSheetHtml(labels, roll30, 't', { lang: 'he', dir: 'rtl' })).toContain(
+      '<html lang="he" dir="rtl">',
+    );
+    expect(labelSheetHtml(labels, 'a4_21', 0, 't', { lang: 'de"x', dir: 'ltr' })).toContain(
+      '<html lang="de&quot;x" dir="ltr">',
+    );
+    expect(rollSheetHtml(labels, roll30, 't')).toContain('<html lang="en" dir="ltr">');
+    expect(labelPrintHtml(labels, roll30, 0, 't', { lang: 'fr' })).toContain('<html lang="fr" dir="ltr">');
+  });
+
+  it('prints the rows that layoutText keeps on a 30 × 15 mm roll, as the PNG does', () => {
+    const measure = (text, bold, sizeMm) => text.length * sizeMm * (bold ? 0.62 : 0.55);
+    const html = rollSheetHtml(labels, roll30, 't', { measure });
+    const fit = fitLabel(30, 15, true);
+    const want = layoutText(labels[0].lines, fit.textW, fit.textH, measure);
+    expect(want.length).toBeGreaterThan(0);
+    expect(want.at(-1).text.endsWith('…')).toBe(true);
+    const got = [...html.matchAll(/<div class="row (l1|ln)" style="top:([\d.]+)mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[3])).toEqual(want.map((r) => r.text));
+    expect(got.map((m) => Number(m[2]))).toEqual(want.map((r) => Number(cssNum(r.top))));
+    // A line that layoutText leaves out is not in the page, so no line shows cut.
+    expect(html).not.toContain('Bosch');
+    expect(html).toContain('.row{position:absolute;left:0;right:0;white-space:nowrap;overflow:hidden}');
+  });
+
+  it('prints the measured rows on a sheet too, in a text box of the free width', () => {
+    const measure = (text) => text.length;
+    const html = labelSheetHtml(labels, 'a4_21', 0, 't', { measure });
+    const l = LAYOUTS.a4_21;
+    const qr = Math.min(l.labelH - l.pad * 2, l.labelW * 0.45);
+    const want = layoutText(labels[0].lines, l.labelW - l.pad * 3.5 - qr, l.labelH - l.pad * 2, measure);
+    const got = [...html.matchAll(/<div class="row (?:l1|ln)" style="top:[\d.]+mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[1])).toEqual(want.map((r) => r.text));
+  });
+
+  it('never shrinks a line below its height without a measure', () => {
+    expect(rollSheetHtml(labels, roll30, 't')).toContain('.l1,.ln{flex-shrink:0;');
+    expect(labelSheetHtml(labels, 'a4_21', 0, 't')).toContain('.l1,.ln{flex-shrink:0;');
+  });
+});
+
+describe('textChars', () => {
+  const family = '👨‍👩‍👧';
+
+  it('splits by grapheme clusters', () => {
+    expect(textChars(`a😀${family}`)).toEqual(['a', '😀', family]);
+  });
+
+  it('splits by code points when the browser has no Intl.Segmenter', () => {
+    const saved = Intl.Segmenter;
+    Intl.Segmenter = undefined;
+    try {
+      expect(textChars('a😀b')).toEqual(['a', '😀', 'b']);
+      expect(textChars(family)).toHaveLength(5);
+    } finally {
+      Intl.Segmenter = saved;
+    }
   });
 });

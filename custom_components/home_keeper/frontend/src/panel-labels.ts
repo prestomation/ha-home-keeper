@@ -8,9 +8,10 @@
  * sheet goes into a hidden iframe, and the browser's dialog gives Print and Save as
  * PDF. The pure part (links, text, layout, SVG) is `qr-labels.ts`.
  */
-import { assetMatchesQuery, taskMatchesQuery } from './card-filter';
+import { assetMatchesQuery } from './card-filter';
 import { makeDialog } from './dialogs';
 import { t, tn } from './i18n';
+import { listedTasks } from './panel-controls';
 import type { PanelHost } from './panel-host';
 import { LS_LABELS } from './panel-types';
 import {
@@ -44,6 +45,7 @@ import {
   type LabelOpts,
   type LabelPaper,
   type LabelSource,
+  type PrintDoc,
   type PrintLabel,
 } from './qr-labels';
 import type { Asset, Task } from './types';
@@ -106,13 +108,17 @@ export function openLabelPicker(p: PanelHost): void {
       .map((a) => a.id);
   } else {
     kind = 'task';
-    ids = p._tasks
-      .filter((task) => !p._query || taskMatchesQuery(task, p._query, devices, areas))
+    ids = listedTasks(p)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((task) => task.id);
   }
   p._labelDialog = { ...emptyLabelDialog(), open: true, kind, ids };
   p._render();
+}
+
+/** Wire the QR label button of the control row to the picker. */
+export function wireLabelButton(p: PanelHost, root: ShadowRoot): void {
+  root.getElementById('labels-btn')?.addEventListener('click', () => openLabelPicker(p));
 }
 
 function closeLabelDialog(p: PanelHost): void {
@@ -238,6 +244,37 @@ function printSheet(html: string): void {
   document.body.appendChild(frame);
 }
 
+/** The CSS font of label text at `sizePx`, the same in the PNG and the print. */
+function labelFont(bold: boolean, sizePx: number): string {
+  return `${bold ? '700' : '400'} ${sizePx}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+}
+
+/** The language and the direction of Home Assistant, for a print document and a PNG. */
+function printLocale(p: PanelHost): { lang: string; dir: 'ltr' | 'rtl' } {
+  const hass = p._hass as
+    | { language?: string; translationMetadata?: { translations?: Record<string, { isRTL?: boolean }> } }
+    | undefined;
+  const lang = hass?.language || 'en';
+  return { lang, dir: hass?.translationMetadata?.translations?.[lang]?.isRTL ? 'rtl' : 'ltr' };
+}
+
+/**
+ * The print document of `labels`. A canvas measures the text, so the print keeps the
+ * rows that the PNG keeps. With no canvas, CSS wraps the text.
+ */
+function printHtml(p: PanelHost, labels: PrintLabel[], opts: LabelOpts): string {
+  const doc: PrintDoc = printLocale(p);
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (ctx) {
+    // 10 px for each mm: the width scales with the size, so any scale measures the same.
+    doc.measure = (text, bold, sizeMm) => {
+      ctx.font = labelFont(bold, sizeMm * 10);
+      return ctx.measureText(text).width / 10;
+    };
+  }
+  return labelPrintHtml(labels, opts, p._labelDialog.skip, t('labels.title'), doc);
+}
+
 /**
  * Draw 1 whole label, the code and its text, on a canvas at the chosen density, and save
  * it as a PNG for the app of a label printer. Each module of the code is a whole number
@@ -247,6 +284,7 @@ async function downloadLabelPng(
   label: PrintLabel,
   opts: LabelOpts,
   filename: string,
+  dir: 'ltr' | 'rtl',
 ): Promise<boolean> {
   try {
     const size = labelSizeMm(opts);
@@ -276,16 +314,18 @@ async function downloadLabelPng(
       }),
     );
     if (fit.mode !== 'code') {
-      const font = (bold: boolean, sizeMm: number): string =>
-        `${bold ? '700' : '400'} ${sizeMm * dpmm}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const font = (bold: boolean, sizeMm: number): string => labelFont(bold, sizeMm * dpmm);
       const measure = (text: string, bold: boolean, sizeMm: number): number => {
         ctx.font = font(bold, sizeMm);
         return ctx.measureText(text).width / dpmm;
       };
       ctx.textBaseline = 'top';
+      ctx.direction = dir;
       const center = fit.mode === 'below';
-      ctx.textAlign = center ? 'center' : 'left';
-      const x = (center ? fit.textX + fit.textW / 2 : fit.textX) * dpmm;
+      // "start" is the left edge of the text box, or its right edge for right-to-left.
+      ctx.textAlign = center ? 'center' : 'start';
+      const start = dir === 'rtl' ? fit.textX + fit.textW : fit.textX;
+      const x = (center ? fit.textX + fit.textW / 2 : start) * dpmm;
       for (const row of layoutText(label.lines, fit.textW, fit.textH, measure)) {
         ctx.font = font(row.bold, row.sizeMm);
         ctx.fillText(row.text, x, (fit.textY + row.top) * dpmm);
@@ -569,7 +609,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     png.addEventListener('click', async () => {
       const now = readOpts(p);
       const label = { url, lines: labelLines(oneTarget.src, now.lines) };
-      const ok = await downloadLabelPng(label, now, labelFileName(oneTarget.kind, oneTarget.src.name));
+      const ok = await downloadLabelPng(
+        label,
+        now,
+        labelFileName(oneTarget.kind, oneTarget.src.name),
+        printLocale(p).dir,
+      );
       if (!ok) toast(p, t('labels.pngFailed'));
     });
     footer.appendChild(png);
@@ -582,7 +627,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
       lines: labelLines(target.src, now.lines),
     }));
     if (!labels.length) return;
-    printSheet(labelPrintHtml(labels, now, p._labelDialog.skip, t('labels.title')));
+    printSheet(printHtml(p, labels, now));
   });
   footer.appendChild(print);
 

@@ -6,7 +6,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-labels.ts
   - custom_components/home_keeper/frontend/src/qrcodegen.ts
 related: [frontend, appliances]
-source_hash: 2a7958cf8f6c
+source_hash: 71d2071f1840
 ---
 
 # QR code labels
@@ -47,7 +47,8 @@ no Home Assistant Cloud address, so a cloud-only instance gets the browser addre
 - **1 object.** The **QR label** button on an appliance or a task page opens it with a
   preview, the link with a copy button, and Download PNG.
 - **A checklist.** **Print labels** beside **Add** opens it with what the list shows: the
-  active or archived appliances, or the tasks, narrowed by the search box. Nothing starts
+  active or archived appliances, or the tasks that `panel-controls.listedTasks` gives the
+  task list: the active Profile or the status filter, then the search box. Nothing starts
   checked. For appliances, a checkbox adds a label for each of their tasks
   (`utils.tasksForAsset`), and a shared task prints once.
 
@@ -66,7 +67,12 @@ default. The first size is a sheet that follows the HA country (`qr-labels.defau
 label an absolute position in the sheet's own unit. For a roll, `rollSheetHtml` makes 1
 page for each label, at the label size, so Save as PDF gives 1 page per label. Rotate
 turns the page and the label 90° clockwise. `@page` sets the paper size and no margin.
-All label text goes through `escapeHTML`.
+The document takes the HA language as `lang` and its direction as `dir`. All label text
+goes through `escapeHTML`.
+
+The panel gives the print a canvas measure (`qr-labels.PrintDoc`). Then each label shows
+the rows of `qr-labels.layoutText` at fixed positions, the same rows as the PNG. With no
+canvas, CSS wraps and clamps the lines, and a line never shrinks below its height.
 
 ### The fit
 
@@ -89,7 +95,10 @@ Download PNG draws the whole label, the code and its text, on a canvas at the la
 and the chosen density: 203 dpi (8 dots per mm, most thermal label printers) or 300 dpi.
 `qr-labels.qrPixelPlan` makes each module a whole number of dots, so a thermal printer
 prints every module the same width. `qr-labels.layoutText` wraps the text with the
-canvas's own measure, with the same sizes and row limits as the print.
+canvas's own measure, with the same sizes and row limits as the print. It cuts a word
+between grapheme clusters (`qr-labels.textChars`). The first row that does not fit the box
+height goes with every row after it, and the last row that fits ends with "…". The canvas
+uses the HA text direction.
 
 ## Trade-offs
 
