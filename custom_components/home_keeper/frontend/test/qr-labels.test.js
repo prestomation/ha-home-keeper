@@ -801,6 +801,21 @@ describe('print documents: language, direction and measured rows', () => {
     expect(got.map((m) => m[1])).toEqual(want.map((r) => r.text));
   });
 
+  it('measures a Letter sheet in mm, from its size in inches', () => {
+    const measure = (text) => text.length * 1.6;
+    const long = [{ url: URL_A, lines: ['Replace the water heater anode rod', 'Garage', 'Bosch XE50T'] }];
+    const html = labelSheetHtml(long, 'letter30', 0, 't', { measure });
+    const l = LAYOUTS.letter30;
+    const qr = Math.min(l.labelH - l.pad * 2, l.labelW * 0.45);
+    const want = layoutText(long[0].lines, (l.labelW - l.pad * 3.5 - qr) * 25.4, (l.labelH - l.pad * 2) * 25.4, measure);
+    const got = [...html.matchAll(/<div class="row (?:l1|ln)" style="top:([\d.]+)mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[2])).toEqual(want.map((r) => r.text));
+    expect(got.map((m) => Number(m[1]))).toEqual(want.map((r) => Number(cssNum(r.top))));
+    expect(html).toContain('<div class="text measured">');
+    expect(html).toContain('.text.measured{position:relative;flex:1 1 auto;align-self:stretch}');
+    expect(labelSheetHtml(long, 'letter30', 0, 't')).toContain('<div class="text"><div class="l1">');
+  });
+
   it('never shrinks a line below its height without a measure', () => {
     expect(rollSheetHtml(labels, roll30, 't')).toContain('.l1,.ln{flex-shrink:0;');
     expect(labelSheetHtml(labels, 'a4_21', 0, 't')).toContain('.l1,.ln{flex-shrink:0;');

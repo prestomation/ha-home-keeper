@@ -289,6 +289,24 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a binary file that is not a bundle stays out of the text box', async ({ page }) => {
+    // A PNG is not text. Its bytes do not go into the box, and the card says why.
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'transfer');
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      panel.locator('#transfer-pick').click(),
+    ]);
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
+    await chooser.setFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png });
+    await expect(panel.locator('.hk-transfer-error')).toContainText(
+      'This file is not a text file or a bundle.',
+    );
+    await expect(panel.locator('#transfer-text')).toHaveValue('');
+    await expect(panel.locator('#transfer-preview')).toHaveAttribute('disabled', '');
+  });
+
   test('exports a bundle with the companion, then previews it as an upload', async ({
     page,
   }, testInfo) => {

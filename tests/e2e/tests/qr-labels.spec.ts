@@ -35,6 +35,21 @@ async function watchPrints(page: Page): Promise<void> {
   });
 }
 
+/**
+ * The text of the first-line rows of each label in a print document. The panel
+ * measures the text, so a long name can wrap over 2 or 3 rows.
+ */
+function firstLines(html: string): string[] {
+  const labels = html.split(/class="(?:label|page)"/).slice(1);
+  return labels
+    .map((label) =>
+      [...label.matchAll(/<div class="row l1" style="top:[\d.]+mm">([^<]*)<\/div>/g)]
+        .map((m) => m[1])
+        .join(' '),
+    )
+    .filter(Boolean);
+}
+
 async function prints(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { __hkPrints: string[] }).__hkPrints);
 }
@@ -65,7 +80,7 @@ test.describe('Home Keeper panel — QR labels', { tag: '@responsive' }, () => {
     await print.click();
     await expect.poll(async () => (await prints(page)).length).toBe(1);
     const [html] = await prints(page);
-    expect(html).toContain('<div class="l1">Garage water heater</div>');
+    expect(firstLines(html)).toEqual(['Garage water heater']);
     expect(html).not.toContain('XE50T10HS45U0');
     // The sheet is the whole document the browser prints, with the sheet size set.
     expect(html).toMatch(/@page\{size:(letter|A4);margin:0\}/);
@@ -124,8 +139,7 @@ test.describe('Home Keeper panel — QR labels', { tag: '@responsive' }, () => {
     await expect.poll(async () => (await prints(page)).length).toBe(1);
     const [html] = await prints(page);
     expect(html.match(/class="label"/g)).toHaveLength(2);
-    expect(html).toContain('Garage water heater');
-    expect(html).toContain('Living room shades');
+    expect(firstLines(html).sort()).toEqual(['Garage water heater', 'Living room shades']);
     expect(html).not.toContain('Rain jacket');
 
     // Clear unchecks every row again.
@@ -167,7 +181,7 @@ test.describe('Home Keeper panel — QR labels', { tag: '@responsive' }, () => {
       let [html] = await prints(page);
       expect(html).toContain('@page{size:50mm 30mm;margin:0}');
       expect(html.match(/class="page"/g)).toHaveLength(1);
-      expect(html).toContain('<div class="l1">Garage water heater</div>');
+      expect(firstLines(html)).toEqual(['Garage water heater']);
 
       // A custom size and the rotation reach the print.
       await dialog.locator('[data-label-paper]').selectOption('roll_custom');
@@ -213,5 +227,40 @@ test.describe('Home Keeper panel — QR labels', { tag: '@responsive' }, () => {
     } finally {
       await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
     }
+  });
+});
+
+test.describe('Home Keeper panel — QR labels from the task list', () => {
+  test('the task picker lists the tasks that the list shows', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await gotoTab(panel, 'tasks');
+    const listed = async (): Promise<string[]> =>
+      (
+        await panel
+          .locator('#hk-list .detail-open[data-detail-kind="task"]')
+          .evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.detailId ?? ''))
+      ).sort();
+    const picked = async (): Promise<string[]> => {
+      await panel.locator('#labels-btn').click();
+      const dialog = labelDialog(panel);
+      await expect(dialog.locator('[data-label-pick]').first()).toBeVisible();
+      const ids = await dialog
+        .locator('[data-label-pick]')
+        .evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.labelPick ?? ''));
+      await dialog.locator('[data-label-close]').click();
+      await expect(dialog).toHaveCount(0);
+      return ids.sort();
+    };
+    const all = await listed();
+    expect(all.length).toBeGreaterThan(1);
+    expect(await picked()).toEqual(all);
+
+    await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"]').click();
+    await expect.poll(async () => (await listed()).length).toBeLessThan(all.length);
+    const overdue = await listed();
+    expect(overdue.length).toBeGreaterThan(0);
+    expect(await picked()).toEqual(overdue);
+    await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
   });
 });

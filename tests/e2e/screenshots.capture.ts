@@ -222,6 +222,56 @@ async function fillText(scope: Locator, nth: number, value: string): Promise<voi
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
 }
 
+/** Choose the start of a PNG file in the Import and export card. It is not text. */
+async function pickBinaryFile(page: Page, panel: Locator): Promise<void> {
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    panel.locator('#transfer-pick').click(),
+  ]);
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
+  await chooser.setFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png });
+  await expect(panel.locator('.hk-transfer-error')).toContainText('not a text file');
+}
+
+/**
+ * Draw the report of an import that failed after its write (`partial: true`). The stub
+ * companion cannot fail on a real import only, so the shot sets the report that the
+ * backend sends. `transfer.test.js` and `test_transfer_companions.py` assert on it.
+ */
+async function showPartialImport(panel: Locator): Promise<void> {
+  await panel.evaluate((el) => {
+    const p = el as unknown as {
+      _transfer: Record<string, unknown>;
+      _render: () => void;
+    };
+    p._transfer.error = '';
+    p._transfer.report = {
+      ok: false,
+      dry_run: false,
+      partial: true,
+      counts: {
+        appliances: { created: 1, updated: 0 },
+        tasks: { created: 2, updated: 0 },
+        completions: 0,
+        skips: 0,
+      },
+      records: [],
+      problems: [
+        {
+          section: 'pawsistant',
+          index: null,
+          path: 'pawsistant',
+          message: 'the companion pawsistant failed: the database is locked',
+          severity: 'error',
+        },
+      ],
+      sections: { pawsistant: { ok: false } },
+    };
+    p._render();
+  });
+  await expect(panel.locator('.hk-transfer-report ha-alert[alert-type="warning"]')).toBeVisible();
+}
+
 /** Pick an option label from an HA ha-select (ha-dropdown) dropdown. */
 async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Promise<void> {
   await select.click();
@@ -2299,6 +2349,24 @@ test('capture Settings and the usage surfaces', async () => {
     .locator('#hk-transfer')
     .screenshot({ path: `${OUT}/60c-panel-transfer-too-large.png` });
 
+  // 60h. A chosen file that is not text and not a bundle. Its bytes stay out of the
+  // box, and the card says what to choose.
+  await pickBinaryFile(page, panel);
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60h-panel-transfer-binary.png` });
+
+  // 60j. A real import that failed after its write: part of the document is in.
+  await showPartialImport(panel);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60j-panel-transfer-partial.png` });
+  await panel.evaluate((el) => {
+    const p = el as unknown as { _transfer: Record<string, unknown>; _render: () => void };
+    p._transfer.report = null;
+    p._render();
+  });
+
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
   // to-do list this profile's tasks are synced onto ("Family chores", the seeded
   // local_todo list standing in for a Todoist project), plus what a change over there
@@ -2754,6 +2822,21 @@ test('capture the phone layout', async () => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 60i and 60k. The binary file refusal and the partial import on a phone.
+  await pickBinaryFile(page, panel);
+  await panel.locator('.hk-transfer-error').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60i-panel-mobile-transfer-binary.png` });
+  await showPartialImport(panel);
+  await panel.locator('.hk-transfer-report').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60k-panel-mobile-transfer-partial.png` });
+  await panel.evaluate((el) => {
+    const p = el as unknown as { _transfer: Record<string, unknown>; _render: () => void };
+    p._transfer.report = null;
+    p._render();
+  });
 
   // 60g. The empty box on a phone after a fresh load. The fresh load is the point:
   // the steps above opened other pages first, and those pages can load a lazy Home
