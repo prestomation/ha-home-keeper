@@ -28,6 +28,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   a profile filter that this Home Assistant does not have. The profile keeps the ids.
 - **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
   a form field passes 64 KB, and the panel shows the reason.
+- **One place chip on card rows.** If a task has a device, its card row shows the device
+  chip. Else the row shows the area chip.
 
 ### Fixed
 
