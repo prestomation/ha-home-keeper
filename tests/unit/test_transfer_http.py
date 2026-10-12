@@ -201,6 +201,23 @@ def test_a_text_field_at_its_limit_is_read(hass, monkeypatch):
     assert kind == "json" and report["dry_run"] is True
 
 
+def test_a_field_with_an_unknown_name_is_not_read(hass, monkeypatch):
+    monkeypatch.setattr(http, "MAX_UPLOAD_FIELD_BYTES", 16)
+    extra = [FakePart(f"x{i}", b"a" * 1000) for i in range(3)]
+    parts = [*extra, FakePart("dry_run", b"true"), FakePart("file", YAML, "e.yaml")]
+    kind, report = _run(
+        http.HomeKeeperImportUploadView().post(
+            FakeRequest(hass, user=user(), parts=parts)
+        )
+    )
+    assert kind == "json" and report["dry_run"] is True
+    assert [part.consumed for part in extra] == [0, 0, 0]
+
+
+def test_the_upload_reads_only_its_3_fields():
+    assert {"dry_run", "include_settings", "match"} == http._UPLOAD_FIELDS
+
+
 def test_the_field_limit_is_a_small_constant():
     assert http.MAX_UPLOAD_FIELD_BYTES == 64 * 1024
 

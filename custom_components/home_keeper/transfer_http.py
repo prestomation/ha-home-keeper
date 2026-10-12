@@ -40,6 +40,8 @@ _LOGGER = logging.getLogger(__name__)
 
 _CHUNK_BYTES = 256 * 1024
 _FLUSH_BYTES = 1024 * 1024
+# The text fields of an import upload. The view does not read any other field.
+_UPLOAD_FIELDS = frozenset({"dry_run", "include_settings", "match"})
 _TRUE = ("1", "true", "yes", "on")
 
 __all__ = [
@@ -223,7 +225,10 @@ class HomeKeeperImportUploadView(HomeAssistantView):
                     if not isinstance(part, BodyPartReader):
                         continue
                     if not part.filename:
-                        if part.name:
+                        # Only the known fields are read. ``reader.next()`` drains
+                        # any other field without keeping it, so many fields do not
+                        # fill the memory.
+                        if part.name in _UPLOAD_FIELDS:
                             fields[part.name] = await _read_field(part)
                         continue
                     if received:

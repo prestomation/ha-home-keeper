@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 85f7dc9071c8
+source_hash: 2025ed648b5b
 ---
 
 # Import and export
@@ -91,9 +91,9 @@ bytes it writes and stops above `MAX_BUNDLE_BYTES`. A zip that `zipfile` cannot 
 `BundleError`. `import_data` takes a bundle by its file name in `EXPORTS_SUBDIR`.
 `HomeKeeperImportUploadView` streams an upload to the run folder and stops with a 413 at once when a
 zip passes `MAX_BUNDLE_BYTES`, another file `MAX_IMPORT_BYTES`, or a text field
-`MAX_UPLOAD_FIELD_BYTES`. The panel uploads a zip or a YAML file over `MAX_IMPORT_WS_BYTES`
-(`transfer-view.fileRoute`), refuses a binary file (`transfer-view.decodeText`) and exports the
-checked rows (`transfer-view.exportInclude`).
+`MAX_UPLOAD_FIELD_BYTES`. It reads only the fields in `_UPLOAD_FIELDS`. The panel uploads a zip
+or a YAML file over `MAX_IMPORT_WS_BYTES` (`transfer-view.fileRoute`), refuses a binary file
+(`transfer-view.decodeText`) and exports the checked rows (`transfer-view.exportInclude`).
 
 ### Planning an import
 
