@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">731 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">729<span class="text"> run</span></button>
+            <span class="text">732 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">730<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">2<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">3<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_transfer_bundle_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 08:05 +0000
+            created at 2026-10-12 21:13 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -2470,16 +2470,18 @@
     <p class="pln"><span class="n"><a id="t2386" href="#t2386">2386</a></span><span class="t"><span class="str">    companion domain to its own report, as is. *problems* are the problems that the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t2387" href="#t2387">2387</a></span><span class="t"><span class="str">    Home Keeper plan did not find: the split, the settings, the files and the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t2388" href="#t2388">2388</a></span><span class="t"><span class="str">    companion problems from :func:`companion_problems`. ``ok`` is false if 1 problem</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t2389" href="#t2389">2389</a></span><span class="t"><span class="str">    of all of them is an error.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t2390" href="#t2390">2390</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t2391" href="#t2391">2391</a></span><span class="t">    <span class="nam">merged</span> <span class="op">=</span> <span class="nam">dict</span><span class="op">(</span><span class="nam">report</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t2392" href="#t2392">2392</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;problems&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t2393" href="#t2393">2393</a></span><span class="t">        <span class="op">*</span><span class="nam">report</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;problems&quot;</span><span class="op">,</span> <span class="op">[</span><span class="op">]</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t2394" href="#t2394">2394</a></span><span class="t">        <span class="op">*</span><span class="op">(</span><span class="nam">problem</span><span class="op">.</span><span class="nam">as_dict</span><span class="op">(</span><span class="op">)</span> <span class="key">for</span> <span class="nam">problem</span> <span class="key">in</span> <span class="nam">problems</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t2395" href="#t2395">2395</a></span><span class="t">    <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t2396" href="#t2396">2396</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;sections&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">dict</span><span class="op">(</span><span class="nam">sections</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t2397" href="#t2397">2397</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;ok&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="key">not</span> <span class="nam">any</span><span class="op">(</span><span class="nam">p</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;severity&quot;</span><span class="op">)</span> <span class="op">==</span> <span class="str">&quot;error&quot;</span> <span class="key">for</span> <span class="nam">p</span> <span class="key">in</span> <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;problems&quot;</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t2398" href="#t2398">2398</a></span><span class="t">    <span class="key">return</span> <span class="nam">merged</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t2389" href="#t2389">2389</a></span><span class="t"><span class="str">    of all of them is an error. ``partial`` is false: only the runner sets it, on an</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t2390" href="#t2390">2390</a></span><span class="t"><span class="str">    import that wrote data before an error.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t2391" href="#t2391">2391</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2392" href="#t2392">2392</a></span><span class="t">    <span class="nam">merged</span> <span class="op">=</span> <span class="nam">dict</span><span class="op">(</span><span class="nam">report</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2393" href="#t2393">2393</a></span><span class="t">    <span class="nam">merged</span><span class="op">.</span><span class="nam">setdefault</span><span class="op">(</span><span class="str">&quot;partial&quot;</span><span class="op">,</span> <span class="key">False</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2394" href="#t2394">2394</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;problems&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t2395" href="#t2395">2395</a></span><span class="t">        <span class="op">*</span><span class="nam">report</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;problems&quot;</span><span class="op">,</span> <span class="op">[</span><span class="op">]</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t2396" href="#t2396">2396</a></span><span class="t">        <span class="op">*</span><span class="op">(</span><span class="nam">problem</span><span class="op">.</span><span class="nam">as_dict</span><span class="op">(</span><span class="op">)</span> <span class="key">for</span> <span class="nam">problem</span> <span class="key">in</span> <span class="nam">problems</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t2397" href="#t2397">2397</a></span><span class="t">    <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2398" href="#t2398">2398</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;sections&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">dict</span><span class="op">(</span><span class="nam">sections</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2399" href="#t2399">2399</a></span><span class="t">    <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;ok&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="key">not</span> <span class="nam">any</span><span class="op">(</span><span class="nam">p</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;severity&quot;</span><span class="op">)</span> <span class="op">==</span> <span class="str">&quot;error&quot;</span> <span class="key">for</span> <span class="nam">p</span> <span class="key">in</span> <span class="nam">merged</span><span class="op">[</span><span class="str">&quot;problems&quot;</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2400" href="#t2400">2400</a></span><span class="t">    <span class="key">return</span> <span class="nam">merged</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -2489,7 +2491,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_transfer_bundle_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 08:05 +0000
+            created at 2026-10-12 21:13 +0000
         </p>
     </div>
 </footer>
