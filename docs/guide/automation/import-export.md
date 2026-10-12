@@ -176,7 +176,8 @@ an error, the import writes no record in any section. Home Keeper imports its ow
 records first, then each companion.
 
 A clean preview does not stop all failures. If a companion fails while it writes, its
-section gets an error in the report. The Home Keeper records stay written. Fix the
+section gets an error in the report. The Home Keeper records stay written, and the report
+has `partial: true`. The panel then says that part of the document was imported. Fix the
 cause and import the same file again. The import updates the records that are
 already there, so it makes no copies.
 
@@ -242,8 +243,13 @@ settings section that it skips.
 - A profile or a notification updates the one with the same id, then the one with the
   same name. Any other profile or notification is added. The import never deletes a
   profile or a notification.
+- A notification that names a profile follows that profile. This is also true when the
+  profile matches by name and keeps the id that it has on this install.
 - Home Keeper warns about a notify target or a to-do list that this Home Assistant
   does not have. Fix them in Settings after the import.
+- Home Keeper sends only to a mobile app or to a persistent notification. The import
+  leaves out each other notify target and warns about it.
+- An option value of the wrong type, such as text for a list, is left out with a warning.
 
 A YAML export holds the settings only if `include` names `settings`.
 
