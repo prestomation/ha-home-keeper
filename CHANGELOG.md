@@ -24,8 +24,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   and each moved task fires `home_keeper_task_updated`. An old device that still exists
   keeps its tasks.
 - **Option values in imports.** An import or a Settings save refuses an option value of
-  the wrong type, and the import report warns about each one. A list option given as text
-  is not split into single characters, and the report counts only the options that change.
+  the wrong type, such as text for a list, and the import report warns about each one.
+  The report counts only the options that change.
 - **Imported notification profiles.** An imported notification keeps its profile when the
   profile matches a profile with the same name on this install.
 - **Import report warnings.** The import report says that a notify target other than a
@@ -41,8 +41,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Binary file in import.** If you choose a file that is not text or a bundle, Settings →
   Import and export shows an error and keeps the text box empty.
 - **QR label print text.** A printed label and its PDF show only the text rows that fit, as
-  the PNG does, and the last row ends with "…" when text is left out. An emoji is not cut
-  in half, and the text follows the Home Assistant language and direction.
+  the PNG does, with "…" on the last row when text is left out. Emoji stay whole, and the
+  text follows the Home Assistant language and direction.
 - **QR label preview.** A long word in the label preview wraps inside the label box.
 - **QR label task list.** The task list for QR labels shows the same tasks as the task
   list, with its status filter and its profile.
