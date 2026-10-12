@@ -966,9 +966,12 @@ export async function exportData(
 /** An HTTP reply that is not a success, with the message of the backend if it sent one. */
 export class TransferHttpError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** True when *message* is the text of the backend, in the user's language. */
+  serverMessage: boolean;
+  constructor(message: string, status: number, serverMessage = false) {
     super(message);
     this.status = status;
+    this.serverMessage = serverMessage;
   }
 }
 
@@ -979,7 +982,7 @@ async function failure(res: Response): Promise<TransferHttpError> {
   } catch {
     /* not JSON: a proxy's error page */
   }
-  return new TransferHttpError(detail || `HTTP ${res.status}`, res.status);
+  return new TransferHttpError(detail || `HTTP ${res.status}`, res.status, !!detail);
 }
 
 /**

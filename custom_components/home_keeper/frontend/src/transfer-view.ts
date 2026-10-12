@@ -286,3 +286,37 @@ export function reportHasSettings(report: ImportReport | null): boolean {
     (SETTINGS_SECTIONS as readonly string[]).includes(sectionOf(p)),
   );
 }
+
+/** The alert of a report: its type and the key of its message. */
+export interface ReportVerdict {
+  type: 'success' | 'warning' | 'error';
+  key: string;
+}
+
+/**
+ * The alert above the preview table. A real import that failed after its write
+ * started (`partial`) keeps the data that it wrote, so it does not say that nothing
+ * was imported.
+ */
+export function reportVerdict(report: ImportReport): ReportVerdict {
+  if (report.ok) {
+    return { type: 'success', key: report.dry_run ? 'transfer.previewOk' : 'transfer.importOk' };
+  }
+  if (!report.dry_run && report.partial === true) {
+    return { type: 'warning', key: 'transfer.importPartial' };
+  }
+  return { type: 'error', key: 'transfer.previewFailed' };
+}
+
+/**
+ * The text of a chosen file, or `null` if it is not text. A file that is not UTF-8,
+ * or that holds a NUL byte, is binary. It does not go into the text box.
+ */
+export function decodeText(bytes: Uint8Array): string | null {
+  if (bytes.includes(0)) return null;
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}

@@ -352,6 +352,30 @@ describe('Settings — Import and export', () => {
     expect(panel._transfer.error).toBe('');
   });
 
+  it('says that a real import that failed after its write was partly imported', async () => {
+    const partial = {
+      ...OK_REPORT,
+      ok: false,
+      dry_run: false,
+      partial: true,
+      problems: [
+        { section: 'dogs', index: null, path: 'dogs', message: 'boom', severity: 'error' },
+      ],
+    };
+    const { hass, calls } = makeHass(partial);
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    const before = calls.filter((c) => c.type === 'home_keeper/get_tasks').length;
+    await panel._runImport();
+    const alert = panel.shadowRoot.querySelector('.hk-transfer-report ha-alert');
+    expect(alert.getAttribute('alert-type')).toBe('warning');
+    expect(alert.textContent).toContain('Part of the document was imported');
+    expect(alert.textContent).not.toContain('nothing was imported');
+    // The data that was written is new, so the panel reads it again.
+    const after = calls.filter((c) => c.type === 'home_keeper/get_tasks').length;
+    expect(after).toBeGreaterThan(before);
+  });
+
   it('shuts Import once the import has run, so it cannot be applied twice', async () => {
     // The report left behind by a finished import is not a preview. Pressing a still
     // lit Import ran the document a second time, and a document holding two records
@@ -445,9 +469,9 @@ describe('F03-4: the import file picker', () => {
     const big = {
       name: 'big.yaml',
       size: 8 * 1024 * 1024 + 1,
-      text: () => {
+      arrayBuffer: () => {
         read++;
-        return Promise.resolve('x');
+        return Promise.resolve(new TextEncoder().encode('x').buffer);
       },
     };
     await pick(panel, big);
@@ -514,11 +538,33 @@ describe('F03-4: the import file picker', () => {
     await pick(panel, {
       name: 'gone.yaml',
       size: 10,
-      text: () => Promise.reject(new Error('The file is gone')),
+      arrayBuffer: () => Promise.reject(new Error('The file is gone')),
     });
     expect(panel._transfer.error).toBe('The panel cannot read the file: The file is gone');
     expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
       'The panel cannot read the file',
+    );
+  });
+
+  it('refuses a binary file and keeps its bytes out of the text box', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+    await pick(panel, {
+      name: 'photo.png',
+      type: 'image/png',
+      size: png.length,
+      text: () => Promise.resolve(new TextDecoder().decode(png)),
+      arrayBuffer: () => Promise.resolve(png.buffer),
+    });
+    expect(panel._transfer.text).toBe('');
+    expect(panel._transfer.file).toBe(null);
+    expect(panel._transfer.error).toBe(
+      'This file is not a text file or a bundle. Choose a YAML file or a .zip bundle.',
+    );
+    expect(panel.shadowRoot.querySelector('#transfer-text').value).toBe('');
+    expect(panel.shadowRoot.querySelector('.hk-transfer-error').textContent).toContain(
+      'not a text file',
     );
   });
 });
@@ -747,6 +793,28 @@ describe('Import and export: the bundle download', () => {
     expect(saved).toEqual([]);
     expect(panel._transfer.exported).toBe('');
     expect(panel._transfer.exporting).toBe(false);
+  });
+
+  it('shows the message of the server when the export is refused', async () => {
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    stubFetch([fakeResponse(400, { body: { message: 'The bundle is too large.' } })]);
+    panel._downloadBlob = () => {};
+    await panel._exportBundle();
+    expect(toasts).toEqual(['The bundle is too large.']);
+  });
+
+  it('shows the generic text when the server sends no message', async () => {
+    const { hass } = makeCompanionHass();
+    const panel = await mount(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    stubFetch([fakeResponse(500)]);
+    panel._downloadBlob = () => {};
+    await panel._exportBundle();
+    expect(toasts).toEqual(['The export failed']);
   });
 });
 

@@ -874,6 +874,8 @@ export interface ImportRecord {
 export interface ImportReport {
   ok: boolean;
   dry_run: boolean;
+  /** True when a real import failed after it wrote data. The data stays. */
+  partial?: boolean;
   counts: {
     completions: number;
     skips: number;

@@ -1,6 +1,7 @@
 import {
   emptyLabelDialog,
   renderLabelDialog,
+  wireLabelButton,
   type LabelDialogState,
 } from './panel-labels';
 import { PANEL_VERSION } from 'panel-version';
@@ -1834,7 +1835,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._transfer.exported = exportedLine(exportedSources(sources, include, null), []);
     } catch (err) {
       console.error('home-keeper: bundle export failed', err);
-      toast(this, t('error.exportFailed'));
+      // The export view answers a refusal with a message in the user's language.
+      // Show it, as the import does. Any other failure gets the generic text.
+      const failure = err as { serverMessage?: boolean; message?: string } | null;
+      toast(this, failure?.serverMessage ? String(failure.message) : t('error.exportFailed'));
     } finally {
       this._transfer.exporting = false;
       this._render();
@@ -1849,7 +1853,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Apply the document the preview approved. */
   async _runImport(): Promise<void> {
     await this._transferCall(false);
-    if (this._transfer.report?.ok && !this._transfer.report.dry_run) {
+    const report = this._transfer.report;
+    // A partial import also wrote data, so it also needs the new lists.
+    if (report && !report.dry_run && (report.ok || report.partial === true)) {
       // An import rewrites tasks and appliances wholesale, so re-read rather than
       // patching: the panel's copy of both lists is now the stale one. `_reload` is
       // the right door because the import triggers a config-entry reload on its way
@@ -2507,6 +2513,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // intro dismiss and the "+n" chip unfold). Both wire disjoint selectors, none of
     // which the settings forms below emit, so the two passes sit together here.
     wireControls(this, root);
+    wireLabelButton(this, root);
     wireLists(this, root);
 
     // The Settings tab: its four hosts built into, the card the URL names marked,

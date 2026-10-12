@@ -17,11 +17,13 @@ import {
   fileLimitMb,
   fileRoute,
   isBundleFile,
+  decodeText,
   isPicked,
   missingCompanions,
   otherProblems,
   reportHasSettings,
   reportRows,
+  reportVerdict,
   sumCounts,
   transferCompanions,
 } from '../src/transfer-view.ts';
@@ -389,5 +391,45 @@ describe('reportHasSettings', () => {
     expect(reportHasSettings(report({ problems: [{ ...problem('x'), section: undefined }] }))).toBe(
       false,
     );
+  });
+});
+
+describe('reportVerdict', () => {
+  const report = (ok, dry_run, partial) => ({ ok, dry_run, partial, counts: {}, records: [], problems: [] });
+
+  it('names the result of a preview and of an import', () => {
+    expect(reportVerdict(report(true, true, false))).toEqual({ type: 'success', key: 'transfer.previewOk' });
+    expect(reportVerdict(report(true, false, false))).toEqual({ type: 'success', key: 'transfer.importOk' });
+    expect(reportVerdict(report(false, true, false))).toEqual({ type: 'error', key: 'transfer.previewFailed' });
+    expect(reportVerdict(report(false, false, false))).toEqual({ type: 'error', key: 'transfer.previewFailed' });
+  });
+
+  it('says that an import that failed after its write was partly imported', () => {
+    expect(reportVerdict(report(false, false, true))).toEqual({
+      type: 'warning',
+      key: 'transfer.importPartial',
+    });
+    // An older backend sends no `partial`.
+    expect(reportVerdict({ ...report(false, false, true), partial: undefined }).key).toBe(
+      'transfer.previewFailed',
+    );
+  });
+});
+
+describe('decodeText', () => {
+  const bytes = (...values) => new Uint8Array(values);
+  const utf8 = (text) => new TextEncoder().encode(text);
+
+  it('reads UTF-8 text, a byte order mark and an empty file', () => {
+    expect(decodeText(utf8('tasks: []\nname: Café ☕\n'))).toBe('tasks: []\nname: Café ☕\n');
+    expect(decodeText(bytes(0xef, 0xbb, 0xbf, 0x61))).toBe('a');
+    expect(decodeText(bytes())).toBe('');
+  });
+
+  it('refuses a binary file', () => {
+    // The start of a PNG file: 0x89 is not UTF-8.
+    expect(decodeText(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBeNull();
+    // Valid UTF-8 with a NUL byte is not text either.
+    expect(decodeText(bytes(0x61, 0x00, 0x62))).toBeNull();
   });
 });

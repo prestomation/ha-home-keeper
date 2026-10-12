@@ -51,6 +51,7 @@ import { t, tlist, tn } from './i18n';
 import {
   type ExportSource,
   type ReportRow,
+  decodeText,
   exportInclude,
   exportSources,
   fileLimitMb,
@@ -58,6 +59,7 @@ import {
   isPicked,
   otherProblems,
   reportRows,
+  reportVerdict,
 } from './transfer-view';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
@@ -2322,6 +2324,7 @@ function reportBlock(report: ImportReport | null, companions: Companion[]): stri
   if (!report) return '';
   const rows = reportRows(report, companions);
   const other = otherProblems(report, rows);
+  const verdict = reportVerdict(report);
   const body = rows
     .map(
       (row) =>
@@ -2334,16 +2337,8 @@ function reportBlock(report: ImportReport | null, companions: Companion[]): stri
     .join('');
   return [
     `<div class="hk-transfer-report">`,
-    `<ha-alert alert-type="${report.ok ? 'success' : 'error'}">`,
-    escapeHTML(
-      t(
-        report.ok
-          ? report.dry_run
-            ? 'transfer.previewOk'
-            : 'transfer.importOk'
-          : 'transfer.previewFailed',
-      ),
-    ),
+    `<ha-alert alert-type="${verdict.type}">`,
+    escapeHTML(t(verdict.key)),
     `</ha-alert>`,
     `<div class="hk-transfer-table"><table class="hk-transfer-counts">`,
     `<thead><tr><th scope="col">${escapeHTML(t('transfer.col.part'))}</th>`,
@@ -2462,8 +2457,15 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       p._render();
       return;
     }
-    file.text().then(
-      (contents) => {
+    file.arrayBuffer().then(
+      (buffer) => {
+        const contents = decodeText(new Uint8Array(buffer));
+        if (contents === null) {
+          // A binary file that is not a bundle. Its bytes do not go into the box.
+          state.error = t('transfer.notText');
+          p._render();
+          return;
+        }
         state.file = null;
         state.text = contents;
         state.filename = file.name;
