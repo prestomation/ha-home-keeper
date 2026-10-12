@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **[Tasks of disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  A declarative companion task with no history now goes away when you disable its
+  entity. Enable the entity to get the task back. (Fixes #454)
+
 ## [0.31.0b4]
 
 ### Added
@@ -37,9 +45,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   on Home Assistant before 2026.2.
 - **Paste box.** The text box on Settings → Import and export now shows the first time you
   open the panel.
-- **[Tasks of disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
-  A declarative companion task with no history now goes away when you disable its
-  entity. Enable the entity to get the task back. (Fixes #454)
 - **Tasks after device change.** When Home Assistant makes a new device for an appliance,
   the tasks, related devices and device filters on the old device move to the new one,
   and each moved task fires `home_keeper_task_updated`. An old device that still exists
