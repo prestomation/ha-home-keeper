@@ -17,6 +17,10 @@
  *  79o/79p. The task picker with the Overdue filter on, desktop and phone.
  *  79q/79r. The preview of an appliance with a long unbroken make, desktop and phone.
  *  79s. 2 pages of the 30 × 15 mm roll print: the rows that fit, and "…".
+ *  79t/79u. A 24 × 24 mm roll with Below the code, the base address note and its HTTPS
+ *       warning, desktop and phone.
+ *  79v. That 24 × 24 mm label as the print holds it.
+ *  79w/79x. The warning in a Home Assistant app, desktop and phone.
  *
  * The desktop dialog shots use a taller window, so the whole checklist is in frame.
  *
@@ -301,4 +305,91 @@ test('capture QR code labels', async ({ page, context }) => {
   await taskShot(page, '79i-panel-mobile-qr-label-task');
   await rollShot(page, '79n-panel-mobile-qr-label-roll');
   await page.setViewportSize(DESKTOP);
+});
+
+/** The appliance dialog with a 24 × 24 mm roll and the text below the code. */
+async function squareShot(page: Page, name: string): Promise<string> {
+  await openPanel(page);
+  const panel = page.locator('home-keeper-panel').first();
+  const dialog = labelDialog(panel);
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'home-keeper.labels',
+      JSON.stringify({ paper: 'roll_custom', customW: 24, customH: 24, textPos: 'below' }),
+    );
+    const w = window as unknown as { __hkPrints: string[] };
+    w.__hkPrints = [];
+    new MutationObserver((records) => {
+      for (const r of records) {
+        r.addedNodes.forEach((node) => {
+          if (node instanceof HTMLIFrameElement && node.id === 'hk-label-print') {
+            w.__hkPrints.push(node.srcdoc);
+          }
+        });
+      }
+    }).observe(document.body, { childList: true });
+  });
+  await expect(async () => {
+    if (!(await panel.locator('.d-label').isVisible())) {
+      await openAppliance(page, ASSET.waterHeater);
+    }
+    await panel.locator('.d-label').click({ timeout: 5_000 });
+    await expect(dialog.locator('[data-label-preview]')).toHaveAttribute('data-fit', 'below', {
+      timeout: 5_000,
+    });
+    await settled(page, dialog);
+    await dialog.locator('[data-label-text-pos]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${OUT}/${name}.png` });
+  }).toPass({ timeout: 45_000 });
+  await dialog.locator('[data-label-print]').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __hkPrints: string[] }).__hkPrints.length))
+    .toBe(1);
+  const html = await page.evaluate(() => (window as unknown as { __hkPrints: string[] }).__hkPrints[0]);
+  await closeDialog(page);
+  await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
+  return html;
+}
+
+test('capture the label text position and the base address', async ({ page, context }) => {
+  await page.setViewportSize({ width: DESKTOP.width, height: 900 });
+  const square = await squareShot(page, '79t-panel-qr-label-square');
+  // 79v. The 24 × 24 mm label at 8 times its print size.
+  const squarePage = await context.newPage();
+  await squarePage.setViewportSize({ width: 760, height: 760 });
+  await squarePage.setContent(square);
+  await squarePage.addStyleTag({ content: 'body{zoom:8;background:#ddd;padding:1px}.page{background:#fff}' });
+  await expect(squarePage.locator('.text.below')).toBeVisible();
+  await squarePage.locator('.page').first().screenshot({ path: `${OUT}/79v-panel-qr-label-square-page.png` });
+  await squarePage.close();
+  await page.setViewportSize(PHONE);
+  await squareShot(page, '79u-panel-mobile-qr-label-square');
+  await page.setViewportSize(DESKTOP);
+});
+
+test.describe('in a Home Assistant app', () => {
+  test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Home Assistant/2025.4.1' });
+
+  test('capture the app warning', async ({ page }) => {
+    for (const [size, name] of [
+      [{ width: DESKTOP.width, height: 900 }, '79w-panel-qr-label-app'],
+      [PHONE, '79x-panel-mobile-qr-label-app'],
+    ] as const) {
+      await page.setViewportSize(size);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      const dialog = labelDialog(panel);
+      await expect(async () => {
+        if (!(await panel.locator('.d-label').isVisible())) {
+          await openAppliance(page, ASSET.waterHeater);
+        }
+        await panel.locator('.d-label').click({ timeout: 5_000 });
+        await expect(dialog.locator('[data-label-app-warning]')).toBeVisible({ timeout: 5_000 });
+        await settled(page, dialog);
+        await dialog.locator('[data-label-app-warning]').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${OUT}/${name}.png` });
+      }).toPass({ timeout: 45_000 });
+      await closeDialog(page);
+    }
+  });
 });

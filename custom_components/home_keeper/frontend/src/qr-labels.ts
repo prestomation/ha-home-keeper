@@ -143,19 +143,68 @@ export function defaultPaper(country: string | null | undefined): SheetPaper {
   return country && LETTER_COUNTRIES.has(country.toUpperCase()) ? 'letter30' : 'a4_21';
 }
 
+/** Where the base address of a code comes from. */
+export type LabelBaseSource = 'external' | 'internal' | 'browser';
+
+/** The base address of a code, where it comes from, and if it uses HTTPS. */
+export interface LabelBase {
+  url: string;
+  source: LabelBaseSource;
+  secure: boolean;
+}
+
+/** True when `url` starts with the `https:` scheme, in any case. */
+function isHttps(url: string): boolean {
+  return /^https:/i.test(url);
+}
+
 /**
  * The address a printed code starts with.
  *
  * A label outlives the browser tab that printed it, so the code prefers the address
- * Home Assistant is set to be reached at: the external URL, then the internal URL.
- * Only an instance with neither falls back to the address this browser uses now.
+ * Home Assistant is set to be reached at: the external URL first. With no external URL,
+ * the internal URL and the address of this browser compete: the one that uses HTTPS
+ * wins, because an HTTPS address (such as Home Assistant Cloud) also opens away from
+ * home. If both or neither use HTTPS, the internal URL wins. An instance with no URL
+ * uses the browser address.
  */
+export function labelBase(
+  config: { external_url?: string | null; internal_url?: string | null } | undefined,
+  origin: string,
+): LabelBase {
+  const external = config?.external_url || '';
+  const internal = config?.internal_url || '';
+  let url = origin;
+  let source: LabelBaseSource = 'browser';
+  if (external) {
+    url = external;
+    source = 'external';
+  } else if (internal && (isHttps(internal) || !isHttps(origin))) {
+    url = internal;
+    source = 'internal';
+  }
+  return { url: url.replace(/\/+$/, ''), source, secure: isHttps(url) };
+}
+
+/** The base address of a code (`labelBase`), with no trailing slash. */
 export function labelBaseUrl(
   config: { external_url?: string | null; internal_url?: string | null } | undefined,
   origin: string,
 ): string {
-  const base = config?.external_url || config?.internal_url || origin;
-  return base.replace(/\/+$/, '');
+  return labelBase(config, origin).url;
+}
+
+/**
+ * True when the panel runs in a Home Assistant companion app. Home Assistant sets
+ * `hass.auth.external` only in the apps, and the user agent of the iOS and the Android
+ * app holds `Home Assistant/<version>`. The web view of an app can ignore a print
+ * call or a file download.
+ */
+export function isCompanionApp(
+  hass: { auth?: { external?: unknown } } | undefined,
+  userAgent: string,
+): boolean {
+  return Boolean(hass?.auth?.external) || userAgent.includes('Home Assistant/');
 }
 
 /** The whole link in a code: the base address and the panel path (`p._hrefFor`). */
@@ -178,6 +227,13 @@ export function labelLines(src: LabelSource, chosen: readonly LabelLine[]): stri
     .filter((text) => text !== '');
 }
 
+/**
+ * Where the text goes on a roll label. `auto` puts it beside the code on a wide label
+ * and below the code on a tall label. `side` and `below` force 1 layout.
+ */
+export const LABEL_TEXT_POSITIONS = ['auto', 'side', 'below'] as const;
+export type LabelTextPos = (typeof LABEL_TEXT_POSITIONS)[number];
+
 /** The saved choices of the label dialog. */
 export interface LabelOpts {
   paper: LabelPaper;
@@ -189,6 +245,8 @@ export interface LabelOpts {
   dpi: LabelDpi;
   /** Turn a roll label 90° clockwise, for a printer that feeds the roll the short way. */
   rotate: boolean;
+  /** Where the text goes on a roll label and in a PNG. */
+  textPos: LabelTextPos;
 }
 
 /** The defaults of the label dialog, with the first paper from the HA country. */
@@ -200,6 +258,7 @@ export function defaultLabelOpts(fallbackPaper: LabelPaper): LabelOpts {
     customH: CUSTOM_DEFAULT.h,
     dpi: 203,
     rotate: false,
+    textPos: 'auto',
   };
 }
 
@@ -234,6 +293,9 @@ export function parseLabelOpts(raw: string | null, fallbackPaper: LabelPaper): L
     customH: mm(obj.customH, dflt.customH),
     dpi: LABEL_DPIS.includes(obj.dpi as LabelDpi) ? (obj.dpi as LabelDpi) : dflt.dpi,
     rotate: obj.rotate === true,
+    textPos: LABEL_TEXT_POSITIONS.includes(obj.textPos as LabelTextPos)
+      ? (obj.textPos as LabelTextPos)
+      : dflt.textPos,
   };
 }
 
@@ -398,14 +460,21 @@ export const FIT_TEXT_MIN_H = 6;
 export const FIT_QR_MIN = 8;
 
 /**
- * Fit the code and the text on a label of `w` × `h` mm. A wide label puts the text right
- * of the code and a tall label puts it below. When the text box would be too small, or
- * the code too small next to it, or there is no text, the label holds only the code.
+ * Fit the code and the text on a label of `w` × `h` mm. With `pos` `auto`, a wide label
+ * puts the text right of the code and a tall label puts it below. `side` and `below`
+ * force that layout. When the text box would be too small, or the code too small next
+ * to it, or there is no text, the label holds only the code.
  */
-export function fitLabel(w: number, h: number, hasText: boolean): LabelFit {
+export function fitLabel(
+  w: number,
+  h: number,
+  hasText: boolean,
+  pos: LabelTextPos = 'auto',
+): LabelFit {
   const innerW = Math.max(w - FIT_PAD * 2, 0);
   const innerH = Math.max(h - FIT_PAD * 2, 0);
-  if (hasText && w >= h) {
+  const side = pos === 'side' || (pos === 'auto' && w >= h);
+  if (hasText && side) {
     const qr = Math.min(innerH, innerW - FIT_GAP - FIT_TEXT_MIN_W);
     if (qr >= FIT_QR_MIN) {
       return {
@@ -420,7 +489,7 @@ export function fitLabel(w: number, h: number, hasText: boolean): LabelFit {
       };
     }
   }
-  if (hasText && h > w) {
+  if (hasText && !side) {
     const qr = Math.min(innerW, innerH - FIT_GAP - FIT_TEXT_MIN_H);
     if (qr >= FIT_QR_MIN) {
       return {
@@ -446,6 +515,24 @@ export function fitLabel(w: number, h: number, hasText: boolean): LabelFit {
     textW: 0,
     textH: 0,
   };
+}
+
+/**
+ * The text position that applies to `opts`. A roll uses the saved choice. A sheet keeps
+ * its fixed layout, so its PNG uses `auto`.
+ */
+export function textPosFor(opts: LabelOpts): LabelTextPos {
+  return isRoll(opts.paper) ? opts.textPos : 'auto';
+}
+
+/**
+ * The layout of 1 label of `opts`, for the preview in the dialog. A roll uses
+ * `fitLabel`. A sheet puts the text right of the code.
+ */
+export function labelFitMode(opts: LabelOpts, hasText: boolean): LabelFitMode {
+  if (!isRoll(opts.paper)) return hasText ? 'side' : 'code';
+  const { w, h } = labelSizeMm(opts);
+  return fitLabel(w, h, hasText, opts.textPos).mode;
 }
 
 /** The text sizes of a label, in pt, and the line heights, as on the sheets. */
@@ -673,7 +760,7 @@ export function rollSheetHtml(
   const pageW = cssNum(rotate ? h : w);
   const pageH = cssNum(rotate ? w : h);
   const pages = labels.map((label) => {
-    const fit = fitLabel(w, h, label.lines.length > 0);
+    const fit = fitLabel(w, h, label.lines.length > 0, opts.textPos);
     const text =
       fit.mode === 'code'
         ? ''

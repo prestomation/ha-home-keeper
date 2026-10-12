@@ -20,6 +20,7 @@ import {
   CUSTOM_MAX_MM,
   CUSTOM_MIN_MM,
   LABEL_PAPERS,
+  LABEL_TEXT_POSITIONS,
   QR_BORDER,
   ROLL_SIZES,
   clampMm,
@@ -27,8 +28,10 @@ import {
   defaultPaper,
   dotsPerMm,
   fitLabel,
+  isCompanionApp,
   isRoll,
-  labelBaseUrl,
+  labelBase,
+  labelFitMode,
   labelFileName,
   labelLines,
   labelPrintHtml,
@@ -41,10 +44,13 @@ import {
   qrModules,
   qrPixelPlan,
   qrSvg,
+  textPosFor,
+  type LabelBaseSource,
   type LabelLine,
   type LabelOpts,
   type LabelPaper,
   type LabelSource,
+  type LabelTextPos,
   type PrintDoc,
   type PrintLabel,
 } from './qr-labels';
@@ -198,14 +204,31 @@ function printTargets(p: PanelHost): LabelTarget[] {
   return out;
 }
 
+/** The base address of every code: an HA URL or the address of this browser. */
+function baseOf(p: PanelHost): ReturnType<typeof labelBase> {
+  return labelBase(p._hass?.config, window.location.origin);
+}
+
 /** The link a code holds for 1 object: the HA address and the panel path. */
 function targetUrl(p: PanelHost, kind: LabelKind, id: string): string {
   const href = p._hrefFor({
     view: kind === 'asset' ? 'appliances' : 'tasks',
     detail: { kind, id },
   });
-  return labelUrl(labelBaseUrl(p._hass?.config, window.location.origin), href);
+  return labelUrl(baseOf(p).url, href);
 }
+
+const BASE_KEYS: Record<LabelBaseSource, string> = {
+  external: 'labels.baseExternal',
+  internal: 'labels.baseInternal',
+  browser: 'labels.baseBrowser',
+};
+
+const TEXT_POS_KEYS: Record<LabelTextPos, string> = {
+  auto: 'labels.textPos.auto',
+  side: 'labels.textPos.side',
+  below: 'labels.textPos.below',
+};
 
 /** The number of distinct tasks the picked appliances have. */
 function taskCount(p: PanelHost): number {
@@ -302,7 +325,7 @@ async function downloadLabelPng(
       ctx.translate(width, 0);
       ctx.rotate(Math.PI / 2);
     }
-    const fit = fitLabel(size.w, size.h, label.lines.length > 0);
+    const fit = fitLabel(size.w, size.h, label.lines.length > 0, textPosFor(opts));
     const mods = qrModules(label.url);
     const plan = qrPixelPlan(fit.qr, mods.length + QR_BORDER * 2, dpmm);
     const x0 = Math.round(fit.qrX * dpmm) + plan.offset + QR_BORDER * plan.module;
@@ -384,6 +407,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   const parts: string[] = [];
   if (oneTarget) {
     const url = targetUrl(p, oneTarget.kind, oneTarget.id);
+    const base = baseOf(p);
     parts.push(`
       <div class="hk-label-preview" data-label-preview>
         <div class="hk-label-qr">${qrSvg(url)}</div>
@@ -395,7 +419,15 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
           <input class="hk-label-link" data-label-link readonly value="${escapeHTML(url)}">
           <ha-button ${btnAttrs('secondary')} data-label-copy>${escapeHTML(t('labels.copy'))}</ha-button>
         </span>
-      </label>`);
+      </label>
+      <p class="hk-label-hint" data-label-base="${base.source}">${escapeHTML(t(BASE_KEYS[base.source]))}</p>
+      ${
+        base.secure
+          ? ''
+          : `<ha-alert alert-type="warning" data-label-not-https>${escapeHTML(
+              t('labels.baseNotHttps'),
+            )}</ha-alert>`
+      }`);
   } else {
     const names = s.ids.map((id) => {
       if (s.kind === 'asset') {
@@ -449,6 +481,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
         t('labels.dpiOption', { dpi, dots: Math.round(dotsPerMm(dpi)) }),
       )}</option>`,
   ).join('');
+  const textPosOpts = LABEL_TEXT_POSITIONS.map(
+    (pos) =>
+      `<option value="${pos}"${pos === opts.textPos ? ' selected' : ''}>${escapeHTML(
+        t(TEXT_POS_KEYS[pos]),
+      )}</option>`,
+  ).join('');
   const lineBoxes = LABEL_LINES.map(
     (line) => `
       <label class="hk-label-check">
@@ -476,6 +514,10 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
         <input type="number" min="${CUSTOM_MIN_MM}" max="${CUSTOM_MAX_MM}" step="0.1"
           inputmode="decimal" data-label-custom-h value="${opts.customH}">
       </label>
+      <label class="hk-label-field" data-label-text-pos-field>
+        <span>${escapeHTML(t('labels.textPosition'))}</span>
+        <select data-label-text-pos>${textPosOpts}</select>
+      </label>
       ${
         oneTarget
           ? `<label class="hk-label-field">
@@ -493,7 +535,14 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
       <legend class="hk-eyebrow">${escapeHTML(t('labels.lines'))}</legend>
       ${lineBoxes}
     </fieldset>
-    <p class="hk-label-hint" data-label-hint></p>`);
+    <p class="hk-label-hint" data-label-hint></p>
+    ${
+      isCompanionApp(p._hass, navigator.userAgent)
+        ? `<ha-alert alert-type="warning" data-label-app-warning>${escapeHTML(
+            t(oneTarget ? 'labels.appWarning' : 'labels.appWarningList'),
+          )}</ha-alert>`
+        : ''
+    }`);
   body.innerHTML = parts.join('');
 
   const print = document.createElement('ha-button');
@@ -517,9 +566,14 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     show('[data-label-skip-field]', !roll);
     show('[data-label-custom-field]', now.paper === 'roll_custom');
     show('[data-label-rotate-field]', roll);
+    show('[data-label-text-pos-field]', roll);
     const hint = body.querySelector<HTMLElement>('[data-label-hint]');
     if (hint) hint.textContent = t(roll ? 'labels.printHintRoll' : 'labels.printHint');
     const text = body.querySelector<HTMLElement>('[data-label-text]');
+    const preview = body.querySelector<HTMLElement>('[data-label-preview]');
+    if (preview && oneTarget) {
+      preview.dataset.fit = labelFitMode(now, labelLines(oneTarget.src, now.lines).length > 0);
+    }
     if (text && oneTarget) {
       text.innerHTML = labelLines(oneTarget.src, now.lines)
         .map((line, i) => `<div class="${i === 0 ? 'hk-label-l1' : ''}">${escapeHTML(line)}</div>`)
@@ -574,6 +628,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   customInput('[data-label-custom-h]', 'customH');
   body.querySelector<HTMLInputElement>('[data-label-rotate]')?.addEventListener('change', (e) => {
     saveOpts({ ...readOpts(p), rotate: (e.target as HTMLInputElement).checked });
+  });
+  body.querySelector<HTMLSelectElement>('[data-label-text-pos]')?.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    const now = readOpts(p);
+    saveOpts({ ...now, textPos: LABEL_TEXT_POSITIONS.find((pos) => pos === value) ?? now.textPos });
+    sync();
   });
   body.querySelector<HTMLSelectElement>('[data-label-dpi]')?.addEventListener('change', (e) => {
     const dpi = Number((e.target as HTMLSelectElement).value);

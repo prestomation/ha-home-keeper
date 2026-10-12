@@ -313,6 +313,9 @@ export interface Hass {
     accessToken?: string;
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
+    // The bridge to a Home Assistant companion app. Home Assistant sets it only in
+    // the iOS and the Android app (`qr-labels.isCompanionApp`).
+    external?: unknown;
   };
   // The signed-in user. The card reads `is_admin`: Home Assistant refuses a
   // non-admin subscription to a custom event and logs an error for each refusal.

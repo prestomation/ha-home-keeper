@@ -32,8 +32,13 @@ import {
   wrapText,
   cssNum,
   defaultPaper,
+  labelBase,
   labelBaseUrl,
   labelFileName,
+  labelFitMode,
+  LABEL_TEXT_POSITIONS,
+  isCompanionApp,
+  textPosFor,
   labelLines,
   labelSheetHtml,
   labelSlot,
@@ -186,6 +191,7 @@ describe('parseLabelOpts', () => {
       customH: 30,
       dpi: 203,
       rotate: false,
+      textPos: 'auto',
     };
     expect(parseLabelOpts(null, 'a4_21')).toEqual(dflt);
     expect(parseLabelOpts('', 'a4_21')).toEqual(dflt);
@@ -211,6 +217,7 @@ describe('parseLabelOpts', () => {
       customH: 29,
       dpi: 300,
       rotate: true,
+      textPos: 'auto',
     });
   });
 
@@ -838,5 +845,166 @@ describe('textChars', () => {
     } finally {
       Intl.Segmenter = saved;
     }
+  });
+});
+
+describe('labelBase: prefer HTTPS', () => {
+  const ext = { external_url: 'https://ext.example.com', internal_url: 'http://192.168.1.2:8123' };
+
+  it('names the external URL when it is set', () => {
+    expect(labelBase(ext, 'https://abc.ui.nabu.casa')).toEqual({
+      url: 'https://ext.example.com',
+      source: 'external',
+      secure: true,
+    });
+    expect(labelBase({ external_url: 'http://ext.example.com' }, 'https://b').source).toBe(
+      'external',
+    );
+    expect(labelBase({ external_url: 'http://ext.example.com' }, 'https://b').secure).toBe(false);
+  });
+
+  it('prefers an HTTPS browser address to an HTTP internal URL', () => {
+    expect(
+      labelBase({ external_url: null, internal_url: 'http://192.168.1.2:8123' }, 'https://abc.ui.nabu.casa'),
+    ).toEqual({ url: 'https://abc.ui.nabu.casa', source: 'browser', secure: true });
+    expect(
+      labelBaseUrl({ internal_url: 'http://ha.local:8123' }, 'HTTPS://abc.ui.nabu.casa'),
+    ).toBe('HTTPS://abc.ui.nabu.casa');
+  });
+
+  it('prefers an HTTPS internal URL to an HTTP browser address', () => {
+    expect(labelBase({ internal_url: 'https://ha.lan:8123/' }, 'http://192.168.1.2:8123')).toEqual({
+      url: 'https://ha.lan:8123',
+      source: 'internal',
+      secure: true,
+    });
+  });
+
+  it('keeps the internal URL first when both or neither use HTTPS', () => {
+    expect(labelBase({ internal_url: 'https://a.lan' }, 'https://b.example.com')).toEqual({
+      url: 'https://a.lan',
+      source: 'internal',
+      secure: true,
+    });
+    expect(labelBase({ internal_url: 'http://a.lan' }, 'http://b.lan')).toEqual({
+      url: 'http://a.lan',
+      source: 'internal',
+      secure: false,
+    });
+  });
+
+  it('uses the browser address when no URL is set', () => {
+    expect(labelBase({}, 'http://localhost:8123')).toEqual({
+      url: 'http://localhost:8123',
+      source: 'browser',
+      secure: false,
+    });
+    expect(labelBase(undefined, 'https://x.example.com').source).toBe('browser');
+  });
+
+  it('reads only the scheme as HTTPS, not a host name that holds "https"', () => {
+    expect(labelBase({ internal_url: 'http://https.lan' }, 'https://b').source).toBe('browser');
+    expect(labelBase({ internal_url: 'https://a' }, 'http://https.lan').source).toBe('internal');
+  });
+});
+
+describe('isCompanionApp', () => {
+  const BROWSER = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
+
+  it('is true when Home Assistant gives the app bridge in hass.auth.external', () => {
+    expect(isCompanionApp({ auth: { external: {} } }, BROWSER)).toBe(true);
+  });
+
+  it('is true for the user agent of the iOS and the Android app', () => {
+    expect(
+      isCompanionApp({}, 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Home Assistant/2025.4 (io.robbie.HomeAssistant)'),
+    ).toBe(true);
+    expect(
+      isCompanionApp(undefined, 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Home Assistant/2025.4.1-1234'),
+    ).toBe(true);
+  });
+
+  it('is false in a browser', () => {
+    expect(isCompanionApp({ auth: {} }, BROWSER)).toBe(false);
+    expect(isCompanionApp({ auth: { external: undefined } }, BROWSER)).toBe(false);
+    expect(isCompanionApp(undefined, '')).toBe(false);
+    expect(isCompanionApp({}, 'Home Assistant')).toBe(false);
+  });
+});
+
+describe('text position', () => {
+  it('lists auto first, then beside and below', () => {
+    expect(LABEL_TEXT_POSITIONS).toEqual(['auto', 'side', 'below']);
+    expect(defaultLabelOpts('a4_21').textPos).toBe('auto');
+  });
+
+  it('reads a known position and an unknown one as auto', () => {
+    expect(parseLabelOpts('{"textPos":"below"}', 'a4_21').textPos).toBe('below');
+    expect(parseLabelOpts('{"textPos":"side"}', 'a4_21').textPos).toBe('side');
+    expect(parseLabelOpts('{"textPos":"above"}', 'a4_21').textPos).toBe('auto');
+    expect(parseLabelOpts('{"textPos":1}', 'a4_21').textPos).toBe('auto');
+  });
+
+  it('puts text below the code on a 24 x 24 mm label only when asked', () => {
+    expect(fitLabel(24, 24, true).mode).toBe('code');
+    expect(fitLabel(24, 24, true, 'auto').mode).toBe('code');
+    const below = fitLabel(24, 24, true, 'below');
+    expect(below.mode).toBe('below');
+    expect(below.qr).toBe(13.5);
+    expect(below.qrX).toBe(FIT_PAD + (21 - 13.5) / 2);
+    expect(below.textY).toBe(FIT_PAD + 13.5 + 1.5);
+    expect(below.textH).toBe(6);
+    // Beside the code leaves no 8 mm code next to a 14 mm text box: code only.
+    expect(fitLabel(24, 24, true, 'side').mode).toBe('code');
+  });
+
+  it('forces the side layout on a tall label and the below layout on a wide one', () => {
+    const side = fitLabel(30, 50, true, 'side');
+    expect(side.mode).toBe('side');
+    expect(side.qr).toBe(11.5);
+    expect(side.textW).toBe(14);
+    const below = fitLabel(50, 30, true, 'below');
+    expect(below.mode).toBe('below');
+    expect(below.qr).toBe(19.5);
+    expect(below.textW).toBe(47);
+  });
+
+  it('prints only the code for a forced layout with no text', () => {
+    expect(fitLabel(24, 24, false, 'below').mode).toBe('code');
+    expect(fitLabel(50, 30, false, 'side').mode).toBe('code');
+  });
+
+  it('uses the position on a roll and auto on a sheet', () => {
+    const base = { ...defaultLabelOpts('a4_21'), textPos: 'below' };
+    expect(textPosFor({ ...base, paper: 'roll_custom' })).toBe('below');
+    expect(textPosFor({ ...base, paper: 'roll_50x30' })).toBe('below');
+    expect(textPosFor(base)).toBe('auto');
+    expect(textPosFor({ ...base, paper: 'letter30' })).toBe('auto');
+  });
+
+  it('gives the layout of the preview', () => {
+    const roll = { ...defaultLabelOpts('a4_21'), paper: 'roll_custom', customW: 24, customH: 24 };
+    expect(labelFitMode(roll, true)).toBe('code');
+    expect(labelFitMode({ ...roll, textPos: 'below' }, true)).toBe('below');
+    expect(labelFitMode({ ...roll, textPos: 'below' }, false)).toBe('code');
+    expect(labelFitMode({ ...roll, customW: 30, customH: 50 }, true)).toBe('below');
+    const sheet = { ...defaultLabelOpts('a4_21'), textPos: 'below' };
+    expect(labelFitMode(sheet, true)).toBe('side');
+    expect(labelFitMode(sheet, false)).toBe('code');
+  });
+
+  it('prints a 24 x 24 mm roll with the text below the code', () => {
+    const opts = {
+      ...defaultLabelOpts('a4_21'),
+      paper: 'roll_custom',
+      customW: 24,
+      customH: 24,
+      textPos: 'below',
+    };
+    const html = rollSheetHtml([{ url: URL_A, lines: ['Water heater'] }], opts, 'Labels');
+    expect(html).toContain('class="text below"');
+    expect(html).toContain('Water heater');
+    const auto = rollSheetHtml([{ url: URL_A, lines: ['Water heater'] }], { ...opts, textPos: 'auto' }, 'L');
+    expect(auto).not.toContain('Water heater');
   });
 });

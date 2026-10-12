@@ -230,6 +230,70 @@ test.describe('Home Keeper panel — QR labels', { tag: '@responsive' }, () => {
   });
 });
 
+test.describe('Home Keeper panel — QR label text position and base address', {
+  tag: '@responsive',
+}, () => {
+  test('a 24 x 24 mm roll prints its text below the code when asked', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = await openAppliance(page, ASSET.waterHeater);
+    await watchPrints(page);
+    try {
+      await panel.locator('.d-label').click();
+      const dialog = labelDialog(panel);
+      const field = dialog.locator('[data-label-text-pos-field]');
+      // A sheet keeps its fixed layout, so the field shows for a roll only.
+      await expect(field).toBeHidden();
+      await dialog.locator('[data-label-paper]').selectOption('roll_custom');
+      await expect(field).toBeVisible();
+      for (const [sel, mm] of [['[data-label-custom-w]', '24'], ['[data-label-custom-h]', '24']]) {
+        await dialog.locator(sel).fill(mm);
+        await dialog.locator(sel).press('Tab');
+      }
+      const preview = dialog.locator('[data-label-preview]');
+      await expect(preview).toHaveAttribute('data-fit', 'code');
+      await dialog.locator('[data-label-print]').click();
+      await expect.poll(async () => (await prints(page)).length).toBe(1);
+      expect(firstLines((await prints(page))[0])).toEqual([]);
+
+      await dialog.locator('[data-label-text-pos]').selectOption('below');
+      await expect(preview).toHaveAttribute('data-fit', 'below');
+      await dialog.locator('[data-label-print]').click();
+      await expect.poll(async () => (await prints(page)).length).toBe(2);
+      const html = (await prints(page))[1];
+      expect(html).toContain('class="text below"');
+      expect(firstLines(html).join(' ')).toContain('Garage');
+      expect(errors).toEqual([]);
+    } finally {
+      await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
+    }
+  });
+
+  test('the dialog names the base address and warns that it is not HTTPS', async ({ page }) => {
+    await openPanel(page);
+    const panel = await openAppliance(page, ASSET.waterHeater);
+    await panel.locator('.d-label').click();
+    const dialog = labelDialog(panel);
+    // The test instance has no external URL and serves plain HTTP.
+    await expect(dialog.locator('[data-label-base]')).toBeVisible();
+    await expect(dialog.locator('[data-label-not-https]')).toBeVisible();
+    await expect(dialog.locator('[data-label-app-warning]')).toHaveCount(0);
+  });
+});
+
+test.describe('Home Keeper panel — QR labels in the Home Assistant app', () => {
+  test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Home Assistant/2025.4.1' });
+
+  test('the dialog warns that print and download can fail', async ({ page }) => {
+    await openPanel(page);
+    const panel = await openAppliance(page, ASSET.waterHeater);
+    await panel.locator('.d-label').click();
+    const warning = labelDialog(panel).locator('[data-label-app-warning]');
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('Copy link');
+  });
+});
+
 test.describe('Home Keeper panel — QR labels from the task list', () => {
   test('the task picker lists the tasks that the list shows', async ({ page }) => {
     await openPanel(page);

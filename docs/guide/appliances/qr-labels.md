@@ -99,8 +99,18 @@ To make an image of 1 label:
    printers use 203 dpi (8 dots per mm). The PNG then has 1 pixel for each dot.
 4. Select **Download PNG**. Open the file in the app of your label printer.
 
-The text goes next to the code on a wide label and below the code on a tall label. On a
-label that is too small for text, Home Keeper prints only the code.
+Select where the text goes in **Text position**:
+
+| Text position | Layout |
+|---|---|
+| Automatic | Next to the code on a wide label. Below the code on a tall label. |
+| Beside the code | Next to the code |
+| Below the code | Below the code, for a square label such as 24 × 24 mm |
+
+On a label that is too small for the text in that position, Home Keeper prints only the
+code. The text position applies to the print, the PDF, the PNG and the preview.
+
+![A 24 × 24 mm label roll with the text below the code](../../images/79t-panel-qr-label-square.png)
 
 If the label comes out of the printer on its side, select **Rotate the label 90°**.
 
@@ -123,12 +133,29 @@ Select the lines to print next to the code:
 
 The code holds the external URL of Home Assistant, then the path of the page. For
 example: `https://ha.example.com/home-keeper/appliances/<id>`. If Home Assistant has no
-external URL, the code holds the internal URL. If it has neither, the code holds the
-address of the browser that printed the label.
+external URL, Home Keeper uses the internal URL or the address of this browser:
+
+1. If only 1 of the 2 uses HTTPS, the code holds that address. The address
+   of Home Assistant Cloud uses HTTPS.
+2. Else the code holds the internal URL.
+3. If Home Assistant has no internal URL, the code holds the address of this browser.
+
+Under **Link in the code**, the dialog shows which address the code uses. If that address
+does not use HTTPS, the dialog warns that the label can open only on the home network.
 
 Set the URLs in **Settings → System → Network** before you print. If the URL changes
 later, print the labels again. A label of an appliance or a task that you delete opens a
 page that tells you so.
+
+## Home Assistant app
+
+In the Home Assistant app on iPhone or Android, **Print** and **Download PNG** can fail. The
+dialog shows a warning above these buttons. Do 1 of these steps:
+
+- Select **Copy link**, and make the label in another app.
+- Open Home Keeper in a browser, and print the labels from there.
+
+![The warning in the QR label dialog in the Home Assistant app](../../images/79w-panel-qr-label-app.png)
 
 ## On a phone
 
