@@ -125,7 +125,7 @@ releases.
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40prestomation-blue.svg?style=for-the-badge
 [hacs-validation-shield]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg
 [hacs-validation]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml
-[ha-version-shield]: https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg?style=for-the-badge
+[ha-version-shield]: https://img.shields.io/badge/Home%20Assistant-2026.1%2B-blue.svg?style=for-the-badge
 [ha-version]: https://www.home-assistant.io/
 [docs-shield]: https://img.shields.io/badge/docs-website-03a9f4.svg?style=for-the-badge
 [docs]: https://prestomation.github.io/ha-home-keeper/

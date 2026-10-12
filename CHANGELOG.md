@@ -8,7 +8,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [Unreleased]
 
+### Changed
+
+- **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
+  HACS blocks the install on older versions.
+
 ### Fixed
+
+- **Card on older Home Assistant.** The dashboard card is added to the dashboard resources
+  on Home Assistant before 2026.2.
 
 - **Paste box.** The text box on Settings → Import and export now shows the first time you
   open the panel.
