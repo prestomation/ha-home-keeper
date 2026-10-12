@@ -43,5 +43,10 @@ def test_tested_version_is_not_below_the_minimum():
     assert _numbers(ENV["OLDEST_HA"]) >= _numbers(ENV["OLDEST_HA_MIN"])
 
 
+def test_tested_version_is_in_the_same_minor_release_as_the_minimum():
+    # HACS offers the install from OLDEST_HA_MIN. CI must test that minor release.
+    assert ENV["OLDEST_HA"].split(".")[:2] == ENV["OLDEST_HA_MIN"].split(".")[:2]
+
+
 def test_read_env_skips_comments_and_blank_lines():
     assert _read_env("# note\n\nA=1\n B = two \n") == {"A": "1", "B": "two"}
