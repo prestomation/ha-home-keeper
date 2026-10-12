@@ -216,10 +216,11 @@ A declarative companion you switch off keeps the tasks it made. The tasks stop u
 you switch it on again. Their history stays with them. Delete the declarative
 companion to remove its tasks.
 
-A disabled entity also keeps its task. The task stops while the entity is
-disabled. This also applies when you disable the device or the integration of the
-entity. When you enable the entity again, the same task starts again with its
-history.
+A disabled entity keeps its task if the task has history: a completion, a skip, a
+photo, or a note that you wrote. The task stops while the entity is disabled. When you
+enable the entity again, the same task starts again with its history. A task with no
+history goes away, and a new task comes when you enable the entity again. This also
+applies when you disable the device or the integration of the entity.
 
 Each declarative companion gets a row under **Settings → Companions** with an Edit
 button and a Delete button. On a phone the row stacks, and the buttons take a line of

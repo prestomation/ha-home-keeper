@@ -2419,7 +2419,7 @@ class HomeKeeperStore:
         """Materialize / update / orphan the managed tasks for *spec*.
 
         *dormant* and *stale* pass through to the pure pass: the keys of disabled
-        entities the spec selects (their tasks are switched off, not removed) and
+        entities the spec selects (a task with history is paused, else removed) and
         the keys whose render had no live state (their names and notes are kept).
 
         Called from ``declarative_companion_sync.py`` after it has built the

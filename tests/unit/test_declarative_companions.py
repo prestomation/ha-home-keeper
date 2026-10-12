@@ -1652,6 +1652,71 @@ def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history():
     assert resumed[tid]["completions"] == [{"ts": NOW.isoformat()}]
 
 
+def test_454_a_disabled_entity_deletes_its_task_with_no_history():
+    # A paused task with no history only cluttered the task list. A new one with the
+    # same fields comes back when the entity is enabled again.
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["notes"] = ""
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert changed is True
+    assert [(kind, task["id"]) for kind, task in ops] == [("deleted", tid)]
+    assert new_tasks == {}
+
+    back, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, new_tasks, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert [kind for kind, _task in ops] == ["created"]
+    assert [dc.task_key(t) for t in back.values()] == [key]
+
+
+def test_454_a_paused_task_with_no_history_is_deleted_on_the_next_pass():
+    # A task that an older version paused is cleaned up too.
+    spec = _normalized_spec()
+    stored, tid, key, _m = _stored_task(spec)
+    stored[tid]["notes"] = ""
+    stored[tid]["enabled"] = False
+    stored[tid]["source"]["declarative_companion"]["paused"] = True
+
+    new_tasks, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert [(kind, task["id"]) for kind, task in ops] == [("deleted", tid)]
+    assert new_tasks == {}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("completions", [{"ts": NOW.isoformat()}]),
+        ("skips", [{"ts": NOW.isoformat()}]),
+        ("photos", [{"id": "p1"}]),
+        ("notes", "Filter is in the garage"),
+    ],
+)
+def test_454_has_history_counts_what_a_person_gave_the_task(field, value):
+    spec = _normalized_spec()
+    bare = {"completions": [], "skips": [], "photos": [], "notes": ""}
+    assert dc.has_history(spec, bare) is False
+    assert dc.has_history(spec, {**bare, field: value}) is True
+
+
+def test_454_has_history_skips_blank_and_companion_notes():
+    spec = _normalized_spec()
+    assert dc.has_history(spec, {}) is False
+    assert dc.has_history(spec, {"notes": None}) is False
+    assert dc.has_history(spec, {"notes": "  \n"}) is False
+    owner = _normalized_spec(
+        task_template={"name_template": "x", "notes_template": "Hi {{ entity_id }}"}
+    )
+    # The companion writes these notes, so they are not the person's.
+    assert dc.has_history(owner, {"notes": "Hi sensor.a"}) is False
+    assert dc.has_history(owner, {"notes": "Hi", "skips": [{"ts": "x"}]}) is True
+
+
 def test_b12_1_a_task_the_person_switched_off_gets_no_marker():
     spec = _normalized_spec()
     stored, tid, key, _m = _stored_task(spec)
