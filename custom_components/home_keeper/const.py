@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.31.0b3"
+PANEL_VERSION = "0.31.0b4"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -135,6 +135,10 @@ BUNDLE_FILES_DIR = "files"
 # bytes that the extraction writes, so a false size in a zip header does not count.
 MAX_BUNDLE_BYTES = 500 * 1024 * 1024
 MAX_BUNDLE_ENTRIES = 20000
+# The largest text field (``dry_run``, ``match``, ``include_settings``) of an import
+# upload. The view reads a field in chunks and refuses it above this size. The panel
+# sends a few bytes, so ``limits.ts`` has no copy.
+MAX_UPLOAD_FIELD_BYTES = 64 * 1024
 # The HTTP views of the bundle: the download of an export, and the upload of a
 # bundle or of a YAML document that is too large for the websocket.
 BUNDLE_EXPORT_URL = "/api/home_keeper/export_bundle"

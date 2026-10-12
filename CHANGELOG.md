@@ -6,12 +6,28 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.31.0b4]
+
+### Added
+
+- **[Label text position](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#label-printers).**
+  Print the text of a roll label beside or below the code, so a square label such as
+  24 × 24 mm also shows its name. The panel keeps your choice in this browser.
+- **[App print warning](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#home-assistant-app).**
+  In the Home Assistant app, the QR label dialog warns that Print and Download PNG can
+  fail, and points you to Copy link or a browser.
 
 ### Changed
 
 - **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
   HACS blocks the install on older versions.
+- **HTTPS label address.** With no external URL, a QR label uses the HTTPS address of your
+  browser, such as Home Assistant Cloud, before an internal URL without HTTPS. The label
+  dialog shows which address the code uses, and warns if it does not use HTTPS.
+- **Profile filter warnings.** A settings import warns about each area, label and device in
+  a profile filter that this Home Assistant does not have. The profile keeps the ids.
+- **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
+  a form field passes 64 KB, and the panel shows the reason.
 
 ### Fixed
 
