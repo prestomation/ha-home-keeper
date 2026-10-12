@@ -986,6 +986,9 @@ async def async_import_document(
         sections=applied,
         problems=[*unattached, *kept, *file_problems, *applied_problems],
     )
+    # The check passed and the write started, so an error now leaves the data that
+    # was written before it.
+    final_report["partial"] = not final_report["ok"]
     hass.bus.async_fire(
         EVENT_DATA_IMPORTED,
         events.data_transfer_event_data(

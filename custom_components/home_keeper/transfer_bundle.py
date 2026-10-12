@@ -20,12 +20,13 @@ import os
 import shutil
 import stat
 import zipfile
+import zlib
 from collections.abc import Callable, Container, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import documents, task_photos
+from . import documents, notifications, options, task_photos
 from .const import (
     BUNDLE_DOCUMENT_NAME,
     BUNDLE_FILES_DIR,
@@ -106,7 +107,14 @@ def safe_extract(
     """
     try:
         archive = zipfile.ZipFile(zip_path)
-    except (zipfile.BadZipFile, OSError) as err:
+    # A name that is marked UTF-8 but is not UTF-8 is UnicodeDecodeError, and an
+    # entry that needs a newer zip version is NotImplementedError.
+    except (
+        zipfile.BadZipFile,
+        OSError,
+        UnicodeDecodeError,
+        NotImplementedError,
+    ) as err:
         raise BundleError(
             "the file is not a zip file that Home Keeper can read"
         ) from err
@@ -149,7 +157,16 @@ def safe_extract(
                         sink.write(chunk)
             except BundleError:
                 raise
-            except (zipfile.BadZipFile, EOFError, ValueError, OSError) as err:
+            # An unsupported compression method (Deflate64) is NotImplementedError,
+            # and a corrupt deflate stream is zlib.error.
+            except (
+                zipfile.BadZipFile,
+                EOFError,
+                ValueError,
+                OSError,
+                NotImplementedError,
+                zlib.error,
+            ) as err:
                 raise BundleError(
                     f'the bundle entry "{info.filename}" cannot be read'
                 ) from err
@@ -455,9 +472,10 @@ def plan_files(
             )
             continue
         if kind == "task_photo":
-            owner_key, ids, find = "task", task_ids, find_task
+            owner_key, noun, ids, find = "task", "a task", task_ids, find_task
         else:
-            owner_key, ids, find = "appliance", appliance_ids, find_asset
+            owner_key, noun = "appliance", "an appliance"
+            ids, find = appliance_ids, find_asset
         stated = str(entry.get(owner_key) or "")
         owner_id = ids.get(stated, stated)
         owner = find(owner_id) if owner_id else None
@@ -466,8 +484,7 @@ def plan_files(
                 _file_warning(
                     index,
                     owner_key,
-                    f'"{stated}" is not a {owner_key} in this import or on this '
-                    "install",
+                    f'"{stated}" is not {noun} in this import or on this install',
                 )
             )
             continue
@@ -534,12 +551,15 @@ def _upsert(
     raw: Any,
     current: list[dict[str, Any]],
     problems: list[Problem],
+    ids: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]] | None, dict[str, int]]:
     """Merge the records of a profiles or notifications section onto *current*.
 
     A record matches a stored record by ``id``, then by ``name``. A match replaces
     the stored record, and a record that matches none is added. A stored record that
-    the section does not name stays.
+    the section does not name stays. A record that matches by name keeps the stored
+    ``id``. If *ids* is a dict, it gets the imported id and the stored id of each
+    such record.
     """
     counts = {"created": 0, "updated": 0}
     if not isinstance(raw, list):
@@ -581,9 +601,26 @@ def _upsert(
             merged.append(dict(record))
             counts["created"] += 1
         else:
-            merged[position] = {**dict(record), "id": merged[position].get("id")}
+            stored_id = merged[position].get("id")
+            if ids is not None and record.get("id") and stored_id:
+                ids[str(record["id"])] = str(stored_id)
+            merged[position] = {**dict(record), "id": stored_id}
             counts["updated"] += 1
     return merged, counts
+
+
+def _repoint_profiles(raw: Any, ids: dict[str, str]) -> Any:
+    """The notifications section *raw*, with each ``profile_id`` in *ids* replaced."""
+    if not ids or not isinstance(raw, list):
+        return raw
+    return [
+        {**item, "profile_id": ids[item["profile_id"]]}
+        if isinstance(item, dict)
+        and isinstance(item.get("profile_id"), str)
+        and item["profile_id"] in ids
+        else item
+        for item in raw
+    ]
 
 
 def plan_settings(
@@ -606,12 +643,15 @@ def plan_settings(
     problems: list[Problem] = []
     updates: dict[str, Any] = {}
     counts: dict[str, Any] = {}
+    # A profile that matches by name keeps the stored id. Its notifications follow it.
+    profile_ids: dict[str, str] = {}
     if profiles_key in sections:
         merged, counts[profiles_key] = _upsert(
             profiles_key,
             sections[profiles_key],
             list(current.get(profiles_key) or []),
             problems,
+            profile_ids,
         )
         if merged is not None:
             updates[profiles_key] = merged
@@ -631,7 +671,7 @@ def plan_settings(
     if notifications_key in sections:
         merged, counts[notifications_key] = _upsert(
             notifications_key,
-            sections[notifications_key],
+            _repoint_profiles(sections[notifications_key], profile_ids),
             list(current.get(notifications_key) or []),
             problems,
         )
@@ -642,7 +682,20 @@ def plan_settings(
                 for position, target in enumerate(
                     targets if isinstance(targets, list) else []
                 ):
-                    if str(target) not in notify_services:
+                    # ``notifications.split_targets`` drops a target outside the
+                    # allowlist when the notification is stored.
+                    if not notifications.is_allowed_target(str(target)):
+                        problems.append(
+                            Problem(
+                                notifications_key,
+                                index,
+                                f"{notifications_key}[{index}].targets[{position}]",
+                                "Home Keeper does not send to the notify service "
+                                f'"notify.{target}", so it was not imported',
+                                "warning",
+                            )
+                        )
+                    elif str(target) not in notify_services:
                         problems.append(
                             Problem(
                                 notifications_key,
@@ -681,8 +734,20 @@ def plan_settings(
                         )
                     )
                     continue
+                if options.value_refused(key, value):
+                    problems.append(
+                        Problem(
+                            options_key,
+                            None,
+                            f"{options_key}.{key}",
+                            f'"{value}" is not a valid value of "{key}", so it was '
+                            "ignored",
+                            "warning",
+                        )
+                    )
+                    continue
                 updates[key] = value
-                if current.get(key) != value:
+                if current.get(key) != options.coerce_value(key, value):
                     changed += 1
             counts[options_key] = {"changed": changed}
             shopping = raw.get(OPTION_SHOPPING_LIST_ENTITY)

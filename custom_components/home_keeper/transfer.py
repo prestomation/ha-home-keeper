@@ -2386,9 +2386,11 @@ def merge_reports(
     companion domain to its own report, as is. *problems* are the problems that the
     Home Keeper plan did not find: the split, the settings, the files and the
     companion problems from :func:`companion_problems`. ``ok`` is false if 1 problem
-    of all of them is an error.
+    of all of them is an error. ``partial`` is false: only the runner sets it, on an
+    import that wrote data before an error.
     """
     merged = dict(report)
+    merged.setdefault("partial", False)
     merged["problems"] = [
         *report.get("problems", []),
         *(problem.as_dict() for problem in problems),

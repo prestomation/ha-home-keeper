@@ -656,3 +656,55 @@ def test_setup_deletes_only_the_stale_run_folders(hass):
     os.utime(old, (stale, stale))
     _run(runner.async_cleanup_runs(hass))
     assert sorted(p.name for p in root.iterdir()) == ["new"]
+
+
+def test_a_companion_that_fails_after_the_write_marks_the_import_partial(
+    hass, registry
+):
+    dogs = Dogs(hass)
+
+    async def fails_on_write(data, context):
+        if data["dry_run"]:
+            return await dogs.import_data(data, context)
+        raise RuntimeError("boom")
+
+    hass.services.register("dogs", "import_data", fails_on_write)
+    registry.register("dogs", "import_export")
+    store = FakeStore()
+    report = _run(
+        runner.async_import_document(
+            hass,
+            coordinator(store),
+            {"document": _document(dogs=_section())},
+            context=ADMIN,
+        )
+    )
+    assert report["ok"] is False and report["dry_run"] is False
+    assert report["partial"] is True
+    assert len(store.writes) == 1
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_an_import_that_writes_nothing_is_not_partial(hass, registry, dry_run):
+    dogs = Dogs(hass)
+    dogs.problems = [{"level": "error", "path": "dogs[0].name", "message": "bad"}]
+    registry.register("dogs", "import_export")
+    report = _run(
+        runner.async_import_document(
+            hass,
+            coordinator(),
+            {"document": _document(dogs=_section()), "dry_run": dry_run},
+            context=ADMIN,
+        )
+    )
+    assert report["ok"] is False and report["partial"] is False
+    dogs.problems = []
+    report = _run(
+        runner.async_import_document(
+            hass,
+            coordinator(),
+            {"document": _document(dogs=_section()), "dry_run": dry_run},
+            context=ADMIN,
+        )
+    )
+    assert report["ok"] is True and report["partial"] is False

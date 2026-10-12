@@ -176,14 +176,19 @@ def normalize_due_time(value: Any) -> str:
     A time selector sends ``"HH:MM:SS"``, and a service caller may send ``"8:00"``.
     Seconds are dropped: a due time is a time of day, not a moment.
     """
+    return _parse_due_time(value) or DEFAULT_DUE_TIME
+
+
+def _parse_due_time(value: Any) -> str | None:
+    """*value* as a local ``"HH:MM"``, or ``None`` when it is not a time."""
     if isinstance(value, time):
         return f"{value.hour:02d}:{value.minute:02d}"
     parts = str(value or "").strip().split(":")
     if len(parts) not in (2, 3) or not all(p.isdigit() for p in parts):
-        return DEFAULT_DUE_TIME
+        return None
     hour, minute = int(parts[0]), int(parts[1])
     if hour > 23 or minute > 59:
-        return DEFAULT_DUE_TIME
+        return None
     return f"{hour:02d}:{minute:02d}"
 
 
@@ -310,7 +315,9 @@ def _normalize(
     - **profiles / notifications** — their own normalizers fill in per-item defaults
       (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
-      without the filter a ``None`` in the list would be stored as ``"None"``
+      without the filter a ``None`` in the list would be stored as ``"None"``. A
+      value that is not a list is refused and the value from *base* stays, so a
+      string is not split into 1-character ids. ``None`` clears the list
 
     A key absent from *updates* keeps its value from *base*, which is what makes an
     update partial.
@@ -352,9 +359,32 @@ def _normalize(
             updates[OPTION_NOTIFICATIONS], warn=not read
         )
     for key in _LIST_OPTIONS:
-        if key in updates:
-            merged[key] = [str(x) for x in (updates[key] or []) if x]
+        if key not in updates:
+            continue
+        value = updates[key]
+        if value is None:
+            merged[key] = []
+        elif isinstance(value, list):
+            merged[key] = [str(x) for x in value if x]
     return merged
+
+
+def coerce_value(key: str, value: Any) -> Any:
+    """*value* in the stored shape of the option *key*, as ``_normalize`` writes it."""
+    return _normalize({key: value}, _empty_options(), read=True)[key]
+
+
+def value_refused(key: str, value: Any) -> bool:
+    """Whether *value* is not a value of the option *key*.
+
+    ``_normalize`` reads any value, and changes a bad value to a default. A value that
+    it must change to store is refused here, so the settings import can warn about it.
+    A due time in another time format, such as ``"8:00"``, is a value.
+    """
+    if key == OPTION_DUE_TIME:
+        return _parse_due_time(value) is None
+    stored = coerce_value(key, value)
+    return type(stored) is not type(value) or stored != value
 
 
 def merge_flow_input(entry: ConfigEntry, user_input: dict[str, Any]) -> dict[str, Any]:

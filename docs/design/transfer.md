@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: b487cadd63b2
+source_hash: b8533cad83ac
 ---
 
 # Import and export
@@ -85,13 +85,14 @@ zip. A missing file is counted in `skipped.missing_files`, and a companion symli
 skipped. The service writes `EXPORTS_SUBDIR/home-keeper-<date>.zip` and returns its path.
 `transfer_http.HomeKeeperBundleExportView` streams it. A `finally` deletes the run folder.
 
-`transfer_bundle.safe_extract` refuses the whole zip for an absolute name, a `..` part, a
-symlink, an encrypted entry or more than `MAX_BUNDLE_ENTRIES` entries, before it writes. It
-counts the real bytes it writes and stops above `MAX_BUNDLE_BYTES`. `import_data` takes a
-bundle by its file name in `EXPORTS_SUBDIR`; `HomeKeeperImportUploadView` takes an uploaded
-zip or YAML file, streamed to the run folder in chunks. The panel uploads a chosen zip, or a YAML
-file over `MAX_IMPORT_WS_BYTES` (`transfer-view.fileRoute`). Its export buttons send the
-`include` of the checked rows (`transfer-view.exportInclude`).
+`transfer_bundle.safe_extract` refuses the whole zip for an absolute name, a `..` part, a symlink,
+an encrypted entry or more than `MAX_BUNDLE_ENTRIES` entries, before it writes. It counts the real
+bytes it writes and stops above `MAX_BUNDLE_BYTES`. A zip that `zipfile` cannot read is a
+`BundleError`. `import_data` takes a bundle by its file name in `EXPORTS_SUBDIR`;
+`HomeKeeperImportUploadView` takes an uploaded zip or YAML file, streamed to the run folder in
+chunks. The panel uploads a chosen zip, or a YAML file over `MAX_IMPORT_WS_BYTES`
+(`transfer-view.fileRoute`), and refuses a binary file (`transfer-view.decodeText`). Its export
+buttons send the `include` of the checked rows (`transfer-view.exportInclude`).
 
 ### Planning an import
 
@@ -110,11 +111,12 @@ A stated `area_id` or `device_id` that exists wins, else the name. A task's `app
 the document, then in the store; a planned one gets a `hk-planned-asset:` placeholder.
 `transfer._claim_id` keeps a free uuid. History replays through `recurrence.apply_completion`.
 
-The settings plan (`transfer_bundle.plan_settings`) runs only with `include_settings`. It
-upserts profiles and notifications by id, then name, and warns on a notify target or to-do
-list that this install does not have. `transfer_bundle.plan_files` maps each file to its
-record and skips a file the record has. `transfer_runner` checks each file's type and size.
-Then each companion section gets a dry run of `<domain>.import_data`, in registration order.
+The settings plan (`transfer_bundle.plan_settings`) runs only with `include_settings`. It upserts
+profiles and notifications by id, then name, and a notification follows the id that its profile
+keeps. It warns on a target or to-do list that this install lacks, and leaves out a target off the
+allowlist and a value that `options.value_refused` refuses. `transfer_bundle.plan_files` maps each
+file to its record and skips a file the record has. `transfer_runner` checks each file's type and
+size. Then each companion section gets a dry run of `<domain>.import_data`, in registration order.
 
 ### Applying
 
@@ -127,11 +129,9 @@ the prefix `<domain>.`. A dry run or an error returns the report. Else the runne
 3. applies the settings with `options.async_set_options`;
 4. calls each companion's `import_data` for real, in registration order.
 
-A failure after step 1 is a warning or a companion error, never a rollback. The store fires
-1 event per record. The runner fires `home_keeper_data_exported` and `_imported`.
-
-`tests/unit/test_transfer_roundtrip.py` and `test_transfer_coverage.py` guard G3: a field,
-store key, option or file that does not travel, or an exclusion with no reason, fails them.
+A failure after step 1 is a warning or a companion error, never a rollback, and the report has
+`partial: true`. The store fires 1 event per record. The runner fires `home_keeper_data_exported`
+and `_imported`.
 
 ## Trade-offs
 
@@ -145,6 +145,6 @@ store key, option or file that does not travel, or an exclusion with no reason, 
 - The envelope keys `format`, `version`, `exported_at`, `skipped`, its counts and
   `skipped.companions`, and the sections `appliances`, `tasks`, `<domain>`, `profiles`,
   `notifications`, `options` and `files`, with the record keys above.
-- The schema URL, the service fields `include`, `kind`, `document`, `bundle`, `dry_run`,
-  `match` and `include_settings`, the report shape with `sections`, and the problem paths.
+- The schema URL, the fields `include`, `kind`, `document`, `bundle`, `dry_run`, `match`,
+  `include_settings`, the report shape with `sections` and `partial`, and the problem paths.
 - The bundle layout, the 2 HTTP views, the 2 events and the companion contract (§11).

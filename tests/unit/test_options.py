@@ -764,3 +764,45 @@ def test_due_time_of() -> None:
         7, 15
     )
     assert opts.due_time_of({"due_time_mode": "set_time", "due_time": "x"}) == time(8)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "refused"),
+    [
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, "abc", True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, -1, True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, True, True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, 30, False),
+        (const.OPTION_DUE_TIME, "25:99", True),
+        (const.OPTION_DUE_TIME, "nope", True),
+        (const.OPTION_DUE_TIME, "8:00", False),
+        (const.OPTION_DUE_TIME, "08:30", False),
+        (const.OPTION_DUE_TIME_MODE, "bogus", True),
+        (const.OPTION_DUE_TIME_MODE, const.DUE_TIME_MODE_SET_TIME, False),
+        (const.OPTION_ALLOW_SNOOZE, "maybe", True),
+        (const.OPTION_ALLOW_SNOOZE, 1, True),
+        (const.OPTION_ALLOW_SNOOZE, False, False),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "light.x", True),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "todo.shop", False),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "", False),
+        (const.OPTION_SHOPPING_LINE_STYLE, "bogus", True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, "sensor.abc", True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, [1], True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, ["sensor.abc"], False),
+        (const.OPTION_HIDDEN_PANEL_TABS, [], False),
+    ],
+)
+def test_value_refused(key: str, value: Any, refused: bool) -> None:
+    """A value that the coercion must change to store is refused."""
+    assert opts.value_refused(key, value) is refused
+
+
+def test_coerce_value_is_the_stored_form() -> None:
+    assert opts.coerce_value(const.OPTION_DUE_TIME, "8:00") == "08:00"
+    assert opts.coerce_value(const.OPTION_HIDDEN_PANEL_TABS, ["a"]) == ["a"]
+    assert opts.coerce_value(const.OPTION_ALLOW_SKIP, False) is False
+
+
+def test_a_stored_string_for_a_list_option_reads_as_empty() -> None:
+    stored = {const.OPTION_DISMISSED_COMPANIONS: "abc"}
+    assert opts.current_options(_entry(stored))[const.OPTION_DISMISSED_COMPANIONS] == []
