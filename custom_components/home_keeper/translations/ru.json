@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Файл превышает лимит {mb} МБ."
     },
+    "upload_field_too_large": {
+      "message": "Поле формы загрузки превышает лимит {kb} КБ."
+    },
     "expected_multipart_upload": {
       "message": "Ожидалась многокомпонентная (multipart) загрузка."
     },

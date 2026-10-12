@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 1c1c18192dcd
+source_hash: 85f7dc9071c8
 ---
 
 # Import and export
@@ -88,11 +88,12 @@ skipped. The service writes `EXPORTS_SUBDIR/home-keeper-<date>.zip` and returns 
 `transfer_bundle.safe_extract` refuses the whole zip for an absolute name, a `..` part, a symlink,
 an encrypted entry or more than `MAX_BUNDLE_ENTRIES` entries, before it writes. It counts the real
 bytes it writes and stops above `MAX_BUNDLE_BYTES`. A zip that `zipfile` cannot read is a
-`BundleError`. `import_data` takes a bundle by its file name in `EXPORTS_SUBDIR`;
-`HomeKeeperImportUploadView` takes an uploaded zip or YAML file, streamed to the run folder in
-chunks. The panel uploads a chosen zip, or a YAML file over `MAX_IMPORT_WS_BYTES`
-(`transfer-view.fileRoute`), and refuses a binary file (`transfer-view.decodeText`). Its export
-buttons send the `include` of the checked rows (`transfer-view.exportInclude`).
+`BundleError`. `import_data` takes a bundle by its file name in `EXPORTS_SUBDIR`.
+`HomeKeeperImportUploadView` streams an upload to the run folder and stops with a 413 at once when a
+zip passes `MAX_BUNDLE_BYTES`, another file `MAX_IMPORT_BYTES`, or a text field
+`MAX_UPLOAD_FIELD_BYTES`. The panel uploads a zip or a YAML file over `MAX_IMPORT_WS_BYTES`
+(`transfer-view.fileRoute`), refuses a binary file (`transfer-view.decodeText`) and exports the
+checked rows (`transfer-view.exportInclude`).
 
 ### Planning an import
 
@@ -112,11 +113,11 @@ the document, then in the store; a planned one gets a `hk-planned-asset:` placeh
 `transfer._claim_id` keeps a free uuid. History replays through `recurrence.apply_completion`.
 
 The settings plan (`transfer_bundle.plan_settings`) runs only with `include_settings`. It upserts
-profiles and notifications by id, then name, and a notification follows the id that its profile
-keeps. It warns on a target or to-do list that this install lacks, and leaves out a target off the
-allowlist and a value that `options.value_refused` refuses. `transfer_bundle.plan_files` maps each
-file to its record and skips a file the record has. `transfer_runner` checks each file's type and
-size. Then each companion section gets a dry run of `<domain>.import_data`, in registration order.
+profiles and notifications by id, then name, and a notification follows its profile's kept id. It
+warns on a target, a to-do list or a profile filter id (`transfer_bundle.RegistryIds`) that this
+install lacks, and leaves out a target off the allowlist and a refused value.
+`transfer_bundle.plan_files` maps each file to its record and skips a file that the record has.
+`transfer_runner` checks each file's type and size, then dry-runs each `<domain>.import_data`.
 
 ### Applying
 
@@ -129,9 +130,8 @@ the prefix `<domain>.`. A dry run or an error returns the report. Else the runne
 3. applies the settings with `options.async_set_options`;
 4. calls each companion's `import_data` for real, in registration order.
 
-A failure after step 1 is a warning or a companion error, never a rollback, and the report has
-`partial: true`. The store fires 1 event per record. The runner fires `home_keeper_data_exported`
-and `_imported`.
+A failure after step 1 is a warning or a companion error, never a rollback, with `partial: true`.
+The store fires 1 event per record, and the runner `home_keeper_data_exported` and `_imported`.
 
 ## Trade-offs
 

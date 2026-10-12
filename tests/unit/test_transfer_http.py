@@ -108,8 +108,11 @@ def test_an_uploaded_bundle_is_extracted_and_imported(hass):
 
 def test_an_upload_over_the_limit_is_refused(hass, monkeypatch):
     monkeypatch.setattr(http, "MAX_BUNDLE_BYTES", 10)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("home_keeper.yaml", YAML)
     view = http.HomeKeeperImportUploadView()
-    parts = [FakePart("file", YAML, "export.yaml")]
+    parts = [FakePart("file", buffer.getvalue(), "home.zip")]
     assert _run(view.post(FakeRequest(hass, user=user(), parts=parts))) == (
         "message",
         "file_too_large",
@@ -168,3 +171,68 @@ def test_the_download_refuses_an_unknown_section(hass):
     kind, _message, status = _run(http.HomeKeeperBundleExportView().get(request))
     assert (kind, status) == ("message", 400)
     assert _runs(hass) == []
+
+
+def test_a_text_field_over_its_limit_is_refused_before_it_is_read_whole(
+    hass, monkeypatch
+):
+    monkeypatch.setattr(http, "MAX_UPLOAD_FIELD_BYTES", 16)
+    field = FakePart("match", b"a" * 1000)
+    parts = [field, FakePart("file", YAML, "export.yaml")]
+    result = _run(
+        http.HomeKeeperImportUploadView().post(
+            FakeRequest(hass, user=user(), parts=parts)
+        )
+    )
+    assert result == ("message", "upload_field_too_large", 413)
+    assert field.consumed <= 16 + 7
+    assert hass.coord.store.writes == []
+    assert _runs(hass) == []
+
+
+def test_a_text_field_at_its_limit_is_read(hass, monkeypatch):
+    monkeypatch.setattr(http, "MAX_UPLOAD_FIELD_BYTES", 4)
+    parts = [FakePart("dry_run", b"true"), FakePart("file", YAML, "export.yaml")]
+    kind, report = _run(
+        http.HomeKeeperImportUploadView().post(
+            FakeRequest(hass, user=user(), parts=parts)
+        )
+    )
+    assert kind == "json" and report["dry_run"] is True
+
+
+def test_the_field_limit_is_a_small_constant():
+    assert http.MAX_UPLOAD_FIELD_BYTES == 64 * 1024
+
+
+def test_a_yaml_upload_stops_as_soon_as_it_passes_the_yaml_limit(hass, monkeypatch):
+    monkeypatch.setattr(http, "MAX_IMPORT_BYTES", 20)
+    part = FakePart("file", YAML * 100, "export.yaml")
+    result = _run(
+        http.HomeKeeperImportUploadView().post(
+            FakeRequest(hass, user=user(), parts=[part])
+        )
+    )
+    assert result == ("message", "file_too_large", 413)
+    assert part.consumed <= 20 + 7
+    assert _runs(hass) == []
+
+
+def test_a_bundle_can_pass_the_yaml_limit(hass, monkeypatch):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("home_keeper.yaml", YAML)
+    monkeypatch.setattr(http, "MAX_IMPORT_BYTES", 20)
+    parts = [FakePart("file", buffer.getvalue(), "home.zip")]
+    kind, report = _run(
+        http.HomeKeeperImportUploadView().post(
+            FakeRequest(hass, user=user(), parts=parts)
+        )
+    )
+    assert kind == "json" and report["ok"] is True
+
+
+def test_the_view_leaves_the_request_body_cap_alone(hass):
+    request = FakeRequest(hass, user=user(), parts=[FakePart("file", YAML, "a.yaml")])
+    _run(http.HomeKeeperImportUploadView().post(request))
+    assert request._client_max_size == 0

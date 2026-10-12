@@ -133,7 +133,18 @@ def load_runner() -> types.ModuleType:
         async_get=lambda hass: types.SimpleNamespace(async_list_areas=lambda: [])
     )
     module.dr = types.SimpleNamespace(async_get=lambda hass: _Registry())
+    module.lr = types.SimpleNamespace(async_get=lambda hass: _LabelRegistry(hass))
     return module
+
+
+class _LabelRegistry:
+    """The label ids are ``hass.label_ids``, else none."""
+
+    def __init__(self, hass) -> None:
+        self._ids = set(getattr(hass, "label_ids", ()))
+
+    def async_get_label(self, label_id):
+        return object() if label_id in self._ids else None
 
 
 class _Registry:
@@ -334,9 +345,13 @@ class FakePart:
         self.name = name
         self.filename = filename
         self._chunks = [data[i : i + 7] for i in range(0, len(data), 7)] or [b""]
+        # The bytes the view has read: a test proves that it stops early.
+        self.consumed = 0
 
     async def read_chunk(self, size: int) -> bytes:
-        return self._chunks.pop(0) if self._chunks else b""
+        chunk = self._chunks.pop(0) if self._chunks else b""
+        self.consumed += len(chunk)
+        return chunk
 
     async def text(self) -> str:
         return b"".join(self._chunks).decode()

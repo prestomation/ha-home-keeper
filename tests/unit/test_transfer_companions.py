@@ -428,6 +428,31 @@ def test_settings_import_merges_profiles_and_warns_on_a_missing_notify_target(
     assert payload["sections"]["profiles"] == {"created": 1, "updated": 0}
 
 
+def test_settings_import_warns_on_profile_filter_ids_from_another_install(
+    hass, registry
+):
+    hass.label_ids = {"lbl_here"}
+    coord = coordinator()
+    filt = {"labels": ["lbl_here", "lbl_gone"], "areas": ["attic"], "devices": ["d1"]}
+    document = _document(profiles=[{"name": "Garden", "filter": filt}])
+    report = _run(
+        runner.async_import_document(
+            hass,
+            coord,
+            {"document": document, "include_settings": True, "dry_run": True},
+            context=ADMIN,
+        )
+    )
+    assert report["ok"] is True
+    assert [(p["path"], p["severity"]) for p in report["problems"]] == [
+        ("profiles[0].filter.areas", "warning"),
+        ("profiles[0].filter.labels", "warning"),
+        ("profiles[0].filter.devices", "warning"),
+    ]
+    assert '"lbl_gone"' in report["problems"][1]["message"]
+    assert '"lbl_here"' not in report["problems"][1]["message"]
+
+
 def test_a_files_section_outside_a_bundle_is_a_warning(hass, registry):
     report = _run(
         runner.async_import_document(

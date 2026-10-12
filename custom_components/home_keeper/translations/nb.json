@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Filen overskrider grensen på {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Et skjemafelt i opplastingen er større enn grensen på {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Forventet en multipart-opplasting."
     },

@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Le fichier dépasse la limite de {mb} Mo."
     },
+    "upload_field_too_large": {
+      "message": "Un champ du formulaire d’envoi dépasse la limite de {kb} Ko."
+    },
     "expected_multipart_upload": {
       "message": "Un envoi multipart était attendu."
     },

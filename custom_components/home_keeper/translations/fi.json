@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Tiedosto ylittää {mb} Mt:n rajan."
     },
+    "upload_field_too_large": {
+      "message": "Latauksen lomakekenttä ylittää {kb} kt:n rajan."
+    },
     "expected_multipart_upload": {
       "message": "Odotettiin moniosaista (multipart) lähetystä."
     },

@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Plik przekracza limit {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Pole formularza przesyłania przekracza limit {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Oczekiwano przesyłania typu multipart."
     },

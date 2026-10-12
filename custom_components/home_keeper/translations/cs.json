@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Soubor přesahuje limit {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Pole formuláře nahrávání překračuje limit {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Očekávalo se vícedílné nahrání (multipart)."
     },

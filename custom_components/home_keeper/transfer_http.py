@@ -33,6 +33,7 @@ from .const import (
     IMPORT_UPLOAD_URL,
     MAX_BUNDLE_BYTES,
     MAX_IMPORT_BYTES,
+    MAX_UPLOAD_FIELD_BYTES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,6 +83,29 @@ def _not_loaded(view: HomeAssistantView, hass: HomeAssistant) -> web.Response:
 
 def _flag(value: str | None) -> bool:
     return str(value or "").strip().lower() in _TRUE
+
+
+class _TooLarge(Exception):
+    """A body part passed *limit* bytes. The view stops to read it."""
+
+    def __init__(self, limit: int, key: str = "file_too_large") -> None:
+        super().__init__(limit)
+        self.limit = limit
+        self.key = key
+
+
+async def _read_field(part: BodyPartReader) -> str:
+    """The text of 1 form field, read in chunks up to ``MAX_UPLOAD_FIELD_BYTES``.
+
+    Raises :class:`_TooLarge` as soon as the field passes the limit, so a large field
+    never gets into memory whole.
+    """
+    data = bytearray()
+    while chunk := await part.read_chunk(_CHUNK_BYTES):
+        data += chunk
+        if len(data) > MAX_UPLOAD_FIELD_BYTES:
+            raise _TooLarge(MAX_UPLOAD_FIELD_BYTES, "upload_field_too_large")
+    return data.decode("utf-8", errors="replace").strip()
 
 
 def _read_chunk(path: Path, offset: int) -> bytes:
@@ -174,9 +198,6 @@ class HomeKeeperImportUploadView(HomeAssistantView):
         hass = request.app[KEY_HASS]
         if refused := _admin_error(self, request):
             return refused
-        # Raise this request's body cap to the bundle limit. Home Assistant's own
-        # limit is smaller. The real limit is checked while the body streams.
-        request._client_max_size = MAX_BUNDLE_BYTES + _FLUSH_BYTES
         lang = hass.config.language
         coord = _coordinator(hass)
         if coord is None:
@@ -194,7 +215,6 @@ class HomeKeeperImportUploadView(HomeAssistantView):
             fields: dict[str, str] = {}
             received = False
             header = b""
-            size = 0
             try:
                 while True:
                     part = await reader.next()
@@ -204,15 +224,14 @@ class HomeKeeperImportUploadView(HomeAssistantView):
                         continue
                     if not part.filename:
                         if part.name:
-                            fields[part.name] = (await part.text()).strip()
+                            fields[part.name] = await _read_field(part)
                         continue
                     if received:
                         continue
                     received = True
-                    streamed = await self._stream(hass, part, upload)
-                    if streamed is None:
-                        return self._too_large(lang, MAX_BUNDLE_BYTES)
-                    header, size = streamed
+                    header = await self._stream(hass, part, upload)
+            except _TooLarge as err:
+                return self._too_large(lang, err.limit, err.key)
             except web.HTTPRequestEntityTooLarge:
                 return self._too_large(lang, MAX_BUNDLE_BYTES)
             if not received:
@@ -233,8 +252,6 @@ class HomeKeeperImportUploadView(HomeAssistantView):
                     hass, coord, upload, data, context=context
                 )
                 return self.json(report)
-            if size > MAX_IMPORT_BYTES:
-                return self._too_large(lang, MAX_IMPORT_BYTES)
             try:
                 text = await hass.async_add_executor_job(
                     lambda: upload.read_text(encoding="utf-8")
@@ -252,34 +269,45 @@ class HomeKeeperImportUploadView(HomeAssistantView):
         finally:
             await transfer_runner.async_remove_run(hass, run_dir)
 
-    def _too_large(self, lang: str, limit: int) -> web.Response:
-        return self.json_message(
-            resolve_exception(lang, "file_too_large", mb=limit // (1024 * 1024)),
-            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-        )
+    def _too_large(
+        self, lang: str, limit: int, key: str = "file_too_large"
+    ) -> web.Response:
+        if key == "file_too_large":
+            message = resolve_exception(lang, key, mb=limit // (1024 * 1024))
+        else:
+            message = resolve_exception(lang, key, kb=limit // 1024)
+        return self.json_message(message, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
 
     async def _stream(
         self, hass: HomeAssistant, part: BodyPartReader, target: Path
-    ) -> tuple[bytes, int] | None:
-        """Write 1 body part to *target* in chunks. ``None`` when it is too large.
+    ) -> bytes:
+        """Write 1 body part to *target* in chunks, and return its first 8 bytes.
 
-        Returns the first bytes and the size. Memory holds at most ``_FLUSH_BYTES``.
+        A zip file can grow to ``MAX_BUNDLE_BYTES``, and any other file only to
+        ``MAX_IMPORT_BYTES``. The first bytes decide which, and :class:`_TooLarge`
+        stops the read as soon as the part passes its limit. Memory holds at most
+        ``_FLUSH_BYTES``.
         """
         size = 0
         header = b""
         buffer = bytearray()
         while chunk := await part.read_chunk(_CHUNK_BYTES):
             size += len(chunk)
-            if size > MAX_BUNDLE_BYTES:
-                return None
-            buffer += chunk
             if len(header) < 8:
-                header = bytes(buffer[:8])
+                header = bytes((buffer + chunk)[:8])
+            limit = (
+                MAX_BUNDLE_BYTES
+                if transfer_bundle.is_zip_header(header)
+                else MAX_IMPORT_BYTES
+            )
+            if size > limit:
+                raise _TooLarge(limit)
+            buffer += chunk
             if len(buffer) >= _FLUSH_BYTES:
                 await hass.async_add_executor_job(_append, target, bytes(buffer))
                 buffer.clear()
         await hass.async_add_executor_job(_append, target, bytes(buffer))
-        return header, size
+        return header
 
 
 def async_register_http(hass: HomeAssistant) -> None:

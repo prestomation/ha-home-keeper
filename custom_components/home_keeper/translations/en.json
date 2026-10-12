@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "File exceeds the {mb} MB limit."
     },
+    "upload_field_too_large": {
+      "message": "A form field of the upload is larger than the {kb} KB limit."
+    },
     "expected_multipart_upload": {
       "message": "Expected a multipart upload."
     },

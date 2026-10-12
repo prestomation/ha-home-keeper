@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "文件超过 {mb} MB 的限制。"
     },
+    "upload_field_too_large": {
+      "message": "上传的表单字段超过 {kb} KB 的限制。"
+    },
     "expected_multipart_upload": {
       "message": "需要 multipart 上传。"
     },

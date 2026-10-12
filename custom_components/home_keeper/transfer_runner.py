@@ -31,6 +31,7 @@ from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import label_registry as lr
 from homeassistant.util import dt as dt_util
 
 from . import (
@@ -420,6 +421,16 @@ class _Entities:
 
     def __contains__(self, entity_id: object) -> bool:
         return self._hass.states.get(str(entity_id)) is not None
+
+
+class _Labels:
+    """``in`` answers whether a label id is in the label registry of this install."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self._registry = lr.async_get(hass)
+
+    def __contains__(self, label_id: object) -> bool:
+        return self._registry.async_get_label(str(label_id)) is not None
 
 
 class _NotifyServices:
@@ -898,6 +909,11 @@ async def async_import_document(
             option_keys=options.ALL_OPTIONS,
             notify_services=_NotifyServices(hass),
             entity_ids=_Entities(hass),
+            registry_ids=transfer_bundle.RegistryIds(
+                areas=set(area_ids.values()),
+                labels=_Labels(hass),
+                devices=device_ids,
+            ),
         )
         extra.extend(settings_plan.problems)
         counts["settings"] = settings_plan.counts

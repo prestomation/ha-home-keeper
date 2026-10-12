@@ -609,6 +609,64 @@ def _upsert(
     return merged, counts
 
 
+@dataclass(frozen=True, slots=True)
+class RegistryIds:
+    """The area, label and device ids of this install. ``in`` answers for each."""
+
+    areas: Container[str]
+    labels: Container[str]
+    devices: Container[str]
+
+
+# The registry id lists of a profile filter (``profiles.normalize_filter``), each with
+# the kind of id it holds. ``companions`` holds integration domains, not registry ids.
+_PROFILE_ID_KEYS = (
+    ("areas", "areas", "area"),
+    ("exclude_areas", "areas", "area"),
+    ("labels", "labels", "label"),
+    ("exclude_labels", "labels", "label"),
+    ("devices", "devices", "device"),
+    ("exclude_devices", "devices", "device"),
+)
+
+
+def _missing_profile_ids(
+    section: str, raw: list[Any], known: RegistryIds
+) -> list[Problem]:
+    """1 warning for each profile filter list that names an id this install lacks."""
+    problems: list[Problem] = []
+    for index, profile in enumerate(raw):
+        filt = profile.get("filter") if isinstance(profile, dict) else None
+        if not isinstance(filt, dict):
+            continue
+        for key, kind, noun in _PROFILE_ID_KEYS:
+            ids = filt.get(key)
+            if not isinstance(ids, list):
+                continue
+            pool: Container[str] = getattr(known, kind)
+            missing = [
+                str(i) for i in ids if i not in (None, "") and str(i) not in pool
+            ]
+            if not missing:
+                continue
+            quoted = ", ".join(f'"{i}"' for i in missing)
+            subject = (
+                f"the {noun} {quoted} is"
+                if len(missing) == 1
+                else (f"the {noun}s {quoted} are")
+            )
+            problems.append(
+                Problem(
+                    section,
+                    index,
+                    f"{section}[{index}].filter.{key}",
+                    f"{subject} not on this install",
+                    "warning",
+                )
+            )
+    return problems
+
+
 def _repoint_profiles(raw: Any, ids: dict[str, str]) -> Any:
     """The notifications section *raw*, with each ``profile_id`` in *ids* replaced."""
     if not ids or not isinstance(raw, list):
@@ -630,14 +688,17 @@ def plan_settings(
     option_keys: Iterable[str],
     notify_services: Container[str],
     entity_ids: Container[str],
+    registry_ids: RegistryIds | None = None,
 ) -> SettingsPlan:
     """Plan a settings import from the settings *sections* of a document.
 
     *current* is the normalized options of this install, and *option_keys* is every
     option key. *notify_services* holds the ``notify`` service names, and
-    *entity_ids* holds the entity ids, of this install. A notify target or a to-do
-    list that this install does not have is a warning: the setting is imported, and
-    the user can fix it in the panel. A section with the wrong shape is an error.
+    *entity_ids* holds the entity ids, of this install. *registry_ids* holds its
+    area, label and device ids. With ``None``, the profile filter ids are not checked.
+    A notify target, a to-do list or a profile filter id that this install does not
+    have is a warning: the setting is imported, and the user can fix it in the panel.
+    A section with the wrong shape is an error.
     """
     profiles_key, notifications_key, options_key = SETTINGS_SECTIONS
     problems: list[Problem] = []
@@ -668,6 +729,12 @@ def plan_settings(
                             "warning",
                         )
                     )
+            if registry_ids is not None:
+                problems.extend(
+                    _missing_profile_ids(
+                        profiles_key, sections[profiles_key], registry_ids
+                    )
+                )
     if notifications_key in sections:
         merged, counts[notifications_key] = _upsert(
             notifications_key,

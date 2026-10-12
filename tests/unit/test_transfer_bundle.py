@@ -728,3 +728,77 @@ def test_a_target_that_home_keeper_does_not_send_to_says_it_is_dropped():
             'the notify service "notify.mobile_app_x" is not on this install',
         ),
     ]
+
+
+# ── Settings: profile filter ids from another install ────────────────────────
+
+
+def _known(areas=(), labels=(), devices=()):
+    return tb.RegistryIds(areas=set(areas), labels=set(labels), devices=set(devices))
+
+
+def test_a_profile_filter_id_that_is_not_on_this_install_is_a_warning():
+    profile = {
+        "id": "p1",
+        "name": "Kitchen",
+        "filter": {
+            "areas": ["kitchen", "gone_area"],
+            "exclude_areas": ["old_attic"],
+            "labels": ["lbl_ok", "lbl_gone", "lbl_gone2"],
+            "exclude_labels": [],
+            "devices": ["dev_gone"],
+            "exclude_devices": ["dev_ok"],
+            "companions": ["pawsistant"],
+        },
+    }
+    plan = tb.plan_settings(
+        {"profiles": [profile]},
+        current={},
+        option_keys=("profiles",),
+        notify_services=set(),
+        entity_ids=set(),
+        registry_ids=_known(areas=["kitchen"], labels=["lbl_ok"], devices=["dev_ok"]),
+    )
+    assert [(p.path, p.severity) for p in plan.problems] == [
+        ("profiles[0].filter.areas", "warning"),
+        ("profiles[0].filter.exclude_areas", "warning"),
+        ("profiles[0].filter.labels", "warning"),
+        ("profiles[0].filter.devices", "warning"),
+    ]
+    assert {(p.section, p.index) for p in plan.problems} == {("profiles", 0)}
+    messages = [p.message for p in plan.problems]
+    assert messages[0] == 'the area "gone_area" is not on this install'
+    assert messages[1] == 'the area "old_attic" is not on this install'
+    assert messages[2] == 'the labels "lbl_gone", "lbl_gone2" are not on this install'
+    assert messages[3] == 'the device "dev_gone" is not on this install'
+    # The ids stay: the import warns only.
+    assert plan.updates["profiles"][0]["filter"] == profile["filter"]
+
+
+def test_profile_filter_ids_that_are_on_this_install_give_no_warning():
+    plan = tb.plan_settings(
+        {
+            "profiles": [
+                {"name": "A", "filter": {"areas": ["a"], "exclude_labels": ["l"]}},
+                {"name": "B", "filter": "bad"},
+                {"name": "C", "filter": {"devices": "dev_x", "labels": [None, "", 3]}},
+                "not a profile",
+                {"name": "D", "filter": {"areas": ["gone"]}},
+            ]
+        },
+        current={},
+        option_keys=("profiles",),
+        notify_services=set(),
+        entity_ids=set(),
+        registry_ids=_known(areas=["a"], labels=["l", "3"]),
+    )
+    assert [(p.path, p.severity) for p in plan.problems] == [
+        ("profiles[3]", "error"),
+        ("profiles[4].filter.areas", "warning"),
+    ]
+    assert plan.problems[1].index == 4
+
+
+def test_profile_filter_ids_are_not_checked_without_registry_ids():
+    plan = _settings({"profiles": [{"name": "A", "filter": {"areas": ["gone"]}}]})
+    assert plan.problems == ()

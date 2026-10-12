@@ -271,6 +271,11 @@ def _install_helpers() -> None:
         area_registry.async_get = lambda hass: None
     helpers.area_registry = area_registry
 
+    label_registry = _mod("homeassistant.helpers.label_registry")
+    if not hasattr(label_registry, "async_get"):
+        label_registry.async_get = lambda hass: None
+    helpers.label_registry = label_registry
+
     device_registry = _mod("homeassistant.helpers.device_registry")
     if not hasattr(device_registry, "DeviceInfo"):
 

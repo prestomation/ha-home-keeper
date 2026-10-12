@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "Bestand overschrijdt de limiet van {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Een formulierveld van de upload is groter dan de limiet van {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Er werd een multipart-upload verwacht."
     },

@@ -247,6 +247,9 @@ settings section that it skips.
   profile matches by name and keeps the id that it has on this install.
 - Home Keeper warns about a notify target or a to-do list that this Home Assistant
   does not have. Fix them in Settings after the import.
+- A profile filter holds the ids of areas, labels and devices. Home Keeper imports each id
+  and warns about the ids that this Home Assistant does not have. Fix the filter of the
+  profile in Settings after the import.
 - Home Keeper sends only to a mobile app or to a persistent notification. The import
   leaves out each other notify target and warns about it.
 - An option value of the wrong type, such as text for a list, is left out with a warning.
@@ -289,6 +292,7 @@ The panel and the service each hold their own limit.
 
 A YAML file over 8 MB must go in as several files. Each of `tasks` and `appliances`
 also holds at most 2000 records. A bundle holds at most 20000 files.
+Home Assistant stops an upload as soon as it passes its limit.
 
 #### Ask an AI agent to write one
 

@@ -1218,6 +1218,9 @@
     "file_too_large": {
       "message": "El fitxer supera el límit de {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Un camp del formulari de la pujada supera el límit de {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "S'esperava una pujada multipart."
     },
