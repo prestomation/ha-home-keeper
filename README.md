@@ -12,7 +12,7 @@
 | custom\_components/home\_keeper/binary\_sensor.py                |       69 |       69 |        6 |        0 |      0% |    12-151 |
 | custom\_components/home\_keeper/button.py                        |       41 |       13 |        4 |        0 |     67% |39-61, 73-74 |
 | custom\_components/home\_keeper/calendar.py                      |       95 |        8 |       40 |        7 |     89% |35-36, 102, 106-\>100, 128, 157, 162, 170, 176, 202-\>168 |
-| custom\_components/home\_keeper/card.py                          |       86 |        7 |       28 |        2 |     92% |87-89, 122-123, 127, 146 |
+| custom\_components/home\_keeper/card.py                          |       87 |        7 |       28 |        2 |     92% |87-89, 129-130, 134, 153 |
 | custom\_components/home\_keeper/card\_resource.py                |       29 |        0 |        2 |        0 |    100% |           |
 | custom\_components/home\_keeper/companions.py                    |       91 |       35 |       18 |        2 |     55% |62, 108, 138-\>140, 149, 165-169, 173, 189-212, 217-221, 227-229, 239, 245, 251, 257, 269-270 |
 | custom\_components/home\_keeper/companions\_catalog.py           |       40 |        1 |       12 |        0 |     98% |        61 |
@@ -71,7 +71,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py              |      431 |       42 |      128 |       10 |     90% |94, 102-104, 145, 191, 202, 334-335, 407-409, 422, 453, 488-490, 499, 516, 518-\>522, 554-556, 595-597, 611-613, 633-635, 643-644, 663-670, 719-\>722, 733-740, 968-969 |
 | custom\_components/home\_keeper/transitions.py                   |       45 |        0 |       16 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      643 |      643 |       84 |        0 |      0% |    8-1808 |
-| **TOTAL**                                                        | **12594** | **2776** | **4530** |  **307** | **79%** |           |
+| **TOTAL**                                                        | **12595** | **2776** | **4530** |  **307** | **79%** |           |
 
 
 ## Setup coverage badge
