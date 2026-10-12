@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Import and export | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/docs/guide/import-export"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Import and export | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><meta data-rh="true" property="og:description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-453/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/docs/guide/import-export"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/docs/guide/import-export" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/docs/guide/import-export" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Import and export","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-453/docs/guide/import-export"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-453/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-453/assets/js/runtime~main.25efd643.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-453/assets/js/runtime~main.b12b2bc9.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-453/assets/js/main.08192be8.js" defer="defer"></script>
 </head>
 <body>
@@ -245,6 +245,9 @@ profile or a notification.</li>
 profile matches by name and keeps the id that it has on this install.</li>
 <li class="">Home Keeper warns about a notify target or a to-do list that this Home Assistant
 does not have. Fix them in Settings after the import.</li>
+<li class="">A profile filter holds the ids of areas, labels and devices. Home Keeper imports each id
+and warns about the ids that this Home Assistant does not have. Fix the filter of the
+profile in Settings after the import.</li>
 <li class="">Home Keeper sends only to a mobile app or to a persistent notification. The import
 leaves out each other notify target and warns about it.</li>
 <li class="">An option value of the wrong type, such as text for a list, is left out with a warning.</li>
@@ -302,7 +305,8 @@ builds the appliance again after an import. Enter the counts again.</li>
 
 <table><thead><tr><th>Path</th><th>Limit</th><th>Reason</th></tr></thead><tbody><tr><td>Paste a file in the panel</td><td>4 MB</td><td>Home Assistant&#x27;s own limit on a websocket message. Home Keeper cannot raise it. A larger YAML file goes in through <strong>Choose a file</strong>.</td></tr><tr><td>Choose a YAML file in the panel, or call the <code>home_keeper.import_data</code> service</td><td>8 MB</td><td>Home Keeper&#x27;s own limit on a YAML document.</td></tr><tr><td>Upload or import a bundle</td><td>500 MB</td><td>Home Keeper&#x27;s limit on the files in a bundle, when they are extracted.</td></tr></tbody></table>
 <p>A YAML file over 8 MB must go in as several files. Each of <code>tasks</code> and <code>appliances</code>
-also holds at most 2000 records. A bundle holds at most 20000 files.</p>
+also holds at most 2000 records. A bundle holds at most 20000 files.
+Home Assistant stops an upload as soon as it passes its limit.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="ask-an-ai-agent-to-write-one">Ask an AI agent to write one<a href="#ask-an-ai-agent-to-write-one" class="hash-link" aria-label="Direct link to Ask an AI agent to write one" title="Direct link to Ask an AI agent to write one" translate="no">​</a></h4>
 <p>The format is meant to be easy to generate. Export what you have, then give the file
 to an AI agent with whatever holds your records now, such as a photo of a spreadsheet
