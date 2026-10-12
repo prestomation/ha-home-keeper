@@ -54,8 +54,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/actron_air/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -74,7 +74,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/Tvalley71/dantherm/main/custom_components/dantherm/translations/en.json",
         "verified": {
             "ref": "a04c381a665248ea7da8dd568da22a28affc5dea",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -91,8 +91,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/JeffSteinbok/hass-dreo/main/custom_components/dreo/translations/en.json",
         "verified": {
-            "ref": "188aa1c8e1e651768f77f07eedc789862feffa3e",
-            "date": "2026-10-05",
+            "ref": "1eb203597a1c77a52874c764f0a23ec2a6871559",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -109,8 +109,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/duco/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -128,7 +128,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/SSmale/Duux-Home-Assistant/master/custom_components/duux/translations/en.json",
         "verified": {
             "ref": "981b619f92c9da4b0278b32e83eb0fa2e0d968a8",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -145,8 +145,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/cmgrayb/hass-dyson/main/custom_components/hass_dyson/translations/en.json",
         "verified": {
-            "ref": "3dde06ec1d89b1fd12737da1a5c187036b290b7e",
-            "date": "2026-10-05",
+            "ref": "da351525e1650a40abd25bd9cc3d857fb5abdd7c",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -169,8 +169,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/flexit/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -187,8 +187,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/flexit_bacnet/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -206,7 +206,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/superrob/genvexconnect/main/custom_components/genvex_connect/translations/en.json",
         "verified": {
             "ref": "70a1c5527ff35c6604265044ac246a785b4af3f9",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -230,7 +230,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/lasswellt/govee-homeassistant/main/custom_components/govee/translations/en.json",
         "verified": {
             "ref": "82cbd9272dc9c98e730b52932c1963db5732a8cc",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -247,8 +247,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/tradfri/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -265,8 +265,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/tronikos/nest_legacy/main/custom_components/nest_legacy/translations/en.json",
         "verified": {
-            "ref": "1ff82fe8ecf178d7cecd4afc425e6d9d141c2f3e",
-            "date": "2026-10-05",
+            "ref": "a815c19d471376b6dbd53fcf9365f996ec34d5f6",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -284,7 +284,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/veista/nilan/master/custom_components/nilan/translations/en.json",
         "verified": {
             "ref": "6cdbbfef87b4da6eb5a96c0fe2b74b724cf147ad",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -302,7 +302,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/kongo09/philips-airpurifier-coap/master/custom_components/philips_airpurifier_coap/translations/en.json",
         "verified": {
             "ref": "964ef214fc7de1aa6d98f9e392b7c404426f6ee5",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -332,7 +332,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/Tvalley71/pluggit/main/custom_components/pluggit/translations/en.json",
         "verified": {
             "ref": "c6894e2bc798a76c3bff47cc74a17fa9e56877e5",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -349,8 +349,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/natekspencer/ha-pura/main/custom_components/pura/translations/en.json",
         "verified": {
-            "ref": "f6aabcb5ab7dd2ca6a845dbcdb45815b31766346",
-            "date": "2026-10-05",
+            "ref": "d4e8f728693fee684a4eafe1a638c1cc790dc2e1",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -367,8 +367,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/renson/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -385,8 +385,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/mbillow/localthings/main/custom_components/localthings/translations/en.json",
         "verified": {
-            "ref": "e594399ceeda787b6706a8ee79a2617fe2f1cabd",
-            "date": "2026-10-05",
+            "ref": "c30caa0c01eced9eaef11fcb204e7f05a98dc82a",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -409,8 +409,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/make-all/tuya-local/main/custom_components/tuya_local/translations/en.json",
         "verified": {
-            "ref": "ba851986977ee9a081573118bb8e86bd3cb4c6bf",
-            "date": "2026-10-05",
+            "ref": "95300d05ac54426f63bb2fb74894b46e642b7797",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -427,8 +427,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/venstar/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -445,8 +445,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/vesync/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -464,7 +464,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/iprak/winix/main/custom_components/winix/translations/en.json",
         "verified": {
             "ref": "fbcb3416f56655631701dba5bd84f0fd28139f27",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -482,7 +482,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/hstrohmaier/ha_comfoconnectpro/main/custom_components/ha_comfoconnectpro/translations/en.json",
         "verified": {
             "ref": "e03e4b627bcdcd8c1049ed25f8f97a24c5d37aa5",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -499,8 +499,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/coolmaster/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -518,8 +518,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/fjaraskupan/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -544,8 +544,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/homee/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -563,8 +563,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/intelliclima/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -582,8 +582,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/sensibo/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -602,8 +602,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:car-wrench",
         "source": "https://raw.githubusercontent.com/Xunil99/ha-bosch-ebike/main/custom_components/ha_bosch_ebike/translations/en.json",
         "verified": {
-            "ref": "b9831593056725b59cbbb6224ec7eabb51b5289e",
-            "date": "2026-10-05",
+            "ref": "edd193727b18ae6358e2e296eda0627ebbc9ed50",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -621,7 +621,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/marq24/ha-fordconnect-query/main/custom_components/fordconnect_query/translations/en.json",
         "verified": {
             "ref": "27ef56136831e8cafd2fb834ef09e273a55ac90f",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -639,7 +639,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/CJNE/ha-porscheconnect/main/custom_components/porscheconnect/translations/en.json",
         "verified": {
             "ref": "fce41adc1ebb38f35eacd8f353b472cfc565310f",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -662,8 +662,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:car-wrench",
         "source": "https://raw.githubusercontent.com/DasBasti/SmartHashtag/main/custom_components/smarthashtag/translations/en.json",
         "verified": {
-            "ref": "e18d336313f6345c2386874c4cc21752a1d30b80",
-            "date": "2026-10-05",
+            "ref": "10fd0a15a60d238f0d4ef6fa63af830d4123be03",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -681,7 +681,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/andreadegiovine/homeassistant-stellantis-vehicles/develop/custom_components/stellantis_vehicles/translations/en.json",
         "verified": {
             "ref": "7f75d7d4d06b01d6a29b911900902b003516146e",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -698,8 +698,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:car-wrench",
         "source": "https://raw.githubusercontent.com/skodaconnect/homeassistant-myskoda/main/custom_components/myskoda/translations/en.json",
         "verified": {
-            "ref": "e374c346d8a02c7f128e711e0463fc5f217cac12",
-            "date": "2026-10-05",
+            "ref": "2e2545416483fa393ea189d63e7faf037c926bda",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -723,8 +723,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/hotspring/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -747,8 +747,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/husqvarna_automower/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -765,8 +765,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/mikey0000/Mammotion-HA/main/custom_components/mammotion/translations/en.json",
         "verified": {
-            "ref": "9b77f9defe692300800192800b89a6688a3829c9",
-            "date": "2026-10-05",
+            "ref": "d7ef636a74666f66b9e2366156785bf6adef0454",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -783,8 +783,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/ondilo_ico/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -801,8 +801,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/screenlogic/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -820,7 +820,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/geertmeersman/robonect/main/custom_components/robonect/translations/en.json",
         "verified": {
             "ref": "59b60eaef18e7459f7aaed00c4551b1f3e61c594",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -838,7 +838,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/Sdahl1234/Sunseeker-lawn-mower/main/custom_components/sunseeker/translations/en.json",
         "verified": {
             "ref": "659ef1366b0dba4ec5b5a6f3e3de04e8e19eeb9b",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -880,7 +880,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/MTrab/landroid_cloud/master/custom_components/landroid_cloud/translations/en.json",
         "verified": {
             "ref": "f30af7ffc87d3e1881e23c3a91ca3b715a52cb25",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -897,8 +897,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-mower",
         "source": "https://raw.githubusercontent.com/ADNPolymerase/ha-landroid-vision/main/custom_components/worx_vision_cloud/translations/en.json",
         "verified": {
-            "ref": "bec736bb2f9a6a3b44b3ff7e1c20110475601191",
-            "date": "2026-10-05",
+            "ref": "8f9bb887bbc5c4273868f0e5cbd7d5e5ae9eb11b",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -916,8 +916,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/aquacell/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -943,8 +943,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/Micka41/bwt-aqa-perla-ble/main/custom_components/bwt_aqa_perla_ble/translations/en.json",
         "verified": {
-            "ref": "b20bd342d0afe85d4d7d20608d1d2eecab0277c0",
-            "date": "2026-10-05",
+            "ref": "df600d3507aae8b043cc72206d457b93554e34dd",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -962,7 +962,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/dkarv/ha-bwt-perla/main/custom_components/bwt_perla/translations/en.json",
         "verified": {
             "ref": "0fb31ba8986696a16b61db7355737020cd781224",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -985,8 +985,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/drop_connect/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1010,8 +1010,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/fumis/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1029,7 +1029,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/mutilator/homeassistant-iqua-softener/master/custom_components/iqua_softener/translations/en.json",
         "verified": {
             "ref": "3ac1f7505c4503e46fe094478a7dd8c2d2e26caa",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1046,8 +1046,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/opentherm_gw/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1064,8 +1064,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/plugwise/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1082,8 +1082,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/rehlko/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1101,7 +1101,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/Lemcke-solutions/Salt-sentry-ha-integration/main/custom_components/salt_sentry/translations/en.json",
         "verified": {
             "ref": "5ab09eb1968817f61a78e79befc2d7143317a52c",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1118,8 +1118,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/pail23/stiebel_eltron_isg_component/main/custom_components/stiebel_eltron_isg/translations/en.json",
         "verified": {
-            "ref": "fc4aa1bb2dfd8b671b223f3609e4786080d46c24",
-            "date": "2026-10-05",
+            "ref": "9744264565020f0386c39aa93a853224b993a49a",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1137,8 +1137,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/alexhass/syr_connect/main/custom_components/syr_connect/translations/en.json",
         "verified": {
-            "ref": "49c8ff34be889654a6f624d188e8df561f96ad82",
-            "date": "2026-10-05",
+            "ref": "522b2588f3f03aa56d5745d0bcc680860e000ae9",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1155,8 +1155,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/mirkin-pixel/ha-unique-waterontharders/main/custom_components/unique_waterontharder/translations/en.json",
         "verified": {
-            "ref": "aeb2ffa96857b737a5ad83cbc029240c1a535f52",
-            "date": "2026-10-05",
+            "ref": "98b0c359722b7ee89cefaa77b92cf0181a81e0ff",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1173,8 +1173,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/victron_gx/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1191,8 +1191,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/vicare/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1211,7 +1211,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/anym001/ha-mos/main/custom_components/mos/translations/en.json",
         "verified": {
             "ref": "5db6877fe3a66d59a40db1633153312c82ddf472",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1228,8 +1228,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:nas",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/qnap/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1248,8 +1248,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:nas",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/synology_dsm/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1266,8 +1266,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:nas",
         "source": "https://raw.githubusercontent.com/LayerTM/unifi-unas-ha/main/custom_components/unifi_unas_rest/translations/en.json",
         "verified": {
-            "ref": "0241193ae6c47bee6eb224261c622aaa98755397",
-            "date": "2026-10-05",
+            "ref": "176aeabf9d8a00958d23a75080593409d872d16f",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1284,8 +1284,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:nas",
         "source": "https://raw.githubusercontent.com/ruaan-deysel/ha-unraid/main/custom_components/unraid/translations/en.json",
         "verified": {
-            "ref": "7a04281bdf81614e00f002c7540751a6726fbc0a",
-            "date": "2026-10-05",
+            "ref": "d82cddd51e474ad35985a96481d90547da3d48dc",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1303,7 +1303,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/chris-mc1/unraid_api/main/custom_components/unraid_api/translations/en.json",
         "verified": {
             "ref": "8b0041f893c8e58c44e6029dc857cdf99ed7bbe0",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1320,8 +1320,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:nas",
         "source": "https://raw.githubusercontent.com/ruaan-deysel/ha-unraid-management-agent/main/custom_components/unraid_management_agent/translations/en.json",
         "verified": {
-            "ref": "0ccbf9b1f59f710c117c9e4baed3472f9ab2d45e",
-            "date": "2026-10-05",
+            "ref": "adce0a899cb67a6a6b1d23e6062fadc645aeae9f",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1340,7 +1340,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/bigmoby/home-assistant-candy/main/custom_components/candy/translations/en.json",
         "verified": {
             "ref": "beb0933c0f018a490b73299d33e2023c42d9af84",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1363,8 +1363,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/oyvindwe/connectlife-ha/main/custom_components/connectlife/translations/en.json",
         "verified": {
-            "ref": "fa830d2f2ba2d13fa234fa5ea11feb128141b70e",
-            "date": "2026-10-05",
+            "ref": "639f33ec4ec8e234845824910d5073366003f0cf",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1398,8 +1398,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/TTLucian/ha-electrolux/main/custom_components/electrolux/translations/en.json",
         "verified": {
-            "ref": "22ec1e14bc37f8bac0c91399e65957aebc3b7a1f",
-            "date": "2026-10-05",
+            "ref": "7c3fe4feae83f8e702a737b0f822669c2024415e",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1429,7 +1429,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/Andre0512/hon/main/custom_components/hon/translations/en.json",
         "verified": {
             "ref": "70eb6c0111436b5f83fb20ee9dad69fe8407bb31",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1452,8 +1452,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/home_connect/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1525,8 +1525,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/chris-mc1/homeconnect_local_hass/main/custom_components/homeconnect_ws/translations/en.json",
         "verified": {
-            "ref": "853d01569ba7173b65e9c0f6ee848552e7c65bf7",
-            "date": "2026-10-05",
+            "ref": "b26225a92b98debb3f76234d36a9dd37f75a6ac9",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1574,7 +1574,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/home-assistant-HomeWhiz/home-assistant-HomeWhiz/main/custom_components/homewhiz/translations/en.json",
         "verified": {
             "ref": "d1fddd9ecd3e2e1b18e8aeb1bd1578f36d869b14",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1627,8 +1627,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/lg_thinq/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1669,8 +1669,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/midea/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1687,8 +1687,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/miele/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1717,8 +1717,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:dishwasher",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/whirlpool/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1736,8 +1736,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:toothbrush-electric",
         "source": "https://raw.githubusercontent.com/mtheli/philips_shaver/main/custom_components/philips_shaver/translations/en.json",
         "verified": {
-            "ref": "57bd2db58d6dab014c4929d3d49c35f92693fbd5",
-            "date": "2026-10-05",
+            "ref": "2cd06e5988c2b52ff6345a9869cbeea6b2ea1cff",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1760,8 +1760,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:toothbrush-electric",
         "source": "https://raw.githubusercontent.com/mtheli/philips_sonicare_ble/master/custom_components/philips_sonicare_ble/translations/en.json",
         "verified": {
-            "ref": "95740cc9901def79fef2c2b94d0735b0585a2bef",
-            "date": "2026-10-05",
+            "ref": "95055326cd5189f214d368fdd913e00e982a4a86",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1779,8 +1779,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:paw",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/eheimdigital/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1797,8 +1797,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:paw",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/litterrobot/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1821,8 +1821,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:paw",
         "source": "https://raw.githubusercontent.com/Jezza34000/homeassistant_petkit/main/custom_components/petkit/translations/en.json",
         "verified": {
-            "ref": "d9885b134d7e524caf073e178decc957613ef58f",
-            "date": "2026-10-05",
+            "ref": "4a474a549015c9cf7cd4cdfb59672650635462d5",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1855,7 +1855,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/jjjonesjr33/petlibro/dev/custom_components/petlibro/translations/en.json",
         "verified": {
             "ref": "7ee757fa8f76f628af2e845a301335656e9919a1",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1885,8 +1885,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:printer",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/brother/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1962,7 +1962,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/elad-bar/ha-hpprinter/master/custom_components/hpprinter/translations/en.json",
         "verified": {
             "ref": "f534fdae96e645f42f58092e37bef38b04623fef",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -1979,8 +1979,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:printer",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/syncthru/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2004,8 +2004,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/matter/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2028,8 +2028,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/zha/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2047,8 +2047,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/ecovacs/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2143,8 +2143,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/roomba/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2163,7 +2163,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/sh00t2kill/dolphin-robot/main/custom_components/mydolphin_plus/translations/en.json",
         "verified": {
             "ref": "50fe915b705e10f0dd74747a542825bdde1c4be5",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2180,8 +2180,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/roborock/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2241,8 +2241,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/johnnyh1975/ha_roomba_plus/main/custom_components/roomba_plus/translations/en.json",
         "verified": {
-            "ref": "d91712660102a0925f97e5373b09d93ab0324ef6",
-            "date": "2026-10-05",
+            "ref": "6f7f1957734d56c981e042acb1d0cc69246ac178",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2277,8 +2277,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/smartthings/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2308,8 +2308,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/tplink/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2350,8 +2350,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/tuya/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2386,8 +2386,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/xiaomi_miio/strings.json",
         "verified": {
-            "ref": "42a3d42de76a44959e91fc3155a8126fa5e6aa31",
-            "date": "2026-10-05",
+            "ref": "280532026f41b03bb2e36fb7752e56231b2a4507",
+            "date": "2026-10-12",
         },
         "duties": [
             {
@@ -2433,7 +2433,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "source": "https://raw.githubusercontent.com/roquerodrigo/ha-xiaomi-vacuum/main/custom_components/xiaomi_vacuum/translations/en.json",
         "verified": {
             "ref": "4eaf5d19295d31b15ce80963f623d7aef85877b4",
-            "date": "2026-10-05",
+            "date": "2026-10-12",
         },
         "duties": [
             {
