@@ -14,6 +14,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Home Keeper now removes the declarative companion task of a disabled entity if the
   task has no history. When you enable the entity again, Home Keeper adds a new task.
   (Fixes #454)
+- **Skipped start times.** A fixed schedule now refuses a start time that the clock skips
+  for daylight saving time, such as 02:30 on the spring day when 02:00 becomes 03:00.
+  Before, each occurrence of such a task came 1 hour late.
 
 ## [0.31.0b4]
 

@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 from typing import Any
 
 from . import recurrence
@@ -739,6 +739,16 @@ def normalize_active_season(data: Any) -> list[dict]:
     raise TaskValidationError("active_season must be an object or a list of objects")
 
 
+def _wall_time_exists(value: datetime) -> bool:
+    """True if the wall time of *value* exists in its timezone.
+
+    A wall time in a daylight-saving gap does not survive a trip through UTC: the
+    trip gives a different wall time. A time in the repeated hour does survive it.
+    """
+    back = value.astimezone(UTC).astimezone(value.tzinfo)
+    return back.replace(tzinfo=None) == value.replace(tzinfo=None)
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -869,6 +879,15 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 if tz is not None
                 else parsed_anchor.astimezone()
             )
+            # A wall time in a daylight-saving gap has no instant. The stored offset
+            # makes it the time 1 hour later, and the engine keeps that later time for
+            # every occurrence. Refuse it, so that the schedule keeps the time that the
+            # user typed (recurrence G3).
+            if tz is not None and not _wall_time_exists(parsed_anchor):
+                raise TaskValidationError(
+                    f"anchor {anchor} does not exist in {tz}, because the clock skips "
+                    "it for daylight saving time. Pick a different time."
+                )
         fields["freq"] = freq
         fields["anchor"] = parsed_anchor.isoformat()
 
