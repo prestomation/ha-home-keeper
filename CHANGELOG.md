@@ -41,7 +41,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **[Tasks of disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+- **[Disabled entity tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
   Home Keeper now removes the declarative companion task of a disabled entity if the
   task has no history. When you enable the entity again, Home Keeper adds a new task.
   (Fixes #454)
