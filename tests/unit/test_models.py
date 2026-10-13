@@ -192,6 +192,24 @@ def test_wall_time_exists():
     assert m._wall_time_exists(datetime(2024, 3, 10, 2, 30, tzinfo=TZ))
 
 
+@pytest.mark.parametrize(
+    ("zone", "wall", "exists"),
+    [
+        # Lord Howe Island moves its clock 30 minutes: 02:00 becomes 02:30.
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 1, 59), True),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 0), False),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 29), False),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 30), True),
+        # Santiago skips the hour after midnight: 00:00 becomes 01:00.
+        ("America/Santiago", datetime(2024, 9, 8, 0, 0), False),
+        ("America/Santiago", datetime(2024, 9, 8, 0, 30), False),
+        ("America/Santiago", datetime(2024, 9, 8, 1, 0), True),
+    ],
+)
+def test_wall_time_exists_in_other_gaps(zone, wall, exists):
+    assert m._wall_time_exists(wall.replace(tzinfo=ZoneInfo(zone))) is exists
+
+
 def test_build_task_rejects_missing_name():
     with raises_exactly(m.TaskValidationError, "missing required field: 'name'"):
         m.build_task(
