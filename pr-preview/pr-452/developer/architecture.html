@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><meta data-rh="true" property="og:description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-452/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-452/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-452/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-452/assets/js/runtime~main.645089b9.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-452/assets/js/runtime~main.c0214dcc.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-452/assets/js/main.8f531887.js" defer="defer"></script>
 </head>
 <body>
@@ -109,9 +109,9 @@ tabs, the card resource, the storage document and the uploaded files.</p>
 <p>The config flow is 1 confirmation step with no data. <code>options.py</code> defines every option key
 and default (<code>options.ALL_OPTIONS</code>). The options flow, <code>set_options</code> and Settings edit them.</p>
 <ul>
-<li class="">The service and the panel send a partial update to <code>options.async_set_options</code>. It
-merges, refuses a save that strands a notification (<code>options.ProfileInUseError</code>),
-writes, and waits for the reload. A flag stops the update listener from a 2nd reload.</li>
+<li class=""><code>set_options</code> and the panel send a partial update to <code>options.async_set_options</code>. It merges,
+ignores a list option sent as a value that is not a list, refuses a save that strands a
+notification (<code>options.ProfileInUseError</code>), writes, and waits for a reload the listener skips.</li>
 <li class="">Home Assistant stores an options flow result as the whole options object. The form
 shows only <code>options.FLOW_OPTIONS</code>, so the flow returns <code>options.merge_flow_input</code>: a
 cleared form key resets, and a key outside the form keeps its value.</li>
