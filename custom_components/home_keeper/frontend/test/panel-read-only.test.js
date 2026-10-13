@@ -255,6 +255,77 @@ describe('task page', () => {
   });
 });
 
+// A task with a template sensor. A non-admin cannot save it: the form sends the
+// template binding back, and the backend refuses that for a non-admin.
+const TEMPLATE_TASK = {
+  ...TASK,
+  id: 't3',
+  name: 'Check the leak sensor',
+  recurrence_type: 'sensor',
+  sensor: { mode: 'template', template: "{{ is_state('binary_sensor.leak', 'on') }}" },
+  device_id: undefined,
+  next_due: null,
+};
+
+const USAGE_TASK = {
+  ...TEMPLATE_TASK,
+  id: 't4',
+  name: 'Change the water filter',
+  sensor: { mode: 'usage', entity_id: 'sensor.water_used', threshold: 100 },
+};
+
+describe('task page buttons', () => {
+  const tasks = [TASK, TEMPLATE_TASK, USAGE_TASK];
+
+  it('has no Edit and no Duplicate on a template task for a non-admin', async () => {
+    const panel = await mount('/tasks/t3', makeHass({ admin: false, tasks }), '.hk-detail-card');
+    const root = panel.shadowRoot;
+    expect(root.querySelector('.d-edit')).toBeNull();
+    expect(root.querySelector('.d-dup')).toBeNull();
+    expect(root.querySelector('.d-dup-blocked')).toBeNull();
+  });
+
+  it('keeps Edit and Duplicate on a template task for an admin', async () => {
+    const panel = await mount('/tasks/t3', makeHass({ admin: true, tasks }), '.hk-detail-card');
+    expect(panel.shadowRoot.querySelector('.d-edit')).not.toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-dup')).not.toBeNull();
+  });
+
+  it('keeps Edit and Duplicate on other sensor tasks for a non-admin', async () => {
+    const panel = await mount('/tasks/t4', makeHass({ admin: false, tasks }), '.hk-detail-card');
+    expect(panel.shadowRoot.querySelector('.d-edit')).not.toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-dup')).not.toBeNull();
+  });
+});
+
+describe('companion tabs', () => {
+  /** Record each websocket command that *hass* gets. */
+  function recording(hass) {
+    const calls = [];
+    const callWS = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      calls.push(msg.type);
+      return callWS(msg);
+    };
+    return calls;
+  }
+
+  it('does not ask a non-admin for the admin-only tab list', async () => {
+    const hass = makeHass({ admin: false });
+    const calls = recording(hass);
+    await mount('/', hass, '#hk-list');
+    expect(calls).toContain('home_keeper/get_tasks');
+    expect(calls).not.toContain('home_keeper/get_panel_tabs');
+  });
+
+  it('asks an admin for the tab list', async () => {
+    const hass = makeHass({ admin: true });
+    const calls = recording(hass);
+    await mount('/', hass, '#hk-list');
+    expect(calls).toContain('home_keeper/get_panel_tabs');
+  });
+});
+
 describe('task form', () => {
   const modes = (sections) =>
     sections

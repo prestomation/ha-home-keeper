@@ -328,9 +328,16 @@ function taskDetail(p: PanelHost, task: Task): string {
   //
   // `d-dup` must keep its `d-` prefix: `_openerKeyFor` reads it to hand the keyboard
   // back to this button when the drawer closes.
-  const dupBtn = p._canDuplicate(task)
-    ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
-    : p._blockedDuplicate(task);
+  //
+  // A non-admin cannot save a task with a template sensor: the form sends the
+  // template binding back, and the backend refuses it for a non-admin. So that user
+  // gets no Edit and no Duplicate on such a task.
+  const templateLocked = p._readOnly() && task.sensor?.mode === 'template';
+  const dupBtn = templateLocked
+    ? ''
+    : p._canDuplicate(task)
+      ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
+      : p._blockedDuplicate(task);
   // A declarative-companion task is made by a declarative companion Home Keeper
   // holds itself, so its `managed_by` names the companion ("Device Pulse") over Home
   // Keeper's own config entry. The captions below read that as a foreign
@@ -382,7 +389,9 @@ function taskDetail(p: PanelHost, task: Task): string {
       ? `<span class="hk-managed-info">${escapeHTML(
           t('managed.allLocked', { name: mb.display_name }),
         )}</span>`
-      : `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+      : templateLocked
+        ? ''
+        : `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.

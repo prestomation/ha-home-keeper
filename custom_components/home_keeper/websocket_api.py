@@ -1705,9 +1705,10 @@ async def ws_preview_declarative_companion(
     general-purpose template oracle, and ``__init__._verify_template_binding`` gates
     the same power on ``add_task`` for exactly that reason — ``device_attr``,
     ``area_id`` and ``integration_entities`` reach things a non-admin cannot otherwise
-    enumerate. The panel is ``require_admin`` already, so no user loses a surface; this
-    closes the websocket that walked around it. The name and notes templates were
-    rendered here before the trigger was, so part of this is older than that mode.
+    enumerate. The panel shows the companion dialog only to an admin, so no user loses
+    a surface; this closes the websocket that walked around it. The name and notes
+    templates were rendered here before the trigger was, so part of this is older than
+    that mode.
 
     ``api_surface.py`` carries the matching ``admin_only=True`` and
     ``tests/unit/test_api_surface.py`` fails if the two drift apart.
@@ -1765,7 +1766,7 @@ async def ws_list_entity_keys(
     Home Assistant shows a ``translation_key`` on no screen, so the dialog offers the
     keys it finds in the entity registry: each with a count and one example entity.
     Admin-only like the preview it sits beside: it names every entity of the
-    integration, and the panel that calls it is ``require_admin``.
+    integration, and the panel shows the dialog that calls it only to an admin.
     """
     coord = _coordinator(hass)
     if coord is None:

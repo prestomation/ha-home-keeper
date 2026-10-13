@@ -1063,7 +1063,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           : this._soft(api.listDeclarativePresets(this._hass), null),
         this._soft(api.getPresetNudge(this._hass), null),
         // The companion tabs. A failed read shows the panel with no companion tab.
-        this._soft(api.getPanelTabs(this._hass), [] as PanelTabInfo[]),
+        // The command is admin-only, so a non-admin does not ask: Home Assistant
+        // logs each refused call as an error.
+        this._readOnly()
+          ? Promise.resolve([] as PanelTabInfo[])
+          : this._soft(api.getPanelTabs(this._hass), [] as PanelTabInfo[]),
       ]);
       this._tasks = tasks;
       this._assets = assets;

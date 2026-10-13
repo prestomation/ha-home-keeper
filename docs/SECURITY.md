@@ -27,8 +27,9 @@ The risks are small. A guest account must not:
   entities of an integration
 
 Home Keeper data is household data. Any signed-in user can read all appliance data,
-which includes purchase prices, serial numbers and warranty dates. If an account must
-not see this data, do not give that account access to Home Assistant.
+which includes purchase prices, serial numbers and warranty dates. The settings are
+open to read too. They include the profiles and the names of the notify services. If an
+account must not see this data, do not give that account access to Home Assistant.
 
 ## Admin only
 
