@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 1041148a26f5
+source_hash: a9a80b6c1081
 ---
 
 # Events and API surface
@@ -56,6 +56,7 @@ events share 1 spine, so 1 automation template works for all of them. Per-event 
 
 `store.py` fires at each mutation point, never in a handler, also on the wear-part
 reconcile and the appliance delete cascade. An update that changes no field fires no event.
+`transfer_runner.py` fires the summary events of an export and an import ([transfer](transfer.md)).
 
 ### Edge-triggered transitions
 
@@ -97,11 +98,10 @@ but only to choose which triggers to offer.
 service. With no loaded entry, a handler raises `integration_not_loaded`. Read services
 use `SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold all labels.
 
-`websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error codes.
-`backend_i18n.resolve_exception` localizes the text, because a websocket error gets no later
-translation. Each `WebsocketSpec` names its service twin, if there is one.
-`home_keeper/sign_task_photo_urls` signs a list, and its twin signs 1 photo.
-`home_keeper/get_panel_tabs` has no twin ([panel-tabs](panel-tabs.md)).
+`websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
+codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets no
+later translation. Each `WebsocketSpec` names its service twin, except the panel tab list
+([panel-tabs](panel-tabs.md)). `home_keeper/sign_task_photo_urls` signs a list of photos.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.
@@ -121,11 +121,11 @@ given picks the key: `unknown_task_photo` or `unknown_part` before `asset_not_fo
 ### The declared surface
 
 `api_surface.py` imports only `const`. Its tables (`SERVICES`, `EVENTS`, `PAYLOAD_SPINES`,
-`DEVICE_TRIGGERS`, `WEBSOCKET_COMMANDS` and others) hold names and structure only. The one
-text field is `EventSpec.summary`, because a bus event has no string in `strings.json`.
-`tests/unit/test_api_surface.py` parses the source with `ast` and checks the services,
-events, payload keys, websocket commands, views and admin gates against the model.
-`tests/integration/test_api_surface.py` checks a running instance, and
+`COMPANION_CAPABILITIES`, `WEBSOCKET_COMMANDS` and others) hold names and structure only.
+The text fields are `EventSpec.summary` and `CompanionCapabilitySpec.summary`, which have
+no string in `strings.json`. `tests/unit/test_api_surface.py` parses the source with `ast`
+and checks the services, events, payload keys, websocket commands, views and admin gates
+against the model. `tests/integration/test_api_surface.py` checks a running instance, and
 `ci/generate_api_docs.py` renders the Developer Guide API page from the model.
 
 `testing.async_setup_fake_home_keeper` registers a `FakeHomeKeeper` under the real service

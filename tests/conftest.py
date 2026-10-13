@@ -73,6 +73,9 @@ _PURE_MODULES = (
     # ``recurrence`` and ``resolve``, so it must come after all four — a module first
     # pulled in by a sibling and then re-executed here would leave two copies loaded.
     "transfer",
+    # ``transfer_bundle`` (the zip file, the files and the settings of a bundle)
+    # imports ``transfer``, ``documents`` and ``task_photos``, so it comes after them.
+    "transfer_bundle",
     # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
     # two device-registry shapes it reconciles are testable here with plain fakes.
     "device_compat",

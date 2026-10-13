@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.31.0b3]
+## [0.32.0b1]
 
 ### Added
 
@@ -14,6 +14,141 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Users who are not admins can now open the Home Keeper panel. They can use their tasks
   and read all appliance data, parts and manuals. Only an admin can change appliances
   and settings. (Fixes #444)
+
+## [0.31.0] - 2026-10-13
+
+### Added
+
+- **[QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).**
+  Print QR code labels for your appliances and tasks on a label sheet, or save a PDF or a
+  PNG for a label printer roll. An admin who scans a label opens that page in Home Keeper.
+  (Fixes #428)
+- **[Label text position](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#label-printers).**
+  Print the text of a roll label beside or below the code, so a square label such as
+  24 × 24 mm also shows its name. The panel keeps your choice in this browser.
+- **[App print warning](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#home-assistant-app).**
+  In the Home Assistant app, the QR label dialog warns that Print and Download PNG can
+  fail, and points you to Copy link or a browser.
+- **[Companion data in export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  1 export now holds your tasks and appliances and the data of your companions, such as
+  Home Keeper Library and Pawsistant, and 1 import brings it all back. A new bundle
+  (.zip) export also holds your manuals, receipts, task photos, book covers and settings.
+
+### Changed
+
+- **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
+  HACS blocks the install on older versions.
+- **HTTPS label address.** With no external URL, a QR label uses the HTTPS address of your
+  browser, such as Home Assistant Cloud, before an internal URL without HTTPS. The label
+  dialog shows which address the code uses, and warns if it does not use HTTPS.
+- **Profile filter warnings.** A settings import warns about each area, label and device in
+  a profile filter that this Home Assistant does not have. The profile keeps the ids.
+- **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
+  a form field passes 64 KB, and the panel shows the reason.
+- **One place chip on card rows.** If a task has a device, its card row shows the device
+  chip. Else the row shows the area chip.
+
+### Fixed
+
+- **[Disabled entity tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Home Keeper now removes the declarative companion task of a disabled entity if the
+  task has no history. When you enable the entity again, Home Keeper adds a new task.
+  (Fixes #454)
+- **Skipped start times.** A fixed schedule now refuses a start time that the clock skips
+  for daylight saving time, such as 02:30 on the spring day when 02:00 becomes 03:00.
+  Before, each occurrence of such a task came 1 hour late.
+- **Card device chip link.** On the dashboard card, the device chip on a task is now a
+  link for an admin, as it is in the panel. It opens the appliance page, else the device
+  page. (Fixes #446)
+- **Card on older Home Assistant.** The dashboard card is added to the dashboard resources
+  on Home Assistant before 2026.2.
+- **Paste box.** The text box on Settings → Import and export now shows the first time you
+  open the panel.
+- **Tasks after device change.** When Home Assistant makes a new device for an appliance,
+  the tasks, related devices and device filters on the old device move to the new one,
+  and each moved task fires `home_keeper_task_updated`. An old device that still exists
+  keeps its tasks.
+- **Option values in imports.** An import or a Settings save refuses an option value of
+  the wrong type, such as text for a list, and the import report warns about each one.
+  The report counts only the options that change.
+- **Imported notification profiles.** An imported notification keeps its profile when the
+  profile matches a profile with the same name on this install.
+- **Import report warnings.** The import report says that a notify target other than a
+  mobile app or a persistent notification is not imported. The warning about an unknown
+  appliance of a file has correct grammar.
+- **Partial import message.** If an import stops with an error after it wrote some data,
+  Settings → Import and export says that part of the document was imported. The panel
+  then shows the new data.
+- **Binary file in import.** If you choose a file that is not text or a bundle, Settings →
+  Import and export shows an error and keeps the text box empty.
+
+## [0.31.0b4]
+
+### Added
+
+- **[Label text position](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#label-printers).**
+  Print the text of a roll label beside or below the code, so a square label such as
+  24 × 24 mm also shows its name. The panel keeps your choice in this browser.
+- **[App print warning](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#home-assistant-app).**
+  In the Home Assistant app, the QR label dialog warns that Print and Download PNG can
+  fail, and points you to Copy link or a browser.
+
+### Changed
+
+- **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
+  HACS blocks the install on older versions.
+- **HTTPS label address.** With no external URL, a QR label uses the HTTPS address of your
+  browser, such as Home Assistant Cloud, before an internal URL without HTTPS. The label
+  dialog shows which address the code uses, and warns if it does not use HTTPS.
+- **Profile filter warnings.** A settings import warns about each area, label and device in
+  a profile filter that this Home Assistant does not have. The profile keeps the ids.
+- **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
+  a form field passes 64 KB, and the panel shows the reason.
+- **One place chip on card rows.** If a task has a device, its card row shows the device
+  chip. Else the row shows the area chip.
+
+### Fixed
+
+- **Card on older Home Assistant.** The dashboard card is added to the dashboard resources
+  on Home Assistant before 2026.2.
+- **Paste box.** The text box on Settings → Import and export now shows the first time you
+  open the panel.
+- **Tasks after device change.** When Home Assistant makes a new device for an appliance,
+  the tasks, related devices and device filters on the old device move to the new one,
+  and each moved task fires `home_keeper_task_updated`. An old device that still exists
+  keeps its tasks.
+- **Option values in imports.** An import or a Settings save refuses an option value of
+  the wrong type, such as text for a list, and the import report warns about each one.
+  The report counts only the options that change.
+- **Imported notification profiles.** An imported notification keeps its profile when the
+  profile matches a profile with the same name on this install.
+- **Import report warnings.** The import report says that a notify target other than a
+  mobile app or a persistent notification is not imported. The warning about an unknown
+  appliance of a file has correct grammar.
+- **Partial import message.** If an import stops with an error after it wrote some data,
+  Settings → Import and export says that part of the document was imported. The panel
+  then shows the new data.
+- **Damaged bundles.** A bundle with an unsupported compression method, a damaged entry or
+  a bad file name gives an import error that names the problem.
+- **Bundle export errors.** If a bundle export fails, the panel shows the reason from Home
+  Assistant.
+- **Binary file in import.** If you choose a file that is not text or a bundle, Settings →
+  Import and export shows an error and keeps the text box empty.
+- **QR label print text.** A printed label and its PDF show only the text rows that fit, as
+  the PNG does, with "…" on the last row when text is left out. Emoji stay whole, and the
+  text follows the Home Assistant language and direction.
+- **QR label preview.** A long word in the label preview wraps inside the label box.
+- **QR label task list.** The task list for QR labels shows the same tasks as the task
+  list, with its status filter and its profile.
+
+## [0.31.0b3]
+
+### Added
+
+- **[Companion data in export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  1 export now holds your tasks and appliances and the data of your companions, such as
+  Home Keeper Library and Pawsistant, and 1 import brings it all back. A new bundle
+  (.zip) export also holds your manuals, receipts, task photos, book covers and settings.
 
 ## [0.31.0b2]
 
@@ -28,10 +163,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).**
-  Print QR code labels for your appliances and tasks on a label sheet or a label printer,
-  and stick them on the appliance. An admin who scans a label opens that page in Home
-  Keeper. For a label printer, pick a roll size or type your own in mm, then save a PDF
-  or a PNG for its app. (Fixes #428)
+  Print QR code labels for your appliances and tasks on a label sheet, or save a PDF or a
+  PNG for a label printer roll. An admin who scans a label opens that page in Home Keeper.
+  (Fixes #428)
 
 ## [0.30.0] - 2026-10-08
 

@@ -8,9 +8,10 @@
  * sheet goes into a hidden iframe, and the browser's dialog gives Print and Save as
  * PDF. The pure part (links, text, layout, SVG) is `qr-labels.ts`.
  */
-import { assetMatchesQuery, taskMatchesQuery } from './card-filter';
+import { assetMatchesQuery } from './card-filter';
 import { makeDialog } from './dialogs';
 import { t, tn } from './i18n';
+import { listedTasks } from './panel-controls';
 import type { PanelHost } from './panel-host';
 import { LS_LABELS } from './panel-types';
 import {
@@ -19,6 +20,7 @@ import {
   CUSTOM_MAX_MM,
   CUSTOM_MIN_MM,
   LABEL_PAPERS,
+  LABEL_TEXT_POSITIONS,
   QR_BORDER,
   ROLL_SIZES,
   clampMm,
@@ -26,8 +28,10 @@ import {
   defaultPaper,
   dotsPerMm,
   fitLabel,
+  isCompanionApp,
   isRoll,
-  labelBaseUrl,
+  labelBase,
+  labelFitMode,
   labelFileName,
   labelLines,
   labelPrintHtml,
@@ -40,10 +44,14 @@ import {
   qrModules,
   qrPixelPlan,
   qrSvg,
+  textPosFor,
+  type LabelBaseSource,
   type LabelLine,
   type LabelOpts,
   type LabelPaper,
   type LabelSource,
+  type LabelTextPos,
+  type PrintDoc,
   type PrintLabel,
 } from './qr-labels';
 import type { Asset, Task } from './types';
@@ -106,13 +114,17 @@ export function openLabelPicker(p: PanelHost): void {
       .map((a) => a.id);
   } else {
     kind = 'task';
-    ids = p._tasks
-      .filter((task) => !p._query || taskMatchesQuery(task, p._query, devices, areas))
+    ids = listedTasks(p)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((task) => task.id);
   }
   p._labelDialog = { ...emptyLabelDialog(), open: true, kind, ids };
   p._render();
+}
+
+/** Wire the QR label button of the control row to the picker. */
+export function wireLabelButton(p: PanelHost, root: ShadowRoot): void {
+  root.getElementById('labels-btn')?.addEventListener('click', () => openLabelPicker(p));
 }
 
 function closeLabelDialog(p: PanelHost): void {
@@ -192,14 +204,31 @@ function printTargets(p: PanelHost): LabelTarget[] {
   return out;
 }
 
+/** The base address of every code: an HA URL or the address of this browser. */
+function baseOf(p: PanelHost): ReturnType<typeof labelBase> {
+  return labelBase(p._hass?.config, window.location.origin);
+}
+
 /** The link a code holds for 1 object: the HA address and the panel path. */
 function targetUrl(p: PanelHost, kind: LabelKind, id: string): string {
   const href = p._hrefFor({
     view: kind === 'asset' ? 'appliances' : 'tasks',
     detail: { kind, id },
   });
-  return labelUrl(labelBaseUrl(p._hass?.config, window.location.origin), href);
+  return labelUrl(baseOf(p).url, href);
 }
+
+const BASE_KEYS: Record<LabelBaseSource, string> = {
+  external: 'labels.baseExternal',
+  internal: 'labels.baseInternal',
+  browser: 'labels.baseBrowser',
+};
+
+const TEXT_POS_KEYS: Record<LabelTextPos, string> = {
+  auto: 'labels.textPos.auto',
+  side: 'labels.textPos.side',
+  below: 'labels.textPos.below',
+};
 
 /** The number of distinct tasks the picked appliances have. */
 function taskCount(p: PanelHost): number {
@@ -238,6 +267,37 @@ function printSheet(html: string): void {
   document.body.appendChild(frame);
 }
 
+/** The CSS font of label text at `sizePx`, the same in the PNG and the print. */
+function labelFont(bold: boolean, sizePx: number): string {
+  return `${bold ? '700' : '400'} ${sizePx}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+}
+
+/** The language and the direction of Home Assistant, for a print document and a PNG. */
+function printLocale(p: PanelHost): { lang: string; dir: 'ltr' | 'rtl' } {
+  const hass = p._hass as
+    | { language?: string; translationMetadata?: { translations?: Record<string, { isRTL?: boolean }> } }
+    | undefined;
+  const lang = hass?.language || 'en';
+  return { lang, dir: hass?.translationMetadata?.translations?.[lang]?.isRTL ? 'rtl' : 'ltr' };
+}
+
+/**
+ * The print document of `labels`. A canvas measures the text, so the print keeps the
+ * rows that the PNG keeps. With no canvas, CSS wraps the text.
+ */
+function printHtml(p: PanelHost, labels: PrintLabel[], opts: LabelOpts): string {
+  const doc: PrintDoc = printLocale(p);
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (ctx) {
+    // 10 px for each mm: the width scales with the size, so any scale measures the same.
+    doc.measure = (text, bold, sizeMm) => {
+      ctx.font = labelFont(bold, sizeMm * 10);
+      return ctx.measureText(text).width / 10;
+    };
+  }
+  return labelPrintHtml(labels, opts, p._labelDialog.skip, t('labels.title'), doc);
+}
+
 /**
  * Draw 1 whole label, the code and its text, on a canvas at the chosen density, and save
  * it as a PNG for the app of a label printer. Each module of the code is a whole number
@@ -247,6 +307,7 @@ async function downloadLabelPng(
   label: PrintLabel,
   opts: LabelOpts,
   filename: string,
+  dir: 'ltr' | 'rtl',
 ): Promise<boolean> {
   try {
     const size = labelSizeMm(opts);
@@ -264,7 +325,7 @@ async function downloadLabelPng(
       ctx.translate(width, 0);
       ctx.rotate(Math.PI / 2);
     }
-    const fit = fitLabel(size.w, size.h, label.lines.length > 0);
+    const fit = fitLabel(size.w, size.h, label.lines.length > 0, textPosFor(opts));
     const mods = qrModules(label.url);
     const plan = qrPixelPlan(fit.qr, mods.length + QR_BORDER * 2, dpmm);
     const x0 = Math.round(fit.qrX * dpmm) + plan.offset + QR_BORDER * plan.module;
@@ -276,16 +337,18 @@ async function downloadLabelPng(
       }),
     );
     if (fit.mode !== 'code') {
-      const font = (bold: boolean, sizeMm: number): string =>
-        `${bold ? '700' : '400'} ${sizeMm * dpmm}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const font = (bold: boolean, sizeMm: number): string => labelFont(bold, sizeMm * dpmm);
       const measure = (text: string, bold: boolean, sizeMm: number): number => {
         ctx.font = font(bold, sizeMm);
         return ctx.measureText(text).width / dpmm;
       };
       ctx.textBaseline = 'top';
+      ctx.direction = dir;
       const center = fit.mode === 'below';
-      ctx.textAlign = center ? 'center' : 'left';
-      const x = (center ? fit.textX + fit.textW / 2 : fit.textX) * dpmm;
+      // "start" is the left edge of the text box, or its right edge for right-to-left.
+      ctx.textAlign = center ? 'center' : 'start';
+      const start = dir === 'rtl' ? fit.textX + fit.textW : fit.textX;
+      const x = (center ? fit.textX + fit.textW / 2 : start) * dpmm;
       for (const row of layoutText(label.lines, fit.textW, fit.textH, measure)) {
         ctx.font = font(row.bold, row.sizeMm);
         ctx.fillText(row.text, x, (fit.textY + row.top) * dpmm);
@@ -344,6 +407,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   const parts: string[] = [];
   if (oneTarget) {
     const url = targetUrl(p, oneTarget.kind, oneTarget.id);
+    const base = baseOf(p);
     parts.push(`
       <div class="hk-label-preview" data-label-preview>
         <div class="hk-label-qr">${qrSvg(url)}</div>
@@ -355,7 +419,15 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
           <input class="hk-label-link" data-label-link readonly value="${escapeHTML(url)}">
           <ha-button ${btnAttrs('secondary')} data-label-copy>${escapeHTML(t('labels.copy'))}</ha-button>
         </span>
-      </label>`);
+      </label>
+      <p class="hk-label-hint" data-label-base="${base.source}">${escapeHTML(t(BASE_KEYS[base.source]))}</p>
+      ${
+        base.secure
+          ? ''
+          : `<ha-alert alert-type="warning" data-label-not-https>${escapeHTML(
+              t('labels.baseNotHttps'),
+            )}</ha-alert>`
+      }`);
   } else {
     const names = s.ids.map((id) => {
       if (s.kind === 'asset') {
@@ -409,6 +481,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
         t('labels.dpiOption', { dpi, dots: Math.round(dotsPerMm(dpi)) }),
       )}</option>`,
   ).join('');
+  const textPosOpts = LABEL_TEXT_POSITIONS.map(
+    (pos) =>
+      `<option value="${pos}"${pos === opts.textPos ? ' selected' : ''}>${escapeHTML(
+        t(TEXT_POS_KEYS[pos]),
+      )}</option>`,
+  ).join('');
   const lineBoxes = LABEL_LINES.map(
     (line) => `
       <label class="hk-label-check">
@@ -436,6 +514,10 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
         <input type="number" min="${CUSTOM_MIN_MM}" max="${CUSTOM_MAX_MM}" step="0.1"
           inputmode="decimal" data-label-custom-h value="${opts.customH}">
       </label>
+      <label class="hk-label-field" data-label-text-pos-field>
+        <span>${escapeHTML(t('labels.textPosition'))}</span>
+        <select data-label-text-pos>${textPosOpts}</select>
+      </label>
       ${
         oneTarget
           ? `<label class="hk-label-field">
@@ -453,7 +535,14 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
       <legend class="hk-eyebrow">${escapeHTML(t('labels.lines'))}</legend>
       ${lineBoxes}
     </fieldset>
-    <p class="hk-label-hint" data-label-hint></p>`);
+    <p class="hk-label-hint" data-label-hint></p>
+    ${
+      isCompanionApp(p._hass, navigator.userAgent)
+        ? `<ha-alert alert-type="warning" data-label-app-warning>${escapeHTML(
+            t(oneTarget ? 'labels.appWarning' : 'labels.appWarningList'),
+          )}</ha-alert>`
+        : ''
+    }`);
   body.innerHTML = parts.join('');
 
   const print = document.createElement('ha-button');
@@ -477,9 +566,14 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     show('[data-label-skip-field]', !roll);
     show('[data-label-custom-field]', now.paper === 'roll_custom');
     show('[data-label-rotate-field]', roll);
+    show('[data-label-text-pos-field]', roll);
     const hint = body.querySelector<HTMLElement>('[data-label-hint]');
     if (hint) hint.textContent = t(roll ? 'labels.printHintRoll' : 'labels.printHint');
     const text = body.querySelector<HTMLElement>('[data-label-text]');
+    const preview = body.querySelector<HTMLElement>('[data-label-preview]');
+    if (preview && oneTarget) {
+      preview.dataset.fit = labelFitMode(now, labelLines(oneTarget.src, now.lines).length > 0);
+    }
     if (text && oneTarget) {
       text.innerHTML = labelLines(oneTarget.src, now.lines)
         .map((line, i) => `<div class="${i === 0 ? 'hk-label-l1' : ''}">${escapeHTML(line)}</div>`)
@@ -535,6 +629,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   body.querySelector<HTMLInputElement>('[data-label-rotate]')?.addEventListener('change', (e) => {
     saveOpts({ ...readOpts(p), rotate: (e.target as HTMLInputElement).checked });
   });
+  body.querySelector<HTMLSelectElement>('[data-label-text-pos]')?.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    const now = readOpts(p);
+    saveOpts({ ...now, textPos: LABEL_TEXT_POSITIONS.find((pos) => pos === value) ?? now.textPos });
+    sync();
+  });
   body.querySelector<HTMLSelectElement>('[data-label-dpi]')?.addEventListener('change', (e) => {
     const dpi = Number((e.target as HTMLSelectElement).value);
     const now = readOpts(p);
@@ -569,7 +669,12 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
     png.addEventListener('click', async () => {
       const now = readOpts(p);
       const label = { url, lines: labelLines(oneTarget.src, now.lines) };
-      const ok = await downloadLabelPng(label, now, labelFileName(oneTarget.kind, oneTarget.src.name));
+      const ok = await downloadLabelPng(
+        label,
+        now,
+        labelFileName(oneTarget.kind, oneTarget.src.name),
+        printLocale(p).dir,
+      );
       if (!ok) toast(p, t('labels.pngFailed'));
     });
     footer.appendChild(png);
@@ -582,7 +687,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
       lines: labelLines(target.src, now.lines),
     }));
     if (!labels.length) return;
-    printSheet(labelPrintHtml(labels, now, p._labelDialog.skip, t('labels.title')));
+    printSheet(printHtml(p, labels, now));
   });
   footer.appendChild(print);
 

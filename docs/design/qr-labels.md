@@ -6,7 +6,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-labels.ts
   - custom_components/home_keeper/frontend/src/qrcodegen.ts
 related: [frontend, appliances]
-source_hash: 2a7958cf8f6c
+source_hash: 0407b383ec67
 ---
 
 # QR code labels
@@ -36,9 +36,12 @@ field and no event.
 
 A code holds `<base><prefix>/appliances/<id>` or `<base><prefix>/tasks/<id>`, from
 `p._hrefFor` and `utils.buildPath`, which leave out the default sub-tab. `<base>` comes from
-`qr-labels.labelBaseUrl`: HA's external URL, then its internal URL, then the browser address.
-The frontend reads them from `hass.config`, so no backend call is needed. `hass.config` has
-no Home Assistant Cloud address, so a cloud-only instance gets the browser address.
+`qr-labels.labelBase`: HA's external URL if it is set. Else the internal URL and the browser
+address compete, and the one with the `https:` scheme wins. If both or neither use HTTPS,
+the internal URL wins, and with no internal URL the browser address is used. The frontend
+reads the URLs from `hass.config`, so no backend call is needed. `hass.config` has no Home
+Assistant Cloud address, so the browser address of a cloud session is the HTTPS candidate.
+Below the link, the dialog names the source of `<base>`, and warns when it is not HTTPS.
 
 ### The dialog
 
@@ -47,17 +50,24 @@ no Home Assistant Cloud address, so a cloud-only instance gets the browser addre
 - **1 object.** The **QR label** button on an appliance or a task page opens it with a
   preview, the link with a copy button, and Download PNG.
 - **A checklist.** **Print labels** beside **Add** opens it with what the list shows: the
-  active or archived appliances, or the tasks, narrowed by the search box. Nothing starts
+  active or archived appliances, or the tasks that `panel-controls.listedTasks` gives the
+  task list: the active Profile or the status filter, then the search box. Nothing starts
   checked. For appliances, a checkbox adds a label for each of their tasks
   (`utils.tasksForAsset`), and a shared task prints once.
 
 Both forms choose the label size (`qr-labels.LABEL_PAPERS`) and which text lines to print
 (`qr-labels.LABEL_LINES`). A sheet also takes how many used labels to skip. A roll also
-takes **Rotate 90°**, and `roll_custom` takes a width and a height in mm
-(`qr-labels.clampMm`). The 1-object form also chooses the PNG density
-(`qr-labels.LABEL_DPIS`). These choices are kept per browser under
+takes **Rotate 90°** and the text position (`qr-labels.LABEL_TEXT_POSITIONS`), and
+`roll_custom` takes a width and a height in mm (`qr-labels.clampMm`). The 1-object form
+also chooses the PNG density (`qr-labels.LABEL_DPIS`). These choices are kept per browser under
 `panel-types.LS_LABELS`, and `qr-labels.parseLabelOpts` reads an unknown value as the
 default. The first size is a sheet that follows the HA country (`qr-labels.defaultPaper`).
+The preview follows the layout of the print (`qr-labels.labelFitMode`).
+
+In a Home Assistant companion app (`qr-labels.isCompanionApp`: `hass.auth.external`, or a
+user agent with `Home Assistant/`), the web view can ignore `print()` and a `blob:`
+download. The dialog then shows a warning above its buttons that names Copy link and a
+browser.
 
 ### The print
 
@@ -66,14 +76,21 @@ default. The first size is a sheet that follows the HA country (`qr-labels.defau
 label an absolute position in the sheet's own unit. For a roll, `rollSheetHtml` makes 1
 page for each label, at the label size, so Save as PDF gives 1 page per label. Rotate
 turns the page and the label 90° clockwise. `@page` sets the paper size and no margin.
-All label text goes through `escapeHTML`.
+The document takes the HA language as `lang` and its direction as `dir`. All label text
+goes through `escapeHTML`.
+
+The panel gives the print a canvas measure (`qr-labels.PrintDoc`). Then each label shows
+the rows of `qr-labels.layoutText` at fixed positions, the same rows as the PNG. With no
+canvas, CSS wraps and clamps the lines, and a line never shrinks below its height.
 
 ### The fit
 
-`qr-labels.fitLabel` places the code and the text on a roll label and in a PNG. A wide
-label puts the text right of the code, and a tall label puts it below. The code shrinks to
-keep a text box of at least 14 × 6 mm, and it never goes below 8 mm. When that fails, or
-there is no text, the label holds only the code. The sheets keep their own fixed layout.
+`qr-labels.fitLabel` places the code and the text on a roll label and in a PNG. With the
+text position `auto`, a wide label puts the text right of the code, and a tall label puts it
+below. `side` and `below` force that layout. A sheet keeps `auto` (`qr-labels.textPosFor`).
+The code shrinks to keep a text box of at least 14 × 6 mm, and it never goes below 8 mm.
+When that fails, or there is no text, the label holds only the code. The sheets keep their
+own fixed layout.
 The panel puts the document in a hidden iframe and calls `print()` on it, so the browser
 prints only the labels. The frame goes after `afterprint`.
 
@@ -89,14 +106,17 @@ Download PNG draws the whole label, the code and its text, on a canvas at the la
 and the chosen density: 203 dpi (8 dots per mm, most thermal label printers) or 300 dpi.
 `qr-labels.qrPixelPlan` makes each module a whole number of dots, so a thermal printer
 prints every module the same width. `qr-labels.layoutText` wraps the text with the
-canvas's own measure, with the same sizes and row limits as the print.
+canvas's own measure, with the same sizes and row limits as the print. It cuts a word
+between grapheme clusters (`qr-labels.textChars`). The first row that does not fit the box
+height goes with every row after it, and the last row that fits ends with "…". The canvas
+uses the HA text direction.
 
 ## Trade-offs
 
 - **A browser print** over a PDF library: no dependency and Save as PDF for free, at the
   cost of a hint that asks for no margins and 100% scale.
-- **The external URL** over the browser address: a label works away from home, but an
-  instance with a wrong external URL prints a wrong link.
+- **The external URL, then an HTTPS address** over the browser address: a label works away
+  from home, but an instance with a wrong external URL prints a wrong link.
 - **A checklist in the dialog** over a selection mode in each list layout: 1 surface for
   rows, tiles, the board and the appliance tree.
 - **Preset roll sizes plus a custom size** over a list of printer models: the sizes do not
@@ -106,4 +126,5 @@ canvas's own measure, with the same sizes and row limits as the print.
 
 - The link shape on printed labels. It is the panel route ([frontend](frontend.md)).
 - The `localStorage` key `home-keeper.labels`: `paper`, `lines`, `customW`, `customH`,
-  `dpi` and `rotate`. An unknown value reads as the default.
+  `dpi`, `rotate` and `textPos` (`auto`, `side` or `below`). An unknown value reads as the
+  default.

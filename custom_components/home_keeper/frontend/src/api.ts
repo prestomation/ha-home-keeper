@@ -953,10 +953,83 @@ export async function signTaskPhotoUrls(
 /** Fetch the portable document plus a ready-to-save YAML file. */
 export async function exportData(
   hass: Hass,
+  // Home Keeper sections and companion domains. Leave it out for every section: the
+  // backend reads an empty list the same way.
+  include?: string[],
 ): Promise<{ document: PortableDocument; yaml: string }> {
   return hass.callWS<{ document: PortableDocument; yaml: string }>({
     type: 'home_keeper/export_data',
+    ...(include ? { include } : {}),
   });
+}
+
+/** An HTTP reply that is not a success, with the message of the backend if it sent one. */
+export class TransferHttpError extends Error {
+  status: number;
+  /** True when *message* is the text of the backend, in the user's language. */
+  serverMessage: boolean;
+  constructor(message: string, status: number, serverMessage = false) {
+    super(message);
+    this.status = status;
+    this.serverMessage = serverMessage;
+  }
+}
+
+async function failure(res: Response): Promise<TransferHttpError> {
+  let detail = '';
+  try {
+    detail = ((await res.json()) as { message?: string }).message ?? '';
+  } catch {
+    /* not JSON: a proxy's error page */
+  }
+  return new TransferHttpError(detail || `HTTP ${res.status}`, res.status, !!detail);
+}
+
+/**
+ * Download a bundle (a zip file) from the bundle export view.
+ *
+ * A bundle is binary and can be larger than a websocket message, so it comes over
+ * HTTP with the bearer token, like an upload. A 401 gets 1 retry with a fresh token.
+ * The file name comes from the `Content-Disposition` header, else *fallback*.
+ */
+export async function exportBundle(
+  hass: Hass,
+  include: string[],
+  fallback: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const url = `/api/home_keeper/export_bundle?include=${encodeURIComponent(include.join(','))}`;
+  const send = (token: string | undefined): Promise<Response> =>
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  let res = await send(
+    hass.auth?.expired && hass.auth.refreshAccessToken
+      ? await refreshedToken(hass)
+      : currentToken(hass),
+  );
+  if (res.status === 401 && hass.auth?.refreshAccessToken) {
+    res = await send(await refreshedToken(hass));
+  }
+  if (!res.ok) throw await failure(res);
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1]) : fallback;
+  return { blob: await res.blob(), filename };
+}
+
+/**
+ * Send a chosen file to the import upload view: a bundle, or a YAML file too large
+ * for a websocket message. The reply is the same report as `importData` returns.
+ */
+export async function importUpload(
+  hass: Hass,
+  file: File,
+  opts: { dryRun?: boolean; match?: 'auto' | 'none'; includeSettings?: boolean } = {},
+): Promise<ImportReport> {
+  const body = new FormData();
+  body.append('dry_run', opts.dryRun ? 'true' : 'false');
+  body.append('match', opts.match ?? 'auto');
+  body.append('include_settings', opts.includeSettings ? 'true' : 'false');
+  body.append('file', file, file.name);
+  return postUploadAuthed<ImportReport>(hass, '/api/home_keeper/import_upload', body);
 }
 
 /**
@@ -971,13 +1044,14 @@ export async function importData(
   // A parsed document, or the whole file as text. The panel sends text and lets the
   // backend read it, so the browser carries no YAML parser of its own.
   document: PortableDocument | string,
-  opts: { dryRun?: boolean; match?: 'auto' | 'none' } = {},
+  opts: { dryRun?: boolean; match?: 'auto' | 'none'; includeSettings?: boolean } = {},
 ): Promise<ImportReport> {
   return hass.callWS<ImportReport>({
     type: 'home_keeper/import_data',
     document,
     dry_run: !!opts.dryRun,
     match: opts.match ?? 'auto',
+    include_settings: !!opts.includeSettings,
   });
 }
 

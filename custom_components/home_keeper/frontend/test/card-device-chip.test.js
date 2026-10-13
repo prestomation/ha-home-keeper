@@ -4,7 +4,8 @@ import { HomeKeeperCard } from '../src/card.ts';
 // #446: a task's device chip on the card is a link, the same as on the panel. It
 // opens the appliance page if an appliance has the device. The panel shows that
 // page to every user (#444). Else an admin gets the device page, which is
-// admin-only, so for other users the chip is then plain.
+// admin-only, so for other users the chip is then plain. The row shows 1 chip for
+// the place: the device chip if the task has a device, else the area chip.
 beforeAll(() => {
   for (const tag of ['ha-card', 'ha-icon-button', 'ha-assist-chip', 'ha-alert', 'ha-spinner', 'ha-icon']) {
     if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement {});
@@ -40,7 +41,7 @@ const task = {
   area_id: 'kitchen',
 };
 
-function mount({ admin, assets = [], config = {} }) {
+function mount({ admin, assets = [], config = {}, row = task }) {
   const card = document.createElement('home-keeper-card');
   card.setConfig({ type: 'custom:home-keeper-card', ...config });
   document.body.appendChild(card);
@@ -53,7 +54,7 @@ function mount({ admin, assets = [], config = {} }) {
     callWS: async (msg) => {
       calls.push(msg.type);
       if (msg.type === 'home_keeper/get_assets') return { assets };
-      return { tasks: [task] };
+      return { tasks: [row] };
     },
   };
   return { card, calls };
@@ -84,12 +85,53 @@ describe('card device chip (#446)', () => {
     expect(location.pathname).toBe('/config/devices/device/dev1');
   });
 
-  it('shows the area and the device as 2 chips', async () => {
+  it('shows only the device chip when the task has an area and a device', async () => {
     const { card } = mount({ admin: true });
     await waitFor(() => card.shadowRoot?.querySelector('.hk-device-chip'));
     const labels = chips(card).map((c) => c.getAttribute('label'));
-    expect(labels).toContain('Kitchen');
     expect(labels).toContain('Dishwasher');
+    expect(labels).not.toContain('Kitchen');
+  });
+
+  it('shows only the device chip for a non-admin when the task has an area and a device', async () => {
+    const { card } = mount({ admin: false });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
+    const labels = chips(card).map((c) => c.getAttribute('label'));
+    expect(labels).toContain('Dishwasher');
+    expect(labels).not.toContain('Kitchen');
+  });
+
+  it('shows the area chip when the task has an area and no device', async () => {
+    const { card } = mount({ admin: true, row: { ...task, device_id: null } });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
+    const labels = chips(card).map((c) => c.getAttribute('label'));
+    expect(labels).toContain('Kitchen');
+    expect(labels).not.toContain('Dishwasher');
+    expect(card.shadowRoot.querySelector('.hk-device-chip')).toBeNull();
+  });
+
+  it('shows the area chip when the device name does not resolve', async () => {
+    const { card } = mount({ admin: true, row: { ...task, device_id: 'gone' } });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
+    const labels = chips(card).map((c) => c.getAttribute('label'));
+    expect(labels).toContain('Kitchen');
+    expect(card.shadowRoot.querySelector('.hk-device-chip')).toBeNull();
+  });
+
+  it('shows the device chip when the task has a device and no area', async () => {
+    const { card } = mount({ admin: true, row: { ...task, area_id: null } });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-device-chip'));
+    const labels = chips(card).map((c) => c.getAttribute('label'));
+    expect(labels).toContain('Dishwasher');
+    expect(labels).not.toContain('Kitchen');
+  });
+
+  it('shows no place chip when the task has no area and no device', async () => {
+    const { card } = mount({ admin: true, row: { ...task, area_id: null, device_id: null } });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
+    const labels = chips(card).map((c) => c.getAttribute('label'));
+    expect(labels).not.toContain('Dishwasher');
+    expect(labels).not.toContain('Kitchen');
   });
 
   it('opens the appliance page for a non-admin too (#444)', async () => {
@@ -110,7 +152,7 @@ describe('card device chip (#446)', () => {
     expect(chips(card).map((c) => c.getAttribute('label'))).toContain('Dishwasher');
   });
 
-  it('shows no area or device chip when show_area is off', async () => {
+  it('shows no place chip when show_area is off', async () => {
     const { card } = mount({ admin: true, config: { show_area: false } });
     await waitFor(() => card.shadowRoot?.querySelector('.hk-row'));
     const labels = chips(card).map((c) => c.getAttribute('label'));

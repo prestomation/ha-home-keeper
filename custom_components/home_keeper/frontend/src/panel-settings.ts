@@ -48,7 +48,19 @@ import {
   type HaFormElement,
 } from './forms';
 import { t, tlist, tn } from './i18n';
-import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES } from './limits';
+import {
+  type ExportSource,
+  type ReportRow,
+  decodeText,
+  exportInclude,
+  exportSources,
+  fileLimitMb,
+  fileRoute,
+  isPicked,
+  otherProblems,
+  reportRows,
+  reportVerdict,
+} from './transfer-view';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import { indentGroup } from './panel-indent';
@@ -63,6 +75,7 @@ import {
 import type {
   Companion,
   HomeKeeperOptions,
+  ImportProblem,
   ImportReport,
   Notification,
   NotifyRunOptions,
@@ -2085,15 +2098,73 @@ function wireCompanions(p: PanelHost, root: HTMLElement): void {
   );
 }
 
+/** The label of an export row: a Home Keeper name, or the companion name. */
+function sourceLabel(source: ExportSource): string {
+  if (source.kind === 'companion') return source.name;
+  if (source.kind === 'home_keeper') return t('transfer.source.hk');
+  return t(`transfer.source.${source.kind}`);
+}
+
+/** The line after an export: the rows the file holds, and the companions it lacks. */
+export function exportedLine(held: ExportSource[], missing: ExportSource[]): string {
+  const line = t('transfer.exported', { parts: tlist(held.map(sourceLabel)) });
+  if (!missing.length) return line;
+  return `${line} ${t('transfer.exportMissing', { parts: tlist(missing.map(sourceLabel)) })}`;
+}
+
+/** The "Bundle only" tag. A phone shows the short text: only CSS picks it. */
+function bundleTag(): string {
+  return [
+    `<span class="hk-transfer-tag">`,
+    `<span class="hk-wide-text">${escapeHTML(t('transfer.bundleOnly'))}</span>`,
+    `<span class="hk-narrow-text">${escapeHTML(t('transfer.bundleShort'))}</span>`,
+    `</span>`,
+  ].join('');
+}
+
+/** A button label with a long text and a short one for a phone. */
+function twoWidthLabel(wide: string, narrow: string): string {
+  return (
+    `<span class="hk-wide-text">${escapeHTML(t(wide))}</span>` +
+    `<span class="hk-narrow-text">${escapeHTML(t(narrow))}</span>`
+  );
+}
+
+/** 1 checkbox row of the export list. */
+function sourceRow(source: ExportSource, picked: Record<string, boolean>, busy: boolean): string {
+  const help =
+    source.kind === 'companion'
+      ? t('transfer.source.companionHelp')
+      : source.kind === 'home_keeper'
+        ? t('transfer.source.hkHelp')
+        : t(`transfer.source.${source.kind}Help`);
+  const on = isPicked(source, picked);
+  return [
+    `<label class="hk-transfer-check">`,
+    `<input type="checkbox" data-transfer-source="${escapeHTML(source.key)}"`,
+    `${on ? ' checked' : ''}${source.fixed || busy ? ' disabled' : ''}>`,
+    `<span class="hk-transfer-check-text">`,
+    `<span class="hk-transfer-check-name">${escapeHTML(sourceLabel(source))}`,
+    source.bundleOnly ? bundleTag() : '',
+    `</span>`,
+    `<span class="hk-transfer-check-sub">${escapeHTML(help)}</span>`,
+    `</span></label>`,
+  ].join('');
+}
+
 /**
- * Settings -> Import and export: save everything to one file, read one back, and
- * export the appliance report.
+ * Settings -> Import and export: save the checked sources to a file, read a file
+ * back, and export the appliance report.
+ *
+ * The export lists Home Keeper, each companion that joins the export, the files and
+ * the settings. "Export data" saves a YAML file of the checked data rows. "Export
+ * bundle" saves a zip file with the files too, and the settings if that row is on.
  *
  * The import half is deliberately two steps. An import writes tasks and appliances
  * wholesale, and the file is often one somebody generated rather than typed, so the
  * panel will not apply a document it has not first shown the consequences of:
  * Preview runs the same call with `dry_run` set, and Import stays disabled until a
- * preview of *exactly this text* came back clean.
+ * preview of *exactly this input* came back clean.
  */
 function renderTransfer(p: PanelHost, host: HTMLElement): void {
   const card = document.createElement('ha-card');
@@ -2104,7 +2175,8 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
   const state = p._transfer;
   const busy = state.busy;
-  // A *preview* of this exact text is what licenses Import, so the report has to be
+  const hasInput = !!state.file || !!state.text.trim();
+  // A *preview* of this exact input is what licenses Import, so the report has to be
   // a dry run as well as clean. A finished import leaves a clean report behind too,
   // and treating that as permission left Import live afterwards: a second press
   // silently ran the whole document again. That is harmless for a document keyed by
@@ -2112,7 +2184,12 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
   // same name creates both on the first press and then cannot tell them apart on the
   // second, so the reward for pressing a lit button twice was an ambiguity error
   // about records the first press had just made.
-  const ready = !!state.report?.ok && !!state.report?.dry_run && !!state.text.trim();
+  const ready = !!state.report?.ok && !!state.report?.dry_run && hasInput;
+
+  const sources = exportSources(p._companions ?? []);
+  const exporting = state.exporting;
+  const yamlInclude = exportInclude(sources, state.picked, 'yaml');
+  const bundleInclude = exportInclude(sources, state.picked, 'bundle');
 
   inner.innerHTML = [
     `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
@@ -2123,9 +2200,22 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.exportHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.exportHelp'))}</div>`,
+    `<div class="hk-transfer-checks">`,
+    ...sources.map((source) => sourceRow(source, state.picked, exporting)),
+    `</div>`,
     `<div class="hk-transfer-actions">`,
-    `<ha-button id="transfer-export" ${btnAttrs('secondary')}>`,
-    `${escapeHTML(t('btn.exportData'))}</ha-button></div>`,
+    `<ha-button id="transfer-export" ${btnAttrs('secondary')}`,
+    `${exporting || !yamlInclude ? ' disabled' : ''}>`,
+    `${twoWidthLabel('btn.exportYaml', 'btn.exportYamlShort')}</ha-button>`,
+    `<ha-button id="transfer-export-bundle" ${btnAttrs('secondary')}`,
+    `${exporting || !bundleInclude ? ' disabled' : ''}>`,
+    `${twoWidthLabel('btn.exportBundle', 'btn.exportBundleShort')}</ha-button>`,
+    `</div>`,
+    exporting
+      ? `<div class="hk-transfer-exported">${escapeHTML(t('transfer.working'))}</div>`
+      : state.exported
+        ? `<div class="hk-transfer-exported" role="status">${escapeHTML(state.exported)}</div>`
+        : '',
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.importHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.importHelp'))}</div>`,
@@ -2135,20 +2225,42 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
     state.filename
       ? `<span class="hk-transfer-file">${escapeHTML(state.filename)}</span>`
       : '',
+    state.file
+      ? `<ha-button id="transfer-clear" ${btnAttrs('tertiary')}${busy ? ' disabled' : ''}>` +
+        `${escapeHTML(t('btn.clearFile'))}</ha-button>`
+      : '',
     `</div>`,
-    `<ha-textarea id="transfer-text" rows="6" autogrow`,
-    ` label="${escapeHTML(t('transfer.documentLabel'))}"`,
-    ` helper="${escapeHTML(t('transfer.documentHelp'))}"`,
-    `${busy ? ' disabled' : ''}></ha-textarea>`,
+    // A chosen bundle or a large file goes to the backend as it is, so there is no
+    // text to show. The box comes back when the file is cleared. The box is a native
+    // textarea: HA loads `ha-textarea` lazily and nothing on this panel loads it, so on
+    // a fresh load an `ha-textarea` did not show until another HA page loaded it.
+    state.file
+      ? ''
+      : [
+          `<label class="hk-transfer-label" for="transfer-text">`,
+          `${escapeHTML(t('transfer.documentLabel'))}</label>`,
+          `<textarea id="transfer-text" class="hk-note-input" rows="6"`,
+          ` aria-describedby="transfer-text-help"${busy ? ' disabled' : ''}></textarea>`,
+          `<div class="hk-transfer-helper" id="transfer-text-help">`,
+          `${escapeHTML(t('transfer.documentHelp'))}</div>`,
+        ].join(''),
     state.error
       ? `<ha-alert class="hk-transfer-error" alert-type="error">${escapeHTML(
           state.error,
         )}</ha-alert>`
       : '',
-    reportBlock(state.report),
+    reportBlock(state.report, p._companions ?? []),
+    state.hasSettings
+      ? [
+          `<label class="hk-transfer-optin">`,
+          `<input type="checkbox" id="transfer-settings"`,
+          `${state.includeSettings ? ' checked' : ''}${busy ? ' disabled' : ''}>`,
+          `<span>${escapeHTML(t('transfer.includeSettings'))}</span></label>`,
+        ].join('')
+      : '',
     `<div class="hk-transfer-actions">`,
     `<ha-button id="transfer-preview" ${btnAttrs('secondary')}`,
-    `${busy || !state.text.trim() ? ' disabled' : ''}>`,
+    `${busy || !hasInput ? ' disabled' : ''}>`,
     `${escapeHTML(t(busy ? 'transfer.working' : 'btn.preview'))}</ha-button>`,
     `<ha-button id="transfer-import" ${btnAttrs('primary')}`,
     `${busy || !ready ? ' disabled' : ''}>`,
@@ -2173,64 +2285,86 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
   wireTransfer(p, inner);
 }
 
-/** The preview's verdict: what would change, and everything wrong with the file. */
-function reportBlock(report: ImportReport | null): string {
-  if (!report) return '';
-  const sections = ['appliances', 'tasks'] as const;
-  const lines = sections
-    .map((section) => {
-      const counts = report.counts[section];
-      if (!counts || typeof counts === 'number') return '';
-      if (!counts.created && !counts.updated) return '';
-      return `<li>${escapeHTML(
-        t(`transfer.count_${section}`, { created: counts.created, updated: counts.updated }),
-      )}</li>`;
-    })
-    .filter(Boolean);
-  if (report.counts.completions) {
-    lines.push(
-      `<li>${escapeHTML(
-        t('transfer.count_history', { n: report.counts.completions }),
-      )}</li>`,
-    );
-  }
-  // Errors first: they are why nothing happened. Warnings say what was ignored,
-  // which matters even on a clean import — a field nobody reads is data that did
-  // not arrive, and saying so is the difference between a migration and a guess.
-  const problems = [...report.problems].sort((a, b) =>
-    a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1,
+/** The label of a row of the preview table. */
+function reportRowLabel(row: ReportRow): string {
+  if (row.kind === 'companion') return row.name;
+  if (row.kind === 'section') return t(`transfer.part.${row.key}`);
+  return t(`transfer.source.${row.kind}`);
+}
+
+/** 1 problem as a list item: its path, then its message. */
+function problemItem(problem: ImportProblem): string {
+  return (
+    `<li class="${problem.severity}"><code>${escapeHTML(problem.path)}</code> ` +
+    `${escapeHTML(problem.message)}</li>`
   );
+}
+
+/** The notes of a row: the counts that do not fit a column, then its problems. */
+function rowNotes(row: ReportRow): string {
+  const facts: string[] = [];
+  if (row.history) facts.push(t('transfer.count_history', { n: row.history }));
+  if (row.unchanged) facts.push(t('transfer.unchanged', { n: row.unchanged }));
+  return [
+    ...facts.map((fact) => `<div class="hk-transfer-fact">${escapeHTML(fact)}</div>`),
+    row.problems.length
+      ? `<ul class="hk-transfer-problems">${row.problems.map(problemItem).join('')}</ul>`
+      : '',
+  ].join('');
+}
+
+/**
+ * The preview's verdict: 1 table row per part of the document, with what would
+ * change and the problems of that part. A problem that no part holds is listed
+ * below the table.
+ *
+ * Below 700px the Notes cell of each row moves below its counts. Only CSS does it.
+ */
+function reportBlock(report: ImportReport | null, companions: Companion[]): string {
+  if (!report) return '';
+  const rows = reportRows(report, companions);
+  const other = otherProblems(report, rows);
+  const verdict = reportVerdict(report);
+  const body = rows
+    .map(
+      (row) =>
+        `<tr data-part="${escapeHTML(row.key)}">` +
+        `<th scope="row">${escapeHTML(reportRowLabel(row))}</th>` +
+        `<td class="hk-num">${row.created}</td>` +
+        `<td class="hk-num">${row.kind === 'files' ? '' : row.updated}</td>` +
+        `<td class="hk-transfer-notes">${rowNotes(row)}</td></tr>`,
+    )
+    .join('');
   return [
     `<div class="hk-transfer-report">`,
-    `<ha-alert alert-type="${report.ok ? 'success' : 'error'}">`,
-    escapeHTML(
-      t(
-        report.ok
-          ? report.dry_run
-            ? 'transfer.previewOk'
-            : 'transfer.importOk'
-          : 'transfer.previewFailed',
-      ),
-    ),
+    `<ha-alert alert-type="${verdict.type}">`,
+    escapeHTML(t(verdict.key)),
     `</ha-alert>`,
-    lines.length ? `<ul class="hk-transfer-counts">${lines.join('')}</ul>` : '',
-    problems.length
-      ? `<ul class="hk-transfer-problems">${problems
-          .map(
-            (problem) =>
-              `<li class="${problem.severity}"><code>${escapeHTML(
-                problem.path,
-              )}</code> ${escapeHTML(problem.message)}</li>`,
-          )
-          .join('')}</ul>`
+    `<div class="hk-transfer-table"><table class="hk-transfer-counts">`,
+    `<thead><tr><th scope="col">${escapeHTML(t('transfer.col.part'))}</th>`,
+    `<th scope="col" class="hk-num">${escapeHTML(t('transfer.col.new'))}</th>`,
+    `<th scope="col" class="hk-num">${twoWidthLabel('transfer.col.updated', 'transfer.col.updatedShort')}</th>`,
+    `<th scope="col" class="hk-transfer-notes">${escapeHTML(t('transfer.col.notes'))}</th>`,
+    `</tr></thead><tbody>${body}</tbody></table></div>`,
+    other.length
+      ? `<ul class="hk-transfer-problems hk-transfer-other">${other.map(problemItem).join('')}</ul>`
       : '',
     `</div>`,
   ].join('');
 }
 
+/** Drop the preview: it described an input that is gone. */
+function dropReport(p: PanelHost): void {
+  p._transfer.report = null;
+  p._transfer.error = '';
+}
+
 function wireTransfer(p: PanelHost, root: HTMLElement): void {
   root.querySelector('#transfer-export')?.addEventListener('click', () => {
     void p._exportData();
+  });
+  root.querySelector('#transfer-export-bundle')?.addEventListener('click', () => {
+    void p._exportBundle();
   });
   root.querySelector('#transfer-report')?.addEventListener('click', () => {
     void p._exportApplianceReport();
@@ -2241,6 +2375,28 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
   root.querySelector('#transfer-import')?.addEventListener('click', () => {
     void p._runImport();
   });
+  root.querySelectorAll<HTMLInputElement>('input[data-transfer-source]').forEach((box) => {
+    box.addEventListener('change', () => {
+      p._transfer.picked = { ...p._transfer.picked, [box.dataset.transferSource ?? '']: box.checked };
+      p._transfer.exported = '';
+      p._render();
+    });
+  });
+  root.querySelector<HTMLInputElement>('#transfer-settings')?.addEventListener('change', (e) => {
+    // The preview was of an import with the other setting, so it stops being an
+    // answer. The offer stays: it belongs to the file, not to the report.
+    p._transfer.includeSettings = (e.target as HTMLInputElement).checked;
+    dropReport(p);
+    p._render();
+  });
+  root.querySelector('#transfer-clear')?.addEventListener('click', () => {
+    p._transfer.file = null;
+    p._transfer.filename = '';
+    p._transfer.hasSettings = false;
+    p._transfer.includeSettings = false;
+    dropReport(p);
+    p._render();
+  });
 
   const text = root.querySelector<HTMLTextAreaElement>('#transfer-text');
   if (text) {
@@ -2250,8 +2406,7 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       // The report described the *previous* text, so it stops being an answer the
       // moment a character changes. Dropping it here is what stops Import applying a
       // document on the strength of a preview of something else.
-      p._transfer.report = null;
-      p._transfer.error = '';
+      dropReport(p);
       p._transfer.filename = '';
       // Toggle the buttons in place rather than re-rendering: a render would rebuild
       // the textarea and take the caret with it, mid-paste.
@@ -2265,44 +2420,62 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       // document too large stayed on screen while the reader pasted a smaller one,
       // still saying the file was too big.
       root.querySelector('.hk-transfer-error')?.remove();
+      root.querySelector('.hk-transfer-file')?.remove();
     });
   }
 
-  // A file is read in the browser and pasted into the same box the user could have
-  // typed into, so there is one input to the import and no upload endpoint to guard.
+  // A small text file is read in the browser and put into the same box the user
+  // could have typed into. A bundle, or a text file over the websocket limit, goes to
+  // the upload view as it is (`transfer-view.fileRoute`).
   const picker = document.createElement('input');
   picker.type = 'file';
   // Extensions carry the weight: plenty of systems report a .yaml file as
   // application/octet-stream. .json stays because YAML is a superset of JSON, so
   // an export written before the format was YAML still reads.
-  picker.accept = '.yaml,.yml,.json,application/yaml,application/json';
+  picker.accept = '.yaml,.yml,.json,.zip,application/yaml,application/json,application/zip';
   picker.style.display = 'none';
   picker.addEventListener('change', () => {
     const file = picker.files?.[0];
     picker.value = '';
     if (!file) return;
-    p._transfer.report = null;
+    const state = p._transfer;
+    dropReport(p);
+    state.hasSettings = false;
+    state.includeSettings = false;
     // Check the size before the read. A file over the limit can never be sent, and
     // reading a large one into the text box can stop the tab (F03-4).
-    if (file.size > MAX_IMPORT_WS_BYTES) {
-      p._transfer.error = t('transfer.tooLarge', {
-        mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
-        max: MAX_IMPORT_BYTES / (1024 * 1024),
-      });
+    const route = fileRoute(file);
+    if (route === 'too_large') {
+      state.error = t('transfer.fileTooLarge', { mb: fileLimitMb(file) });
       p._render();
       return;
     }
-    file.text().then(
-      (contents) => {
-        p._transfer.text = contents;
-        p._transfer.filename = file.name;
-        p._transfer.error = '';
+    if (route === 'upload') {
+      state.file = file;
+      state.filename = file.name;
+      state.text = '';
+      p._render();
+      return;
+    }
+    file.arrayBuffer().then(
+      (buffer) => {
+        const contents = decodeText(new Uint8Array(buffer));
+        if (contents === null) {
+          // A binary file that is not a bundle. Its bytes do not go into the box.
+          state.error = t('transfer.notText');
+          p._render();
+          return;
+        }
+        state.file = null;
+        state.text = contents;
+        state.filename = file.name;
+        state.error = '';
         p._render();
       },
       // A read can fail (the file moved, or the browser refused it). Say so, rather
       // than leave the card as it was with no message (F03-4).
       (err: unknown) => {
-        p._transfer.error = t('transfer.readFailed', {
+        state.error = t('transfer.readFailed', {
           error: String((err as { message?: string })?.message || err),
         });
         p._render();

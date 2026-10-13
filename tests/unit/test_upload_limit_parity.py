@@ -71,6 +71,14 @@ def test_panel_task_photo_limits_match_backend() -> None:
     assert _python_limit("MAX_TASK_PHOTO_BYTES") % (1024 * 1024) == 0
 
 
+def test_panel_bundle_limit_matches_backend() -> None:
+    """The panel refuses a bundle over the size that the upload view takes."""
+    assert _typescript_limit("MAX_BUNDLE_BYTES") == _python_limit("MAX_BUNDLE_BYTES"), (
+        "frontend/src/limits.ts MAX_BUNDLE_BYTES has drifted from const.py"
+    )
+    assert _python_limit("MAX_BUNDLE_BYTES") % (1024 * 1024) == 0
+
+
 def test_upload_limit_is_a_whole_number_of_megabytes() -> None:
     """The limit is rendered as '{mb} MB' in both the backend error (strings.json
     ``file_too_large``) and the panel's pre-check message, so a fractional value would

@@ -28,11 +28,17 @@ import {
   pngSize,
   qrPixelPlan,
   rollSheetHtml,
+  textChars,
   wrapText,
   cssNum,
   defaultPaper,
+  labelBase,
   labelBaseUrl,
   labelFileName,
+  labelFitMode,
+  LABEL_TEXT_POSITIONS,
+  isCompanionApp,
+  textPosFor,
   labelLines,
   labelSheetHtml,
   labelSlot,
@@ -185,6 +191,7 @@ describe('parseLabelOpts', () => {
       customH: 30,
       dpi: 203,
       rotate: false,
+      textPos: 'auto',
     };
     expect(parseLabelOpts(null, 'a4_21')).toEqual(dflt);
     expect(parseLabelOpts('', 'a4_21')).toEqual(dflt);
@@ -210,6 +217,7 @@ describe('parseLabelOpts', () => {
       customH: 29,
       dpi: 300,
       rotate: true,
+      textPos: 'auto',
     });
   });
 
@@ -297,7 +305,11 @@ describe('labelSheetHtml', () => {
 
   it('is a whole document with the sheet size and no page margin', () => {
     const html = labelSheetHtml([label(1)], 'letter30', 0, 'QR labels');
-    expect(html.startsWith('<!doctype html><html><head><meta charset="utf-8"><title>QR labels</title>')).toBe(true);
+    expect(
+      html.startsWith(
+        '<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>QR labels</title>',
+      ),
+    ).toBe(true);
     expect(html).toContain('@page{size:letter;margin:0}');
     expect(html).toContain('.page{position:relative;width:8.5in;height:11in;');
     expect(html).toContain('.label{position:absolute;width:2.625in;height:1in;padding:0.06in;');
@@ -597,7 +609,7 @@ describe('layoutText', () => {
 
   it('leaves out the rows that do not fit the box height', () => {
     const rows = layoutText(['Heater', 'Garage', 'Bosch'], 40, l1 * 1.15 + ptMm + ln * 1.2, mono);
-    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage']);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage…']);
     expect(rows[0].top).toBeCloseTo(0, 9);
     expect(layoutText(['Heater'], 40, l1, mono)).toEqual([]);
   });
@@ -700,5 +712,299 @@ describe('labelPrintHtml', () => {
   it('prints a roll for a roll paper, and ignores the skip', () => {
     const opts = { ...defaultLabelOpts('a4_21'), paper: 'roll_40x30' };
     expect(labelPrintHtml(labels, opts, 2, 'T')).toBe(rollSheetHtml(labels, opts, 'T'));
+  });
+});
+
+describe('wrapText and code points', () => {
+  it('never cuts an emoji in 2 halves of a surrogate pair', () => {
+    // 1 mm per UTF-16 unit: each emoji is 2 units, so a row of 3 holds 1 emoji.
+    const rows = wrapText('😀😀😀', 4, (row) => row.length <= 3);
+    expect(rows).toEqual(['😀', '😀', '😀']);
+    for (const row of rows) expect(row).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  });
+
+  it('keeps a joined emoji whole when it cuts a word', () => {
+    const family = '👨‍👩‍👧';
+    // The family is 5 code points and 8 UTF-16 units. A row of 6 units holds no
+    // whole family, so each row holds 1 family and is not cut inside it.
+    const rows = wrapText(`${family}${family}`, 3, (row) => row.length <= 6);
+    expect(rows).toEqual([family, family]);
+  });
+
+  it('cuts the ellipsis row by code points', () => {
+    // "😀😀…" is 5 units and does not fit 4, so the row drops 1 emoji, not 1 unit.
+    const tail = wrapText('a 😀😀 b', 2, (row) => row.length <= 4);
+    expect(tail).toEqual(['a', '😀…']);
+  });
+});
+
+describe('layoutText ellipsis', () => {
+  const ptMm = 25.4 / 72;
+  const l1 = 8.5 * ptMm;
+  const ln = 7 * ptMm;
+
+  it('ends the last row with an ellipsis when a line is left out', () => {
+    const rows = layoutText(['Heater', 'Garage', 'Bosch'], 40, l1 * 1.15 + ptMm + ln * 1.2, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heater', 'Garage…']);
+  });
+
+  it('shortens the last row so that the ellipsis fits the width', () => {
+    const rows = layoutText(['Heater', 'Garage'], 6, l1 * 1.15 + 0.01, mono);
+    expect(rows.map((r) => r.text)).toEqual(['Heate…']);
+  });
+
+  it('leaves out every line after a row that does not fit', () => {
+    // A smaller line can fit where the larger row did not. It is left out too.
+    const box = l1 * 1.15 * 2 + ptMm + ln * 1.2 + 0.04;
+    const rows = layoutText(['a b c', 'Garage'], 2, box, mono);
+    expect(rows.map((r) => r.text)).toEqual(['a', 'b…']);
+  });
+
+  it('adds no ellipsis when every row fits', () => {
+    expect(layoutText(['Heater', 'Garage'], 40, 40, mono).map((r) => r.text)).toEqual([
+      'Heater',
+      'Garage',
+    ]);
+  });
+});
+
+describe('print documents: language, direction and measured rows', () => {
+  const labels = [{ url: URL_A, lines: ['Replace battery: Batteries Monitored', 'Garage', 'Bosch'] }];
+  const roll30 = { ...defaultLabelOpts('a4_21'), paper: 'roll_30x15' };
+
+  it('sets the language and the direction of the page', () => {
+    expect(rollSheetHtml(labels, roll30, 't', { lang: 'he', dir: 'rtl' })).toContain(
+      '<html lang="he" dir="rtl">',
+    );
+    expect(labelSheetHtml(labels, 'a4_21', 0, 't', { lang: 'de"x', dir: 'ltr' })).toContain(
+      '<html lang="de&quot;x" dir="ltr">',
+    );
+    expect(rollSheetHtml(labels, roll30, 't')).toContain('<html lang="en" dir="ltr">');
+    expect(labelPrintHtml(labels, roll30, 0, 't', { lang: 'fr' })).toContain('<html lang="fr" dir="ltr">');
+  });
+
+  it('prints the rows that layoutText keeps on a 30 × 15 mm roll, as the PNG does', () => {
+    const measure = (text, bold, sizeMm) => text.length * sizeMm * (bold ? 0.62 : 0.55);
+    const html = rollSheetHtml(labels, roll30, 't', { measure });
+    const fit = fitLabel(30, 15, true);
+    const want = layoutText(labels[0].lines, fit.textW, fit.textH, measure);
+    expect(want.length).toBeGreaterThan(0);
+    expect(want.at(-1).text.endsWith('…')).toBe(true);
+    const got = [...html.matchAll(/<div class="row (l1|ln)" style="top:([\d.]+)mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[3])).toEqual(want.map((r) => r.text));
+    expect(got.map((m) => Number(m[2]))).toEqual(want.map((r) => Number(cssNum(r.top))));
+    // A line that layoutText leaves out is not in the page, so no line shows cut.
+    expect(html).not.toContain('Bosch');
+    expect(html).toContain('.row{position:absolute;left:0;right:0;white-space:nowrap;overflow:hidden}');
+  });
+
+  it('prints the measured rows on a sheet too, in a text box of the free width', () => {
+    const measure = (text) => text.length;
+    const html = labelSheetHtml(labels, 'a4_21', 0, 't', { measure });
+    const l = LAYOUTS.a4_21;
+    const qr = Math.min(l.labelH - l.pad * 2, l.labelW * 0.45);
+    const want = layoutText(labels[0].lines, l.labelW - l.pad * 3.5 - qr, l.labelH - l.pad * 2, measure);
+    const got = [...html.matchAll(/<div class="row (?:l1|ln)" style="top:[\d.]+mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[1])).toEqual(want.map((r) => r.text));
+  });
+
+  it('measures a Letter sheet in mm, from its size in inches', () => {
+    const measure = (text) => text.length * 1.6;
+    const long = [{ url: URL_A, lines: ['Replace the water heater anode rod', 'Garage', 'Bosch XE50T'] }];
+    const html = labelSheetHtml(long, 'letter30', 0, 't', { measure });
+    const l = LAYOUTS.letter30;
+    const qr = Math.min(l.labelH - l.pad * 2, l.labelW * 0.45);
+    const want = layoutText(long[0].lines, (l.labelW - l.pad * 3.5 - qr) * 25.4, (l.labelH - l.pad * 2) * 25.4, measure);
+    const got = [...html.matchAll(/<div class="row (?:l1|ln)" style="top:([\d.]+)mm">([^<]*)<\/div>/g)];
+    expect(got.map((m) => m[2])).toEqual(want.map((r) => r.text));
+    expect(got.map((m) => Number(m[1]))).toEqual(want.map((r) => Number(cssNum(r.top))));
+    expect(html).toContain('<div class="text measured">');
+    expect(html).toContain('.text.measured{position:relative;flex:1 1 auto;align-self:stretch}');
+    expect(labelSheetHtml(long, 'letter30', 0, 't')).toContain('<div class="text"><div class="l1">');
+  });
+
+  it('never shrinks a line below its height without a measure', () => {
+    expect(rollSheetHtml(labels, roll30, 't')).toContain('.l1,.ln{flex-shrink:0;');
+    expect(labelSheetHtml(labels, 'a4_21', 0, 't')).toContain('.l1,.ln{flex-shrink:0;');
+  });
+});
+
+describe('textChars', () => {
+  const family = '👨‍👩‍👧';
+
+  it('splits by grapheme clusters', () => {
+    expect(textChars(`a😀${family}`)).toEqual(['a', '😀', family]);
+  });
+
+  it('splits by code points when the browser has no Intl.Segmenter', () => {
+    const saved = Intl.Segmenter;
+    Intl.Segmenter = undefined;
+    try {
+      expect(textChars('a😀b')).toEqual(['a', '😀', 'b']);
+      expect(textChars(family)).toHaveLength(5);
+    } finally {
+      Intl.Segmenter = saved;
+    }
+  });
+});
+
+describe('labelBase: prefer HTTPS', () => {
+  const ext = { external_url: 'https://ext.example.com', internal_url: 'http://192.168.1.2:8123' };
+
+  it('names the external URL when it is set', () => {
+    expect(labelBase(ext, 'https://abc.ui.nabu.casa')).toEqual({
+      url: 'https://ext.example.com',
+      source: 'external',
+      secure: true,
+    });
+    expect(labelBase({ external_url: 'http://ext.example.com' }, 'https://b').source).toBe(
+      'external',
+    );
+    expect(labelBase({ external_url: 'http://ext.example.com' }, 'https://b').secure).toBe(false);
+  });
+
+  it('prefers an HTTPS browser address to an HTTP internal URL', () => {
+    expect(
+      labelBase({ external_url: null, internal_url: 'http://192.168.1.2:8123' }, 'https://abc.ui.nabu.casa'),
+    ).toEqual({ url: 'https://abc.ui.nabu.casa', source: 'browser', secure: true });
+    expect(
+      labelBaseUrl({ internal_url: 'http://ha.local:8123' }, 'HTTPS://abc.ui.nabu.casa'),
+    ).toBe('HTTPS://abc.ui.nabu.casa');
+  });
+
+  it('prefers an HTTPS internal URL to an HTTP browser address', () => {
+    expect(labelBase({ internal_url: 'https://ha.lan:8123/' }, 'http://192.168.1.2:8123')).toEqual({
+      url: 'https://ha.lan:8123',
+      source: 'internal',
+      secure: true,
+    });
+  });
+
+  it('keeps the internal URL first when both or neither use HTTPS', () => {
+    expect(labelBase({ internal_url: 'https://a.lan' }, 'https://b.example.com')).toEqual({
+      url: 'https://a.lan',
+      source: 'internal',
+      secure: true,
+    });
+    expect(labelBase({ internal_url: 'http://a.lan' }, 'http://b.lan')).toEqual({
+      url: 'http://a.lan',
+      source: 'internal',
+      secure: false,
+    });
+  });
+
+  it('uses the browser address when no URL is set', () => {
+    expect(labelBase({}, 'http://localhost:8123')).toEqual({
+      url: 'http://localhost:8123',
+      source: 'browser',
+      secure: false,
+    });
+    expect(labelBase(undefined, 'https://x.example.com').source).toBe('browser');
+  });
+
+  it('reads only the scheme as HTTPS, not a host name that holds "https"', () => {
+    expect(labelBase({ internal_url: 'http://https.lan' }, 'https://b').source).toBe('browser');
+    expect(labelBase({ internal_url: 'https://a' }, 'http://https.lan').source).toBe('internal');
+  });
+});
+
+describe('isCompanionApp', () => {
+  const BROWSER = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
+
+  it('is true when Home Assistant gives the app bridge in hass.auth.external', () => {
+    expect(isCompanionApp({ auth: { external: {} } }, BROWSER)).toBe(true);
+  });
+
+  it('is true for the user agent of the iOS and the Android app', () => {
+    expect(
+      isCompanionApp({}, 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Home Assistant/2025.4 (io.robbie.HomeAssistant)'),
+    ).toBe(true);
+    expect(
+      isCompanionApp(undefined, 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Home Assistant/2025.4.1-1234'),
+    ).toBe(true);
+  });
+
+  it('is false in a browser', () => {
+    expect(isCompanionApp({ auth: {} }, BROWSER)).toBe(false);
+    expect(isCompanionApp({ auth: { external: undefined } }, BROWSER)).toBe(false);
+    expect(isCompanionApp(undefined, '')).toBe(false);
+    expect(isCompanionApp({}, 'Home Assistant')).toBe(false);
+  });
+});
+
+describe('text position', () => {
+  it('lists auto first, then beside and below', () => {
+    expect(LABEL_TEXT_POSITIONS).toEqual(['auto', 'side', 'below']);
+    expect(defaultLabelOpts('a4_21').textPos).toBe('auto');
+  });
+
+  it('reads a known position and an unknown one as auto', () => {
+    expect(parseLabelOpts('{"textPos":"below"}', 'a4_21').textPos).toBe('below');
+    expect(parseLabelOpts('{"textPos":"side"}', 'a4_21').textPos).toBe('side');
+    expect(parseLabelOpts('{"textPos":"above"}', 'a4_21').textPos).toBe('auto');
+    expect(parseLabelOpts('{"textPos":1}', 'a4_21').textPos).toBe('auto');
+  });
+
+  it('puts text below the code on a 24 x 24 mm label only when asked', () => {
+    expect(fitLabel(24, 24, true).mode).toBe('code');
+    expect(fitLabel(24, 24, true, 'auto').mode).toBe('code');
+    const below = fitLabel(24, 24, true, 'below');
+    expect(below.mode).toBe('below');
+    expect(below.qr).toBe(13.5);
+    expect(below.qrX).toBe(FIT_PAD + (21 - 13.5) / 2);
+    expect(below.textY).toBe(FIT_PAD + 13.5 + 1.5);
+    expect(below.textH).toBe(6);
+    // Beside the code leaves no 8 mm code next to a 14 mm text box: code only.
+    expect(fitLabel(24, 24, true, 'side').mode).toBe('code');
+  });
+
+  it('forces the side layout on a tall label and the below layout on a wide one', () => {
+    const side = fitLabel(30, 50, true, 'side');
+    expect(side.mode).toBe('side');
+    expect(side.qr).toBe(11.5);
+    expect(side.textW).toBe(14);
+    const below = fitLabel(50, 30, true, 'below');
+    expect(below.mode).toBe('below');
+    expect(below.qr).toBe(19.5);
+    expect(below.textW).toBe(47);
+  });
+
+  it('prints only the code for a forced layout with no text', () => {
+    expect(fitLabel(24, 24, false, 'below').mode).toBe('code');
+    expect(fitLabel(50, 30, false, 'side').mode).toBe('code');
+  });
+
+  it('uses the position on a roll and auto on a sheet', () => {
+    const base = { ...defaultLabelOpts('a4_21'), textPos: 'below' };
+    expect(textPosFor({ ...base, paper: 'roll_custom' })).toBe('below');
+    expect(textPosFor({ ...base, paper: 'roll_50x30' })).toBe('below');
+    expect(textPosFor(base)).toBe('auto');
+    expect(textPosFor({ ...base, paper: 'letter30' })).toBe('auto');
+  });
+
+  it('gives the layout of the preview', () => {
+    const roll = { ...defaultLabelOpts('a4_21'), paper: 'roll_custom', customW: 24, customH: 24 };
+    expect(labelFitMode(roll, true)).toBe('code');
+    expect(labelFitMode({ ...roll, textPos: 'below' }, true)).toBe('below');
+    expect(labelFitMode({ ...roll, textPos: 'below' }, false)).toBe('code');
+    expect(labelFitMode({ ...roll, customW: 30, customH: 50 }, true)).toBe('below');
+    const sheet = { ...defaultLabelOpts('a4_21'), textPos: 'below' };
+    expect(labelFitMode(sheet, true)).toBe('side');
+    expect(labelFitMode(sheet, false)).toBe('code');
+  });
+
+  it('prints a 24 x 24 mm roll with the text below the code', () => {
+    const opts = {
+      ...defaultLabelOpts('a4_21'),
+      paper: 'roll_custom',
+      customW: 24,
+      customH: 24,
+      textPos: 'below',
+    };
+    const html = rollSheetHtml([{ url: URL_A, lines: ['Water heater'] }], opts, 'Labels');
+    expect(html).toContain('class="text below"');
+    expect(html).toContain('Water heater');
+    const auto = rollSheetHtml([{ url: URL_A, lines: ['Water heater'] }], { ...opts, textPos: 'auto' }, 'L');
+    expect(auto).not.toContain('Water heater');
   });
 });

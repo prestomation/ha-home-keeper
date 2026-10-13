@@ -45,6 +45,12 @@ export const MAX_IMPORT_WS_BYTES = 4 * 1024 * 1024;
 export const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 
 /**
+ * The largest bundle (a zip file) the upload view takes — mirrors MAX_BUNDLE_BYTES
+ * in const.py. The panel refuses a larger bundle before the upload starts.
+ */
+export const MAX_BUNDLE_BYTES = 500 * 1024 * 1024;
+
+/**
  * The size of the websocket frame an import of *document* would send.
  *
  * Measured as the JSON-encoded document plus the rest of the command, because that

@@ -53,6 +53,11 @@ export default captureConfig('walkthrough.capture.ts', {
   // outgrow it still pays by shortening the walk, because the note above about the
   // 30-minute job cap has not changed.
   //
+  // Re-measured for the label text position, whose beat replaces the roll beat (net 0):
+  // **276s in the dev container**, a 30% margin against the 360s cap. That is below
+  // the ~40% that a measurement asks for, so the next PR that adds a beat must first
+  // shorten the walk.
+  //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
   // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —

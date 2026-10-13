@@ -313,6 +313,9 @@ export interface Hass {
     accessToken?: string;
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
+    // The bridge to a Home Assistant companion app. Home Assistant sets it only in
+    // the iOS and the Android app (`qr-labels.isCompanionApp`).
+    external?: unknown;
   };
   // The signed-in user. The panel reads `is_admin` for its view-only mode. The card
   // reads it because Home Assistant refuses a non-admin subscription to a custom
@@ -875,13 +878,20 @@ export interface ImportRecord {
 export interface ImportReport {
   ok: boolean;
   dry_run: boolean;
+  /** True when a real import failed after it wrote data. The data stays. */
+  partial?: boolean;
   counts: {
     completions: number;
     skips: number;
-    [section: string]: number | { created: number; updated: number };
+    // A section's `{created, updated}`, the files' `{created, unchanged}`, or the
+    // settings, which hold 1 count object per settings section.
+    [section: string]: number | { created: number; updated: number } | Record<string, unknown>;
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+  /** The report of each companion section, keyed by its domain, as the companion
+   *  returned it. Each companion owns the shape of its `counts`. */
+  sections?: Record<string, { counts?: unknown; [key: string]: unknown }>;
 }
 
 /** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */

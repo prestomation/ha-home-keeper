@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.31.0b3"
+PANEL_VERSION = "0.32.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -115,6 +115,35 @@ TRANSFER_SCHEMA_URL = (
     f"/schema/home-keeper-{TRANSFER_FORMAT}.schema.json"
 )
 
+# ── Bundles and companion sections of the import and export ──────────────────
+# A companion that adds this capability in ``register_companion`` has the services
+# ``<domain>.export_data`` and ``<domain>.import_data``. Its data is a top-level
+# section of the document, keyed by its domain (docs/INTEGRATING.md §11).
+COMPANION_CAPABILITY_IMPORT_EXPORT = "import_export"
+# The time limit of 1 call to a companion's export or import service, in seconds.
+COMPANION_TRANSFER_TIMEOUT_S = 300
+# A bundle is a .zip file: the YAML document at the root, plus the uploaded files.
+# Each export or import of a bundle works in its own folder below this folder, and
+# deletes that folder when it ends. Setup deletes the folders that a restart left.
+IMPORT_EXPORT_SUBDIR = ".storage/home_keeper_import_export"
+# Where the ``export_data`` service writes a bundle, below the config folder.
+EXPORTS_SUBDIR = "home_keeper_exports"
+# The name of the YAML document in a bundle, and the folder of its files.
+BUNDLE_DOCUMENT_NAME = "home_keeper.yaml"
+BUNDLE_FILES_DIR = "files"
+# The limits of a bundle that Home Keeper reads. The size is the sum of the real
+# bytes that the extraction writes, so a false size in a zip header does not count.
+MAX_BUNDLE_BYTES = 500 * 1024 * 1024
+MAX_BUNDLE_ENTRIES = 20000
+# The largest text field (``dry_run``, ``match``, ``include_settings``) of an import
+# upload. The view reads a field in chunks and refuses it above this size. The panel
+# sends a few bytes, so ``limits.ts`` has no copy.
+MAX_UPLOAD_FIELD_BYTES = 64 * 1024
+# The HTTP views of the bundle: the download of an export, and the upload of a
+# bundle or of a YAML document that is too large for the websocket.
+BUNDLE_EXPORT_URL = "/api/home_keeper/export_bundle"
+IMPORT_UPLOAD_URL = "/api/home_keeper/import_upload"
+
 # Event fired on the HA event bus whenever a task is completed (from any surface:
 # the to-do list, a device mark-done button, or the complete_task service). This is
 # the public, client-agnostic hook other integrations subscribe to in order to mirror
@@ -181,6 +210,11 @@ EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fie
 EVENT_ASSET_DELETED = f"{DOMAIN}_asset_deleted"
 EVENT_ASSET_ARCHIVED = f"{DOMAIN}_asset_archived"  # hidden without deleting its data
 EVENT_ASSET_RESTORED = f"{DOMAIN}_asset_restored"  # an archived appliance is restored
+# Import and export — fired by ``transfer_runner.py`` when an export is written and
+# when an import is applied (never for a dry run). The payload has the kind and a
+# count for each section, companion sections included (events.data_transfer_event_data).
+EVENT_DATA_EXPORTED = f"{DOMAIN}_data_exported"
+EVENT_DATA_IMPORTED = f"{DOMAIN}_data_imported"
 
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier

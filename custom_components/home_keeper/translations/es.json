@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Incluir",
-          "description": "Qué secciones se exportan. Ambas de forma predeterminada."
+          "description": "Qué secciones se exportan: electrodomésticos, tareas, ajustes o el dominio de un complemento. Todas de forma predeterminada."
+        },
+        "kind": {
+          "name": "Tipo",
+          "description": "\"data\" devuelve el documento YAML. \"bundle\" escribe un archivo zip con los archivos subidos y los ajustes en la carpeta home_keeper_exports y devuelve su ruta."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Documento",
           "description": "El documento que se va a leer, con la forma que devuelve export_data. Indíquelo como asignación o como el archivo entero en una cadena."
         },
+        "bundle": {
+          "name": "Paquete",
+          "description": "El nombre de un archivo de paquete en la carpeta home_keeper_exports. Úsalo en lugar del documento."
+        },
         "dry_run": {
           "name": "Solo vista previa",
           "description": "Comprueba el documento e informa de qué cambiaría, sin escribir nada."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Coincidencia",
           "description": "Cómo se busca el registro al que se refiere. \"auto\" busca por id, luego external_id y luego el nombre. \"none\" crea cada registro."
+        },
+        "include_settings": {
+          "name": "Incluir ajustes",
+          "description": "Importa también los perfiles, las notificaciones y las opciones del documento."
         }
       }
     },
@@ -1206,6 +1218,9 @@
     "file_too_large": {
       "message": "El archivo supera el límite de {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Un campo del formulario de la subida supera el límite de {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Se esperaba una carga multipart."
     },
@@ -1235,6 +1250,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no puede eliminar estos perfiles: {profiles}. Estas notificaciones los usan: {notifications}. Cambia o elimina cada notificación y vuelve a guardar."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper no puede exportar estas secciones: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Solo un usuario administrador puede exportar o importar los datos de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "El archivo no es un archivo zip ni texto UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un documento o un paquete para importar."
     }
   }
 }

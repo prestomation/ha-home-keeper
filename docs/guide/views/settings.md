@@ -216,10 +216,20 @@ A declarative companion you switch off keeps the tasks it made. The tasks stop u
 you switch it on again. Their history stays with them. Delete the declarative
 companion to remove its tasks.
 
-A disabled entity also keeps its task. The task stops while the entity is
-disabled. This also applies when you disable the device or the integration of the
-entity. When you enable the entity again, the same task starts again with its
-history.
+When you disable an entity, Home Keeper stops its task. This also applies when you
+disable the device or the integration of the entity. What happens next depends on the
+history of the task:
+
+- **Task with history.** The task stays. When you enable the entity again, the same
+  task starts again with its history.
+- **Task with no history.** Home Keeper removes the task. When you enable the entity
+  again, Home Keeper adds a new task.
+
+A task has history if it has 1 or more of these:
+
+- A completion or a skip.
+- A photo.
+- A note that you wrote.
 
 Each declarative companion gets a row under **Settings → Companions** with an Edit
 button and a Delete button. On a phone the row stacks, and the buttons take a line of

@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/defer-dialogs.ts
   - custom_components/home_keeper/frontend/src/panel-defer.ts
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: d67a00e10d69
+source_hash: 9385328b8e2a
 ---
 
 # Task model and recurrence
@@ -84,10 +84,10 @@ load runs `snap_future_floating`, which moves each future floating date to the s
 
 ### Time zones
 
-Every datetime is aware, and the caller passes `now`. A stored ISO string keeps only a UTC
-offset, so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed`
-into the zone of `now` before any arithmetic: 10:00 stays 10:00 after a daylight-saving
-change. A naive input gets the configured zone with `replace(tzinfo=...)`.
+Every datetime is aware, and the caller passes `now`. A stored ISO string keeps only a UTC offset,
+so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed` into the zone
+of `now`: 10:00 stays 10:00 after a daylight-saving change. A naive input gets the configured zone,
+and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap.
 
 ### Completion and skip
 

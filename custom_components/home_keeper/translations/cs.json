@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Zahrnout",
-          "description": "Které části se exportují. Ve výchozím nastavení obě."
+          "description": "Které části se exportují: spotřebiče, úkoly, nastavení nebo doména doplňku. Ve výchozím nastavení všechny."
+        },
+        "kind": {
+          "name": "Druh",
+          "description": "\"data\" vrátí dokument YAML. \"bundle\" zapíše soubor zip s nahranými soubory a nastavením do složky home_keeper_exports a vrátí jeho cestu."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Dokument",
           "description": "Dokument ke čtení ve tvaru, který vrací export_data. Předejte ho jako mapování nebo jako celý soubor v jednom řetězci."
         },
+        "bundle": {
+          "name": "Balíček",
+          "description": "Název souboru balíčku ve složce home_keeper_exports. Použijte jej místo dokumentu."
+        },
         "dry_run": {
           "name": "Jen náhled",
           "description": "Zkontroluje dokument a oznámí, co by se změnilo, aniž by cokoli zapsal."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Shoda",
           "description": "Jak se hledá míněný záznam. \"auto\" hledá podle id, pak podle external_id a pak podle názvu. \"none\" vytvoří každý záznam."
+        },
+        "include_settings": {
+          "name": "Zahrnout nastavení",
+          "description": "Importuje také profily, oznámení a možnosti z dokumentu."
         }
       }
     },
@@ -1206,6 +1218,9 @@
     "file_too_large": {
       "message": "Soubor přesahuje limit {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Pole formuláře nahrávání překračuje limit {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Očekávalo se vícedílné nahrání (multipart)."
     },
@@ -1235,6 +1250,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nemůže odstranit tyto profily: {profiles}. Tato oznámení je používají: {notifications}. Změňte nebo odstraňte každé oznámení a poté uložte znovu."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper nemůže exportovat tyto části: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Data Home Keeper může exportovat nebo importovat jen správce."
+    },
+    "import_not_text": {
+      "message": "Soubor není soubor zip ani text UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Zadejte dokument nebo balíček k importu."
     }
   }
 }

@@ -70,7 +70,9 @@ unreviewed.
    In the Claude Code remote environment `npx playwright install chromium` fails, so
    `CHROMIUM_EXEC` points at the Chromium in `/opt/pw-browsers/`.
 3. When a change adds a surface, add a step for it to `tests/e2e/screenshots.capture.ts`.
-   Add the phone step to the `page.setViewportSize(PHONE)` block at the end of the file,
+   That file is a serial group of tests that share 1 page. Put the step in the test for
+   its part, and keep each test below its time limit.
+   Add the phone step to the `page.setViewportSize(PHONE)` block in the last test,
    and name it with a `-mobile-` segment so the pair sorts together:
    `57-panel-task-search.png` and `57c-panel-mobile-task-search.png`.
 4. **Open every PNG with the Read tool before you commit it.** Make sure that the changed

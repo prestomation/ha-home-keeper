@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "包含",
-          "description": "导出哪些部分。默认两者都导出。"
+          "description": "导出哪些部分：设备、任务、设置或某个配套集成的域。默认全部导出。"
+        },
+        "kind": {
+          "name": "类型",
+          "description": "\"data\" 返回 YAML 文档。\"bundle\" 将包含已上传文件和设置的 zip 文件写入 home_keeper_exports 文件夹，并返回其路径。"
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "文档",
           "description": "要读取的文档，格式与 export_data 返回的一致。可以传入映射，也可以把整个文件作为一个字符串传入。"
         },
+        "bundle": {
+          "name": "数据包",
+          "description": "home_keeper_exports 文件夹中数据包文件的名称。用它代替文档。"
+        },
         "dry_run": {
           "name": "仅预览",
           "description": "检查文档并报告会有哪些改动，但不写入任何内容。"
@@ -702,6 +710,10 @@
         "match": {
           "name": "匹配",
           "description": "如何找到所指的记录。\"auto\" 依次按 id、external_id、名称查找。\"none\" 则每条记录都新建。"
+        },
+        "include_settings": {
+          "name": "包含设置",
+          "description": "同时导入文档中的配置文件、通知和选项。"
         }
       }
     },
@@ -1206,6 +1218,9 @@
     "file_too_large": {
       "message": "文件超过 {mb} MB 的限制。"
     },
+    "upload_field_too_large": {
+      "message": "上传的表单字段超过 {kb} KB 的限制。"
+    },
     "expected_multipart_upload": {
       "message": "需要 multipart 上传。"
     },
@@ -1235,6 +1250,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper 无法删除这些配置文件：{profiles}。以下通知正在使用它们：{notifications}。请更改或删除每条通知，然后重新保存。"
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper 无法导出这些部分：{sections}。"
+    },
+    "unauthorized_transfer": {
+      "message": "只有管理员可以导出或导入 Home Keeper 数据。"
+    },
+    "import_not_text": {
+      "message": "该文件既不是 zip 文件，也不是 UTF-8 文本。"
+    },
+    "import_needs_document": {
+      "message": "请提供要导入的文档或数据包。"
     }
   }
 }

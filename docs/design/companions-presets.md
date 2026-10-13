@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: 066c678bd82e
+source_hash: bfc374478da2
 ---
 
 # Companions and presets
@@ -50,7 +50,7 @@ entity it selects. A preset is a declarative companion spec that ships as data.
 
 - **Push.** An integration calls `home_keeper.register_companion`.
   `companions.REGISTER_COMPANION_SCHEMA` bounds each field and accepts only an http(s)
-  `docs_url`. `companions.CompanionRegistry` keeps the descriptors in memory on `hass.data`.
+  `docs_url`. `companions.CompanionRegistry` keeps the descriptors in order on `hass.data`.
   At setup Home Keeper fires `home_keeper_register_companions`, so companions register again.
 - **Pull.** `companions_catalog.CATALOG` maps a popular upstream to its glue. The pure
   merge, `companions_catalog.build_companion_list`, marks a registered companion or an
@@ -81,11 +81,11 @@ spec change (`SIGNAL_DECLARATIVE_SPECS_CHANGED`) gets its own pass. For each ena
 1. `declarative_companions.expand_spec` matches the registry snapshot. The match key is
    `(spec_id, entity_registry_id)`, so a rename keeps the task. Disabled entities and Home
    Keeper entities never match. More than `MAX_DECLARATIVE_MATCH_HARD` matches is an error.
-2. Jinja renders name and notes (`template_context.template_variables`). No live state
-   makes a key `stale`.
+2. Jinja renders name and notes (`template_context.template_variables`). No state: `stale`.
 3. `declarative_companions.reconcile_declarative_tasks` creates a dormant task for a new
    match, writes the owned fields of an existing one, deletes a lost key's task, and pauses
-   a disabled entity's task. A `stale` key or a blank name keeps the task name and notes.
+   a disabled entity's task if `has_history`, else deletes it. A `stale` key or a blank
+   name keeps the task name and notes.
 4. When the task set changed, the pass marks new ids (`sensor_watcher.async_mark_tasks_new`)
    and reloads the entry for the device-page entities. Else it refreshes the coordinator.
 
@@ -138,7 +138,7 @@ skill reads both, fixes the catalog, moves the pins and opens 1 draft PR.
 
 - **Pure core, thin Home Assistant layer** over one module: the selection, diff and
   ownership rules are under the mutation gate. Jinja and registries stay in the sync.
-- **Pause** over **delete** for a disabled spec or entity: the completion history stays.
+- **Pause** over **delete** for a disabled spec, or an entity's task with history.
 - **Translation keys** over entity-id patterns for presets: stable across renames and
   languages, but an integration with no keys needs a regex.
 

@@ -683,7 +683,11 @@
       "fields": {
         "include": {
           "name": "Incluir",
-          "description": "Quais seções exportar. As duas por padrão."
+          "description": "Quais seções exportar: aparelhos, tarefas, configurações ou o domínio de um companheiro. Todas por padrão."
+        },
+        "kind": {
+          "name": "Tipo",
+          "description": "\"data\" retorna o documento YAML. \"bundle\" grava um arquivo zip com os arquivos enviados e as configurações na pasta home_keeper_exports e retorna o caminho dele."
         }
       }
     },
@@ -695,6 +699,10 @@
           "name": "Documento",
           "description": "O documento a ler, no formato que export_data devolve. Informe como mapeamento ou como o arquivo inteiro em uma cadeia."
         },
+        "bundle": {
+          "name": "Pacote",
+          "description": "O nome de um arquivo de pacote na pasta home_keeper_exports. Use-o no lugar do documento."
+        },
         "dry_run": {
           "name": "Apenas prévia",
           "description": "Confere o documento e informa o que mudaria, sem gravar nada."
@@ -702,6 +710,10 @@
         "match": {
           "name": "Correspondência",
           "description": "Como achar o registro a que se refere. \"auto\" busca por id, depois external_id, depois o nome. \"none\" cria cada registro."
+        },
+        "include_settings": {
+          "name": "Incluir configurações",
+          "description": "Importa também os perfis, as notificações e as opções do documento."
         }
       }
     },
@@ -1206,6 +1218,9 @@
     "file_too_large": {
       "message": "O arquivo excede o limite de {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Um campo do formulário do envio excede o limite de {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Era esperado um upload multipart."
     },
@@ -1235,6 +1250,18 @@
     },
     "profile_in_use": {
       "message": "O Home Keeper não pode excluir estes perfis: {profiles}. Estas notificações os utilizam: {notifications}. Altere ou exclua cada notificação e salve novamente."
+    },
+    "unknown_export_section": {
+      "message": "O Home Keeper não pode exportar estas seções: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Somente um administrador pode exportar ou importar os dados do Home Keeper."
+    },
+    "import_not_text": {
+      "message": "O arquivo não é um arquivo zip nem texto UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Informe um documento ou um pacote para importar."
     }
   }
 }

@@ -27,6 +27,12 @@ export function captureConfig(
     ...extra,
     // Merged, not replaced: an `extra.use` that overrode the whole object would drop
     // baseURL, storageState and the trace/screenshot settings with it.
-    use: { ...baseConfig.use, ...extra.use },
+    //
+    // Block service workers. On `localhost`, the Home Assistant frontend registers one
+    // in each new browser context, and it calls `location.reload()` when that worker
+    // takes control of the page. That occurs some seconds after the first load, at a
+    // time that changes from run to run. The reload closed open forms and dialogs in
+    // the middle of a capture, and a shot then showed the loading screen.
+    use: { ...baseConfig.use, serviceWorkers: 'block', ...extra.use },
   };
 }

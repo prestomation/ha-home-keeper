@@ -1255,12 +1255,14 @@ export class HomeKeeperCard extends HTMLElement {
       const icon = escapeHTML(mb.icon || 'mdi:puzzle');
       managedChip = `<span class="hk-managed" title="${tip}" role="img" aria-label="${tip}"><ha-icon icon="${icon}"></ha-icon></span>`;
     }
+    // 1 chip for the place: the device chip if the device name resolves, else the
+    // area chip.
     let areaChip = '';
     if (this._config.show_area !== false) {
-      const area = areaName(this._hass?.areas, task.area_id);
       const dev = task.device_id ? deviceName(this._hass?.devices, task.device_id) : '';
-      if (area) areaChip = `<ha-assist-chip label="${escapeHTML(area)}"></ha-assist-chip>`;
-      if (dev) areaChip += this._deviceChip(task, dev);
+      const area = dev ? '' : areaName(this._hass?.areas, task.area_id);
+      if (dev) areaChip = this._deviceChip(task, dev);
+      else if (area) areaChip = `<ha-assist-chip label="${escapeHTML(area)}"></ha-assist-chip>`;
     }
     // The NFC/RFID binding. The card never fetches HA's tag registry (it stays as
     // light as it can), so the chip is a generic marker rather than the tag's name —

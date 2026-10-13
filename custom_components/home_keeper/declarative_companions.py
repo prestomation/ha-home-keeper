@@ -591,7 +591,8 @@ def dormant_keys(
     entry is still there. Home Assistant disables every entity of a device or of an
     integration that a person disables, often only for a short time. The reconcile
     pass switches off the task of such an entity and keeps it with its history
-    (B12-1), as :func:`pause_spec_tasks` does for a disabled companion.
+    (B12-1), as :func:`pause_spec_tasks` does for a disabled companion. A task with
+    no history is deleted (:func:`has_history`).
     """
     selection = spec.get("selection") or {}
     pattern = selection.get("entity_regex")
@@ -619,6 +620,19 @@ def owns_notes(spec: dict[str, Any]) -> bool:
     reconciler leaves it alone.
     """
     return bool((spec.get("task_template") or {}).get("notes_template"))
+
+
+def has_history(spec: dict[str, Any], task: dict[str, Any]) -> bool:
+    """Whether *task* holds data that a person gave it.
+
+    That is a completion, a skip, a photo, or a note that *spec* does not write. A
+    task with no such data is made again, the same, when its entity matches again.
+    So the reconcile pass deletes it when its entity is disabled, and pauses only a
+    task with history (#454).
+    """
+    if task.get("completions") or task.get("skips") or task.get("photos"):
+        return True
+    return not owns_notes(spec) and bool((task.get("notes") or "").strip())
 
 
 def build_managed_by(
@@ -811,9 +825,11 @@ def reconcile_declarative_tasks(
     ``source`` echoes the fresh id), orphaned (delete).
 
     *dormant* holds the keys of disabled entities the spec still selects
-    (:func:`dormant_keys`). Their tasks are not orphans: each one is switched off
-    with the ``paused`` marker and kept, with a ``"paused"`` op, and the update path
-    switches it on again when the entity matches again (B12-1).
+    (:func:`dormant_keys`). A task of such a key that has history
+    (:func:`has_history`) is not an orphan: it is switched off with the ``paused``
+    marker and kept, with a ``"paused"`` op, and the update path switches it on again
+    when the entity matches again (B12-1). A task with no history is deleted as an
+    orphan, and a new one is made when the entity matches again (#454).
 
     A rendered name that is blank never becomes a task name (B12-2): the match
     makes no task, and an existing task keeps its name. *stale* holds the keys whose
@@ -837,7 +853,7 @@ def reconcile_declarative_tasks(
     for key, tid in list(existing_by_key.items()):
         if key in matches:
             continue
-        if key in dormant:
+        if key in dormant and has_history(spec, result[tid]):
             task = result[tid]
             # Off already: this pass paused it before, or the person switched it off.
             # A marker on the second would make it theirs no longer to undo.

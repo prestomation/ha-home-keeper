@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 3400211898da
+source_hash: 43209d661859
 ---
 
 # Architecture
@@ -42,9 +42,9 @@ the tasks through native entities, such as the to-do list and the calendar, and 
 
 | Layer | Modules | Rule |
 |---|---|---|
-| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
+| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
-| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
+| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `transfer_runner.py`, `transfer_http.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
 
 The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the first 2 rows.
@@ -64,7 +64,8 @@ local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
 `context.user_id` comes from an automation or from the core and is trusted.
 The gate covers appliance edits, asset documents, part files and stock, declarative
 companion edits, the orphan and archive deletes, `set_options`, the appliance report, data
-export and import, `list_entity_keys` and the companion preview. All else is open.
+export and import with their HTTP views, `list_entity_keys` and the companion preview.
+All else is open.
 
 ### Setup
 
@@ -78,8 +79,8 @@ Each websocket command calls the same store method as its service twin.
 2. Create `HomeKeeperCoordinator`, refresh it, and store it as `entry.runtime_data`.
 3. Reconcile asset devices, part tasks, buy tasks, problem sensors and declarative
    companions, so the tasks exist before the platforms read them.
-4. Register the panel, the card, the file HTTP views and the websocket commands, and remove
-   stale task photo folders. Forward `const.PLATFORMS` and prune devices with no entities.
+4. Register the panel, the card, the HTTP views and the websocket commands. Remove stale
+   photo and import folders. Forward `const.PLATFORMS` and prune devices with no entities.
 5. Ask companions to register again. Add the options and language listeners, which reload.
 6. Start the sensor watcher. Start the list syncs when the Home Assistant start is done.
 7. Enable transition events, start the 5-minute clock, refresh 1 more time, and set the
@@ -100,9 +101,9 @@ tabs, the card resource, the storage document and the uploaded files.
 The config flow is 1 confirmation step with no data. `options.py` defines every option key
 and default (`options.ALL_OPTIONS`). The options flow, `set_options` and Settings edit them.
 
-- The service and the panel send a partial update to `options.async_set_options`. It
-  merges, refuses a save that strands a notification (`options.ProfileInUseError`),
-  writes, and waits for the reload. A flag stops the update listener from a 2nd reload.
+- `set_options` and the panel send a partial update to `options.async_set_options`. It merges,
+  ignores a list option sent as a value that is not a list, refuses a save that strands a
+  notification (`options.ProfileInUseError`), writes, and waits for a reload the listener skips.
 - Home Assistant stores an options flow result as the whole options object. The form
   shows only `options.FLOW_OPTIONS`, so the flow returns `options.merge_flow_input`: a
   cleared form key resets, and a key outside the form keeps its value.
