@@ -874,9 +874,13 @@ def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) ->
             task["next_due"] = due.isoformat()
         changed = True
     zone = now.tzinfo if now is not None else None
+    # A snooze is off the schedule on purpose, so it keeps its date. The old engine
+    # left a month-end date only on day 28, 29 or 30.
     if (
         legacy_freq == FREQ_MONTHLY
         and due is not None
+        and not task.get("deferred_from")
+        and due.astimezone(zone).day >= 28
         and anchor.astimezone(zone).day > 28
         and not recurrence.is_rule_occurrence(anchor, task["rrule"], due, tz=zone)
         and due.astimezone(zone).time() == anchor.astimezone(zone).time()
@@ -1052,6 +1056,19 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 raise TaskValidationError(f"invalid freq: {freq!r}")
             fields["rrule"] = recurrence.legacy_rule(freq, interval)
         fields.pop("interval")
+        # ``normalize_rule`` checks the rule alone. The days that the rule takes from
+        # the first date can still leave it with no date, for example a yearly rule
+        # in June that starts on the 31st.
+        try:
+            recurrence.next_fixed_occurrence(
+                parsed_anchor,
+                fields["rrule"],
+                after=parsed_anchor - timedelta(seconds=1),
+            )
+        except ValueError as err:
+            raise TaskValidationError(
+                "invalid rrule: the rule has no dates from its first date"
+            ) from err
         fields["anchor"] = parsed_anchor.isoformat()
         fields["moved_occurrences"] = normalize_moved_occurrences(
             data.get("moved_occurrences"), tz=tz
@@ -1412,6 +1429,8 @@ def merge_update(
         candidate["rrule"] = _rule_after_legacy_edit(
             existing["rrule"], updates.get("freq"), updates.get("interval")
         )
+        # The rule is now what changed, so ``next_due`` must follow it below.
+        updates = {**updates, "rrule": candidate["rrule"]}
     if type_changed:
         # A type change reads the due date and the sensor binding only from the
         # update. A value stored for an earlier type is stale: an old due date made

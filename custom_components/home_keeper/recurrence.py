@@ -572,7 +572,9 @@ def _expansion(
     )
     if until is None:
         try:
-            naive_until = naive_probe + _horizon(effective)
+            # From the later of probe and start, so an anchor years ahead still has
+            # its first date inside the window.
+            naive_until = max(naive_probe, start) + _horizon(effective)
         except OverflowError:
             naive_until = datetime(9999, 12, 31)
     else:
@@ -626,13 +628,15 @@ def next_fixed_occurrence(
     expanded, tz = _expansion(anchor, rule, after, None)
     probe = after.astimezone(tz).replace(tzinfo=None)
     candidate: datetime | None = None
-    # A moved-away date is skipped, so look past at most that many rule dates.
-    for _ in range(len(moved_from) + 1):
+    # A moved-away date is skipped, so look past at most that many rule dates. One
+    # more step covers the repeated hour in autumn: a naive wall time after *probe*
+    # can still be an instant before *after*.
+    for _ in range(len(moved_from) + 2):
         found = expanded.after(probe)
         if found is None:
             break
         local = _localize(found, tz)
-        if _instant(local) not in moved_from:
+        if _instant(local) not in moved_from and _instant(local) > _instant(after):
             candidate = local
             break
         probe = found
@@ -873,6 +877,14 @@ def move_occurrence(
     # Which date the task shows now, judged against the moves *before* this one.
     on_schedule = shown is not None and _is_occurrence(task, anchor, shown)
     task["moved_occurrences"] = keep
+    # A snooze of the date that moved now stands for its new date, so a later
+    # completion advances past the new date and the date does not come due twice.
+    deferred = _parse(task.get("deferred_from"))
+    if deferred is not None and _instant(deferred) in {
+        _instant(occurrence),
+        *([_instant(previous_to)] if previous_to is not None else []),
+    }:
+        task["deferred_from"] = to.isoformat()
     if shown is None:
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     elif on_schedule and (

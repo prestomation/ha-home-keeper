@@ -1005,3 +1005,96 @@ def test_the_migration_survives_a_task_without_dates():
     task = {"recurrence_type": "fixed", "freq": "DAILY"}
     assert models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1)) is True
     assert task["rrule"] == "FREQ=DAILY;INTERVAL=1"
+
+
+# ── Review fixes ────────────────────────────────────────────────────────────
+
+
+def test_a_snooze_counted_in_hours_keeps_its_date_through_the_migration():
+    # A 7-day snooze of the Jan 31 date keeps the time of day, so only
+    # ``deferred_from`` tells it apart from an old clamp.
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "MONTHLY",
+        "interval": 1,
+        "anchor": dt(2026, 1, 31, 10, tz=LA).isoformat(),
+        "next_due": dt(2027, 2, 7, 10, tz=LA).isoformat(),
+        "deferred_from": dt(2027, 1, 31, 10, tz=LA).isoformat(),
+    }
+    models.migrate_legacy_fixed_schedule(task, now=dt(2027, 2, 2, 12, tz=LA))
+    assert task["next_due"] == dt(2027, 2, 7, 10, tz=LA).isoformat()
+
+
+def test_a_legacy_interval_edit_moves_next_due_to_the_new_rule():
+    now = dt(2026, 6, 13, 10, tz=LA)
+    task = models.build_task(
+        {
+            "name": "Trash",
+            "rrule": "FREQ=WEEKLY;BYDAY=MO",
+            "anchor": dt(2026, 6, 1, 9, tz=LA).isoformat(),
+        },
+        now=now,
+    )
+    assert task["next_due"] == dt(2026, 6, 15, 9, tz=LA).isoformat()
+    edited = models.merge_update(task, {"interval": 3}, now=now)
+    assert r.rule_parts(edited["rrule"])["INTERVAL"] == "3"
+    assert edited["next_due"] == dt(2026, 6, 22, 9, tz=LA).isoformat()
+
+
+@pytest.mark.parametrize(
+    ("rule", "anchor"),
+    [
+        # The rule takes day 31 from the first date, and June has no 31st.
+        ("FREQ=YEARLY;BYMONTH=6", dt(2026, 3, 31, 9, tz=LA)),
+        # Every 2 years from 2027 is never a leap year.
+        ("FREQ=YEARLY;INTERVAL=2;BYMONTH=2;BYMONTHDAY=29", dt(2027, 1, 1, 9, tz=LA)),
+    ],
+)
+def test_a_rule_with_no_date_from_its_first_date_is_refused(rule, anchor):
+    with pytest.raises(models.TaskValidationError, match="no dates"):
+        models.build_task(
+            {"name": "x", "rrule": rule, "anchor": anchor.isoformat()},
+            now=dt(2026, 6, 13, 10, tz=LA),
+        )
+
+
+def test_a_first_date_far_ahead_is_the_next_date():
+    task = models.build_task(
+        {
+            "name": "x",
+            "rrule": "FREQ=MONTHLY",
+            "anchor": dt(2050, 1, 1, 9, tz=LA).isoformat(),
+        },
+        now=dt(2026, 6, 13, 10, tz=LA),
+    )
+    assert task["next_due"] == dt(2050, 1, 1, 9, tz=LA).isoformat()
+
+
+def test_the_next_date_is_after_a_time_in_the_repeated_autumn_hour():
+    # 01:15 PST comes after 01:30 PDT, so the next 01:30 is the next day.
+    after = datetime(2027, 11, 7, 1, 15, fold=1, tzinfo=LA)
+    found = r.next_fixed_occurrence(
+        dt(2027, 1, 1, 1, 30, tz=LA), "FREQ=DAILY", after=after
+    )
+    assert found.timestamp() > after.timestamp()
+    assert (found.day, found.hour, found.minute) == (8, 1, 30)
+
+
+def test_a_snoozed_date_that_then_moves_comes_due_once():
+    now = dt(2026, 6, 13, 10, tz=LA)
+    task = models.build_task(
+        {
+            "name": "Trash",
+            "rrule": "FREQ=WEEKLY;BYDAY=MO",
+            "anchor": dt(2026, 6, 1, 9, tz=LA).isoformat(),
+        },
+        now=now,
+    )
+    r.defer(task, dt(2026, 6, 17, 9, tz=LA), now=now)
+    r.move_occurrence(
+        task, dt(2026, 6, 15, 9, tz=LA), dt(2026, 6, 18, 9, tz=LA), now=now
+    )
+    assert task["deferred_from"] == dt(2026, 6, 18, 9, tz=LA).isoformat()
+    done = dt(2026, 6, 17, 9, 5, tz=LA)
+    r.apply_completion(task, done, now=done)
+    assert task["next_due"] == dt(2026, 6, 22, 9, tz=LA).isoformat()
