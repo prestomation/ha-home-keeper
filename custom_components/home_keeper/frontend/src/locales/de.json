@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Auch die Einstellungen aus dem Paket importieren. Benachrichtigungsziele, die es auf diesem System nicht gibt, werden übersprungen.",
   "opt.freq.yearly": "jährlich",
   "recurrence.fixedDays": "{summary} am {days}",
-  "recurrence.custom": "eigene Regel: {rule}",
+  "recurrence.custom": "eigener Zeitplan",
   "rule.days": "An diesen Tagen",
   "rule.advanced": "Eigene Regel (RRULE)",
   "rule.notSimple": "Diese Regel nutzt mehr als Wochentage. Bearbeite sie unten oder setze sie zurück.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "Vom {date}",
   "field.moveTo": "Neues Datum und neue Uhrzeit",
   "recurrence.yearly.one": "jedes Jahr",
-  "recurrence.yearly.other": "alle {n} Jahre"
+  "recurrence.yearly.other": "alle {n} Jahre",
+  "field.month_by": "Monatlich am",
+  "rule.monthDay": "{day}.",
+  "rule.nth.1": "1. {weekday}",
+  "rule.nth.2": "2. {weekday}",
+  "rule.nth.3": "3. {weekday}",
+  "rule.nth.4": "4. {weekday}",
+  "rule.nth.last": "letzten {weekday}",
+  "recurrence.fixedMonthly": "{summary} am {day}"
 }

@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Importera även inställningarna från paketet. Aviseringsmål som inte finns på det här systemet hoppas över.",
   "opt.freq.yearly": "årligen",
   "recurrence.fixedDays": "{summary} på {days}",
-  "recurrence.custom": "egen regel: {rule}",
+  "recurrence.custom": "eget schema",
   "rule.days": "Dessa dagar",
   "rule.advanced": "Egen regel (RRULE)",
   "rule.notSimple": "Den här regeln använder mer än veckodagar. Redigera den nedan eller återställ den.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "Från {date}",
   "field.moveTo": "Nytt datum och ny tid",
   "recurrence.yearly.one": "varje år",
-  "recurrence.yearly.other": "vart {n}:e år"
+  "recurrence.yearly.other": "vart {n}:e år",
+  "field.month_by": "Månadsvis",
+  "rule.monthDay": "den {day}",
+  "rule.nth.1": "första {weekday}",
+  "rule.nth.2": "andra {weekday}",
+  "rule.nth.3": "tredje {weekday}",
+  "rule.nth.4": "fjärde {weekday}",
+  "rule.nth.last": "sista {weekday}",
+  "recurrence.fixedMonthly": "{summary}, {day} i månaden"
 }

@@ -982,7 +982,7 @@
   "transfer.includeSettings": "同时导入数据包中的设置。本系统中不存在的通知目标会被跳过。",
   "opt.freq.yearly": "每年",
   "recurrence.fixedDays": "{summary}，{days}",
-  "recurrence.custom": "自定义规则：{rule}",
+  "recurrence.custom": "自定义日程",
   "rule.days": "在这些日子",
   "rule.advanced": "自定义规则 (RRULE)",
   "rule.notSimple": "此规则使用的不只是星期几。请在下方编辑，或将其重置。",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "原为 {date}",
   "field.moveTo": "新的日期和时间",
   "recurrence.yearly.one": "每年",
-  "recurrence.yearly.other": "每 {n} 年"
+  "recurrence.yearly.other": "每 {n} 年",
+  "field.month_by": "每月的",
+  "rule.monthDay": "{day}日",
+  "rule.nth.1": "第一个{weekday}",
+  "rule.nth.2": "第二个{weekday}",
+  "rule.nth.3": "第三个{weekday}",
+  "rule.nth.4": "第四个{weekday}",
+  "rule.nth.last": "最后一个{weekday}",
+  "recurrence.fixedMonthly": "{summary}，{day}"
 }

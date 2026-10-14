@@ -1042,7 +1042,7 @@
   "transfer.includeSettings": "Также импортировать настройки из пакета. Цели уведомлений, которых нет в этой системе, пропускаются.",
   "opt.freq.yearly": "ежегодно",
   "recurrence.fixedDays": "{summary}, по дням: {days}",
-  "recurrence.custom": "своё правило: {rule}",
+  "recurrence.custom": "свой график",
   "rule.days": "В эти дни",
   "rule.advanced": "Своё правило (RRULE)",
   "rule.notSimple": "Это правило использует не только дни недели. Измените его ниже или сбросьте.",
@@ -1064,5 +1064,13 @@
   "recurrence.yearly.one": "каждый год",
   "recurrence.yearly.few": "каждые {n} года",
   "recurrence.yearly.many": "каждые {n} лет",
-  "recurrence.yearly.other": "каждые {n} лет"
+  "recurrence.yearly.other": "каждые {n} лет",
+  "field.month_by": "Ежемесячно",
+  "rule.monthDay": "{day}-е число",
+  "rule.nth.1": "{weekday} на 1-й неделе",
+  "rule.nth.2": "{weekday} на 2-й неделе",
+  "rule.nth.3": "{weekday} на 3-й неделе",
+  "rule.nth.4": "{weekday} на 4-й неделе",
+  "rule.nth.last": "{weekday} на последней неделе",
+  "recurrence.fixedMonthly": "{summary}: {day}"
 }

@@ -15,7 +15,9 @@ import {
   buildTaskPayload,
   formRecurrenceSummary,
   haDateTimeToIso,
+  monthByOf,
   pickFormData,
+  ruleFormFields,
   taskFormData,
   taskRule,
   taskSchemaSections,
@@ -131,10 +133,7 @@ export function paintRuleControls(p: PanelHost, box?: HTMLElement | null): void 
  * never lag behind a rule that was typed or reset.
  */
 function withRule(task: Partial<Task>, rule: string): Partial<Task> {
-  const simple = parseSimple(rule);
-  return simple
-    ? ({ ...task, rrule: rule, freq: simple.freq, interval: simple.interval } as Partial<Task>)
-    : ({ ...task, rrule: rule } as Partial<Task>);
+  return { ...task, rrule: rule, ...ruleFormFields(rule) } as Partial<Task>;
 }
 
 /** Write a new rule from a button, then repaint every view of it. */
@@ -157,19 +156,21 @@ export function applyRuleChange(p: PanelHost, value: Record<string, unknown>): b
     syncRuleViews(p, { ruleText: false });
     return true;
   }
-  if ('freq' in value || 'interval' in value) {
+  if ('freq' in value || 'interval' in value || 'month_by' in value) {
     // `task` already carries the new freq/interval (the caller merged them), so the
     // rule they change is the one stored before this edit.
     const rule = withSimpleChange(taskRule(task), {
       freq: 'freq' in value ? String(value.freq) : undefined,
       interval: 'interval' in value ? Number(value.interval) || 1 : undefined,
+      monthBy: 'month_by' in value ? monthByOf(value as Partial<Task>) : undefined,
     });
     p._edit.task = withRule(task, rule);
     syncRuleViews(p, { ruleText: true });
     return true;
   }
   if ('anchor' in value) {
-    // A weekly rule with no days follows the start date's weekday.
+    // A weekly rule with no days follows the start date's weekday, and the "Monthly
+    // on" choices are named from the start date.
     syncRuleViews(p, { ruleText: false });
     return true;
   }

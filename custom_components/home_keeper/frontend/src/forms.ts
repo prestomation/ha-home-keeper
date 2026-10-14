@@ -1,9 +1,11 @@
 import { companionKeys } from './card-filter';
-import { t, tn } from './i18n';
+import { getLanguage, t, tn } from './i18n';
 import { MAX_ONE_OFF_RETENTION_DAYS } from './limits';
 import {
   SIMPLE_FREQS,
+  anchorDay,
   buildSimple,
+  monthlyChoices,
   parseSimple,
   resetToSimple,
   withSimpleChange,
@@ -17,6 +19,7 @@ import {
   formatQuantity,
   getTimeZone,
   intervalText,
+  monthByText,
   normalizeIcon,
   recurrenceSummary,
   round1,
@@ -576,7 +579,25 @@ export function taskSchemaSections(
   // cannot ("the first Tuesday of each month"), Repeats and Every are greyed out and
   // the rule text is the only way to change it; see rrule.ts.
   const fixedRule = isFixed ? taskRule(task) : '';
-  const ruleIsSimple = !isFixed || parseSimple(fixedRule) !== null;
+  const fixedSimple = isFixed ? parseSimple(fixedRule) : null;
+  const ruleIsSimple = !isFixed || fixedSimple !== null;
+  // "Monthly on": the start date's day, or its weekday in the month, as a calendar
+  // app offers it. It needs a start date to name the choices.
+  const anchorDate = isFixed ? anchorDay(task.anchor) : null;
+  const monthByField: FormField[] =
+    fixedSimple?.freq === 'MONTHLY' && anchorDate
+      ? [
+          {
+            name: 'month_by',
+            selector: selSelect(
+              monthlyChoices(anchorDate, fixedSimple.monthBy).map((value) => ({
+                value: value || MONTH_BY_DAY,
+                label: monthByText(value, anchorDate, getLanguage()),
+              })),
+            ),
+          },
+        ]
+      : [];
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
     : isFixed
@@ -594,6 +615,7 @@ export function taskSchemaSections(
                   { value: 'YEARLY', label: t('opt.freq.yearly') },
                 ]),
               },
+              ...monthByField,
             ]
           : []),
       ]
@@ -1016,8 +1038,29 @@ export function formRule(task: Partial<Task>): string {
     ? task.freq
     : simple.freq;
   const interval = Math.max(1, Number(task.interval) || simple.interval);
-  if (freq === simple.freq && interval === simple.interval) return rule;
-  return withSimpleChange(rule, { freq, interval });
+  const monthBy = monthByOf(task) ?? simple.monthBy ?? '';
+  if (freq === simple.freq && interval === simple.interval && monthBy === (simple.monthBy ?? '')) {
+    return rule;
+  }
+  return withSimpleChange(rule, { freq, interval, monthBy });
+}
+
+/** The form's "Monthly on" value for the day of the month, which `ha-select` needs. */
+export const MONTH_BY_DAY = 'DAY';
+
+/** The form's "Monthly on" choice as a rule `BYDAY` (`''` for the day), or `undefined`. */
+export function monthByOf(task: Partial<Task>): string | undefined {
+  const value = (task as Record<string, unknown>).month_by;
+  if (value == null) return undefined;
+  return value === MONTH_BY_DAY ? '' : String(value);
+}
+
+/** The form fields a fixed rule sets: Repeats, Every and "Monthly on". */
+export function ruleFormFields(rule: string): Record<string, unknown> {
+  const simple = parseSimple(rule);
+  return simple
+    ? { freq: simple.freq, interval: simple.interval, month_by: simple.monthBy || MONTH_BY_DAY }
+    : {};
 }
 
 /**
@@ -1035,11 +1078,14 @@ export function reconcileRuleEdit(
   if (next.recurrence_type !== 'fixed') return next;
   const prevRule = taskRule(prev);
   if (next.rrule != null && next.rrule !== '' && next.rrule !== prevRule) {
-    const simple = parseSimple(next.rrule);
-    return simple ? { ...next, freq: simple.freq, interval: simple.interval } : next;
+    return { ...next, ...ruleFormFields(next.rrule) } as Partial<Task>;
   }
-  const rule = withSimpleChange(prevRule, { freq: next.freq, interval: next.interval });
-  return { ...next, rrule: rule };
+  const rule = withSimpleChange(prevRule, {
+    freq: next.freq,
+    interval: next.interval,
+    monthBy: monthByOf(next),
+  });
+  return { ...next, rrule: rule, ...ruleFormFields(rule) } as Partial<Task>;
 }
 
 /**
@@ -1062,6 +1108,7 @@ function fixedFormFields(task: Partial<Task>): Record<string, unknown> {
   return {
     interval: simple?.interval ?? 1,
     freq: simple?.freq ?? 'WEEKLY',
+    month_by: simple?.monthBy || MONTH_BY_DAY,
     rrule: rule,
   };
 }
@@ -1184,6 +1231,12 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     // No device, a cleared picker and a blank string all mean "unattached", so they all
     // have to land on the same value here.
     d.device_id || null,
+    // A fixed task shows "Monthly on" only for a monthly rule, and names its choices
+    // from the start date, so both change the fields.
+    d.recurrence_type === 'fixed' ? d.freq : null,
+    d.recurrence_type === 'fixed' && d.freq === 'MONTHLY'
+      ? anchorDay((task as Partial<Task>).anchor)?.toISOString() ?? null
+      : null,
   ]);
 }
 

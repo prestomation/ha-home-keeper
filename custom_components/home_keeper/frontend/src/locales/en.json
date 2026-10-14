@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Also import the settings from the bundle. Notification targets that are not on this system are skipped.",
   "opt.freq.yearly": "yearly",
   "recurrence.fixedDays": "{summary} on {days}",
-  "recurrence.custom": "custom rule: {rule}",
+  "recurrence.custom": "custom schedule",
   "rule.days": "On these days",
   "rule.advanced": "Custom rule (RRULE)",
   "rule.notSimple": "The buttons cannot show this rule, so edit it in the box below or reset it.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "From {date}",
   "field.moveTo": "New date and time",
   "recurrence.yearly.one": "every year",
-  "recurrence.yearly.other": "every {n} years"
+  "recurrence.yearly.other": "every {n} years",
+  "field.month_by": "Monthly on",
+  "rule.monthDay": "day {day}",
+  "rule.nth.1": "the first {weekday}",
+  "rule.nth.2": "the second {weekday}",
+  "rule.nth.3": "the third {weekday}",
+  "rule.nth.4": "the fourth {weekday}",
+  "rule.nth.last": "the last {weekday}",
+  "recurrence.fixedMonthly": "{summary} on {day}"
 }

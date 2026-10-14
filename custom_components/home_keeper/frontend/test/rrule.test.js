@@ -4,7 +4,9 @@ import {
   anchorDay,
   buildSimple,
   dayList,
+  monthlyChoices,
   parseSimple,
+  splitMonthBy,
   resetToSimple,
   ruleParts,
   shownDays,
@@ -44,6 +46,31 @@ describe('parseSimple', () => {
     });
   });
 
+  it('reads one weekday of the month for a monthly rule', () => {
+    expect(parseSimple('FREQ=MONTHLY;INTERVAL=2;BYDAY=1TU')).toEqual({
+      freq: 'MONTHLY',
+      interval: 2,
+      byday: [],
+      monthBy: '1TU',
+    });
+    expect(parseSimple('FREQ=MONTHLY;BYDAY=-1FR')?.monthBy).toBe('-1FR');
+    expect(buildSimple({ freq: 'MONTHLY', interval: 1, byday: [], monthBy: '-1FR' })).toBe(
+      'FREQ=MONTHLY;INTERVAL=1;BYDAY=-1FR',
+    );
+  });
+
+  it('keeps the weekday of the month through an Every change, and drops it for weekly', () => {
+    expect(withSimpleChange('FREQ=MONTHLY;BYDAY=2TU', { interval: 3 })).toBe(
+      'FREQ=MONTHLY;INTERVAL=3;BYDAY=2TU',
+    );
+    expect(withSimpleChange('FREQ=MONTHLY;BYDAY=2TU', { freq: 'WEEKLY' })).toBe(
+      'FREQ=WEEKLY;INTERVAL=1',
+    );
+    expect(withSimpleChange('FREQ=MONTHLY;BYDAY=2TU', { monthBy: '' })).toBe(
+      'FREQ=MONTHLY;INTERVAL=1',
+    );
+  });
+
   it('defaults the interval to 1 and the days to none', () => {
     expect(parseSimple('FREQ=MONTHLY')).toEqual({ freq: 'MONTHLY', interval: 1, byday: [] });
   });
@@ -59,7 +86,8 @@ describe('parseSimple', () => {
     ['nonsense'],
     ['FREQ=HOURLY'],
     ['FREQ=WEEKLY;WKST=SU'],
-    ['FREQ=MONTHLY;BYDAY=1TU'],
+    ['FREQ=MONTHLY;BYDAY=5TU'],
+    ['FREQ=MONTHLY;BYDAY=1TU,3TU'],
     ['FREQ=MONTHLY;BYDAY=TU'],
     ['FREQ=WEEKLY;BYDAY=1TU'],
     ['FREQ=WEEKLY;BYDAY=XX'],
@@ -141,7 +169,7 @@ describe('withSimpleChange', () => {
   });
 
   it('never touches a custom rule', () => {
-    const rule = 'FREQ=MONTHLY;BYDAY=1TU';
+    const rule = 'FREQ=MONTHLY;BYMONTHDAY=1,15';
     expect(withSimpleChange(rule, { freq: 'DAILY', interval: 4 })).toBe(rule);
   });
 });
@@ -214,5 +242,30 @@ describe('days', () => {
   it('lists days as a sentence', () => {
     expect(dayList(['FR', 'TU'], 'en')).toBe('Tuesday and Friday');
     expect(dayList(['MO', 'WE', 'FR'], 'en')).toBe('Monday, Wednesday, and Friday');
+  });
+});
+
+describe('monthlyChoices', () => {
+  it('offers the day and the weekday of the month of the start date', () => {
+    // Tue Oct 13 2026: the second Tuesday, and not in the last 7 days.
+    expect(monthlyChoices(anchorDay('2026-10-13T07:00'))).toEqual(['', '2TU']);
+  });
+
+  it('offers the last weekday in the last 7 days, and no 5th weekday', () => {
+    // Tue Sep 29 2026: the 5th Tuesday of a 30-day month.
+    expect(monthlyChoices(anchorDay('2026-09-29T07:00'))).toEqual(['', '-1TU']);
+    // Sun Oct 25 2026: the 4th Sunday, and also the last (Nov 1 is the next one).
+    expect(monthlyChoices(anchorDay('2026-10-25T07:00'))).toEqual(['', '4SU', '-1SU']);
+  });
+
+  it('keeps a stored choice that the start date does not give', () => {
+    expect(monthlyChoices(anchorDay('2026-10-13T07:00'), '1FR')).toEqual(['', '2TU', '1FR']);
+    expect(monthlyChoices(null, '1FR')).toEqual(['', '1FR']);
+  });
+
+  it('splits a choice into its ordinal and weekday', () => {
+    expect(splitMonthBy('2TU')).toEqual(['2', 'TU']);
+    expect(splitMonthBy('-1FR')).toEqual(['last', 'FR']);
+    expect(splitMonthBy('')).toBeNull();
   });
 });

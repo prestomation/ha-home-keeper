@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Importer også innstillingene fra pakken. Varslingsmål som ikke finnes på dette systemet, hoppes over.",
   "opt.freq.yearly": "årlig",
   "recurrence.fixedDays": "{summary} på {days}",
-  "recurrence.custom": "egendefinert regel: {rule}",
+  "recurrence.custom": "egendefinert plan",
   "rule.days": "På disse dagene",
   "rule.advanced": "Egendefinert regel (RRULE)",
   "rule.notSimple": "Denne regelen bruker mer enn ukedager. Rediger den nedenfor, eller tilbakestill den.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "Fra {date}",
   "field.moveTo": "Ny dato og tid",
   "recurrence.yearly.one": "hvert år",
-  "recurrence.yearly.other": "hvert {n}. år"
+  "recurrence.yearly.other": "hvert {n}. år",
+  "field.month_by": "Månedlig",
+  "rule.monthDay": "den {day}.",
+  "rule.nth.1": "første {weekday}",
+  "rule.nth.2": "andre {weekday}",
+  "rule.nth.3": "tredje {weekday}",
+  "rule.nth.4": "fjerde {weekday}",
+  "rule.nth.last": "siste {weekday}",
+  "recurrence.fixedMonthly": "{summary}, {day} i måneden"
 }

@@ -5,6 +5,8 @@ import {
   dayList,
   parseSimple,
   shownDays,
+  splitMonthBy,
+  weekdayName,
   type SimpleFreq,
 } from './rrule';
 import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
@@ -1030,8 +1032,18 @@ export function formatOccurrenceTime(value: string | Date, lang?: string): strin
 }
 
 /**
- * A fixed schedule in words: "every 2 weeks on Tuesday and Friday", or "custom rule:
- * FREQ=MONTHLY;BYDAY=1TU" for a rule the simple controls cannot say.
+ * Which day of the month a monthly rule uses, in words: "day 13" for `''` (the start
+ * date's day), or "the second Tuesday" for `2TU`. *anchor* is from `anchorDay`.
+ */
+export function monthByText(token: string, anchor: Date | null, lang?: string): string {
+  const parts = splitMonthBy(token);
+  if (!parts) return t('rule.monthDay', { day: anchor ? anchor.getUTCDate() : '' });
+  return t(`rule.nth.${parts[0]}`, { weekday: weekdayName(parts[1], lang, 'long') });
+}
+
+/**
+ * A fixed schedule in words: "every 2 weeks on Tuesday and Friday", "every month on
+ * the first Tuesday", or "custom schedule" for a rule the simple controls cannot say.
  *
  * A task without `rrule` is described from its legacy `freq`/`interval`, which is what
  * an old export or a form state built before this field existed carries.
@@ -1043,7 +1055,7 @@ function fixedRuleText(task: Task): string {
     byday: [],
   });
   const simple = parseSimple(rule);
-  if (!simple) return t('recurrence.custom', { rule: rule.replace(/^RRULE:/i, '') });
+  if (!simple) return t('recurrence.custom');
   // Yearly is a whole phrase of its own: the shared "every {unit}" template cannot
   // agree with the noun for "year" in every language (Danish needs "hvert år").
   if (simple.freq === 'YEARLY') return tn('recurrence.yearly', simple.interval);
@@ -1054,6 +1066,10 @@ function fixedRuleText(task: Task): string {
   };
   const unit = tn(`recurrence.unit.${freqBase[simple.freq]}`, simple.interval);
   const summary = tn('recurrence.fixed', simple.interval, { unit });
+  if (simple.freq === 'MONTHLY' && simple.monthBy) {
+    const day = monthByText(simple.monthBy, anchorDay(task.anchor), getLanguage());
+    return t('recurrence.fixedMonthly', { summary, day });
+  }
   if (simple.freq !== 'WEEKLY') return summary;
   const days = shownDays(rule, anchorDay(task.anchor));
   if (!days.length) return summary;

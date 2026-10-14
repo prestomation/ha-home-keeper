@@ -59,8 +59,8 @@ describe('the form reads Repeats and Every from the rule', () => {
   });
 
   it('shows a custom rule as what it would reset to', () => {
-    const data = taskFormData(fixed({ rrule: 'FREQ=MONTHLY;INTERVAL=2;BYDAY=1TU' }));
-    expect(data).toMatchObject({ freq: 'MONTHLY', interval: 2, rrule: 'FREQ=MONTHLY;INTERVAL=2;BYDAY=1TU' });
+    const data = taskFormData(fixed({ rrule: 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=1,15' }));
+    expect(data).toMatchObject({ freq: 'MONTHLY', interval: 2, rrule: 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=1,15' });
   });
 
   it('builds the rule from the legacy pair of an old record', () => {
@@ -78,8 +78,29 @@ describe('the fixed sections', () => {
   const fields = (task) =>
     Object.fromEntries(taskSchemaSections(task).map((s) => [s.key, s.fields]));
 
+  it('offers "Monthly on" for a monthly rule, named from the start date', () => {
+    const task = fixed({ rrule: 'FREQ=MONTHLY', anchor: '2026-10-13T07:00:00-07:00' });
+    const [grid] = fields(task).cadence;
+    const monthBy = grid.schema.find((f) => f.name === 'month_by');
+    expect(monthBy.selector.select.options.map((o) => [o.value, o.label])).toEqual([
+      ['DAY', 'day 13'],
+      ['2TU', 'the second Tuesday'],
+    ]);
+    expect(taskFormData(task).month_by).toBe('DAY');
+    expect(fields(fixed()).cadence[0].schema.some((f) => f.name === 'month_by')).toBe(false);
+  });
+
+  it('writes the weekday of the month into the rule from "Monthly on"', () => {
+    const prev = fixed({ rrule: 'FREQ=MONTHLY;INTERVAL=1', anchor: '2026-10-13T07:00:00-07:00' });
+    const next = reconcileRuleEdit(prev, { ...prev, ...taskFormData(prev), month_by: '2TU' });
+    expect(next.rrule).toBe('FREQ=MONTHLY;INTERVAL=1;BYDAY=2TU');
+    expect(formRule(next)).toBe('FREQ=MONTHLY;INTERVAL=1;BYDAY=2TU');
+    const back = reconcileRuleEdit(next, { ...next, month_by: 'DAY' });
+    expect(back.rrule).toBe('FREQ=MONTHLY;INTERVAL=1');
+  });
+
   it('greys Repeats and Every out for a custom rule and opens the rule box', () => {
-    const custom = fields(fixed({ rrule: 'FREQ=MONTHLY;BYDAY=1TU' }));
+    const custom = fields(fixed({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=1,15' }));
     const [grid] = custom.cadence;
     expect(grid.schema.map((f) => [f.name, f.disabled])).toEqual([
       ['interval', true],
@@ -143,7 +164,7 @@ describe('formRule', () => {
   });
 
   it('never rewrites a custom rule', () => {
-    const rule = 'FREQ=MONTHLY;BYDAY=1TU';
+    const rule = 'FREQ=MONTHLY;BYMONTHDAY=1,15';
     expect(formRule(fixed({ rrule: rule, freq: 'DAILY', interval: 3 }))).toBe(rule);
   });
 });
@@ -158,8 +179,8 @@ describe('reconcileRuleEdit', () => {
   });
 
   it('keeps a typed custom rule as it is', () => {
-    const next = reconcileRuleEdit(prev, { ...prev, rrule: 'FREQ=MONTHLY;BYDAY=1TU' });
-    expect(next.rrule).toBe('FREQ=MONTHLY;BYDAY=1TU');
+    const next = reconcileRuleEdit(prev, { ...prev, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1,15' });
+    expect(next.rrule).toBe('FREQ=MONTHLY;BYMONTHDAY=1,15');
     expect(next.freq).toBe('WEEKLY');
   });
 
@@ -232,9 +253,16 @@ describe('the rule in words', () => {
     );
   });
 
-  it('quotes a custom rule', () => {
-    expect(recurrenceSummary(fixed({ rrule: 'RRULE:FREQ=MONTHLY;BYDAY=1TU' }))).toBe(
-      'Custom rule: FREQ=MONTHLY;BYDAY=1TU',
+  it('calls a rule the controls cannot show a custom schedule, with no rule text', () => {
+    expect(recurrenceSummary(fixed({ rrule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1,15' }))).toBe('Custom schedule');
+  });
+
+  it('names the weekday of the month in words', () => {
+    expect(recurrenceSummary(fixed({ rrule: 'FREQ=MONTHLY;BYDAY=1TU' }))).toBe(
+      'Every month on the first Tuesday',
+    );
+    expect(recurrenceSummary(fixed({ rrule: 'FREQ=MONTHLY;INTERVAL=2;BYDAY=-1FR' }))).toBe(
+      'Every 2 months on the last Friday',
     );
   });
 

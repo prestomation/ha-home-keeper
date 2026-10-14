@@ -1042,7 +1042,7 @@
   "transfer.includeSettings": "Importovat i nastavení z balíčku. Cíle oznámení, které v tomto systému nejsou, se přeskočí.",
   "opt.freq.yearly": "ročně",
   "recurrence.fixedDays": "{summary} v {days}",
-  "recurrence.custom": "vlastní pravidlo: {rule}",
+  "recurrence.custom": "vlastní plán",
   "rule.days": "V tyto dny",
   "rule.advanced": "Vlastní pravidlo (RRULE)",
   "rule.notSimple": "Toto pravidlo používá víc než dny v týdnu. Upravte ho níže, nebo ho obnovte.",
@@ -1064,5 +1064,13 @@
   "recurrence.yearly.one": "každý rok",
   "recurrence.yearly.few": "každé {n} roky",
   "recurrence.yearly.many": "každých {n} roku",
-  "recurrence.yearly.other": "každých {n} let"
+  "recurrence.yearly.other": "každých {n} let",
+  "field.month_by": "Měsíčně",
+  "rule.monthDay": "{day}. den",
+  "rule.nth.1": "{weekday} v 1. týdnu",
+  "rule.nth.2": "{weekday} ve 2. týdnu",
+  "rule.nth.3": "{weekday} ve 3. týdnu",
+  "rule.nth.4": "{weekday} ve 4. týdnu",
+  "rule.nth.last": "{weekday} v posledním týdnu",
+  "recurrence.fixedMonthly": "{summary}: {day}"
 }

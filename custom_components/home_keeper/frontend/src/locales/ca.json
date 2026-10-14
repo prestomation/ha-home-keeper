@@ -1012,7 +1012,7 @@
   "transfer.includeSettings": "Importa també la configuració del paquet. Els destins de notificació que no existeixen en aquest sistema s'ometen.",
   "opt.freq.yearly": "anual",
   "recurrence.fixedDays": "{summary} els {days}",
-  "recurrence.custom": "regla personalitzada: {rule}",
+  "recurrence.custom": "programació personalitzada",
   "rule.days": "Aquests dies",
   "rule.advanced": "Regla personalitzada (RRULE)",
   "rule.notSimple": "Aquesta regla fa servir més que els dies de la setmana. Edita-la a sota o restableix-la.",
@@ -1033,5 +1033,13 @@
   "field.moveTo": "Data i hora noves",
   "recurrence.yearly.one": "cada any",
   "recurrence.yearly.many": "cada {n} anys",
-  "recurrence.yearly.other": "cada {n} anys"
+  "recurrence.yearly.other": "cada {n} anys",
+  "field.month_by": "Mensualment",
+  "rule.monthDay": "el dia {day}",
+  "rule.nth.1": "el primer {weekday}",
+  "rule.nth.2": "el segon {weekday}",
+  "rule.nth.3": "el tercer {weekday}",
+  "rule.nth.4": "el quart {weekday}",
+  "rule.nth.last": "l'últim {weekday}",
+  "recurrence.fixedMonthly": "{summary}, {day}"
 }

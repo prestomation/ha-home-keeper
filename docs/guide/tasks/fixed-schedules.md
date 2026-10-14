@@ -23,8 +23,22 @@ the schedule before you save it.
 
 <img src="docs/images/71-panel-fixed-weekdays.png" alt="The task form with Frequency set to weekly and the Tuesday and Friday buttons pressed" width="820">
 
-Daily, monthly and yearly schedules need no days. A monthly task on the 29th, 30th or
-31st uses the last day of a shorter month, then goes back to its own day.
+Daily and yearly schedules need no days.
+
+## Days of the month
+
+Set **Frequency** to monthly, then pick **Monthly on**. The choices come from the
+first date, as in a calendar app. For a first date on Tuesday, October 13:
+
+- **day 13**: the 13th of each month.
+- **the second Tuesday**: the second Tuesday of each month.
+- **the last Tuesday**: shows when the first date is in the last 7 days of its month.
+
+For "the first Tuesday of each month", set **First date** to a first Tuesday, then
+pick **the first Tuesday**. A task on the 29th, 30th or 31st uses the last day of a
+shorter month, then goes back to its own day.
+
+<img src="docs/images/75-panel-fixed-monthly.png" alt="The task form with Frequency set to monthly and Monthly on set to the second Tuesday" width="820">
 
 ## Custom rules
 
@@ -36,16 +50,15 @@ Type a rule for a schedule the controls cannot show. Some examples:
 
 | Schedule | Rule |
 | --- | --- |
-| The first Tuesday of each month | `FREQ=MONTHLY;BYDAY=1TU` |
-| The last Friday of each month | `FREQ=MONTHLY;BYDAY=-1FR` |
 | Every 2 weeks on Monday and Thursday | `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH` |
 | The 1st and the 15th of each month | `FREQ=MONTHLY;BYMONTHDAY=1,15` |
 | Each year on the first Sunday of April | `FREQ=YEARLY;BYMONTH=4;BYDAY=1SU` |
 
-When the rule has parts other than days of the week, the form grays out the controls and
-shows **Reset to simple**, which goes back to a plain rule with the same frequency.
+When the controls cannot show the rule, the form grays them out and shows **Reset to
+simple**, which goes back to a plain rule with the same frequency. The task then
+shows "Custom schedule".
 
-<img src="docs/images/72-panel-fixed-custom-rule.png" alt="The task form with a custom rule for the first Tuesday of each month, the day buttons grayed out and a Reset to simple button" width="820">
+<img src="docs/images/72-panel-fixed-custom-rule.png" alt="The task form with a custom rule for the 1st and the 15th of each month, the day buttons grayed out and a Reset to simple button" width="820">
 
 A rule cannot end, so `COUNT` and `UNTIL` are not allowed. A rule that is due more
 than once a day is not allowed either.

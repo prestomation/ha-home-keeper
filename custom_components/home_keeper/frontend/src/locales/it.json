@@ -1012,7 +1012,7 @@
   "transfer.includeSettings": "Importa anche le impostazioni dal pacchetto. Le destinazioni di notifica che non esistono su questo sistema vengono saltate.",
   "opt.freq.yearly": "annuale",
   "recurrence.fixedDays": "{summary} il {days}",
-  "recurrence.custom": "regola personalizzata: {rule}",
+  "recurrence.custom": "pianificazione personalizzata",
   "rule.days": "In questi giorni",
   "rule.advanced": "Regola personalizzata (RRULE)",
   "rule.notSimple": "Questa regola usa più dei giorni della settimana. Modificala qui sotto o ripristinala.",
@@ -1033,5 +1033,13 @@
   "field.moveTo": "Nuova data e ora",
   "recurrence.yearly.one": "ogni anno",
   "recurrence.yearly.many": "ogni {n} anni",
-  "recurrence.yearly.other": "ogni {n} anni"
+  "recurrence.yearly.other": "ogni {n} anni",
+  "field.month_by": "Ogni mese",
+  "rule.monthDay": "giorno {day}",
+  "rule.nth.1": "{weekday} della prima settimana",
+  "rule.nth.2": "{weekday} della seconda settimana",
+  "rule.nth.3": "{weekday} della terza settimana",
+  "rule.nth.4": "{weekday} della quarta settimana",
+  "rule.nth.last": "{weekday} dell'ultima settimana",
+  "recurrence.fixedMonthly": "{summary}, {day}"
 }

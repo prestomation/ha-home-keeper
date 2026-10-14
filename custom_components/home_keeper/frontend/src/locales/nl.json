@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Importeer ook de instellingen uit de bundel. Meldingsdoelen die niet op dit systeem staan, worden overgeslagen.",
   "opt.freq.yearly": "jaarlijks",
   "recurrence.fixedDays": "{summary} op {days}",
-  "recurrence.custom": "eigen regel: {rule}",
+  "recurrence.custom": "eigen schema",
   "rule.days": "Op deze dagen",
   "rule.advanced": "Eigen regel (RRULE)",
   "rule.notSimple": "Deze regel gebruikt meer dan weekdagen. Bewerk hem hieronder of zet hem terug.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "Van {date}",
   "field.moveTo": "Nieuwe datum en tijd",
   "recurrence.yearly.one": "elk jaar",
-  "recurrence.yearly.other": "elke {n} jaar"
+  "recurrence.yearly.other": "elke {n} jaar",
+  "field.month_by": "Maandelijks op",
+  "rule.monthDay": "dag {day}",
+  "rule.nth.1": "de eerste {weekday}",
+  "rule.nth.2": "de tweede {weekday}",
+  "rule.nth.3": "de derde {weekday}",
+  "rule.nth.4": "de vierde {weekday}",
+  "rule.nth.last": "de laatste {weekday}",
+  "recurrence.fixedMonthly": "{summary} op {day}"
 }

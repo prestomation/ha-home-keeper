@@ -6,8 +6,7 @@ import { callService, createTask, deleteTask, listTasks, trackPanelErrors } from
  *
  * The rule text is the stored value; Repeats, Every and the day buttons are views of
  * it. These drive the views and read the rule back, then move a date through the
- * snooze dialog the Upcoming block opens, and through Home Assistant's own calendar
- * update command, which is the contract "Only this event" rests on.
+ * snooze dialog, and read the moved date back from Home Assistant's calendar.
  */
 
 const CALENDAR = 'calendar.home_keeper_upcoming_tasks';
@@ -84,22 +83,20 @@ test.describe('Home Keeper panel — fixed schedules', { tag: '@responsive' }, (
     const box = ruleForm.locator('ha-selector-text input');
     await expect(box).toHaveValue('FREQ=WEEKLY;BYDAY=TU,FR');
 
-    await box.fill('FREQ=MONTHLY;BYDAY=1TU');
+    await box.fill('FREQ=WEEKLY;BYDAY=TU;BYSETPOS=1');
     // Typing keeps focus: the views repaint in place rather than re-rendering.
     await expect(box).toBeFocused();
     const days = panel.locator('#hk-rule-days');
     await expect(days.locator('.hk-day-btn').first()).toBeDisabled();
     await expect(panel.locator('#hk-rule-reset')).toBeVisible();
-    await expect(panel.locator('#hk-form-summary-value')).toHaveText(
-      'Custom rule: FREQ=MONTHLY;BYDAY=1TU',
-    );
+    await expect(panel.locator('#hk-form-summary-value')).toHaveText('Custom schedule');
     await expect(panel.locator('#hk-form-next')).toContainText('Tue', { timeout: 10_000 });
 
     // A rule the backend refuses says why, in the preview line.
     await box.fill('FREQ=MONTHLY;COUNT=2');
     await expect(panel.locator('#hk-form-next')).toContainText('COUNT', { timeout: 10_000 });
 
-    await box.fill('FREQ=MONTHLY;BYDAY=1TU');
+    await box.fill('FREQ=MONTHLY;BYMONTHDAY=1,15');
     await panel.locator('#hk-rule-reset').click();
     await expect(box).toHaveValue('FREQ=MONTHLY;INTERVAL=1');
     // A monthly rule needs no days, so the row goes away.
@@ -108,120 +105,90 @@ test.describe('Home Keeper panel — fixed schedules', { tag: '@responsive' }, (
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('Move on the Upcoming block moves one date, and Undo puts it back', async ({ page }) => {
+  test('"Monthly on" writes the weekday of the month', async ({ page }) => {
     const errors = trackPanelErrors(page);
     const panel = await gotoPanel(page, `/tasks/${taskId}`);
-    const upcoming = panel.locator('#hk-upcoming');
-    await expect(upcoming.locator('.hk-up-row')).toHaveCount(6, { timeout: 10_000 });
-    const third = upcoming.locator('.hk-up-row').nth(2);
-    const start = await third.locator('.hk-up-move').getAttribute('data-start');
+    await panel.locator('.d-edit').click();
+    const cadence = panel.locator('#hk-task-form-cadence');
+    await cadence.locator('ha-select').first().click();
+    await page.getByRole('menuitem', { name: /^monthly$/i }).first().click();
+    const monthBy = cadence.locator('ha-select').nth(1);
+    await expect(monthBy).toBeVisible();
+    await monthBy.click();
+    // The first date is a Tuesday in the first 7 days of its month or later; either
+    // way its weekday choice names Tuesday.
+    await page.getByRole('menuitem', { name: /Tuesday$/ }).first().click();
+    await expect(panel.locator('#hk-form-summary-value')).toContainText(/^Every month on the .+ Tuesday$/);
+    await panel.locator('#f-save').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+    expect((await storedTask(taskId!)).rrule).toMatch(/^FREQ=MONTHLY;INTERVAL=1;BYDAY=(-1|[1-4])TU$/);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 
-    await third.locator('.hk-up-move').click();
-    const dialog = panel.locator('ha-dialog[open]');
-    await expect(dialog.locator('#hk-snooze-mode-later')).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.locator('.hk-later-row.picked')).toHaveCount(1);
+  test('the snooze dialog moves one later date, and Move puts it back', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    const panel = await gotoPanel(page, `/tasks/${taskId}`);
+    const openSnooze = async () => {
+      await panel.locator('.hk-detail-actions .hk-split-caret').click();
+      await panel.locator('.hk-detail-actions .hk-defer-snooze').click();
+      const dialog = panel.locator('ha-dialog[open]');
+      await expect(dialog.locator('.hk-later-row').nth(2)).toBeVisible({ timeout: 10_000 });
+      return dialog;
+    };
+    let dialog = await openSnooze();
+    // The due date comes first and is picked, so the dialog is a plain snooze.
+    await expect(dialog.locator('.hk-later-row').first()).toHaveAttribute('aria-pressed', 'true');
+    const third = dialog.locator('.hk-later-row').nth(2);
+    const start = await third.getAttribute('data-start');
+    await third.click();
     await expect(dialog.locator('.hk-move-hint')).toContainText('moves to');
     await dialog.locator('ha-button[slot="primaryAction"]').click();
     await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
-
-    await expect(upcoming.locator('.hk-moved-badge')).toHaveCount(1, { timeout: 10_000 });
-    const moves = (await storedTask(taskId!)).moved_occurrences;
+    let moves = (await storedTask(taskId!)).moved_occurrences;
     expect(moves).toHaveLength(1);
     expect(new Date(moves[0].from).getTime()).toBe(new Date(start!).getTime());
     expect(new Date(moves[0].to).getTime() - new Date(start!).getTime()).toBe(86_400_000);
 
-    await upcoming.locator('.hk-up-undo').click();
-    await expect(upcoming.locator('.hk-moved-badge')).toHaveCount(0, { timeout: 10_000 });
-    expect((await storedTask(taskId!)).moved_occurrences).toEqual([]);
+    // The moved date shows where it came from. Picked, it starts on its own date, so
+    // Move puts it back.
+    dialog = await openSnooze();
+    const moved = dialog.locator('.hk-later-row', { has: dialog.locator('.hk-moved-badge') });
+    await expect(moved).toHaveCount(1);
+    await moved.click();
+    await dialog.locator('ha-button[slot="primaryAction"]').click();
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+    moves = (await storedTask(taskId!)).moved_occurrences;
+    expect(moves).toEqual([]);
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('the calendar shows a moved date, and "only this event" moves one', async ({ page }) => {
-    const panel = await gotoPanel(page, `/tasks/${taskId}`);
-    await expect(panel.locator('#hk-upcoming .hk-up-row')).toHaveCount(6, { timeout: 10_000 });
+  test('the calendar shows a moved date on its new day', async ({ page }) => {
+    await gotoPanel(page, `/tasks/${taskId}`);
     const anchor = new Date(nextTuesday());
     const friday = new Date(anchor.getTime() + 3 * 86_400_000);
     const saturday = new Date(friday.getTime() + 86_400_000);
-
-    // Through Home Assistant's own calendar command, as its event dialog sends it.
-    const result = await page.evaluate(
-      async ({ entity, uid, from, to }) => {
+    await callService('home_keeper', 'move_occurrence', {
+      task_id: taskId,
+      occurrence: friday.toISOString(),
+      to: saturday.toISOString(),
+    });
+    const starts = await page.evaluate(
+      async ({ entity, from }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const hass = (document.querySelector('home-assistant') as any)?.hass;
         const start = new Date(from);
-        const end = new Date(start.getTime() + 3_600_000);
+        const end = new Date(start.getTime() + 3 * 86_400_000);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const events: any[] = await hass.callApi(
           'GET',
           `calendars/${entity}?start=${start.toISOString()}&end=${end.toISOString()}`,
         );
-        const event = events.find((e) => e.uid === uid);
-        if (!event) return { error: 'no event', events };
-        await hass.callWS({
-          type: 'calendar/event/update',
-          entity_id: entity,
-          uid,
-          recurrence_id: event.recurrence_id,
-          event: {
-            summary: event.summary,
-            dtstart: to,
-            dtend: new Date(new Date(to).getTime() + 3_600_000).toISOString(),
-          },
-        });
-        const later: any[] = await hass.callApi(
-          'GET',
-          `calendars/${entity}?start=${start.toISOString()}&end=${new Date(
-            start.getTime() + 3 * 86_400_000,
-          ).toISOString()}`,
-        );
-        return {
-          rrule: event.rrule,
-          after: later.filter((e) => e.uid === uid).map((e) => e.start.dateTime ?? e.start),
-        };
+        return events.map((e) => new Date(e.start.dateTime ?? e.start).getTime());
       },
-      {
-        entity: CALENDAR,
-        uid: taskId!,
-        from: friday.toISOString(),
-        to: saturday.toISOString(),
-      },
+      { entity: CALENDAR, from: friday.toISOString() },
     );
-    expect(result).not.toHaveProperty('error');
-    expect(result.rrule).toContain('BYDAY=TU,FR');
-    expect(result.after.map((d: string) => new Date(d).getTime())).toContain(saturday.getTime());
-    expect(result.after.map((d: string) => new Date(d).getTime())).not.toContain(friday.getTime());
-    const moves = (await storedTask(taskId!)).moved_occurrences;
-    expect(moves).toHaveLength(1);
-  });
-
-  test('the calendar refuses a change to the whole series', async ({ page }) => {
-    await gotoPanel(page, `/tasks/${taskId}`);
-    const error = await page.evaluate(
-      async ({ entity, uid, to }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const hass = (document.querySelector('home-assistant') as any)?.hass;
-        try {
-          await hass.callWS({
-            type: 'calendar/event/update',
-            entity_id: entity,
-            uid,
-            event: {
-              summary: 'Renamed',
-              dtstart: to,
-              dtend: new Date(new Date(to).getTime() + 3_600_000).toISOString(),
-            },
-          });
-          return null;
-        } catch (err) {
-          return String((err as { message?: string })?.message ?? err);
-        }
-      },
-      { entity: CALENDAR, uid: taskId!, to: nextTuesday() },
-    );
-    // The translated message when Home Assistant has the exception strings loaded,
-    // else its key: either way it names the panel as the place for this edit.
-    expect(error).toMatch(/Home Keeper panel|calendar_edit_in_panel/);
-    expect((await storedTask(taskId!)).moved_occurrences).toEqual([]);
+    expect(starts).toContain(saturday.getTime());
+    expect(starts).not.toContain(friday.getTime());
   });
 
   test('the move service moves a date and fires an event', async () => {

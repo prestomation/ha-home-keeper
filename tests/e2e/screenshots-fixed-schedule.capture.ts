@@ -7,10 +7,10 @@
  * Creates a "Take trash out" task on Tuesdays and Fridays, moves its third date one
  * day later, and photographs, at desktop and phone width:
  *  71.  The task form: Frequency weekly, Tue and Fri pressed, the next dates below.
+ *  75.  The same form on monthly, "Monthly on" set to the weekday of the month.
  *  72.  The same form with a custom rule typed in: the day buttons greyed out and
  *       Reset to simple beside them.
- *  73.  The task page's Upcoming block, with the moved date marked.
- *  74.  The snooze dialog on "A later date", a date picked.
+ *  74.  The snooze dialog: the due date, then the later dates, one picked to move.
  *  card-snooze-later-date. The same dialog opened from the dashboard card.
  *
  * The task is deleted at the end, so the fixture is untouched for any later capture.
@@ -70,7 +70,7 @@ async function openTask(page: Page, id: string): Promise<Locator> {
   await page.goto(`/home-keeper/tasks/${id}`, { waitUntil: 'domcontentloaded' });
   const panel = page.locator('home-keeper-panel').first();
   await panel.waitFor({ state: 'attached', timeout: 45_000 });
-  await expect(panel.locator('#hk-upcoming .hk-up-row')).toHaveCount(6, { timeout: 15_000 });
+  await expect(panel.locator('.hk-detail-actions .hk-split-caret')).toBeVisible({ timeout: 45_000 });
   return panel;
 }
 
@@ -85,33 +85,42 @@ async function formShots(page: Page, id: string, suffix: string): Promise<void> 
   await page.waitForTimeout(500);
   await shotWithDrawer(page, `${OUT}/71${suffix}-fixed-weekdays.png`);
 
+  // Monthly, on the weekday of the month that the first date falls on.
+  const cadence = panel.locator('#hk-task-form-cadence');
+  await cadence.locator('ha-select').first().click();
+  await page.getByRole('menuitem', { name: /^monthly$/i }).first().click();
+  const monthBy = cadence.locator('ha-select').nth(1);
+  await expect(monthBy).toBeVisible();
+  await monthBy.click();
+  await page.getByRole('menuitem', { name: /Tuesday$/ }).first().click();
+  await expect(panel.locator('#hk-form-summary-value')).toContainText('Tuesday');
+  await expect(panel.locator('#hk-form-next')).toContainText('Tue', { timeout: 10_000 });
+  await centre(cadence);
+  await page.waitForTimeout(500);
+  await shotWithDrawer(page, `${OUT}/75${suffix}-fixed-monthly.png`);
+
   const ruleForm = panel.locator('#hk-task-form-rule');
   await ruleForm.locator('ha-expansion-panel').click();
   const box = ruleForm.locator('ha-selector-text input');
-  await box.fill('FREQ=MONTHLY;BYDAY=1TU');
-  await expect(days.locator('.hk-day-btn').first()).toBeDisabled();
+  await box.fill('FREQ=MONTHLY;BYMONTHDAY=1,15');
   await expect(panel.locator('#hk-rule-reset')).toBeVisible();
-  await expect(panel.locator('#hk-form-next')).toContainText('Tue', { timeout: 10_000 });
+  await expect(panel.locator('#hk-form-next')).toContainText(/1|15/, { timeout: 10_000 });
   await box.blur();
-  await centre(days);
+  await centre(panel.locator('#hk-rule-days'));
   await page.waitForTimeout(500);
   await shotWithDrawer(page, `${OUT}/72${suffix}-fixed-custom-rule.png`);
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
 }
 
-/** 73 and 74: the Upcoming block, then Move on its fourth date. */
-async function upcomingShots(page: Page, id: string, suffix: string): Promise<void> {
+/** 74: the snooze dialog from the task page, its fourth later date picked. */
+async function snoozeShot(page: Page, id: string, suffix: string): Promise<void> {
   const panel = await openTask(page, id);
-  const upcoming = panel.locator('#hk-upcoming');
-  await expect(upcoming.locator('.hk-moved-badge')).toHaveCount(1);
-  await centre(upcoming);
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/73${suffix}-upcoming-moved.png` });
-
-  await upcoming.locator('.hk-up-move').nth(3).click();
+  await panel.locator('.hk-detail-actions .hk-split-caret').click();
+  await panel.locator('.hk-detail-actions .hk-defer-snooze').click();
   const dialog = panel.locator('ha-dialog[open]');
-  await expect(dialog.locator('.hk-later-row.picked')).toHaveCount(1);
+  await expect(dialog.locator('.hk-moved-badge')).toHaveCount(1, { timeout: 15_000 });
+  await dialog.locator('.hk-later-row').nth(4).click();
   await expect(dialog.locator('.hk-move-hint')).toContainText('moves to');
   await page.waitForTimeout(500);
   await shotDialog(page, dialog, `${OUT}/74${suffix}-snooze-later-date.png`);
@@ -119,17 +128,16 @@ async function upcomingShots(page: Page, id: string, suffix: string): Promise<vo
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
 }
 
-/** The card's snooze dialog, switched to "A later date" with a date picked. */
+/** The card's snooze dialog, with a later date picked to move. */
 async function cardShot(page: Page, id: string, path: string): Promise<void> {
   const card = await openCardDashboard(page);
   const snooze = card.locator(`.hk-defer-snooze[data-id="${id}"]`);
   await snooze.scrollIntoViewIfNeeded();
   await snooze.click();
   const dialog = page.locator('ha-dialog[open]').first();
-  await dialog.locator('#hk-snooze-mode-later').click();
-  await expect(dialog.locator('.hk-later-row')).toHaveCount(6, { timeout: 15_000 });
+  await expect(dialog.locator('.hk-moved-badge')).toHaveCount(1, { timeout: 15_000 });
   await dialog.locator('.hk-later-row').nth(1).click();
-  await expect(dialog.locator('.hk-later-row.picked')).toHaveCount(1);
+  await expect(dialog.locator('.hk-move-hint')).toContainText('moves to');
   await page.waitForTimeout(500);
   await shotDialog(page, dialog, path);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -154,13 +162,13 @@ test('capture fixed schedules and moving one date', async ({ page }) => {
 
     await page.setViewportSize(DESKTOP);
     await formShots(page, id, '-panel');
-    await upcomingShots(page, id, '-panel');
+    await snoozeShot(page, id, '-panel');
     await page.setViewportSize({ width: 1280, height: 2400 });
     await cardShot(page, id, `${OUT}/card-snooze-later-date.png`);
 
     await page.setViewportSize(PHONE);
     await formShots(page, id, 'c-panel-mobile');
-    await upcomingShots(page, id, 'c-panel-mobile');
+    await snoozeShot(page, id, 'c-panel-mobile');
     await cardShot(page, id, `${OUT}/card-snooze-later-date-mobile.png`);
   } finally {
     await page.setViewportSize(DESKTOP);

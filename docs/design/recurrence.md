@@ -12,7 +12,7 @@ implements:
 max_lines: 193
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 1e98e9607b34
+source_hash: f2db15af07eb
 ---
 
 # Task model and recurrence
@@ -100,13 +100,14 @@ dates. `store.add_task` and `store.update_task` refuse `moved_occurrences`, so e
 
 ### Schedule form
 
-The task form never holds a second copy of the rule. Repeats, Every and the day buttons are
-views of `rrule`. `rrule.parseSimple` reads a rule into the controls, and `rrule.buildSimple`
-and `rrule.toggleDay` write the controls back. If `rrule.parseSimple` gives `null`, the
-controls are disabled and `rrule.resetToSimple` gives Reset to simple. `panel-rule.ts`
-writes the rule on each change and repaints each view in place, so the rule box keeps focus.
-The card form uses `forms.reconcileRuleEdit`. A line under the form shows the next dates
-from `home_keeper/upcoming_occurrences`.
+The task form never holds a second copy of the rule. Repeats, Every, Monthly on and the day buttons
+are views of `rrule`. `rrule.parseSimple` reads a rule into them, and `rrule.buildSimple` and
+`rrule.toggleDay` write them back. Monthly on offers `rrule.monthlyChoices`: the day of the first
+date, its weekday in the month (`2TU`), and in the last 7 days the last weekday (`-1TU`). If
+`rrule.parseSimple` gives `null`, the controls are disabled and `rrule.resetToSimple` gives Reset to
+simple. `panel-rule.ts` repaints each view in place, so the rule box keeps focus. The card form uses
+`forms.reconcileRuleEdit`. A line under the form shows the next dates from
+`home_keeper/upcoming_occurrences`.
 
 ### How `next_due` is calculated
 

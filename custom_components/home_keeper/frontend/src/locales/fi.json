@@ -982,7 +982,7 @@
   "transfer.includeSettings": "Tuo myös asetukset paketista. Ilmoituskohteet, joita tässä järjestelmässä ei ole, ohitetaan.",
   "opt.freq.yearly": "vuosittain",
   "recurrence.fixedDays": "{summary}, päivinä {days}",
-  "recurrence.custom": "oma sääntö: {rule}",
+  "recurrence.custom": "oma aikataulu",
   "rule.days": "Näinä päivinä",
   "rule.advanced": "Oma sääntö (RRULE)",
   "rule.notSimple": "Tämä sääntö käyttää muutakin kuin viikonpäiviä. Muokkaa sitä alla tai palauta se.",
@@ -1002,5 +1002,13 @@
   "upcoming.movedFrom": "Alun perin {date}",
   "field.moveTo": "Uusi päivä ja aika",
   "recurrence.yearly.one": "joka vuosi",
-  "recurrence.yearly.other": "{n} vuoden välein"
+  "recurrence.yearly.other": "{n} vuoden välein",
+  "field.month_by": "Kuukausittain",
+  "rule.monthDay": "{day}. päivä",
+  "rule.nth.1": "ensimmäinen {weekday}",
+  "rule.nth.2": "toinen {weekday}",
+  "rule.nth.3": "kolmas {weekday}",
+  "rule.nth.4": "neljäs {weekday}",
+  "rule.nth.last": "viimeinen {weekday}",
+  "recurrence.fixedMonthly": "{summary}, kuukauden {day}"
 }

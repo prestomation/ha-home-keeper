@@ -28,7 +28,15 @@ export interface SimpleRule {
   interval: number;
   /** Only for WEEKLY. Empty means "the start date's weekday". */
   byday: Weekday[];
+  /**
+   * Only for MONTHLY: one weekday of the month, such as `1TU` (the first Tuesday) or
+   * `-1FR` (the last Friday). Empty or absent means the start date's day of the month.
+   */
+  monthBy?: string;
 }
+
+/** A MONTHLY `BYDAY` that the "Monthly on" choice can show: 1 to 4, or -1 (last). */
+const MONTH_WEEKDAY = /^(-1|[1-4])(MO|TU|WE|TH|FR|SA|SU)$/;
 
 /**
  * Split a rule into `{PART: value}`, upper-cased. `null` when it does not even have
@@ -51,9 +59,10 @@ export function ruleParts(rule: string): Record<string, string> | null {
 /**
  * The simple controls for *rule*, or `null` when the rule says more than they can.
  *
- * Simple means: a FREQ the Repeats menu offers, an optional whole INTERVAL, and — for a
- * weekly rule only — a BYDAY of plain weekdays (`TU,FR`, never `1TU`). A `WKST=MO` is
- * the default and changes nothing, so it does not make a rule custom.
+ * Simple means: a FREQ the Repeats menu offers, an optional whole INTERVAL, and a BYDAY
+ * that the controls can show: plain weekdays for a weekly rule (`TU,FR`), or 1 weekday
+ * of the month for a monthly rule (`1TU`, `-1FR`). A `WKST=MO` is the default and
+ * changes nothing, so it does not make a rule custom.
  */
 export function parseSimple(rule: string | null | undefined): SimpleRule | null {
   if (!rule) return null;
@@ -65,6 +74,7 @@ export function parseSimple(rule: string | null | undefined): SimpleRule | null 
     if (key === 'FREQ' || key === 'INTERVAL') continue;
     if (key === 'WKST' && parts.WKST === 'MO') continue;
     if (key === 'BYDAY' && freq === 'WEEKLY') continue;
+    if (key === 'BYDAY' && freq === 'MONTHLY' && MONTH_WEEKDAY.test(parts.BYDAY)) continue;
     return null;
   }
   let interval = 1;
@@ -72,6 +82,9 @@ export function parseSimple(rule: string | null | undefined): SimpleRule | null 
     if (!/^\d+$/.test(parts.INTERVAL)) return null;
     interval = Number(parts.INTERVAL);
     if (interval < 1) return null;
+  }
+  if (freq === 'MONTHLY') {
+    return parts.BYDAY ? { freq, interval, byday: [], monthBy: parts.BYDAY } : { freq, interval, byday: [] };
   }
   let byday: Weekday[] = [];
   if ('BYDAY' in parts) {
@@ -93,6 +106,9 @@ export function buildSimple(simple: SimpleRule): string {
   let rule = `FREQ=${simple.freq};INTERVAL=${interval}`;
   if (simple.freq === 'WEEKLY' && simple.byday.length) {
     rule += `;BYDAY=${sortDays(simple.byday).join(',')}`;
+  }
+  if (simple.freq === 'MONTHLY' && simple.monthBy && MONTH_WEEKDAY.test(simple.monthBy)) {
+    rule += `;BYDAY=${simple.monthBy}`;
   }
   return rule;
 }
@@ -121,18 +137,51 @@ export function resetToSimple(rule: string | null | undefined): string {
  */
 export function withSimpleChange(
   rule: string,
-  change: { freq?: string; interval?: number },
+  change: { freq?: string; interval?: number; monthBy?: string },
 ): string {
   const simple = parseSimple(rule);
   if (!simple) return rule;
   const freq = SIMPLE_FREQS.includes(change.freq as SimpleFreq)
     ? (change.freq as SimpleFreq)
     : simple.freq;
+  const same = freq === simple.freq;
   return buildSimple({
     freq,
     interval: change.interval ?? simple.interval,
-    byday: freq === simple.freq ? simple.byday : [],
+    byday: same ? simple.byday : [],
+    monthBy: change.monthBy ?? (same ? simple.monthBy : ''),
   });
+}
+
+/**
+ * The choices for "Monthly on", made from the start date as a calendar app makes
+ * them: its day of the month (`''`), its weekday in the month (`2TU` for the second
+ * Tuesday), and the last such weekday when the start date is in the last 7 days of
+ * its month. A rule that names another weekday keeps that choice too, so the field
+ * never hides what is stored.
+ */
+export function monthlyChoices(anchor: Date | null, current = ''): string[] {
+  const choices = [''];
+  if (anchor) {
+    const day = anchor.getUTCDate();
+    const weekday = weekdayOf(anchor);
+    const nth = Math.ceil(day / 7);
+    if (nth <= 4) choices.push(`${nth}${weekday}`);
+    const monthDays = new Date(
+      Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+    if (day + 7 > monthDays) choices.push(`-1${weekday}`);
+  }
+  if (current && MONTH_WEEKDAY.test(current) && !choices.includes(current)) {
+    choices.push(current);
+  }
+  return choices;
+}
+
+/** The `[ordinal, weekday]` of a MONTHLY `BYDAY` such as `-1FR`, or `null`. */
+export function splitMonthBy(token: string): [string, Weekday] | null {
+  const m = MONTH_WEEKDAY.exec(token);
+  return m ? [m[1] === '-1' ? 'last' : m[1], m[2] as Weekday] : null;
 }
 
 /**
