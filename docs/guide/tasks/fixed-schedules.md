@@ -58,22 +58,22 @@ early, the date after it is still the first Tuesday of the next month.
 Sometimes one date of the schedule changes, such as when the city moves a trash day
 for a holiday. You can move that one date and keep the other dates as they are.
 
-- **On the dashboard card or in the panel**, select **Snooze**, then **A later date**.
-  Pick the date, set the new date and time, and select **Move**. **Next date** is the
-  usual snooze.
-- **On the task page**, the **Upcoming** block lists the next dates. Select **Move**
-  on a date. A moved date shows **Moved** and the date it came from. Select **Undo**
-  to put it back.
-- **In the Home Assistant calendar**, open the event, change the start time and
-  select **Only this event**. A change to the whole series is not accepted there, so
-  use the panel for it.
+On the dashboard card or in the panel, select **Snooze**. For a fixed schedule, the
+dialog lists the dates:
 
-<img src="docs/images/73-panel-upcoming-moved.png" alt="The Upcoming block of a trash task with a Tuesday date moved to Wednesday, marked Moved, with Undo and Move buttons" width="820">
+- The first date is the due date, marked **Next date**. Keep it selected to snooze
+  the task as usual.
+- Below it, under **A later date**, are the next dates of the schedule. Select one,
+  set its new date and time, and select **Move**. Only that date moves.
 
-<img src="docs/images/74-panel-snooze-later-date.png" alt="The Snooze dialog on A later date, with one date picked and a new date and time for it" width="820">
+A moved date shows **Moved** and the date it came from. To put it back, select it:
+the new date starts on its own date, so **Move** undoes the move. The Home Assistant
+calendar shows each moved date on its new day.
 
-A move goes away by itself after its date has passed. Home Keeper turns
-**A later date** and **Move** off with **Snooze** in **Settings**.
+<img src="docs/images/74-panel-snooze-later-date.png" alt="The Snooze dialog of a trash task, with the due date first and a later date selected to move" width="820">
+
+A move goes away by itself after its date has passed. **Snooze** in **Settings**
+also turns off the moves in the dialog.
 
 An automation moves a date with the `home_keeper.move_occurrence` service. Give the
 date on the schedule as `occurrence` and the new date as `to`. To undo a move, set

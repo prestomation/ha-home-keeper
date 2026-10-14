@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Give a document or a bundle to import."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Only the time of one date can change here. To change the task or its schedule, open the Home Keeper panel."
     }
   }
 }

@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Podaj dokument lub pakiet do zaimportowania."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Tutaj można zmienić tylko godzinę jednego terminu. Aby zmienić zadanie lub jego harmonogram, otwórz panel Home Keeper."
     }
   }
 }

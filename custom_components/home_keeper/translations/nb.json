@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Oppgi et dokument eller en pakke som skal importeres."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Her kan bare klokkeslettet for én dato endres. Åpne Home Keeper-panelet for å endre oppgaven eller tidsplanen."
     }
   }
 }

@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} 移到 {to}。",
   "move.lead": "只移动这个日期。其他日期不变。",
   "btn.move": "移动",
-  "upcoming.title": "即将到来",
   "upcoming.moved": "已移动",
   "upcoming.movedFrom": "原为 {date}",
-  "upcoming.undo": "撤销",
   "field.moveTo": "新的日期和时间",
   "recurrence.yearly.one": "每年",
   "recurrence.yearly.other": "每 {n} 年"

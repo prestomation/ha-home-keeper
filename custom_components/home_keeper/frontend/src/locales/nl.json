@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} wordt verplaatst naar {to}.",
   "move.lead": "Alleen deze datum wordt verplaatst. De andere datums veranderen niet.",
   "btn.move": "Verplaatsen",
-  "upcoming.title": "Komende datums",
   "upcoming.moved": "Verplaatst",
   "upcoming.movedFrom": "Van {date}",
-  "upcoming.undo": "Ongedaan maken",
   "field.moveTo": "Nieuwe datum en tijd",
   "recurrence.yearly.one": "elk jaar",
   "recurrence.yearly.other": "elke {n} jaar"

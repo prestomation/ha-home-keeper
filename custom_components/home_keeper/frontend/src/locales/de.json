@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} wird auf {to} verschoben.",
   "move.lead": "Nur dieser Termin wird verschoben. Die anderen Termine ändern sich nicht.",
   "btn.move": "Verschieben",
-  "upcoming.title": "Nächste Termine",
   "upcoming.moved": "Verschoben",
   "upcoming.movedFrom": "Vom {date}",
-  "upcoming.undo": "Rückgängig",
   "field.moveTo": "Neues Datum und neue Uhrzeit",
   "recurrence.yearly.one": "jedes Jahr",
   "recurrence.yearly.other": "alle {n} Jahre"

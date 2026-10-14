@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   defaultMoveTo,
   emptySnoozeState,
+  laterRows,
   moveHintText,
   moveTarget,
   occurrenceOrigin,
@@ -284,7 +285,7 @@ describe('A later date', () => {
   });
 
   it('picks a row and resolves where it goes', () => {
-    const s = { ...emptySnoozeState(), task: fixed(), mode: 'later', error: 'old' };
+    const s = { ...emptySnoozeState(), task: fixed(), error: 'old' };
     expect(moveTarget(s)).toBeNull();
     expect(moveHintText(s, 'en')).toBe(t('defer.movePick'));
     pickOccurrence(s, row);
@@ -297,6 +298,34 @@ describe('A later date', () => {
     expect(moveHintText(s, 'en')).toBe(t('defer.snoozePickDate'));
     s.moveTo = 'not a date';
     expect(moveTarget(s)).toBeNull();
+  });
+
+  it('puts a moved date back on its own date, so Move undoes the move', () => {
+    setTimeZone('UTC');
+    const s = { ...emptySnoozeState(), task: fixed() };
+    pickOccurrence(s, { start: '2026-10-10T07:00:00Z', moved_from: '2026-10-09T07:00:00Z' });
+    expect(s.moveTo).toBe('2026-10-09 07:00:00');
+  });
+
+  it('picks the due date again for a plain snooze', () => {
+    const s = { ...emptySnoozeState(), task: fixed() };
+    pickOccurrence(s, row);
+    pickOccurrence(s);
+    expect(s.picked).toBeUndefined();
+    expect(s.moveTo).toBeUndefined();
+  });
+
+  it('lists only the dates after the due date as later dates', () => {
+    const s = {
+      ...emptySnoozeState(),
+      task: fixed({ next_due: '2026-10-09T07:00:00-07:00' }),
+      occurrences: [
+        { start: '2026-10-09T07:00:00-07:00', moved_from: null },
+        { start: '2026-10-13T07:00:00-07:00', moved_from: null },
+      ],
+    };
+    expect(laterRows(s).map((r) => r.start)).toEqual(['2026-10-13T07:00:00-07:00']);
+    expect(laterRows({ ...s, occurrences: undefined })).toEqual([]);
   });
 
   it('labels a date in the Home Assistant zone, not the browser zone', () => {

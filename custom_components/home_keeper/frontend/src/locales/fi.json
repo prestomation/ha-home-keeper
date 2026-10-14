@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} siirtyy ajankohtaan {to}.",
   "move.lead": "Vain tämä päivä siirtyy. Muut päivät eivät muutu.",
   "btn.move": "Siirrä",
-  "upcoming.title": "Tulevat",
   "upcoming.moved": "Siirretty",
   "upcoming.movedFrom": "Alun perin {date}",
-  "upcoming.undo": "Kumoa",
   "field.moveTo": "Uusi päivä ja aika",
   "recurrence.yearly.one": "joka vuosi",
   "recurrence.yearly.other": "{n} vuoden välein"

@@ -1750,22 +1750,6 @@ export const STYLES = `
     padding: 4px 2px 0; line-height: 1.4;
   }
   ${LATER_DATES_STYLES}
-  /* The Upcoming block on a fixed task's page: one row per date, Move at the end. */
-  .hk-upcoming { padding-top: 4px; padding-bottom: 4px; }
-  .hk-up-row {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
-    min-height: var(--hk-tap); padding: 4px 0;
-    border-bottom: 1px solid var(--hk-line-soft);
-  }
-  .hk-up-row:last-child { border-bottom: 0; }
-  .hk-up-when {
-    flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
-    gap: 2px 8px;
-  }
-  .hk-up-date { font-variant-numeric: tabular-nums; }
-  .hk-up-from { flex-basis: 100%; font-size: 0.85rem; color: var(--hk-ink-2); }
-  .hk-up-acts { display: flex; gap: 4px; margin-inline-start: auto; }
-  .hk-up-empty { color: var(--hk-ink-2); padding: 8px 0; }
   .hk-detail-row {
     display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
     border-bottom: 1px solid var(--divider-color);

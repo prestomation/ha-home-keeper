@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Geef een document of een pakket om te importeren."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Hier kan alleen de tijd van één datum veranderen. Open het Home Keeper-paneel om de taak of het schema te wijzigen."
     }
   }
 }

@@ -176,13 +176,6 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
   );
 }
 
-/**
- * Which date a snooze acts on. `next` is the classic snooze: it moves the due date.
- * `later` moves one *future* date of a fixed schedule (`move_occurrence`), for "the
- * city moved next week's pickup" — the date on the board is not the one that moved.
- */
-export type SnoozeMode = 'next' | 'later';
-
 export interface SnoozeState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
@@ -195,11 +188,12 @@ export interface SnoozeState {
    *  and the custom choice is a date. */
   dueTime?: string | null;
   error?: string;
-  /** `next` when absent. */
-  mode?: SnoozeMode;
-  /** The dates "A later date" lists. `undefined` until they are asked for. */
+  /** A fixed task's next schedule dates. `undefined` until they are asked for. */
   occurrences?: UpcomingOccurrence[];
-  /** The row being moved, and where to (an `ha-form` date-time value). */
+  /**
+   * The later date being moved, and where to (an `ha-form` date-time value). Absent
+   * means the due date itself is picked, and the dialog is a plain snooze.
+   */
   picked?: UpcomingOccurrence;
   moveTo?: string;
 }
@@ -279,12 +273,12 @@ function customDate(s: SnoozeState): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** How many dates "A later date" offers. */
+/** How many schedule dates the snooze dialog of a fixed task asks for. */
 export const LATER_DATES = 6;
 
 /**
- * Whether the snooze dialog offers "A later date". Only a fixed schedule has later
- * dates to move: a floating task's next date does not exist until this one is done.
+ * Whether the snooze dialog lists later dates to move. Only a fixed schedule has
+ * them: a floating task's next date does not exist until this one is done.
  */
 export function offersLaterDates(task: Task | null | undefined): boolean {
   return task?.recurrence_type === 'fixed';
@@ -308,11 +302,26 @@ export function defaultMoveTo(start: string): string {
   return `${new Date(Date.UTC(y, mo - 1, d + 1)).toISOString().slice(0, 10)} ${time}`;
 }
 
-/** Pick *row* to move, seeding its new date. */
-export function pickOccurrence(s: SnoozeState, row: UpcomingOccurrence): void {
+/**
+ * Pick *row* to move, seeding its new date, or pick the due date itself (no *row*)
+ * for a plain snooze. A date that already moved starts on its own date again, so Move
+ * puts it back: that is how a move is undone.
+ */
+export function pickOccurrence(s: SnoozeState, row?: UpcomingOccurrence): void {
   s.picked = row;
-  s.moveTo = defaultMoveTo(row.start);
+  if (!row) s.moveTo = undefined;
+  else if (row.moved_from) s.moveTo = isoToHaDateTime(row.moved_from);
+  else s.moveTo = defaultMoveTo(row.start);
   s.error = undefined;
+}
+
+/**
+ * The schedule dates after the task's due date: the ones a move is for. The due date
+ * itself is the first choice of the dialog, and a snooze moves it.
+ */
+export function laterRows(s: SnoozeState): UpcomingOccurrence[] {
+  const due = s.task?.next_due ? new Date(s.task.next_due).getTime() : -Infinity;
+  return (s.occurrences ?? []).filter((row) => new Date(row.start).getTime() > due);
 }
 
 /** The instant the picked date moves to, or `null` when nothing usable is set. */

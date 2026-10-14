@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} moves to {to}.",
   "move.lead": "Only this date moves, and the other dates stay as they are.",
   "btn.move": "Move",
-  "upcoming.title": "Upcoming",
   "upcoming.moved": "Moved",
   "upcoming.movedFrom": "From {date}",
-  "upcoming.undo": "Undo",
   "field.moveTo": "New date and time",
   "recurrence.yearly.one": "every year",
   "recurrence.yearly.other": "every {n} years"

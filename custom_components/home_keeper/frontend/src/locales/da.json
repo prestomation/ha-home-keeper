@@ -998,10 +998,8 @@
   "defer.moveResolves": "{from} flyttes til {to}.",
   "move.lead": "Kun denne dato flyttes. De andre datoer ændres ikke.",
   "btn.move": "Flyt",
-  "upcoming.title": "Kommende",
   "upcoming.moved": "Flyttet",
   "upcoming.movedFrom": "Fra {date}",
-  "upcoming.undo": "Fortryd",
   "field.moveTo": "Ny dato og tid",
   "recurrence.yearly.one": "hvert år",
   "recurrence.yearly.other": "hvert {n}. år"

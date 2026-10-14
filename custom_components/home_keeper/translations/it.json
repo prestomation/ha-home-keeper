@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Indica un documento o un pacchetto da importare."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Qui si può cambiare solo l'ora di una data. Per modificare l'attività o il suo calendario, apri il pannello di Home Keeper."
     }
   }
 }

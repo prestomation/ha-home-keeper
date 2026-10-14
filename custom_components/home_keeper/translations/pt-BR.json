@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Informe um documento ou um pacote para importar."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Aqui só é possível mudar a hora de uma data. Para mudar a tarefa ou sua agenda, abra o painel do Home Keeper."
     }
   }
 }

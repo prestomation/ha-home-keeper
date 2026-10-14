@@ -423,11 +423,6 @@ ORIGIN_TODO_SYNC = f"{DOMAIN}_todo_sync"
 # (and ignore) the completion/snooze it triggered from a notification tap.
 ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
-# Opaque ``origin`` marker the calendar entity passes to ``move_occurrence`` /
-# ``snooze_task`` when a user edits an event in Home Assistant's calendar dialog. It
-# authorizes nothing; it lets an automation tell a calendar edit apart.
-ORIGIN_CALENDAR = f"{DOMAIN}_calendar"
-
 # Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
 # ``clear_on_recover`` sensor task clears itself because its bound entity went back to
 # normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart

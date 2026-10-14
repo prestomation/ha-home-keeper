@@ -53,15 +53,11 @@ declares only `UPDATE_TODO_ITEM`. A tick calls `store.complete_task`, then
 description goes to the task `name` and `notes` through `store.update_task`. A
 `TaskValidationError` becomes a translated `HomeAssistantError`.
 
-`calendar.HomeKeeperCalendarEntity` makes 1-hour events and never shows a `triggered` or
-`sensor` task. Each other task is 1 event at `next_due`, with `uid` = `<task id>@<ISO start>`.
+`calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`
+and never shows a `triggered` or `sensor` task. Each other task is 1 event at `next_due`.
 `calendar._fixed_events` expands a `fixed` task with its moves, inside its `active_season`.
-Each schedule event has `uid` = task id, the effective rule and a local `recurrence_id`
-(`YYYYMMDDTHHMMSS`). The dates from now up to `next_due` are left out (`calendar._due_ahead`).
-A `next_due` from a snooze or a due today is a one-date event. The entity supports
-`UPDATE_EVENT`. "Only this event" calls `store.move_occurrence`, and an edit of a one-date
-event calls `store.snooze_task`, both with `ORIGIN_CALENDAR`. A series edit raises
-`calendar_edit_in_panel`, which points at the panel.
+The dates from now up to `next_due` are left out (`calendar._due_ahead`), and a `next_due`
+from a snooze or a due today is its own event. The calendar is read-only.
 
 ### Pure planners and HA drivers
 

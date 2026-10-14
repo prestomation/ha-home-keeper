@@ -13,6 +13,7 @@ import * as api from './api';
 import type { DeferVerbs, SkipState, SnoozeState } from './defer';
 import {
   LATER_DATES,
+  laterRows,
   moveHintText,
   moveTarget,
   occurrenceOrigin,
@@ -37,26 +38,13 @@ import {
 } from './utils';
 
 /**
- * Styles for "A later date" and the Upcoming block, shared by the panel and the card:
+ * Styles for the date list of a fixed task's snooze dialog, shared by the panel and
+ * the card:
  * the dialog is built in whichever shadow root opens it, so both stylesheets need
  * them. Written in Home Assistant's own theme variables, because the card has none of
  * the panel's `--hk-*` tokens.
  */
 export const LATER_DATES_STYLES = `
-  .hk-snooze-mode {
-    display: inline-flex; align-self: flex-start; border: 1px solid var(--divider-color);
-    border-radius: 999px; overflow: hidden; margin-bottom: 12px;
-  }
-  .hk-snooze-mode .hk-mode-btn {
-    appearance: none; border: 0; background: transparent; cursor: pointer;
-    font: inherit; font-size: 0.9rem; padding: 0 16px; min-height: 40px;
-    color: var(--primary-text-color);
-  }
-  .hk-snooze-mode .hk-mode-btn + .hk-mode-btn { border-left: 1px solid var(--divider-color); }
-  .hk-snooze-mode .hk-mode-btn:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
-  .hk-snooze-mode .hk-mode-btn.active {
-    background: var(--primary-color); color: var(--text-primary-color, #fff);
-  }
   .hk-later-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
   .hk-later-row {
     appearance: none; font: inherit; text-align: left; cursor: pointer;
@@ -72,6 +60,8 @@ export const LATER_DATES_STYLES = `
   }
   .hk-later-row:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   .hk-later-date { font-weight: 500; }
+  .hk-later-tag { font-size: 0.85em; color: var(--secondary-text-color); }
+  .hk-later-head { font-size: 0.85em; color: var(--secondary-text-color); margin: 8px 0 0; }
   .hk-later-from { flex-basis: 100%; font-size: 0.85em; color: var(--secondary-text-color); }
   .hk-moved-badge {
     font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px;
@@ -325,15 +315,16 @@ export function renderSnoozeDialog(
   close = closeOnce(s, close);
   const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
-  const later = offersLaterDates(s.task) && s.mode === 'later';
-  if (offersLaterDates(s.task)) body.appendChild(snoozeModeSwitch(host, s));
-  if (later) {
-    renderLaterDates(host, s, body, mountTo);
-    errorAlert(body, s.error);
-    footerButtons(footer, t('btn.move'), () => void submitMove(host, s, close), close);
-    mount();
-    mountTo.appendChild(dialog);
-    return;
+  if (offersLaterDates(s.task)) {
+    renderDateList(host, s, body);
+    if (s.picked) {
+      renderMoveTo(host, s, body, mountTo);
+      errorAlert(body, s.error);
+      footerButtons(footer, t('btn.move'), () => void submitMove(host, s, close), close);
+      mount();
+      mountTo.appendChild(dialog);
+      return;
+    }
   }
 
   const options = SNOOZE_PRESETS.map((p) => ({ value: p.id, label: t('defer.preset.' + p.id) }));
@@ -377,98 +368,95 @@ export function renderSnoozeDialog(
 }
 
 /**
- * The switch at the top of a fixed task's snooze dialog: **Next date** is the snooze
- * everyone knows, **A later date** moves one future date of the schedule.
+ * The dates of a fixed task's snooze dialog. The first row is the due date, and a
+ * snooze moves it. Each later row is a date of the schedule, and picking one moves
+ * only that date (for "the city moved next week's pickup"). The later dates are asked
+ * for when the dialog opens, from the engine the calendar reads, so a date that
+ * already moved shows where it is now.
  */
-function snoozeModeSwitch(host: DeferDialogHost, s: SnoozeState): HTMLElement {
-  const seg = document.createElement('div');
-  seg.className = 'hk-snooze-mode';
-  seg.setAttribute('role', 'group');
-  seg.setAttribute('aria-label', t('defer.snoozeTitle'));
-  for (const mode of ['next', 'later'] as const) {
+function renderDateList(host: DeferDialogHost, s: SnoozeState, body: HTMLElement): void {
+  const lang = host.lang();
+  const list = document.createElement('div');
+  list.className = 'hk-later-list';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-label', t('defer.snoozeTitle'));
+  body.appendChild(list);
+  const row = (html: string, picked: boolean, onPick: () => void, start?: string) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'hk-mode-btn';
-    btn.id = `hk-snooze-mode-${mode}`;
-    const active = (s.mode ?? 'next') === mode;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', String(active));
-    btn.textContent = t(mode === 'next' ? 'defer.nextDate' : 'defer.laterDate');
+    btn.className = 'hk-later-row';
+    btn.classList.toggle('picked', picked);
+    btn.setAttribute('aria-pressed', String(picked));
+    if (start) btn.dataset.start = start;
+    btn.innerHTML = html;
     btn.addEventListener('click', () => {
-      if ((s.mode ?? 'next') === mode) return;
-      s.mode = mode;
-      s.error = undefined;
+      onPick();
       host.rerender();
     });
-    seg.appendChild(btn);
+    list.appendChild(btn);
+  };
+  const due = s.task?.next_due;
+  if (due) {
+    row(
+      `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(due, lang))}</span>` +
+        `<span class="hk-later-tag">${escapeHTML(t('defer.nextDate'))}</span>`,
+      !s.picked,
+      () => pickOccurrence(s),
+      due,
+    );
   }
-  return seg;
+  if (s.occurrences === undefined) {
+    const loading = document.createElement('div');
+    loading.className = 'hk-later-head';
+    loading.textContent = t('defer.loadingDates');
+    list.appendChild(loading);
+    void loadLaterDates(host, s);
+    return;
+  }
+  const later = laterRows(s);
+  if (!later.length) return;
+  const head = document.createElement('div');
+  head.className = 'hk-later-head';
+  head.textContent = t('defer.laterDate');
+  list.appendChild(head);
+  for (const occ of later) {
+    const picked = s.picked != null && occurrenceOrigin(s.picked) === occurrenceOrigin(occ);
+    const moved = occ.moved_from
+      ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
+        `<span class="hk-later-from">${escapeHTML(
+          t('upcoming.movedFrom', { date: formatOccurrenceTime(occ.moved_from, lang) }),
+        )}</span>`
+      : '';
+    row(
+      `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(occ.start, lang))}</span>${moved}`,
+      picked,
+      () => pickOccurrence(s, occ),
+      occ.start,
+    );
+  }
 }
 
-/**
- * "A later date": the next dates of the schedule, one of them picked, and where it
- * goes. The list is asked for the first time this mode opens, from the same engine
- * the calendar reads, so a date that already moved shows where it is now.
- */
-function renderLaterDates(
+/** Where the picked later date goes, and what that does. */
+function renderMoveTo(
   host: DeferDialogHost,
   s: SnoozeState,
   body: HTMLElement,
   mountTo: HTMLElement,
 ): void {
-  const list = document.createElement('div');
-  list.className = 'hk-later-list';
-  list.setAttribute('role', 'group');
-  list.setAttribute('aria-label', t('defer.laterDate'));
-  body.appendChild(list);
-  if (s.occurrences === undefined) {
-    list.textContent = t('defer.loadingDates');
-    void loadLaterDates(host, s);
-    return;
-  }
-  if (!s.occurrences.length) {
-    list.textContent = t('form.summary.noDates');
-    return;
-  }
-  const lang = host.lang();
-  for (const row of s.occurrences) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'hk-later-row';
-    const picked = s.picked != null && occurrenceOrigin(s.picked) === occurrenceOrigin(row);
-    btn.classList.toggle('picked', picked);
-    btn.setAttribute('aria-pressed', String(picked));
-    btn.dataset.start = row.start;
-    const when = `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(row.start, lang))}</span>`;
-    const moved = row.moved_from
-      ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
-        `<span class="hk-later-from">${escapeHTML(
-          t('upcoming.movedFrom', { date: formatOccurrenceTime(row.moved_from, lang) }),
-        )}</span>`
-      : '';
-    btn.innerHTML = when + moved;
-    btn.addEventListener('click', () => {
-      pickOccurrence(s, row);
-      host.rerender();
-    });
-    list.appendChild(btn);
-  }
-  if (s.picked) {
-    const form = host.makeForm(
-      [{ name: 'moveTo', required: true, selector: selDateTime() }],
-      { moveTo: s.moveTo ?? '' },
-      (value) => {
-        s.moveTo = value.moveTo == null ? s.moveTo : String(value.moveTo);
-        s.error = undefined;
-        updateMoveHint(mountTo, s, host.lang());
-      },
-    );
-    form.classList.add('hk-later-to');
-    body.appendChild(form);
-  }
+  const form = host.makeForm(
+    [{ name: 'moveTo', required: true, selector: selDateTime() }],
+    { moveTo: s.moveTo ?? '' },
+    (value) => {
+      s.moveTo = value.moveTo == null ? s.moveTo : String(value.moveTo);
+      s.error = undefined;
+      updateMoveHint(mountTo, s, host.lang());
+    },
+  );
+  form.classList.add('hk-later-to');
+  body.appendChild(form);
   const hint = document.createElement('div');
   hint.className = 'hk-snooze-hint hk-move-hint';
-  hint.textContent = moveHintText(s, lang);
+  hint.textContent = moveHintText(s, host.lang());
   body.appendChild(hint);
   const lead = document.createElement('div');
   lead.className = 'hk-move-lead';

@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Ange ett dokument eller ett paket att importera."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Här kan bara tiden för ett datum ändras. Öppna Home Keeper-panelen för att ändra uppgiften eller dess schema."
     }
   }
 }

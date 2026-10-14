@@ -1292,9 +1292,6 @@
     },
     "import_needs_document": {
       "message": "Zadejte dokument nebo balíček k importu."
-    },
-    "calendar_edit_in_panel": {
-      "message": "Zde lze změnit jen čas jednoho termínu. Chcete-li změnit úkol nebo jeho rozvrh, otevřete panel Home Keeper."
     }
   }
 }

@@ -106,8 +106,7 @@ and `rrule.toggleDay` write the controls back. If `rrule.parseSimple` gives `nul
 controls are disabled and `rrule.resetToSimple` gives Reset to simple. `panel-rule.ts`
 writes the rule on each change and repaints each view in place, so the rule box keeps focus.
 The card form uses `forms.reconcileRuleEdit`. A line under the form shows the next dates
-from `home_keeper/upcoming_occurrences`. The task page shows them in an Upcoming block,
-with Move and Undo on each date (`panel-detail.ts`).
+from `home_keeper/upcoming_occurrences`.
 
 ### How `next_due` is calculated
 
@@ -156,7 +155,7 @@ option switch. The details item opens the completion dialog on a one-tap task.
 `defer.snoozeTarget` repeats `snooze_from` and the set-time round-up, and refuses a custom
 date that is not later. `defer-dialogs.ts` holds the menu and both dialogs for the panel and
 the card; `panel-defer.ts` binds them to the panel host. On a fixed task, the Snooze dialog
-also has "A later date", which moves 1 of the next schedule dates with `move_occurrence`.
+lists the due date and the later dates. A later date moves with `move_occurrence`.
 
 ### Dormant, disabled and one-off
 
