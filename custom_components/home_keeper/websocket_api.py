@@ -28,9 +28,10 @@ from . import (
     models,
     notifier,
     options,
+    panel_tabs,
     recurrence,
 )
-from .assets import AssetValidationError, card_projection
+from .assets import AssetValidationError
 from .backend_i18n import resolve_exception
 from .const import (
     COMPLETION_ENTRY_FIELDS,
@@ -256,6 +257,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
+    websocket_api.async_register_command(hass, ws_get_panel_tabs)
     websocket_api.async_register_command(hass, ws_get_profiles)
     websocket_api.async_register_command(hass, ws_list_declarative_companions)
     websocket_api.async_register_command(hass, ws_add_declarative_companion)
@@ -862,17 +864,13 @@ async def ws_get_assets(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    """Return the appliances — in full for an admin, projected for anyone else.
+    """Return the appliances in full, to every user.
 
-    Not ``require_admin``: the dashboard card is a usage surface open to every
-    household member and it reads appliance data to resolve a task's card links. So
-    a non-admin gets :func:`assets.card_projection` — the link-rendering subset —
-    rather than the costs and serial numbers ``export_appliance_report`` is gated on.
+    Not ``require_admin``: the panel shows the appliances to every user as a read
+    view, and the dashboard card reads them to resolve a task's card links. The
+    writes to an appliance are admin-only.
     """
-    assets = coord.store.list_assets()
-    if not connection.user.is_admin:
-        assets = card_projection(assets)
-    connection.send_result(msg["id"], {"assets": assets})
+    connection.send_result(msg["id"], {"assets": coord.store.list_assets()})
 
 
 @websocket_api.websocket_command(
@@ -1381,7 +1379,15 @@ async def ws_export_appliance_report(
     connection.send_result(msg["id"], {"report": report, "csv": csv})
 
 
-@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_data"})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/export_data",
+        # Home Keeper sections, ``settings`` and companion domains, as for the
+        # service. A bundle is binary, so the panel downloads it over HTTP
+        # (``transfer_http.HomeKeeperBundleExportView``), and this command has no kind.
+        vol.Optional("include"): [str],
+    }
+)
 @websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
@@ -1397,7 +1403,10 @@ async def ws_export_data(
     store, which a non-admin household member should not be able to walk off with.
     """
     connection.send_result(
-        msg["id"], await async_export_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_export_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 
@@ -1406,9 +1415,11 @@ async def ws_export_data(
         vol.Required("type"): "home_keeper/import_data",
         # A mapping, or the whole file as text. Kept identical to
         # ``IMPORT_DATA_SCHEMA``: a gate the service twin does not share is not a gate.
-        vol.Required("document"): vol.Any(dict, str),
+        vol.Exclusive("document", "source"): vol.Any(dict, str),
+        vol.Exclusive("bundle", "source"): str,
         vol.Optional("dry_run", default=False): bool,
         vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+        vol.Optional("include_settings", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -1429,8 +1440,20 @@ async def ws_import_data(
     Admin-only: it writes tasks and appliances wholesale. Mirrors
     ``handle_import_data``'s ``_verify_admin``.
     """
+    if "document" not in msg and "bundle" not in msg:
+        _err(
+            hass,
+            connection,
+            msg,
+            websocket_api.ERR_INVALID_FORMAT,
+            "import_needs_document",
+        )
+        return
     connection.send_result(
-        msg["id"], await async_import_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_import_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 
@@ -1505,6 +1528,33 @@ async def ws_get_companions(
     """
     connection.send_result(
         msg["id"], {"companions": companions.async_list_companions(hass)}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/get_panel_tabs",
+        vol.Optional("language"): vol.All(str, vol.Length(max=35)),
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_get_panel_tabs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the companion tabs for the panel's tab bar and Settings → Companions.
+
+    Admin-only: only the panel reads it, and a tab is code that runs in the panel.
+    The title of each tab is in *language*, the language of the panel, else in the
+    Home Assistant language, else in English. The registry is on ``hass``, so the
+    command needs no loaded entry. Every tab is in the reply. The panel leaves out
+    the tabs that the ``hidden_panel_tabs`` option names.
+    """
+    language = msg.get("language") or hass.config.language
+    connection.send_result(
+        msg["id"], {"tabs": panel_tabs.async_list_panel_tabs(hass, language)}
     )
 
 
@@ -1774,9 +1824,10 @@ async def ws_preview_declarative_companion(
     general-purpose template oracle, and ``__init__._verify_template_binding`` gates
     the same power on ``add_task`` for exactly that reason — ``device_attr``,
     ``area_id`` and ``integration_entities`` reach things a non-admin cannot otherwise
-    enumerate. The panel is ``require_admin`` already, so no user loses a surface; this
-    closes the websocket that walked around it. The name and notes templates were
-    rendered here before the trigger was, so part of this is older than that mode.
+    enumerate. The panel shows the companion dialog only to an admin, so no user loses
+    a surface; this closes the websocket that walked around it. The name and notes
+    templates were rendered here before the trigger was, so part of this is older than
+    that mode.
 
     ``api_surface.py`` carries the matching ``admin_only=True`` and
     ``tests/unit/test_api_surface.py`` fails if the two drift apart.
@@ -1834,7 +1885,7 @@ async def ws_list_entity_keys(
     Home Assistant shows a ``translation_key`` on no screen, so the dialog offers the
     keys it finds in the entity registry: each with a count and one example entity.
     Admin-only like the preview it sits beside: it names every entity of the
-    integration, and the panel that calls it is ``require_admin``.
+    integration, and the panel shows the dialog that calls it only to an admin.
     """
     coord = _coordinator(hass)
     if coord is None:

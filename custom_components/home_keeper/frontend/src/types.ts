@@ -309,7 +309,16 @@ export interface Hass {
   // The instance's configured currency, used to format a completion's cost, and its
   // language, which the backend formats the shopping-list lines in.
   // `time_zone` is the zone the panel reads and writes times in (see `setTimeZone`).
-  config?: { currency?: string; language?: string; time_zone?: string };
+  config?: {
+    currency?: string;
+    language?: string;
+    time_zone?: string;
+    // The addresses HA is set to be reached at, and its country. A QR label prints
+    // the external URL first, and the country picks the first label sheet.
+    external_url?: string | null;
+    internal_url?: string | null;
+    country?: string | null;
+  };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //
@@ -323,9 +332,13 @@ export interface Hass {
     accessToken?: string;
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
+    // The bridge to a Home Assistant companion app. Home Assistant sets it only in
+    // the iOS and the Android app (`qr-labels.isCompanionApp`).
+    external?: unknown;
   };
-  // The signed-in user. The card reads `is_admin`: Home Assistant refuses a
-  // non-admin subscription to a custom event and logs an error for each refusal.
+  // The signed-in user. The panel reads `is_admin` for its view-only mode. The card
+  // reads it because Home Assistant refuses a non-admin subscription to a custom
+  // event and logs an error for each refusal.
   user?: { is_admin?: boolean };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
@@ -650,6 +663,10 @@ export interface HomeKeeperOptions {
   allow_snooze: boolean;
   allow_skip: boolean;
   allow_due_today: boolean;
+  // When a floating task is due: at the clock time of its completion, or at
+  // `due_time` (local "HH:MM") on its due date (#438). Absent reads as 'completion'.
+  due_time_mode?: 'completion' | 'set_time';
+  due_time?: string;
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];
@@ -663,10 +680,27 @@ export interface HomeKeeperOptions {
   shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
+  // The ids of the companion panel tabs that the tab bar leaves out.
+  hidden_panel_tabs?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications
   // that consume them.
   profiles: Profile[];
   notifications: Notification[];
+}
+
+/**
+ * A tab that a companion integration adds to the panel, as `home_keeper/get_panel_tabs`
+ * sends it. The title is in the language of the panel. See the backend `panel_tabs.py`.
+ */
+export interface PanelTabInfo {
+  id: string;
+  companion: string;
+  title: string;
+  icon: string;
+  module_url: string;
+  element: string;
+  host_api: number;
+  order: number;
 }
 
 /**
@@ -863,13 +897,20 @@ export interface ImportRecord {
 export interface ImportReport {
   ok: boolean;
   dry_run: boolean;
+  /** True when a real import failed after it wrote data. The data stays. */
+  partial?: boolean;
   counts: {
     completions: number;
     skips: number;
-    [section: string]: number | { created: number; updated: number };
+    // A section's `{created, updated}`, the files' `{created, unchanged}`, or the
+    // settings, which hold 1 count object per settings section.
+    [section: string]: number | { created: number; updated: number } | Record<string, unknown>;
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+  /** The report of each companion section, keyed by its domain, as the companion
+   *  returned it. Each companion owns the shape of its `counts`. */
+  sections?: Record<string, { counts?: unknown; [key: string]: unknown }>;
 }
 
 /** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */

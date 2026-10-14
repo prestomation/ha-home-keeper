@@ -19,12 +19,14 @@ services:
       # creating the nested mountpoints. The stubs give Settings → Companions real
       # connected companions: Pawsistant (push self-registration) and the Battery
       # Notes glue (catalog detection). The Tuya Local stub gives one integration
-      # preset a real matching entity. The stubs are not part of the shipped
+      # preset a real matching entity. The demo tab stub adds a companion panel
+      # tab. The stubs are not part of the shipped
       # component; the created /config/custom_components dir is gitignored.
       - ../../custom_components/home_keeper:/config/custom_components/home_keeper:ro
       - ./stubs/pawsistant:/config/custom_components/pawsistant:ro
       - ./stubs/home_keeper_battery_notes:/config/custom_components/home_keeper_battery_notes:ro
       - ./stubs/tuya_local:/config/custom_components/tuya_local:ro
+      - ./stubs/hk_demo_tab:/config/custom_components/hk_demo_tab:ro
     environment:
       - TZ=America/New_York
     tmpfs:

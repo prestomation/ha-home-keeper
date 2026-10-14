@@ -107,6 +107,7 @@ export const selNumber = (min = 0, step?: number | 'any', max?: number): Selecto
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });
+export const selTime = (): Selector => ({ time: { no_second: true } });
 export const selDevice = (multiple = false): Selector => ({
   device: multiple ? { multiple: true } : {},
 });
@@ -502,6 +503,7 @@ export function taskSchemaSections(
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
   tags: { value: string; label: string }[] = [],
+  opts: { readOnly?: boolean } = {},
 ): TaskSchemaSection[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
@@ -627,8 +629,11 @@ export function taskSchemaSections(
             { value: 'availability', label: t('opt.sensor_mode.availability') },
             // Last, like the declarative companion dialog's own list: the four above
             // each answer one plain question, and a user who wants one of those must
-            // not have to read past Jinja to find it.
-            { value: 'template', label: t('opt.sensor_mode.template') },
+            // not have to read past Jinja to find it. A template binding is
+            // admin-only, so a view-only user gets it only on a task that has one.
+            ...(opts.readOnly && sensorMode !== 'template'
+              ? []
+              : [{ value: 'template', label: t('opt.sensor_mode.template') }]),
           ]),
         },
         // Availability watches for the entity to go away, so it has no condition of
@@ -1819,6 +1824,29 @@ export function generalSchema(): FormField[] {
       selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
     },
   ];
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Due time** card (#438): when a
+ * floating task is due, and the time of day, which shows only for a set time.
+ */
+export function dueTimeSchema(mode?: string): FormField[] {
+  const fields: FormField[] = [
+    {
+      name: 'due_time_mode',
+      selector: selSelect(
+        [
+          { value: 'completion', label: t('settings.due_time_mode_completion') },
+          { value: 'set_time', label: t('settings.due_time_mode_set_time') },
+        ],
+        false,
+        'list',
+      ),
+    },
+  ];
+  // Required, so the field has no clear button: an empty time has no meaning here.
+  if (mode === 'set_time') fields.push({ name: 'due_time', required: true, selector: selTime() });
+  return fields;
 }
 
 /**

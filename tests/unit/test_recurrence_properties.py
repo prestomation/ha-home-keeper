@@ -357,7 +357,9 @@ def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, in
     01:00) has no wall time to keep. Its stored offset names the first real time after
     the gap, so that anchor is left out.
     """
-    assume(anchor.astimezone(_UTC).astimezone(anchor.tzinfo) == anchor)
+    # A wall time in a daylight-saving gap has no instant, so no stored anchor can
+    # keep it. `normalize_fields` refuses such a time (R5d), so the store holds none.
+    assume(models._wall_time_exists(anchor))
     reloaded = datetime.fromisoformat(anchor.isoformat())
     end = anchor + timedelta(days=400)
     for occurrence in r.expand_fixed_occurrences(
@@ -366,6 +368,47 @@ def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, in
         local = occurrence.astimezone(anchor.tzinfo)
         assert (local.hour, local.minute) == (anchor.hour, anchor.minute), (
             f"anchor={anchor.isoformat()} freq={freq} interval={interval}: "
+            f"{occurrence.isoformat()} reads at a different clock time"
+        )
+
+
+@given(
+    anchor=ps.zoned_datetimes(),
+    freq=st.sampled_from(["DAILY", "WEEKLY", "MONTHLY"]),
+    interval=st.integers(1, 12),
+)
+@example(
+    anchor=datetime(2024, 3, 10, 2, 30, tzinfo=ZoneInfo("America/New_York")),
+    freq="DAILY",
+    interval=1,
+)
+def test_r5d_a_typed_anchor_is_refused_or_keeps_its_wall_time(anchor, freq, interval):
+    """R5d. The panel path either refuses a typed time or keeps it for every occurrence.
+
+    The panel sends a naive wall time. `normalize_fields` gives it the configured zone
+    and stores it with an offset. A time in a daylight-saving gap has no instant, and
+    its offset makes it the time 1 hour later, so it must be refused. Any other time
+    must read the same on the clock for every occurrence after the store round trip.
+    """
+    typed = anchor.replace(tzinfo=None).isoformat(timespec="minutes")
+    data = {
+        "name": "t",
+        "recurrence_type": "fixed",
+        "interval": interval,
+        "freq": freq,
+        "anchor": typed,
+    }
+    try:
+        fields = models.normalize_fields(data, tz=anchor.tzinfo)
+    except models.TaskValidationError:
+        assert not models._wall_time_exists(anchor)
+        return
+    stored = datetime.fromisoformat(fields["anchor"])
+    end = anchor + timedelta(days=400)
+    for occurrence in r.expand_fixed_occurrences(stored, fields["rrule"], anchor, end):
+        local = occurrence.astimezone(anchor.tzinfo)
+        assert (local.hour, local.minute) == (anchor.hour, anchor.minute), (
+            f"typed={typed} zone={anchor.tzinfo} freq={freq}: "
             f"{occurrence.isoformat()} reads at a different clock time"
         )
 

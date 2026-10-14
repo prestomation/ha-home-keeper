@@ -1,8 +1,8 @@
 /**
  * Focused screenshot capture for the declarative-companions surface.
  *
- * The main ``screenshots.capture.ts`` walks every documented panel surface in one big
- * test — great for a complete refresh, brittle when a single earlier step flakes.
+ * The main ``screenshots.capture.ts`` walks every documented panel surface in 1 serial
+ * group — good for a complete refresh, but a failed step stops the steps after it.
  * This standalone capture only touches Settings → Companions and the two
  * declarative-companion dialogs, so a green run gives us the three shots the PR needs
  * even when other steps upstream are flaky.

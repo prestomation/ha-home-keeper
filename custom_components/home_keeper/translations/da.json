@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Udeladte etiketter",
           "one_off_retention_days": "Opbevaring af engangsopgaver (dage)",
           "shopping_list_entity": "Indkøbsliste",
-          "shopping_line_style": "Tekst på indkøbslisten"
+          "shopping_line_style": "Tekst på indkøbslisten",
+          "due_time_mode": "Forfaldstid",
+          "due_time": "Fast forfaldstid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkroniseret opgave lukkes først, når kildeintegrationen løser problemet, ikke når du trykker Færdig. Påmindelser for den tilbyder Udsæt i stedet for Færdig.",
           "one_off_retention_days": "Slet automatisk en fuldført engangsopgave så mange dage efter, at den er fuldført. 0 beholder fuldførte engangsopgaver for evigt.",
           "shopping_list_entity": "Synkroniserer automatiske indkøbspåmindelser til denne opgaveliste. Når du krydser et punkt af der, fuldføres påmindelsen i Home Keeper, og reservedelen fyldes op. Lad feltet stå tomt for at slå det fra.",
-          "shopping_line_style": "Sådan vises en indkøbspåmindelse på indkøbslisten. \"Kun produkt\" viser reservedelens navn uden verbum, for eksempel \"Skyllemiddel\" i stedet for \"Køb skyllemiddel\"."
+          "shopping_line_style": "Sådan vises en indkøbspåmindelse på indkøbslisten. \"Kun produkt\" viser reservedelens navn uden verbum, for eksempel \"Skyllemiddel\" i stedet for \"Køb skyllemiddel\".",
+          "due_time_mode": "Hvornår en opgave, der gentages efter hver udførelse, forfalder. Med et fast tidspunkt forfalder opgaven på det tidspunkt på forfaldsdatoen. En udsættelse slutter også på det tidspunkt.",
+          "due_time": "Det lokale tidspunkt, hvor disse opgaver forfalder. Bruges kun med et fast tidspunkt."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Tag med",
-          "description": "Hvilke dele der eksporteres. Begge som standard."
+          "description": "Hvilke dele der eksporteres: apparater, opgaver, indstillinger eller domænet for en ledsager. Alle som standard."
+        },
+        "kind": {
+          "name": "Slags",
+          "description": "\"data\" returnerer YAML-dokumentet. \"bundle\" skriver en zip-fil med de uploadede filer og indstillingerne til mappen home_keeper_exports og returnerer dens sti."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokumentet der læses, i den form export_data giver. Angiv det som et opslag eller som hele filen i én streng."
         },
+        "bundle": {
+          "name": "Pakke",
+          "description": "Navnet på en pakkefil i mappen home_keeper_exports. Brug den i stedet for dokumentet."
+        },
         "dry_run": {
           "name": "Kun forhåndsvisning",
           "description": "Kontrollerer dokumentet og melder, hvad der ville blive ændret, uden at skrive noget."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Sammenkobling",
           "description": "Hvordan den post, der menes, findes. \"auto\" søger på id, derefter external_id, derefter navnet. \"none\" opretter hver post."
+        },
+        "include_settings": {
+          "name": "Medtag indstillinger",
+          "description": "Importér også profilerne, notifikationerne og indstillingerne i dokumentet."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Tekst på indkøbslisten",
           "description": "Sådan vises en indkøbspåmindelse på indkøbslisten. with_verb (standard) viser påmindelsens navn, for eksempel \"Køb skyllemiddel\". product_only viser kun reservedelens navn."
         },
+        "due_time_mode": {
+          "name": "Forfaldstid",
+          "description": "Hvornår en opgave, der gentages efter hver udførelse, forfalder. completion (standard) beholder tidspunktet for sidste udførelse, udsættelse eller spring. set_time får den til at forfalde kl. due_time på forfaldsdatoen."
+        },
+        "due_time": {
+          "name": "Fast forfaldstid",
+          "description": "Det lokale tidspunkt (TT:MM) for set_time. Standard er 08:00."
+        },
         "dismissed_companions": {
           "name": "Afviste ledsagere",
           "description": "Glue-integrationsdomæner, der skal skjules fra listen \"Foreslået\" under Indstillinger → Ledsagere. Afvisning dæmper kun et forslag; en tilsluttet parring vises altid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skjulte panelfaner",
+          "description": "ID'erne på de ledsagerfaner, som panelet ikke viser."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Med verbum",
         "product_only": "Kun produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tidspunkt for udførelse",
+        "set_time": "Fast tidspunkt"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Filen overskrider grænsen på {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Et formularfelt i uploaden er større end grænsen på {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Forventede en multipart-upload."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan ikke slette disse profiler: {profiles}. Disse notifikationer bruger dem: {notifications}. Ret eller slet hver notifikation, og gem så igen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan ikke eksportere disse dele: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Kun en administrator kan eksportere eller importere Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen er hverken en zip-fil eller UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Angiv et dokument eller en pakke, der skal importeres."
     },
     "calendar_edit_in_panel": {
       "message": "Her kan kun tidspunktet for én dato ændres. Åbn Home Keeper-panelet for at ændre opgaven eller dens tidsplan."

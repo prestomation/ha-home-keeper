@@ -23,7 +23,7 @@ import {
 } from './defer';
 import { makeDialog } from './dialogs';
 import type { FormField, HaFormElement } from './forms';
-import { selDateTime, selSelect, selText } from './forms';
+import { selDate, selDateTime, selSelect, selText } from './forms';
 import { t } from './i18n';
 import type { Hass, Task } from './types';
 import type { SnoozePresetId } from './utils';
@@ -340,7 +340,15 @@ export function renderSnoozeDialog(
   const schema: FormField[] = [
     { name: 'snoozePreset', required: true, selector: selSelect(options) },
   ];
-  if (s.preset === 'custom') schema.push({ name: 'snoozeAt', required: true, selector: selDateTime() });
+  // With a set due time the task is due at that time, so the custom choice is a
+  // date only (#438).
+  if (s.preset === 'custom') {
+    schema.push({
+      name: 'snoozeAt',
+      required: true,
+      selector: s.dueTime ? selDate() : selDateTime(),
+    });
+  }
   const data: Record<string, unknown> = { snoozePreset: s.preset };
   if (s.preset === 'custom') data.snoozeAt = s.customAt ?? '';
 

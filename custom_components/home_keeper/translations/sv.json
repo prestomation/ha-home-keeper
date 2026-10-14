@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Uteslutna etiketter",
           "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)",
           "shopping_list_entity": "Inköpslista",
-          "shopping_line_style": "Text på inköpslistan"
+          "shopping_line_style": "Text på inköpslistan",
+          "due_time_mode": "Förfallotid",
+          "due_time": "Fast förfallotid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
           "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid.",
           "shopping_list_entity": "Synkroniserar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av synkroniseringen.",
-          "shopping_line_style": "Så visas en inköpspåminnelse på inköpslistan. ”Bara produkt” visar reservdelens namn utan verb, till exempel ”Sköljmedel” i stället för ”Köp sköljmedel”."
+          "shopping_line_style": "Så visas en inköpspåminnelse på inköpslistan. ”Bara produkt” visar reservdelens namn utan verb, till exempel ”Sköljmedel” i stället för ”Köp sköljmedel”.",
+          "due_time_mode": "När en uppgift som upprepas efter varje utförande förfaller. Med en fast tid förfaller uppgiften vid den tiden på förfallodagen. En uppskjutning slutar också vid den tiden.",
+          "due_time": "Den lokala tid då dessa uppgifter förfaller. Används bara med en fast tid."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Vilka delar som exporteras. Båda som standard."
+          "description": "Vilka delar som exporteras: apparater, uppgifter, inställningar eller domänen för en följeslagare. Alla som standard."
+        },
+        "kind": {
+          "name": "Sort",
+          "description": "\"data\" returnerar YAML-dokumentet. \"bundle\" skriver en zip-fil med de uppladdade filerna och inställningarna till mappen home_keeper_exports och returnerar dess sökväg."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokumentet som läses, i den form export_data ger. Ange det som en avbildning eller som hela filen i en sträng."
         },
+        "bundle": {
+          "name": "Paket",
+          "description": "Namnet på en paketfil i mappen home_keeper_exports. Använd det i stället för dokumentet."
+        },
         "dry_run": {
           "name": "Endast förhandsgranskning",
           "description": "Kontrollerar dokumentet och rapporterar vad som skulle ändras, utan att skriva något."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Träff",
           "description": "Hur posten som avses hittas. \"auto\" söker på id, sedan external_id, sedan namnet. \"none\" skapar varje post."
+        },
+        "include_settings": {
+          "name": "Ta med inställningar",
+          "description": "Importerar även profilerna, aviseringarna och alternativen i dokumentet."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Text på inköpslistan",
           "description": "Så visas en inköpspåminnelse på inköpslistan. with_verb (standard) visar påminnelsens namn, till exempel ”Köp sköljmedel”. product_only visar bara reservdelens namn."
         },
+        "due_time_mode": {
+          "name": "Förfallotid",
+          "description": "När en uppgift som upprepas efter varje utförande förfaller. completion (standard) behåller tiden för senaste utförande, uppskjutning eller hopp. set_time gör att den förfaller kl. due_time på förfallodagen."
+        },
+        "due_time": {
+          "name": "Fast förfallotid",
+          "description": "Den lokala tiden (HH:MM) för set_time. Standard är 08:00."
+        },
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",
           "description": "Domäner för kopplingsintegrationer att dölja från listan ”Föreslagna” under Inställningar → Kompanjoner. Att avfärda tystar bara ett förslag; en ansluten koppling visas alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Dolda panelflikar",
+          "description": "ID:n för de följeflikar som panelen inte visar."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Med verb",
         "product_only": "Bara produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tid för utförande",
+        "set_time": "Fast tid"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Filen överskrider gränsen på {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Ett formulärfält i uppladdningen är större än gränsen på {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "En multipart-uppladdning förväntades."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan inte ta bort dessa profiler: {profiles}. Dessa aviseringar använder dem: {notifications}. Ändra eller ta bort varje avisering och spara sedan igen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan inte exportera dessa delar: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Endast en administratör kan exportera eller importera Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen är varken en zip-fil eller UTF-8-text."
+    },
+    "import_needs_document": {
+      "message": "Ange ett dokument eller ett paket att importera."
     },
     "calendar_edit_in_panel": {
       "message": "Här kan bara tiden för ett datum ändras. Öppna Home Keeper-panelen för att ändra uppgiften eller dess schema."

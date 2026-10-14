@@ -70,7 +70,9 @@ unreviewed.
    In the Claude Code remote environment `npx playwright install chromium` fails, so
    `CHROMIUM_EXEC` points at the Chromium in `/opt/pw-browsers/`.
 3. When a change adds a surface, add a step for it to `tests/e2e/screenshots.capture.ts`.
-   Add the phone step to the `page.setViewportSize(PHONE)` block at the end of the file,
+   That file is a serial group of tests that share 1 page. Put the step in the test for
+   its part, and keep each test below its time limit.
+   Add the phone step to the `page.setViewportSize(PHONE)` block in the last test,
    and name it with a `-mobile-` segment so the pair sorts together:
    `57-panel-task-search.png` and `57c-panel-mobile-task-search.png`.
 4. **Open every PNG with the Read tool before you commit it.** Make sure that the changed
@@ -85,8 +87,9 @@ URL pinned to the commit that added the file. The PR update path can wrap an ima
 code span:
 
 - Write attribute text with no character-entity reference. Reword around an apostrophe.
-- If an unchanged body still comes back mangled after 2 submissions, the file name is
-  the trigger. Rename the PNG in the capture script and shoot again.
+- Keep each image URL under 150 characters. The update path wraps a longer `src` in a
+  code span. Pin the URL with the first 13 characters of the SHA, which
+  `raw.githubusercontent.com` accepts, and keep the PNG name short.
 - After each body edit, read the body again and check that each URL returns HTTP 200.
 
 ## Walkthrough video

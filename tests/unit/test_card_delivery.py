@@ -142,6 +142,14 @@ class FakeLovelaceData:
 
 
 @dataclass
+class FakeOlderLovelaceData:
+    """The shape before Home Assistant 2026.2: `mode`, and no `resource_mode`."""
+
+    mode: str
+    resources: object
+
+
+@dataclass
 class FakeHass:
     data: dict = field(default_factory=dict)
 
@@ -301,6 +309,26 @@ def test_without_storage_resources_the_card_uses_the_shell_import(make, mode):
     assert h.js_calls() == [("add", URL)]
     if h.resources is not None:
         assert h.resources.items == []
+
+
+def test_an_older_home_assistant_with_storage_mode_uses_the_resource_only(make):
+    h = make(None)
+    h.resources = FakeResources()
+    h.hass.data[card.LOVELACE_DATA] = FakeOlderLovelaceData(
+        card.MODE_STORAGE, h.resources
+    )
+    run(h.register())
+    assert h.js_calls() == []
+    assert [i["url"] for i in h.resources.items] == [URL]
+
+
+def test_an_older_home_assistant_with_yaml_mode_uses_the_shell_import(make):
+    h = make(None)
+    h.resources = FakeResources()
+    h.hass.data[card.LOVELACE_DATA] = FakeOlderLovelaceData("yaml", h.resources)
+    run(h.register())
+    assert h.js_calls() == [("add", URL)]
+    assert h.resources.items == []
 
 
 def test_yaml_mode_removal_removes_the_shell_import(make):

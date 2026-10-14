@@ -13,7 +13,7 @@
  */
 
 import * as api from './api';
-import { assetMatchesQuery, bucketByKey, profileMatches, taskMatchesQuery } from './card-filter';
+import { assetMatchesQuery, bucketByKey } from './card-filter';
 import { makeDialog } from './dialogs';
 import { t, tn } from './i18n';
 import {
@@ -31,9 +31,9 @@ import {
   effectiveGroup,
   groupAssets,
   groupTasks,
+  listedTasks,
   renderBoard,
   renderGroups,
-  scopeMatches,
 } from './panel-controls';
 import { deferMenu, openSkip, openSnooze, setDueToday, verbsFor } from './panel-defer';
 import { openCompletionDialog, openConfirmDialog } from './panel-dialogs';
@@ -108,23 +108,8 @@ export function tasksList(p: PanelHost): string {
     return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
   }
   const now = Date.now();
-  let tasks = [...p._tasks];
+  const tasks = listedTasks(p, now);
   const profile = activeProfile(p);
-  if (profile) {
-    // A saved Profile replaces the inline filter: status + labels/areas/devices.
-    tasks = tasks.filter((task) =>
-      profileMatches(task, profile.filter, p._hass?.devices, p._hass?.areas, now),
-    );
-  } else {
-    tasks = tasks.filter((task) => scopeMatches(task, p._filter, now));
-  }
-  // The text filter narrows whichever of the two chose the set, rather than replacing
-  // it: a Profile plus a word is how a household finds one task among its own.
-  if (p._query) {
-    tasks = tasks.filter((task) =>
-      taskMatchesQuery(task, p._query, p._hass?.devices, p._hass?.areas),
-    );
-  }
   tasks.sort((a, b) => {
     const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
     const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
@@ -160,6 +145,8 @@ export function tasksList(p: PanelHost): string {
  * integration owns any more.
  */
 function orphanBanner(p: PanelHost): string {
+  // The cleanup is admin-only, so a view-only user does not get the banner.
+  if (p._readOnly()) return '';
   const n = p._tasks.filter((task) => isManagedOrphan(p, task)).length;
   if (!n) return '';
   return `
@@ -197,7 +184,29 @@ async function removeOrphans(p: PanelHost): Promise<void> {
   await p._refresh();
 }
 
+/**
+ * The appliance list. A view-only user gets a banner above it that says why the page
+ * has no way to add or change an appliance.
+ */
 export function assetsList(p: PanelHost): string {
+  return `${viewOnlyBanner(p)}${assetsListBody(p)}`;
+}
+
+/**
+ * The banner above the appliance list for a user who is not an admin, or ''. Both
+ * texts are in the markup, and the phone rules show the short one.
+ */
+function viewOnlyBanner(p: PanelHost): string {
+  if (!p._readOnly()) return '';
+  return `
+      <ha-alert alert-type="info" class="hk-view-only-banner">
+        <b>${escapeHTML(t('appliances.viewOnly.title'))}</b>
+        <span class="hk-view-only-long">${escapeHTML(t('appliances.viewOnly.body'))}</span>
+        <span class="hk-view-only-short">${escapeHTML(t('appliances.viewOnly.short'))}</span>
+      </ha-alert>`;
+}
+
+function assetsListBody(p: PanelHost): string {
   if (!p._assets.length) {
     return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
   }

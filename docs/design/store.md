@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 77a547d2c02c
+source_hash: e9798d4d932e
 ---
 
 # Store
@@ -87,9 +87,10 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
 
 ### Responsibilities
 
-- **Tasks:** add, update, delete, trigger, snooze, due today, skip, move a date
-  (`move_occurrence`) and meter baseline. A delete calls `_archive_task_history` to keep
-  history on a linked appliance.
+- **Tasks:** add, update, delete, trigger, snooze, due today, skip, `move_occurrence` and
+  meter baseline. A delete calls `_archive_task_history` to keep history on a linked
+  appliance. The set due time from `async_apply_due_time` goes to each recurrence call,
+  and a floating snooze rounds up to it ([recurrence](recurrence.md)).
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
 - **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and
@@ -101,23 +102,22 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
   pure pass, save once, and fire the lifecycle events the pass implies.
 - **Declarative specs:** add, update and delete, then dispatch
   `SIGNAL_DECLARATIVE_SPECS_CHANGED` so the companion sync runs without a reload.
-- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids`,
-  `async_merge_split_duplicates` and `detach_tasks_from_device`.
+- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids` (1
+  updated event per moved record), `async_merge_split_duplicates`, `detach_tasks_from_device`.
 - **Import:** `async_import_records` writes a validated plan under stated ids with one
   save. It fires one created or updated event per record, not one per completion.
 
 ### Saves
 
-Every mutation awaits `Store.async_save`; the store never uses `async_delay_save`. A
-bulk path saves once for the batch: `delete_tasks` (the one-off purge), each reconciler
-pass, `delete_orphaned_tasks` and `async_import_records`. The `Store` write lock keeps
-2 close saves in order.
+Every mutation awaits `Store.async_save`, never `async_delay_save`. A bulk path saves once:
+`delete_tasks`, each reconciler pass, `delete_orphaned_tasks`, `async_import_records`.
+The `Store` write lock keeps 2 close saves in order.
 
 ### Unload, reload and concurrency
 
-`async_unload_entry` calls `store.close`. After that, `_save` raises `models.StoreClosedError`. A
-reload builds a new `HomeKeeperStore` that reads the file again, so a pass that still holds the old
-store fails at its save. It cannot write its old snapshot over the new file.
+`async_unload_entry` calls `store.close`. After that, `_save` raises
+`models.StoreClosedError`. A reload builds a new `HomeKeeperStore`, so a pass that still
+holds the old store fails at its save and cannot write its old snapshot over the new file.
 
 All methods run on the event loop, and the store holds no lock. Most methods change the
 dicts before their first `await`, so 2 calls do not interleave inside a change. Each

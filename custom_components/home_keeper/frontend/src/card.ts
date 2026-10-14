@@ -61,6 +61,7 @@ import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
+  assetForTask,
   deviceName,
   dueLabel,
   escapeHTML,
@@ -76,6 +77,7 @@ import {
   scanRequired,
   countedProgress,
   setBtnWeight,
+  setDueTime,
   statusChipHtml,
   toast,
   guardWrite,
@@ -441,7 +443,12 @@ export class HomeKeeperCard extends HTMLElement {
   /** The integration's options, for the skip/snooze switches. Both default on, so
    *  an empty object until the first load reads as "offer both" rather than
    *  flickering the caret in once the fetch lands. */
-  private _options: { allow_snooze?: unknown; allow_skip?: unknown } = {};
+  private _options: {
+    allow_snooze?: unknown;
+    allow_skip?: unknown;
+    due_time_mode?: unknown;
+    due_time?: unknown;
+  } = {};
   private _snooze: SnoozeState = emptySnoozeState();
   private _skip: SkipState = emptySkipState();
 
@@ -739,8 +746,11 @@ export class HomeKeeperCard extends HTMLElement {
       if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
       // explicit card_links or a linked part's product URL); fetch best-effort and
-      // only when a task actually references one.
-      this._assets = this._tasks.some((tk) => tk.card_links?.length || tk.source?.part)
+      // only when a task actually references one. A device chip also needs it, to
+      // point at its appliance page.
+      this._assets = this._tasks.some(
+        (tk) => tk.card_links?.length || tk.source?.part || tk.device_id,
+      )
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
@@ -1247,12 +1257,14 @@ export class HomeKeeperCard extends HTMLElement {
       const icon = escapeHTML(mb.icon || 'mdi:puzzle');
       managedChip = `<span class="hk-managed" title="${tip}" role="img" aria-label="${tip}"><ha-icon icon="${icon}"></ha-icon></span>`;
     }
+    // 1 chip for the place: the device chip if the device name resolves, else the
+    // area chip.
     let areaChip = '';
     if (this._config.show_area !== false) {
-      const area = areaName(this._hass?.areas, task.area_id);
       const dev = task.device_id ? deviceName(this._hass?.devices, task.device_id) : '';
-      const label = area || dev;
-      if (label) areaChip = `<ha-assist-chip label="${escapeHTML(label)}"></ha-assist-chip>`;
+      const area = dev ? '' : areaName(this._hass?.areas, task.area_id);
+      if (dev) areaChip = this._deviceChip(task, dev);
+      else if (area) areaChip = `<ha-assist-chip label="${escapeHTML(area)}"></ha-assist-chip>`;
     }
     // The NFC/RFID binding. The card never fetches HA's tag registry (it stays as
     // light as it can), so the chip is a generic marker rather than the tag's name —
@@ -1329,6 +1341,28 @@ export class HomeKeeperCard extends HTMLElement {
         </div>
         <div class="hk-acts">${this._deferActions(task)}${done}</div>
       </div>`;
+  }
+
+  /**
+   * The chip for the task's device. It is a link, the same as the panel's device
+   * chip: it opens the appliance page when an appliance has the device (#446). The
+   * panel shows that page to every user (#444). Else an admin gets the Home Assistant
+   * device page. That page is admin-only, so for other users the chip then only
+   * shows the name.
+   */
+  private _deviceChip(task: Task, name: string): string {
+    const label = escapeHTML(name);
+    const asset = task.device_id ? assetForTask(task, this._assets) : undefined;
+    if (!task.device_id || (!asset && !this._hass?.user?.is_admin)) {
+      return `<ha-assist-chip label="${label}"></ha-assist-chip>`;
+    }
+    const href = asset
+      ? `/home-keeper/appliances/${encodeURIComponent(asset.id)}`
+      : `/config/devices/device/${encodeURIComponent(task.device_id)}`;
+    const tip = escapeHTML(asset ? t('chip.device.appliance.tip') : t('chip.device.tip'));
+    return `<ha-assist-chip class="hk-device-chip hk-link-chip" role="link" tabindex="0" data-href="${escapeHTML(
+      href,
+    )}" label="${label}" title="${tip}"></ha-assist-chip>`;
   }
 
   /** Snooze and Skip for this row, ahead of Done. Empty when neither is on offer. */
@@ -1447,7 +1481,7 @@ export class HomeKeeperCard extends HTMLElement {
       });
     };
     wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
-      this._snooze = snoozeStateFor(task);
+      this._snooze = snoozeStateFor(task, undefined, setDueTime(this._options));
       this._render();
     });
     wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
@@ -1462,6 +1496,23 @@ export class HomeKeeperCard extends HTMLElement {
       (task) => void this._setDueToday(task),
       'defer.dueTodayPress',
     );
+
+    root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
+      const href = chip.dataset.href;
+      if (!href) return;
+      const go = (e: Event): void => {
+        e.stopPropagation();
+        navigateTo(href);
+      };
+      chip.addEventListener('click', go);
+      chip.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go(e);
+        }
+      });
+    });
 
     root.querySelectorAll<HTMLElement>('.hk-note-chip').forEach((chip) => {
       chip.addEventListener('click', (e) => {

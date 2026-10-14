@@ -24,15 +24,23 @@ exercise the merge rules without the HA test harness. Keep it that way — see
 
 from __future__ import annotations
 
+from datetime import time
 from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    DEFAULT_DUE_TIME,
+    DUE_TIME_MODE_COMPLETION,
+    DUE_TIME_MODE_SET_TIME,
+    DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_DUE_TIME,
+    OPTION_DUE_TIME_MODE,
+    OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
@@ -49,13 +57,15 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-# The exclusion options (and the dismissed-companions list) are id/domain lists.
+# The exclusion options, the dismissed-companions list and the hidden panel tabs are
+# id/domain lists.
 _LIST_OPTIONS = (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_HIDDEN_PANEL_TABS,
 )
 
 # The plain on/off options. ``_normalize`` coerces each with ``bool()`` when a
@@ -89,6 +99,8 @@ def _empty_options() -> dict[str, Any]:
         OPTION_ALLOW_SNOOZE: True,
         OPTION_ALLOW_SKIP: True,
         OPTION_ALLOW_DUE_TODAY: True,
+        OPTION_DUE_TIME_MODE: DUE_TIME_MODE_COMPLETION,
+        OPTION_DUE_TIME: DEFAULT_DUE_TIME,
         OPTION_ONE_OFF_RETENTION_DAYS: 0,
         OPTION_SHOPPING_LIST_ENTITY: "",
         OPTION_SHOPPING_LINE_STYLE: shopping.LINE_STYLE_WITH_VERB,
@@ -117,6 +129,8 @@ FLOW_OPTIONS: tuple[str, ...] = (
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SHOPPING_LINE_STYLE,
+    OPTION_DUE_TIME_MODE,
+    OPTION_DUE_TIME,
 )
 
 # Entry ids whose reload an explicit caller (the ``set_options`` service / the
@@ -154,6 +168,36 @@ def take_retention_grace(entry_id: str) -> bool:
         _RETENTION_GRACE.discard(entry_id)
         return True
     return False
+
+
+def normalize_due_time(value: Any) -> str:
+    """*value* as a local ``"HH:MM"``, or ``DEFAULT_DUE_TIME`` when it is not a time.
+
+    A time selector sends ``"HH:MM:SS"``, and a service caller may send ``"8:00"``.
+    Seconds are dropped: a due time is a time of day, not a moment.
+    """
+    return _parse_due_time(value) or DEFAULT_DUE_TIME
+
+
+def _parse_due_time(value: Any) -> str | None:
+    """*value* as a local ``"HH:MM"``, or ``None`` when it is not a time."""
+    if isinstance(value, time):
+        return f"{value.hour:02d}:{value.minute:02d}"
+    parts = str(value or "").strip().split(":")
+    if len(parts) not in (2, 3) or not all(p.isdigit() for p in parts):
+        return None
+    hour, minute = int(parts[0]), int(parts[1])
+    if hour > 23 or minute > 59:
+        return None
+    return f"{hour:02d}:{minute:02d}"
+
+
+def due_time_of(opts: dict[str, Any]) -> time | None:
+    """The set due time of normalized *opts*, or ``None`` in the ``completion`` mode."""
+    if opts.get(OPTION_DUE_TIME_MODE) != DUE_TIME_MODE_SET_TIME:
+        return None
+    hour, minute = normalize_due_time(opts.get(OPTION_DUE_TIME)).split(":")
+    return time(int(hour), int(minute))
 
 
 def current_options(entry: ConfigEntry) -> dict[str, Any]:
@@ -266,10 +310,14 @@ def _normalize(
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
     - **the shopping line style** — anything unknown reads as ``with_verb``
+    - **the due time mode** — anything unknown reads as ``completion``; the due time
+      reads as ``"HH:MM"``, and anything that is not a time as ``08:00``
     - **profiles / notifications** — their own normalizers fill in per-item defaults
       (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
-      without the filter a ``None`` in the list would be stored as ``"None"``
+      without the filter a ``None`` in the list would be stored as ``"None"``. A
+      value that is not a list is refused and the value from *base* stays, so a
+      string is not split into 1-character ids. ``None`` clears the list
 
     A key absent from *updates* keeps its value from *base*, which is what makes an
     update partial.
@@ -293,6 +341,13 @@ def _normalize(
         merged[OPTION_SHOPPING_LIST_ENTITY] = shopping.normalize_target(
             updates[OPTION_SHOPPING_LIST_ENTITY]
         )
+    if OPTION_DUE_TIME_MODE in updates:
+        mode = updates[OPTION_DUE_TIME_MODE]
+        merged[OPTION_DUE_TIME_MODE] = (
+            mode if mode in DUE_TIME_MODES else DUE_TIME_MODE_COMPLETION
+        )
+    if OPTION_DUE_TIME in updates:
+        merged[OPTION_DUE_TIME] = normalize_due_time(updates[OPTION_DUE_TIME])
     if OPTION_SHOPPING_LINE_STYLE in updates:
         merged[OPTION_SHOPPING_LINE_STYLE] = shopping.normalize_line_style(
             updates[OPTION_SHOPPING_LINE_STYLE]
@@ -304,9 +359,32 @@ def _normalize(
             updates[OPTION_NOTIFICATIONS], warn=not read
         )
     for key in _LIST_OPTIONS:
-        if key in updates:
-            merged[key] = [str(x) for x in (updates[key] or []) if x]
+        if key not in updates:
+            continue
+        value = updates[key]
+        if value is None:
+            merged[key] = []
+        elif isinstance(value, list):
+            merged[key] = [str(x) for x in value if x]
     return merged
+
+
+def coerce_value(key: str, value: Any) -> Any:
+    """*value* in the stored shape of the option *key*, as ``_normalize`` writes it."""
+    return _normalize({key: value}, _empty_options(), read=True)[key]
+
+
+def value_refused(key: str, value: Any) -> bool:
+    """Whether *value* is not a value of the option *key*.
+
+    ``_normalize`` reads any value, and changes a bad value to a default. A value that
+    it must change to store is refused here, so the settings import can warn about it.
+    A due time in another time format, such as ``"8:00"``, is a value.
+    """
+    if key == OPTION_DUE_TIME:
+        return _parse_due_time(value) is None
+    stored = coerce_value(key, value)
+    return type(stored) is not type(value) or stored != value
 
 
 def merge_flow_input(entry: ConfigEntry, user_input: dict[str, Any]) -> dict[str, Any]:

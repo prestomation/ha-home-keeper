@@ -10,22 +10,22 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 859490cea1e5
+source_hash: ad76c5a74939
 ---
 
 # Architecture
 
 Home Keeper is a Home Assistant integration that tracks home maintenance and chores.
 Administrators manage tasks and appliances in a sidebar panel. All household members use
-the tasks through native entities, such as the to-do list and the calendar.
+the tasks through native entities, such as the to-do list and the calendar, and the panel.
 
 ## Goals
 
 - **G1. Testable core.** The rules for schedules, tasks, assets and options run without
   Home Assistant, so the fast unit tier and the mutation gate can check them.
 - **G2. Native usage.** Daily use goes through native entities. The panel is for
-  administration only.
-- **G3. One privilege line.** Administration is admin-only on every path. Usage is open.
+  administration. Other users can open it to use the tasks and read the appliances.
+- **G3. One privilege line.** Writes to appliances and settings are admin-only. Usage is open.
 - **G4. Services first.** Each data action is a `home_keeper.*` service, so automations,
   scripts, voice and other integrations can do what the panel does.
 - **G5. Safe reloads.** A reload keeps services, the panel and saved options intact.
@@ -42,9 +42,9 @@ the tasks through native entities, such as the to-do list and the calendar.
 
 | Layer | Modules | Rule |
 |---|---|---|
-| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
-| Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
-| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
+| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
+| Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
+| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `transfer_runner.py`, `transfer_http.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
 
 The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the first 2 rows.
@@ -53,19 +53,19 @@ The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the fir
 ### Administration, usage and privilege
 
 `panel.async_register_panel` registers a `custom` panel at `/home-keeper` with
-`require_admin=True`. It serves only `frontend/dist/`, because Home Assistant serves
+`require_admin=False`. It serves only `frontend/dist/`, because Home Assistant serves
 static paths before authentication. `panel.cache_token` hashes the bundle into its URL.
-A non-admin uses tasks from the to-do list, the calendar, the per-task entities and the
-card ([SECURITY.md](../SECURITY.md)).
+A non-admin uses tasks from the native entities, the card and the panel, and reads the
+appliances in the panel ([SECURITY.md](../SECURITY.md)).
 
 A websocket command and its service twin are the same operation. An admin-only operation
 has `@websocket_api.require_admin` on the command, and its service handler calls the
 local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
 `context.user_id` comes from an automation or from the core and is trusted.
 The gate covers appliance edits, asset documents, part files and stock, declarative
-companion edits, the orphan and archive deletes, `set_options`, the appliance report,
-and data export and import. Other task writes, task photos included, are open. Appliance reads
-are open, but a non-admin gets `assets.card_projection`, the fields that the card shows.
+companion edits, the orphan and archive deletes, `set_options`, the appliance report, data
+export and import with their HTTP views, `list_entity_keys` and the companion preview.
+All else is open.
 
 ### Setup
 
@@ -74,13 +74,13 @@ stay through reloads. A handler raises `integration_not_loaded` when no entry is
 Each websocket command calls the same store method as its service twin.
 `async_setup_entry` then runs these steps in order:
 
-1. Load the backend strings in the executor. Load `HomeKeeperStore` and repair split
-   device ids (`devices.async_heal_split_device_ids`).
+1. Load the backend strings, then `HomeKeeperStore`, and apply the set due time
+   (`store.async_apply_due_time`). Repair split device ids (`devices.async_heal_split_device_ids`).
 2. Create `HomeKeeperCoordinator`, refresh it, and store it as `entry.runtime_data`.
 3. Reconcile asset devices, part tasks, buy tasks, problem sensors and declarative
    companions, so the tasks exist before the platforms read them.
-4. Register the panel, the card, the file HTTP views and the websocket commands, and remove
-   stale task photo folders. Forward `const.PLATFORMS` and prune devices with no entities.
+4. Register the panel, the card, the HTTP views and the websocket commands. Remove stale
+   photo and import folders. Forward `const.PLATFORMS` and prune devices with no entities.
 5. Ask companions to register again. Add the options and language listeners, which reload.
 6. Start the sensor watcher. Start the list syncs when the Home Assistant start is done.
 7. Enable transition events, start the 5-minute clock, refresh 1 more time, and set the
@@ -93,18 +93,17 @@ A failure in the repair or the prune is logged and does not stop setup.
 `async_unload_entry` unloads the platforms and discards edge state for a disabled entry. It
 closes the store so that a pass from before the unload cannot write over a new store.
 It removes the panel only for a disabled entry, because a reload with no panel sends an
-open page to the default dashboard. `async_remove_entry` removes the panel, the card
-resource, the storage document and the uploaded files.
+open page to the default dashboard. `async_remove_entry` removes the panel, the companion
+tabs, the card resource, the storage document and the uploaded files.
 
 ### Config entry and options
 
 The config flow is 1 confirmation step with no data. `options.py` defines every option key
-and default (`options.ALL_OPTIONS`). The options flow, the `set_options` service and the
-panel Settings tab edit them.
+and default (`options.ALL_OPTIONS`). The options flow, `set_options` and Settings edit them.
 
-- The service and the panel send a partial update to `options.async_set_options`. It
-  merges, refuses a save that strands a notification (`options.ProfileInUseError`),
-  writes, and waits for the reload. A flag stops the update listener from a 2nd reload.
+- `set_options` and the panel send a partial update to `options.async_set_options`. It merges,
+  ignores a list option sent as a value that is not a list, refuses a save that strands a
+  notification (`options.ProfileInUseError`), writes, and waits for a reload the listener skips.
 - Home Assistant stores an options flow result as the whole options object. The form
   shows only `options.FLOW_OPTIONS`, so the flow returns `options.merge_flow_input`: a
   cleared form key resets, and a key outside the form keeps its value.
@@ -132,6 +131,7 @@ keys in `diagnostics.TO_REDACT`, because users attach dumps to public issues.
 | [events-api](events-api.md) | Events, device triggers and the API surface model |
 | [transfer](transfer.md) | Import and export |
 | [frontend](frontend.md) | The panel and the dashboard card |
+| [qr-labels](qr-labels.md) | QR code labels that link to a panel page |
 
 ## Trade-offs
 

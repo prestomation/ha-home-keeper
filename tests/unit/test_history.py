@@ -72,6 +72,27 @@ def test_find_archiving_asset_prefers_part_source():
     assert found["id"] == "asset1"
 
 
+def test_find_archiving_asset_part_source_wins_over_an_earlier_device_owner():
+    # The device owner comes first in the dict, so only the part link finds "part".
+    assets = {
+        "owner": _asset(id="owner"),
+        "part": _asset(id="part", device_id="other", related_device_ids=[]),
+    }
+    found = a.find_archiving_asset(
+        assets, _part_task(asset_id="part", device_id="dev1")
+    )
+    assert found["id"] == "part"
+
+
+def test_find_archiving_asset_by_related_device():
+    # dev2 is not the asset's own device, only 1 of its related devices.
+    assets = {"asset1": _asset()}
+    found = a.find_archiving_asset(
+        assets, {"id": "t", "name": "x", "device_id": "dev2"}
+    )
+    assert found["id"] == "asset1"
+
+
 def test_find_archiving_asset_by_device():
     assets = {"asset1": _asset()}
     found = a.find_archiving_asset(

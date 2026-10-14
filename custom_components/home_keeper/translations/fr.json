@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Étiquettes exclues",
           "one_off_retention_days": "Conservation des tâches ponctuelles (jours)",
           "shopping_list_entity": "Liste de courses",
-          "shopping_line_style": "Texte sur la liste de courses"
+          "shopping_line_style": "Texte sur la liste de courses",
+          "due_time_mode": "Heure d'échéance",
+          "due_time": "Heure d'échéance fixe"
         },
         "data_description": {
           "sync_problem_sensors": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
           "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
           "shopping_list_entity": "Synchronise les rappels d'achat automatiques avec cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la synchronisation.",
-          "shopping_line_style": "Comment un rappel d'achat apparaît sur la liste de courses. « Produit seul » affiche le nom de la pièce sans verbe, par exemple « Adoucissant » au lieu de « Acheter adoucissant »."
+          "shopping_line_style": "Comment un rappel d'achat apparaît sur la liste de courses. « Produit seul » affiche le nom de la pièce sans verbe, par exemple « Adoucissant » au lieu de « Acheter adoucissant ».",
+          "due_time_mode": "Quand une tâche qui se répète après chaque réalisation arrive à échéance. Avec une heure fixe, la tâche est due à cette heure le jour de son échéance. Un report se termine aussi à cette heure.",
+          "due_time": "L'heure locale à laquelle ces tâches sont dues. Utilisée uniquement avec une heure fixe."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Inclure",
-          "description": "Les sections à exporter. Les deux par défaut."
+          "description": "Les sections à exporter : appareils, tâches, paramètres ou le domaine d'un compagnon. Toutes par défaut."
+        },
+        "kind": {
+          "name": "Type",
+          "description": "« data » renvoie le document YAML. « bundle » écrit un fichier zip avec les fichiers téléversés et les paramètres dans le dossier home_keeper_exports, et renvoie son chemin."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Document",
           "description": "Le document à lire, dans la forme que renvoie export_data. Donnez-le sous forme de dictionnaire ou de fichier entier en une chaîne."
         },
+        "bundle": {
+          "name": "Paquet",
+          "description": "Le nom d'un fichier de paquet dans le dossier home_keeper_exports. À utiliser à la place du document."
+        },
         "dry_run": {
           "name": "Aperçu seulement",
           "description": "Vérifie le document et indique ce qui changerait, sans rien écrire."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Correspondance",
           "description": "Comment trouver l'enregistrement visé. \"auto\" cherche par id, puis external_id, puis le nom. \"none\" crée chaque enregistrement."
+        },
+        "include_settings": {
+          "name": "Inclure les paramètres",
+          "description": "Importe aussi les profils, les notifications et les options du document."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Texte sur la liste de courses",
           "description": "Comment un rappel d'achat apparaît sur la liste de courses. with_verb (par défaut) affiche le nom du rappel, par exemple « Acheter adoucissant ». product_only affiche seulement le nom de la pièce."
         },
+        "due_time_mode": {
+          "name": "Heure d'échéance",
+          "description": "Quand une tâche qui se répète après chaque réalisation arrive à échéance. completion (par défaut) garde l'heure de la dernière réalisation, du report ou du saut. set_time la rend due à due_time le jour de son échéance."
+        },
+        "due_time": {
+          "name": "Heure d'échéance fixe",
+          "description": "L'heure locale (HH:MM) pour set_time. La valeur par défaut est 08:00."
+        },
         "dismissed_companions": {
           "name": "Companions ignorés",
           "description": "Domaines d'intégration de liaison à masquer de la liste « Suggéré » de Paramètres → Companions. Ignorer ne fait que masquer une suggestion ; un appairage connecté est toujours affiché."
+        },
+        "hidden_panel_tabs": {
+          "name": "Onglets du panneau masqués",
+          "description": "Les identifiants des onglets de companions que le panneau n'affiche pas."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Avec verbe",
         "product_only": "Produit seul"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Heure de réalisation",
+        "set_time": "Heure fixe"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Le fichier dépasse la limite de {mb} Mo."
     },
+    "upload_field_too_large": {
+      "message": "Un champ du formulaire d’envoi dépasse la limite de {kb} Ko."
+    },
     "expected_multipart_upload": {
       "message": "Un envoi multipart était attendu."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ne peut pas supprimer ces profils : {profiles}. Ces notifications les utilisent : {notifications}. Modifiez ou supprimez chaque notification, puis enregistrez à nouveau."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper ne peut pas exporter ces sections : {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Seul un administrateur peut exporter ou importer les données de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "Le fichier n'est ni un fichier zip ni du texte UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indiquez un document ou un paquet à importer."
     },
     "calendar_edit_in_panel": {
       "message": "Ici, seule l'heure d'une date peut changer. Pour modifier la tâche ou son calendrier, ouvrez le panneau Home Keeper."

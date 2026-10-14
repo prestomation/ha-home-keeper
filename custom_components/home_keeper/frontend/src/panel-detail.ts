@@ -39,6 +39,7 @@ import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, openMoveLater, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
+import { openLabelDialog } from './panel-labels';
 import {
   MDI_CONSUMABLE,
   MDI_EDIT,
@@ -69,6 +70,7 @@ import {
   formatDate,
   formatDateTime,
   formatOccurrenceTime,
+  formatDue,
   formatQuantity,
   intervalText,
   isBuyTask,
@@ -82,6 +84,7 @@ import {
   safeFileHref,
   safeHref,
   scanRequired,
+  setDueTime,
   snapStock,
   typedStock,
   countedProgress,
@@ -101,12 +104,20 @@ export function detailView(p: PanelHost): string {
   if (!d) return '';
   if (d.kind === 'task') {
     const task = p._tasks.find((x) => x.id === d.id);
-    if (!task) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+    if (!task) return missingDetail(p, `task:${d.id}`);
     return taskDetail(p, task);
   }
   const asset = p._assets.find((x) => x.id === d.id);
-  if (!asset) return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
+  if (!asset) return missingDetail(p, `asset:${d.id}`);
   return assetDetail(p, asset);
+}
+
+/** A spinner while the panel loads again to look for the item, then the gone alert. */
+function missingDetail(p: PanelHost, key: string): string {
+  if (p._detailLookup === key) {
+    return `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+  }
+  return `<ha-alert alert-type="warning">${escapeHTML(t('detail.gone'))}</ha-alert>`;
 }
 
 /** Render a URL as a clickable anchor that opens in the browser (new tab). A
@@ -434,9 +445,16 @@ function taskDetail(p: PanelHost, task: Task): string {
   //
   // `d-dup` must keep its `d-` prefix: `_openerKeyFor` reads it to hand the keyboard
   // back to this button when the drawer closes.
-  const dupBtn = p._canDuplicate(task)
-    ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
-    : p._blockedDuplicate(task);
+  //
+  // A non-admin cannot save a task with a template sensor: the form sends the
+  // template binding back, and the backend refuses it for a non-admin. So that user
+  // gets no Edit and no Duplicate on such a task.
+  const templateLocked = p._readOnly() && task.sensor?.mode === 'template';
+  const dupBtn = templateLocked
+    ? ''
+    : p._canDuplicate(task)
+      ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
+      : p._blockedDuplicate(task);
   // A declarative-companion task is made by a declarative companion Home Keeper
   // holds itself, so its `managed_by` names the companion ("Device Pulse") over Home
   // Keeper's own config entry. The captions below read that as a foreign
@@ -444,8 +462,10 @@ function taskDetail(p: PanelHost, task: Task): string {
   // Keeper integration page, and "Delete from Device Pulse instead" named a place
   // that does not exist (#231). The declarative companion's own editor is the
   // honest destination for everything the task's Edit form leaves out.
+  // A view-only user does not get it: the declarative companion editor is admin-only.
   const companion = declarativeCompanionFor(p, task);
-  const companionBtn = companion
+  const companionBtn =
+    companion && !p._readOnly()
     ? `<ha-button ${btnAttrs('secondary')} class="d-edit-companion" data-spec-id="${escapeHTML(
         companion.id,
       )}">${escapeHTML(t('btn.editCompanion'))}</ha-button>`
@@ -466,7 +486,10 @@ function taskDetail(p: PanelHost, task: Task): string {
   // A source-owned task offers no Edit and no Delete, but it still gets the greyed
   // Duplicate: "you can't copy this either, and here is why" is information the
   // sourceOwned caption above doesn't carry.
-  manage = `${dupBtn}${manage}`;
+  // A label only links to this page, so every task gets one, a managed task too. It is
+  // benign, so it sits before Delete, as Duplicate does.
+  const labelBtn = qrLabelButton();
+  manage = `${dupBtn}${sourceOwned ? labelBtn : ''}${manage}`;
   if (!sourceOwned) {
     // A companion declares what it owns through `managed_by.locked_fields`, and the
     // form drops every one of them. Claim the lot and the drawer opens with no rows in
@@ -483,7 +506,9 @@ function taskDetail(p: PanelHost, task: Task): string {
       ? `<span class="hk-managed-info">${escapeHTML(
           t('managed.allLocked', { name: mb.display_name }),
         )}</span>`
-      : `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+      : templateLocked
+        ? ''
+        : `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.
@@ -505,13 +530,14 @@ function taskDetail(p: PanelHost, task: Task): string {
     // Keeper's own domain is never that link: the panel the button sits in *is* that
     // integration's UI, so a task it owns offers Edit companion above instead.
     const domain = mb?.config_entry_id ? p._entryDomains[mb.config_entry_id] : null;
+    // The integration page is for admins only, so a view-only user does not get it.
     const openInBtn =
-      domain && domain !== HK_DOMAIN && !orphaned
+      domain && domain !== HK_DOMAIN && !orphaned && !p._readOnly()
         ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
         : '';
     // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
     // and putting a benign action past a destructive one reads badly.
-    manage = `${editBtn}${dupBtn}${companionBtn}${deleteBtn}${openInBtn}`;
+    manage = `${editBtn}${dupBtn}${companionBtn}${labelBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -530,7 +556,8 @@ function taskDetail(p: PanelHost, task: Task): string {
     : completedOneOff
       ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, p._lang()) })
       : task.next_due
-        ? formatDateTime(task.next_due, p._lang())
+        ? // With a set due time (#438), a date at that time shows without it.
+          formatDue(task.next_due, setDueTime(p._options), p._lang())
         : // A use task has no due date and never will, so "-" reads as a date that is
           // missing. `dueLabel` answers "Counting" for exactly this case, which is what
           // every list row already shows — the detail page said something else.
@@ -702,16 +729,27 @@ function assetDetail(p: PanelHost, asset: Asset): string {
           t('managed.assetOwned', { name: owner.display_name }),
         )}</span>`
       : '';
-  const editBtn = ownsIdentity
+  // Every appliance write is admin-only. A view-only user gets the page with no Edit,
+  // Archive, Restore or Delete, and a chip that says why. A label stays: it only prints.
+  const readOnly = p._readOnly();
+  const editBtn = ownsIdentity || readOnly
     ? ''
     : `<ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
-  const deleteBtn = ownsIdentity && !orphaned
+  const deleteBtn = (ownsIdentity && !orphaned) || readOnly
     ? ''
     : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
   const archived = Boolean(asset.archived_at);
-  const archiveOrRestoreBtn = archived
-    ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
-    : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
+  const labelBtn = qrLabelButton();
+  const archiveOrRestoreBtn = readOnly
+    ? ''
+    : archived
+      ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
+      : `<ha-button ${btnAttrs('secondary')} class="d-archive">${escapeHTML(t('btn.archive'))}</ha-button>`;
+  const viewOnlyChip = readOnly
+    ? `<ha-assist-chip class="hk-archived hk-view-only" label="${escapeHTML(
+        t('chip.viewOnly'),
+      )}"><ha-icon slot="icon" icon="mdi:lock" class="hk-chip-ic"></ha-icon></ha-assist-chip>`
+    : '';
   const archivedNote = archived
     ? `<div class="hk-managed-prompt">${escapeHTML(
         t('detail.archivedOn', { date: formatDate(asset.archived_at, p._lang()) }),
@@ -738,11 +776,12 @@ function assetDetail(p: PanelHost, asset: Asset): string {
   return `
       <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(title)}</div>
-        <div class="hk-chips">${kindChip}${parentChip}${managedChipHtml}</div>
+        <div class="hk-chips">${kindChip}${parentChip}${managedChipHtml}${viewOnlyChip}</div>
         ${archivedNote}
         <div class="hk-detail-actions">
           ${editBtn}
           ${archiveOrRestoreBtn}
+          ${labelBtn}
           ${deleteBtn}
           ${managedInfo}
         </div>
@@ -839,6 +878,9 @@ function partsSection(p: PanelHost, asset: Asset): string {
   // The counts stay the user's, so every stock control below is untouched — only
   // Add part and the "what this part is for" line change.
   const partsLocked = assetPartsLocked(asset);
+  // A view-only user reads the parts: every part write and `adjust_part_stock` are
+  // admin-only, so the stock shows as a chip and the row has no Edit.
+  const readOnly = p._readOnly();
   const chip = (label: string, cls = ''): string =>
     `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
   const rows = parts
@@ -916,7 +958,7 @@ function partsSection(p: PanelHost, asset: Asset): string {
       // an invented count never opens a Buy task the user did not ask for. The
       // button is how they take it over — it opens this part in the editor, where
       // the first number they type starts the count.
-      if (part.stock == null && partsLocked) {
+      if (part.stock == null && partsLocked && !readOnly) {
         spares = `<ha-button ${btnAttrs('tertiary')} class="hk-start-counting" data-part-idx="${i}">${escapeHTML(
           t('btn.startCounting'),
         )}</ha-button>`;
@@ -930,7 +972,7 @@ function partsSection(p: PanelHost, asset: Asset): string {
         // already treats it as one (`adjust_part_stock`, the same path the device
         // page's number entity takes). A part without an id (never saved) keeps the
         // read-only chip — there is nothing to adjust yet.
-        spares = part.id
+        spares = part.id && !readOnly
           ? stockStepper(part, low, onHand)
           : low
             ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
@@ -992,9 +1034,11 @@ function partsSection(p: PanelHost, asset: Asset): string {
       // Edit opens the appliance drawer on *this* part, expanded and scrolled to.
       // The id is what hands the keyboard back here when the drawer closes
       // (`_openerKeyFor`).
-      const edit = `<ha-icon-button id="part-edit-${i}" class="hk-part-edit" data-part-idx="${i}" label="${escapeHTML(
-        t('btn.editPart'),
-      )}"></ha-icon-button>`;
+      const edit = readOnly
+        ? ''
+        : `<ha-icon-button id="part-edit-${i}" class="hk-part-edit" data-part-idx="${i}" label="${escapeHTML(
+            t('btn.editPart'),
+          )}"></ha-icon-button>`;
       return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}" data-part-row="${escapeHTML(
             part.id || '',
@@ -1025,7 +1069,9 @@ function partsSection(p: PanelHost, asset: Asset): string {
     ? `<span class="hk-managed-info">${escapeHTML(
         t('part.managedFields', { name: asset.managed_by?.display_name ?? '' }),
       )}</span>`
-    : `<ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>`;
+    : readOnly
+      ? ''
+      : `<ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>`;
   return `
       <div class="hk-section hk-section-row">
         <span>${escapeHTML(t('section.parts'))}</span>
@@ -1302,6 +1348,11 @@ export function wireDetailOpeners(p: PanelHost, root: ParentNode): void {
 }
 
 /** Wire the detail page's Done / Edit / Delete / Open-in buttons. */
+/** The QR label button of a detail page. It opens the label dialog for this object. */
+function qrLabelButton(): string {
+  return `<ha-button ${btnAttrs('tertiary')} class="d-label">${escapeHTML(t('labels.button'))}</ha-button>`;
+}
+
 function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   const d = p._detail;
   if (!d) return;
@@ -1314,6 +1365,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
     if (!task) return;
     const done = root.querySelector('.d-done');
     done?.addEventListener('click', () => void p._complete(task, done));
+    root.querySelector('.d-label')?.addEventListener('click', () => openLabelDialog(p, 'task', task.id));
     const doneBlocked = root.querySelector<HTMLElement>('.d-done-blocked-wrap');
     if (doneBlocked) onActivate(doneBlocked, () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
@@ -1388,6 +1440,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   wireStockSteppers(p, root, asset);
   p._wireNoteEditor(root, { kind: 'asset', id: asset.id });
   root.querySelector('.d-archive')?.addEventListener('click', () => void p._archiveAsset(asset));
+  root.querySelector('.d-label')?.addEventListener('click', () => openLabelDialog(p, 'asset', asset.id));
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));
   root.querySelector('.d-del')?.addEventListener('click', () => {
     const name = assetTitle(asset, p._hass?.devices);

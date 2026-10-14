@@ -133,6 +133,17 @@ class HttpViewSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CompanionCapabilitySpec:
+    """A ``capabilities`` token of ``register_companion`` that Home Keeper reads."""
+
+    name: str
+    services: tuple[str, ...] = ()
+    """The services ``<domain>.<name>`` that a companion with the token provides."""
+    summary: str = ""
+    """What Home Keeper does for a companion with the token."""
+
+
+@dataclass(frozen=True, slots=True)
 class OptionSpec:
     """A config-entry option key."""
 
@@ -332,6 +343,16 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "the bundled preset the declarative companion was seeded from, or None for "
             "one written by hand",
+        ),
+    ),
+    "data_transfer": (
+        Field("kind", "str", "data (a YAML document) / bundle (a zip file)"),
+        Field(
+            "sections",
+            "dict",
+            "a count for each section: the number of records in an export; "
+            "created / updated in an import, and for a companion section the counts "
+            "that the companion returned",
         ),
     ),
 }
@@ -632,6 +653,22 @@ EVENTS: tuple[EventSpec, ...] = (
         extra=(_MATCH_COUNT,),
     ),
     EventSpec(
+        const.EVENT_DATA_EXPORTED,
+        "EVENT_DATA_EXPORTED",
+        "fired",
+        "data_transfer",
+        "export_data, its websocket twin or the bundle download writes an export, "
+        "with the companion sections in it",
+    ),
+    EventSpec(
+        const.EVENT_DATA_IMPORTED,
+        "EVENT_DATA_IMPORTED",
+        "fired",
+        "data_transfer",
+        "an import is applied; a dry run fires nothing. The records it writes also "
+        "fire their own created and updated events",
+    ),
+    EventSpec(
         const.EVENT_REGISTER_COMPANIONS,
         "EVENT_REGISTER_COMPANIONS",
         "fired",
@@ -842,6 +879,10 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/get_options"),
     WebsocketSpec("home_keeper/set_options", admin_only=True, service="set_options"),
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
+    # The companion panel tabs. It has no service twin, because a tab is not data:
+    # a companion registers it in process (``panel_tabs.async_register_panel_tab``).
+    # Admin-only, because a tab is code that runs in the panel with the admin's session.
+    WebsocketSpec("home_keeper/get_panel_tabs", admin_only=True),
     WebsocketSpec("home_keeper/get_profiles", service="list_profiles"),
     WebsocketSpec(
         "home_keeper/list_declarative_companions",
@@ -896,6 +937,38 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
         const.TASK_PHOTO_URL_PREFIX + "/{task_id}/{photo_id}",
         ("GET", "POST"),
     ),
+    # The bundle download and the import upload (``transfer_http.py``). Admin-only,
+    # like the export_data and import_data services they share their code with.
+    HttpViewSpec(
+        "api:home_keeper:export_bundle",
+        const.BUNDLE_EXPORT_URL,
+        ("GET",),
+        admin_methods=("GET",),
+    ),
+    HttpViewSpec(
+        "api:home_keeper:import_upload",
+        const.IMPORT_UPLOAD_URL,
+        ("POST",),
+        admin_methods=("POST",),
+    ),
+)
+
+
+# ── Companion capabilities ───────────────────────────────────────────────────
+#
+# The tokens that a companion can put in ``capabilities`` of ``register_companion``
+# and that change what Home Keeper does with it. Any other token is stored and shown,
+# and changes nothing.
+
+COMPANION_CAPABILITIES: tuple[CompanionCapabilitySpec, ...] = (
+    CompanionCapabilitySpec(
+        const.COMPANION_CAPABILITY_IMPORT_EXPORT,
+        services=("export_data", "import_data"),
+        summary="the companion's data is a top-level section of the Home Keeper "
+        "export, keyed by its domain; Home Keeper calls <domain>.export_data and "
+        "<domain>.import_data (admin-only, with a response) with the caller's "
+        "context, and a bundle passes files_dir",
+    ),
 )
 
 
@@ -915,6 +988,8 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_ALLOW_SNOOZE, in_flow=False),
     OptionSpec(const.OPTION_ALLOW_SKIP, in_flow=False),
     OptionSpec(const.OPTION_ALLOW_DUE_TODAY, in_flow=False),
+    OptionSpec(const.OPTION_DUE_TIME_MODE, in_flow=True),
+    OptionSpec(const.OPTION_DUE_TIME, in_flow=True),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LINE_STYLE, in_flow=True),
@@ -925,6 +1000,7 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, in_flow=True),
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, in_flow=True),
     OptionSpec(const.OPTION_DISMISSED_COMPANIONS, in_flow=False),
+    OptionSpec(const.OPTION_HIDDEN_PANEL_TABS, in_flow=False),
 )
 
 
@@ -966,7 +1042,7 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "Entity platforms",
         "published",
         "todo, calendar, sensor, binary_sensor, button and number — usage surfaces, "
-        "as opposed to the admin-only panel.",
+        "next to the panel.",
     ),
     SurfaceKind(
         "Entity attributes",
@@ -1004,6 +1080,13 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "`register_companion`, or are detected from a curated catalog.",
     ),
     SurfaceKind(
+        "Companion panel tabs",
+        "published",
+        "A companion integration adds a tab to the panel with the in-process Python "
+        "API `panel_tabs.async_register_panel_tab`; the registry is memory for the "
+        "Home Assistant run, not store state, so a change fires no bus event.",
+    ),
+    SurfaceKind(
         "Test helper",
         "published",
         "`home_keeper.testing` ships a fake store built on the same event builders, so "
@@ -1020,7 +1103,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "published",
         "Tasks and appliances move as one YAML document with a published JSON "
         "Schema, which `export_data` writes and `import_data` reads, upserting on "
-        "a stated primary key.",
+        "a stated primary key. A companion with the `import_export` capability "
+        "adds its own section, and a bundle (a zip file) adds the uploaded files "
+        "and the settings.",
     ),
     SurfaceKind(
         "WebSocket commands",
@@ -1031,15 +1116,16 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "HTTP views",
         "internal",
-        "Two authenticated routes for document and part-file upload and download — a "
-        "binary can't ride a service call, so this is the one non-service mutation "
-        "path.",
+        "Authenticated routes for document, part-file and task-photo upload and "
+        "download, and for the bundle download and the import upload — a binary "
+        "can't ride a service call, so these are the non-service paths.",
     ),
     SurfaceKind(
         "Sidebar panel",
         "internal",
-        "The admin-only management UI, served from a static path; it is a client of "
-        "the surfaces above, not one itself.",
+        "The management UI, open to every user, with its write controls shown only to "
+        "an admin. It is served from a static path; it is a client of the surfaces "
+        "above, not one itself.",
     ),
     SurfaceKind(
         "Dispatcher signals",
@@ -1102,6 +1188,7 @@ def events_by_payload(payload: str) -> tuple[EventSpec, ...]:
 
 
 __all__ = [
+    "COMPANION_CAPABILITIES",
     "DEVICE_TRIGGERS",
     "ENTITY_PLATFORMS",
     "EVENTS",
@@ -1113,6 +1200,7 @@ __all__ = [
     "STATUSES",
     "SURFACE_KINDS",
     "WEBSOCKET_COMMANDS",
+    "CompanionCapabilitySpec",
     "DeviceTriggerSpec",
     "EntityPlatformSpec",
     "EventSpec",

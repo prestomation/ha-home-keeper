@@ -245,3 +245,30 @@ def test_b16_11_a_write_warns_about_a_dropped_target(caplog) -> None:
     merged = _set(hass, entry, {const.OPTION_NOTIFICATIONS: [_N_LEGACY]})
     assert merged[const.OPTION_NOTIFICATIONS][0]["targets"] == ["mobile_app_a"]
     assert "dropped notify target(s) telegram_x" in caplog.text
+
+
+# ------------------------------------------------------------------ list values
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+        const.OPTION_DISMISSED_COMPANIONS,
+        const.OPTION_HIDDEN_PANEL_TABS,
+    ],
+)
+def test_a_string_for_a_list_option_is_refused(key: str) -> None:
+    """A string is not split into 1-character ids. The stored list stays."""
+    hass, entry = _FakeHass(), _FakeEntry({key: ["kept"]})
+    merged = _set(hass, entry, {key: "sensor.abc"})
+    assert merged[key] == ["kept"]
+    assert hass.config_entries.updated == []
+    merged = _set(hass, entry, {key: {"a": 1}})
+    assert merged[key] == ["kept"]
+    # A real list and a cleared value still write.
+    assert _set(hass, entry, {key: ["a"]})[key] == ["a"]
+    assert _set(hass, entry, {key: None})[key] == []

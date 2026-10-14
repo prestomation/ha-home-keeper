@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 import json
 import types
+from datetime import time
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,7 @@ _FULL: dict[str, Any] = {
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: ["kitchen"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-1"],
     const.OPTION_DISMISSED_COMPANIONS: ["acme_vacuum"],
+    const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [
         {
             "id": "p1",
@@ -102,6 +104,7 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
         const.OPTION_PROFILES,
         const.OPTION_NOTIFICATIONS,
         const.OPTION_DISMISSED_COMPANIONS,
+        const.OPTION_HIDDEN_PANEL_TABS,
     ):
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
@@ -209,11 +212,14 @@ _PROBES: dict[str, Any] = {
     const.OPTION_ONE_OFF_RETENTION_DAYS: 9,
     const.OPTION_SHOPPING_LIST_ENTITY: "todo.somewhere",
     const.OPTION_SHOPPING_LINE_STYLE: "product_only",
+    const.OPTION_DUE_TIME_MODE: "set_time",
+    const.OPTION_DUE_TIME: "21:30",
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: ["binary_sensor.x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: ["dev-x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: ["area-x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-x"],
     const.OPTION_DISMISSED_COMPANIONS: ["some_domain"],
+    const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [{"id": "px", "name": "X", "filter": {"status": "all"}}],
     const.OPTION_NOTIFICATIONS: [{"id": "nx", "name": "X", "profile_id": "px"}],
 }
@@ -360,7 +366,8 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
     tautological. Each of these is a user-visible promise: syncing is opt-in, ``0``
     retention days keeps completed one-offs forever (any other number would start
     deleting them for people who never touched the setting), an empty shopping
-    target leaves the sync off, and a line keeps the reminder's own name.
+    target leaves the sync off, a line keeps the reminder's own name, and a floating
+    task keeps the time of its completion (the ``completion`` due time mode, #438).
 
     ``allow_snooze`` / ``allow_skip`` / ``allow_due_today`` are the ones that
     default **on**, and for the same reason the rest default off: nothing changes
@@ -373,6 +380,8 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "allow_snooze": True,
         "allow_skip": True,
         "allow_due_today": True,
+        "due_time_mode": "completion",
+        "due_time": "08:00",
         "one_off_retention_days": 0,
         "shopping_list_entity": "",
         "shopping_line_style": "with_verb",
@@ -383,6 +392,7 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "problem_sensor_exclude_areas": [],
         "problem_sensor_exclude_labels": [],
         "dismissed_companions": [],
+        "hidden_panel_tabs": [],
     }
 
 
@@ -710,3 +720,89 @@ def test_x03_8_device_ids_in_options_reads_past_a_bad_profile():
         ]
     }
     assert opts.device_ids_in_options(stored) == {DEAD}
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("07:30", "07:30"),
+        ("7:05", "07:05"),
+        ("21:30:59", "21:30"),
+        ("23:59", "23:59"),
+        ("00:00", "00:00"),
+        ("24:00", "08:00"),
+        ("12:60", "08:00"),
+        ("noon", "08:00"),
+        ("12", "08:00"),
+        ("1:2:3:4", "08:00"),
+        ("-1:30", "08:00"),
+        ("", "08:00"),
+        (None, "08:00"),
+    ],
+)
+def test_normalize_due_time(raw: Any, expected: str) -> None:
+    """A due time reads as ``HH:MM``; anything that is not a time reads as 08:00."""
+    assert opts.normalize_due_time(raw) == expected
+
+
+def test_normalize_due_time_accepts_a_time_object() -> None:
+    assert opts.normalize_due_time(time(6, 5, 30)) == "06:05"
+
+
+def test_an_unknown_due_time_mode_reads_as_completion() -> None:
+    merged = opts.current_options(_entry({const.OPTION_DUE_TIME_MODE: "sometimes"}))
+    assert merged[const.OPTION_DUE_TIME_MODE] == "completion"
+
+
+def test_due_time_of() -> None:
+    """Only the ``set_time`` mode gives a due time; ``completion`` gives ``None``."""
+    assert (
+        opts.due_time_of({"due_time_mode": "completion", "due_time": "07:15"}) is None
+    )
+    assert opts.due_time_of({}) is None
+    assert opts.due_time_of({"due_time_mode": "set_time", "due_time": "07:15"}) == time(
+        7, 15
+    )
+    assert opts.due_time_of({"due_time_mode": "set_time", "due_time": "x"}) == time(8)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "refused"),
+    [
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, "abc", True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, -1, True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, True, True),
+        (const.OPTION_ONE_OFF_RETENTION_DAYS, 30, False),
+        (const.OPTION_DUE_TIME, "25:99", True),
+        (const.OPTION_DUE_TIME, "nope", True),
+        (const.OPTION_DUE_TIME, "8:00", False),
+        (const.OPTION_DUE_TIME, "08:30", False),
+        (const.OPTION_DUE_TIME_MODE, "bogus", True),
+        (const.OPTION_DUE_TIME_MODE, const.DUE_TIME_MODE_SET_TIME, False),
+        (const.OPTION_ALLOW_SNOOZE, "maybe", True),
+        (const.OPTION_ALLOW_SNOOZE, 1, True),
+        (const.OPTION_ALLOW_SNOOZE, False, False),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "light.x", True),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "todo.shop", False),
+        (const.OPTION_SHOPPING_LIST_ENTITY, "", False),
+        (const.OPTION_SHOPPING_LINE_STYLE, "bogus", True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, "sensor.abc", True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, [1], True),
+        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, ["sensor.abc"], False),
+        (const.OPTION_HIDDEN_PANEL_TABS, [], False),
+    ],
+)
+def test_value_refused(key: str, value: Any, refused: bool) -> None:
+    """A value that the coercion must change to store is refused."""
+    assert opts.value_refused(key, value) is refused
+
+
+def test_coerce_value_is_the_stored_form() -> None:
+    assert opts.coerce_value(const.OPTION_DUE_TIME, "8:00") == "08:00"
+    assert opts.coerce_value(const.OPTION_HIDDEN_PANEL_TABS, ["a"]) == ["a"]
+    assert opts.coerce_value(const.OPTION_ALLOW_SKIP, False) is False
+
+
+def test_a_stored_string_for_a_list_option_reads_as_empty() -> None:
+    stored = {const.OPTION_DISMISSED_COMPANIONS: "abc"}
+    assert opts.current_options(_entry(stored))[const.OPTION_DISMISSED_COMPANIONS] == []

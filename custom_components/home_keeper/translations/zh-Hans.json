@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "排除的标签",
           "one_off_retention_days": "一次性任务保留天数",
           "shopping_list_entity": "购物清单",
-          "shopping_line_style": "购物清单上的文字"
+          "shopping_line_style": "购物清单上的文字",
+          "due_time_mode": "到期时间",
+          "due_time": "固定到期时间"
         },
         "data_description": {
           "sync_problem_sensors": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
           "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。",
           "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。",
-          "shopping_line_style": "购买提醒在购物清单上的显示方式。“仅产品”只显示备件名称，不带动词，例如显示“柔顺剂”而不是“购买 柔顺剂”。"
+          "shopping_line_style": "购买提醒在购物清单上的显示方式。“仅产品”只显示备件名称，不带动词，例如显示“柔顺剂”而不是“购买 柔顺剂”。",
+          "due_time_mode": "每次完成后重复的任务何时到期。设为固定时间时，任务在到期日的该时间到期。推迟也在该时间结束。",
+          "due_time": "这些任务到期的本地时间。仅在固定时间模式下使用。"
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "包含",
-          "description": "导出哪些部分。默认两者都导出。"
+          "description": "导出哪些部分：设备、任务、设置或某个配套集成的域。默认全部导出。"
+        },
+        "kind": {
+          "name": "类型",
+          "description": "\"data\" 返回 YAML 文档。\"bundle\" 将包含已上传文件和设置的 zip 文件写入 home_keeper_exports 文件夹，并返回其路径。"
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "文档",
           "description": "要读取的文档，格式与 export_data 返回的一致。可以传入映射，也可以把整个文件作为一个字符串传入。"
         },
+        "bundle": {
+          "name": "数据包",
+          "description": "home_keeper_exports 文件夹中数据包文件的名称。用它代替文档。"
+        },
         "dry_run": {
           "name": "仅预览",
           "description": "检查文档并报告会有哪些改动，但不写入任何内容。"
@@ -728,6 +740,10 @@
         "match": {
           "name": "匹配",
           "description": "如何找到所指的记录。\"auto\" 依次按 id、external_id、名称查找。\"none\" 则每条记录都新建。"
+        },
+        "include_settings": {
+          "name": "包含设置",
+          "description": "同时导入文档中的配置文件、通知和选项。"
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "购物清单上的文字",
           "description": "购买提醒在购物清单上的显示方式。with_verb（默认）显示提醒名称，例如“购买 柔顺剂”。product_only 只显示备件名称。"
         },
+        "due_time_mode": {
+          "name": "到期时间",
+          "description": "每次完成后重复的任务何时到期。completion（默认）保留上次完成、推迟或跳过的时间。set_time 使任务在到期日的 due_time 到期。"
+        },
+        "due_time": {
+          "name": "固定到期时间",
+          "description": "set_time 使用的本地时间（HH:MM）。默认值为 08:00。"
+        },
         "dismissed_companions": {
           "name": "已忽略的搭档",
           "description": "要从 设置 → 搭档 的“建议”列表中隐藏的粘合集成域。忽略仅会静默某个建议；已连接的配对始终会显示。"
+        },
+        "hidden_panel_tabs": {
+          "name": "隐藏的面板标签页",
+          "description": "面板不显示的伴侣标签页的 ID。"
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "带动词",
         "product_only": "仅产品"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "完成时间",
+        "set_time": "固定时间"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "文件超过 {mb} MB 的限制。"
     },
+    "upload_field_too_large": {
+      "message": "上传的表单字段超过 {kb} KB 的限制。"
+    },
     "expected_multipart_upload": {
       "message": "需要 multipart 上传。"
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper 无法删除这些配置文件：{profiles}。以下通知正在使用它们：{notifications}。请更改或删除每条通知，然后重新保存。"
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper 无法导出这些部分：{sections}。"
+    },
+    "unauthorized_transfer": {
+      "message": "只有管理员可以导出或导入 Home Keeper 数据。"
+    },
+    "import_not_text": {
+      "message": "该文件既不是 zip 文件，也不是 UTF-8 文本。"
+    },
+    "import_needs_document": {
+      "message": "请提供要导入的文档或数据包。"
     },
     "calendar_edit_in_panel": {
       "message": "这里只能更改一个日期的时间。要更改任务或其计划，请打开 Home Keeper 面板。"

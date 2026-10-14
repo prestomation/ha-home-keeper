@@ -24,6 +24,9 @@ export const TASK = {
   rexVet: '8ad982ca-e5f9-4f53-bebd-93a05e078844',
   smokeBattery: 'b61a0b0e-6838-46a9-89d5-7090f8b4aa35',
   thermostatBattery: '467606ef-4193-4541-bf6c-6509cfbf425e',
+  // The device id of this task is not in the registry on purpose, and it was never
+  // the device of an appliance, so no reconcile moves it. list-honesty.spec.ts
+  // asserts that the list does not show a missing device id.
   waterFilter: 'acb13a18-979a-4812-8a00-2e4a426df8db',
   // The 2 halves of the seeded counted wear item. The rain jacket's coating is
   // 17 wears into a 25-wear cycle, so the count reads mid-cycle rather than at

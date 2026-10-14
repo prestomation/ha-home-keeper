@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
           "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "shopping_list_entity": "Einkaufsliste",
-          "shopping_line_style": "Text auf der Einkaufsliste"
+          "shopping_line_style": "Text auf der Einkaufsliste",
+          "due_time_mode": "Fälligkeitszeit",
+          "due_time": "Feste Fälligkeitszeit"
         },
         "data_description": {
           "sync_problem_sensors": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
           "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
           "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten.",
-          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“."
+          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“.",
+          "due_time_mode": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. Mit einer festen Uhrzeit ist die Aufgabe an ihrem Fälligkeitstag zu dieser Uhrzeit fällig. Auch ein Aufschub endet zu dieser Uhrzeit.",
+          "due_time": "Die lokale Uhrzeit, zu der diese Aufgaben fällig sind. Gilt nur bei einer festen Uhrzeit."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Einschließen",
-          "description": "Welche Abschnitte exportiert werden. Standardmäßig beide."
+          "description": "Welche Abschnitte exportiert werden: Geräte, Aufgaben, Einstellungen oder die Domain einer Begleit-Integration. Standardmäßig alle."
+        },
+        "kind": {
+          "name": "Art",
+          "description": "\"data\" gibt das YAML-Dokument zurück. \"bundle\" schreibt eine ZIP-Datei mit den hochgeladenen Dateien und den Einstellungen in den Ordner home_keeper_exports und gibt ihren Pfad zurück."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Dokument",
           "description": "Das zu lesende Dokument, in der Form, die export_data zurückgibt. Übergeben Sie es als Zuordnung oder als ganze Datei in einer Zeichenkette."
         },
+        "bundle": {
+          "name": "Paket",
+          "description": "Der Name einer Paketdatei im Ordner home_keeper_exports. Anstelle des Dokuments verwenden."
+        },
         "dry_run": {
           "name": "Nur Vorschau",
           "description": "Prüft das Dokument und meldet, was sich ändern würde, ohne etwas zu schreiben."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Zuordnung",
           "description": "Wie der gemeinte Datensatz gefunden wird. \"auto\" sucht über die ID, dann external_id, dann den Namen. \"none\" legt jeden Datensatz neu an."
+        },
+        "include_settings": {
+          "name": "Einstellungen einschließen",
+          "description": "Importiert auch die Profile, die Benachrichtigungen und die Optionen des Dokuments."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Text auf der Einkaufsliste",
           "description": "So erscheint eine Kauferinnerung auf der Einkaufsliste. with_verb (Standard) zeigt den Namen der Erinnerung, zum Beispiel „Weichspüler kaufen“. product_only zeigt nur den Namen des Teils."
         },
+        "due_time_mode": {
+          "name": "Fälligkeitszeit",
+          "description": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. completion (Standard) behält die Uhrzeit der letzten Erledigung, des Aufschubs oder des Überspringens. set_time macht sie an ihrem Fälligkeitstag um due_time fällig."
+        },
+        "due_time": {
+          "name": "Feste Fälligkeitszeit",
+          "description": "Die lokale Uhrzeit (HH:MM) für set_time. Standard ist 08:00."
+        },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",
           "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
+        },
+        "hidden_panel_tabs": {
+          "name": "Ausgeblendete Panel-Tabs",
+          "description": "Die IDs der Companion-Tabs, die das Panel nicht anzeigt."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Mit Verb",
         "product_only": "Nur Produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Zeit der Erledigung",
+        "set_time": "Feste Uhrzeit"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Datei überschreitet das Limit von {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Ein Formularfeld des Uploads überschreitet das Limit von {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Es wurde ein Multipart-Upload erwartet."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kann diese Profile nicht löschen: {profiles}. Diese Benachrichtigungen verwenden sie: {notifications}. Ändere oder lösche jede Benachrichtigung und speichere dann erneut."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kann diese Abschnitte nicht exportieren: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Nur ein Administrator kann Home-Keeper-Daten exportieren oder importieren."
+    },
+    "import_not_text": {
+      "message": "Die Datei ist weder eine ZIP-Datei noch UTF-8-Text."
+    },
+    "import_needs_document": {
+      "message": "Gib ein Dokument oder ein Paket zum Importieren an."
     },
     "calendar_edit_in_panel": {
       "message": "Hier kann nur die Uhrzeit eines Termins geändert werden. Um die Aufgabe oder ihren Zeitplan zu ändern, öffne das Home Keeper-Panel."

@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.30.0b4"
+PANEL_VERSION = "0.32.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -115,6 +115,35 @@ TRANSFER_SCHEMA_URL = (
     f"/schema/home-keeper-{TRANSFER_FORMAT}.schema.json"
 )
 
+# ── Bundles and companion sections of the import and export ──────────────────
+# A companion that adds this capability in ``register_companion`` has the services
+# ``<domain>.export_data`` and ``<domain>.import_data``. Its data is a top-level
+# section of the document, keyed by its domain (docs/INTEGRATING.md §11).
+COMPANION_CAPABILITY_IMPORT_EXPORT = "import_export"
+# The time limit of 1 call to a companion's export or import service, in seconds.
+COMPANION_TRANSFER_TIMEOUT_S = 300
+# A bundle is a .zip file: the YAML document at the root, plus the uploaded files.
+# Each export or import of a bundle works in its own folder below this folder, and
+# deletes that folder when it ends. Setup deletes the folders that a restart left.
+IMPORT_EXPORT_SUBDIR = ".storage/home_keeper_import_export"
+# Where the ``export_data`` service writes a bundle, below the config folder.
+EXPORTS_SUBDIR = "home_keeper_exports"
+# The name of the YAML document in a bundle, and the folder of its files.
+BUNDLE_DOCUMENT_NAME = "home_keeper.yaml"
+BUNDLE_FILES_DIR = "files"
+# The limits of a bundle that Home Keeper reads. The size is the sum of the real
+# bytes that the extraction writes, so a false size in a zip header does not count.
+MAX_BUNDLE_BYTES = 500 * 1024 * 1024
+MAX_BUNDLE_ENTRIES = 20000
+# The largest text field (``dry_run``, ``match``, ``include_settings``) of an import
+# upload. The view reads a field in chunks and refuses it above this size. The panel
+# sends a few bytes, so ``limits.ts`` has no copy.
+MAX_UPLOAD_FIELD_BYTES = 64 * 1024
+# The HTTP views of the bundle: the download of an export, and the upload of a
+# bundle or of a YAML document that is too large for the websocket.
+BUNDLE_EXPORT_URL = "/api/home_keeper/export_bundle"
+IMPORT_UPLOAD_URL = "/api/home_keeper/import_upload"
+
 # Event fired on the HA event bus whenever a task is completed (from any surface:
 # the to-do list, a device mark-done button, or the complete_task service). This is
 # the public, client-agnostic hook other integrations subscribe to in order to mirror
@@ -187,6 +216,11 @@ EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fie
 EVENT_ASSET_DELETED = f"{DOMAIN}_asset_deleted"
 EVENT_ASSET_ARCHIVED = f"{DOMAIN}_asset_archived"  # hidden without deleting its data
 EVENT_ASSET_RESTORED = f"{DOMAIN}_asset_restored"  # an archived appliance is restored
+# Import and export — fired by ``transfer_runner.py`` when an export is written and
+# when an import is applied (never for a dry run). The payload has the kind and a
+# count for each section, companion sections included (events.data_transfer_event_data).
+EVENT_DATA_EXPORTED = f"{DOMAIN}_data_exported"
+EVENT_DATA_IMPORTED = f"{DOMAIN}_data_imported"
 
 # Assets / appliances (virtual devices + asset metadata).
 # A virtual asset device is registered with identifier
@@ -324,10 +358,25 @@ MAX_ONE_OFF_RETENTION_DAYS = 3650
 OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
 OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
 OPTION_ALLOW_DUE_TODAY = "allow_due_today"  # bool, default True
+# When a floating task is due (#438). ``completion`` (the default) keeps the clock
+# time of the completion, snooze or skip that set the date. ``set_time`` puts every
+# floating due date at ``OPTION_DUE_TIME`` on its local date. An enum, so later modes
+# can join it. See ``recurrence.snap_to_due_time``.
+OPTION_DUE_TIME_MODE = "due_time_mode"
+DUE_TIME_MODE_COMPLETION = "completion"
+DUE_TIME_MODE_SET_TIME = "set_time"
+DUE_TIME_MODES = (DUE_TIME_MODE_COMPLETION, DUE_TIME_MODE_SET_TIME)
+# The set due time, local ``"HH:MM"``. Read only in the ``set_time`` mode.
+OPTION_DUE_TIME = "due_time"
+DEFAULT_DUE_TIME = "08:00"
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
 OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
+# The ids of the companion panel tabs that the admin hid from the panel's tab bar. A
+# list of tab id strings. An id of a tab that is not registered stays stored, so the
+# tab stays hidden when its companion registers it again. See panel_tabs.py.
+OPTION_HIDDEN_PANEL_TABS = "hidden_panel_tabs"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
 # the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the
@@ -657,6 +706,14 @@ EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
 # upstream's glue is first suggested. Payload built by events.companion_event_data.
 EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
+
+# ── Companion panel tabs ───────────────────────────────────────────────────────
+# A companion integration adds a tab to the panel through the Python API in
+# panel_tabs.py. The registry is in memory on ``hass.data`` for the Home Assistant
+# run, so an entry reload keeps the tabs. The removal of the entry clears it.
+DATA_PANEL_TABS = f"{DOMAIN}_panel_tabs"
+# Upper bound on how many tabs the registry holds.
+MAX_PANEL_TABS = 20
 
 # ── Declarative companions ─────────────────────────────────────────────────────
 # A **declarative companion** is a Home-Keeper-owned spec (target integration +

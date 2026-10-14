@@ -52,6 +52,7 @@ import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
 const STATE_PATH = resolve(__dirname, '.auth/state.json');
+const VIEWER_STATE_PATH = resolve(__dirname, '.auth/viewer-state.json');
 
 /** A readable pause so motion in the recording is easy to follow. */
 const BEAT = 900;
@@ -819,6 +820,35 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 4a-qr. QR label (#428): a code of this page's link, to print and stick on the
+  //        appliance. Print labels on the list does the same for many at once.
+  await panel.locator('.d-label').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog .hk-label-qr svg')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  // A label printer: a square custom roll, with the text below the code. The dialog
+  // offers Rotate and the text position, and the preview follows.
+  const labelDialog = panel.locator('ha-dialog.hk-label-dialog');
+  await labelDialog.locator('[data-label-paper]').selectOption('roll_custom');
+  await expect(labelDialog.locator('[data-label-rotate-field]')).toBeVisible();
+  for (const sel of ['[data-label-custom-w]', '[data-label-custom-h]']) {
+    await labelDialog.locator(sel).fill('24');
+    await labelDialog.locator(sel).press('Tab');
+  }
+  await labelDialog.locator('[data-label-text-pos]').selectOption('below');
+  await expect(labelDialog.locator('[data-label-preview]')).toHaveAttribute('data-fit', 'below');
+  await labelDialog.locator('[data-label-preview]').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
+  await page.evaluate(() => localStorage.removeItem('home-keeper.labels'));
+  await panel.locator('#labels-btn').click();
+  const labelPicks = panel.locator('ha-dialog.hk-label-dialog [data-label-pick]');
+  await labelPicks.nth(1).check();
+  await labelPicks.nth(2).check();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
+
   // 4a3. Archive — an appliance that was replaced can be tucked out of the default
   //      list without losing its documents/parts/history, and brought back any time.
   await panel.locator('.d-archive').click();
@@ -983,9 +1013,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
-  // 5. Settings → Shopping list — where auto-buy reminders get mirrored onto an
-  //    existing to-do list, so "go buy more" reaches a voice assistant.
+  // 5. Settings → Due time — when a task that repeats after each completion is due:
+  //    at the time it was done, or at 1 set time on its date (#438). Shown, not
+  //    changed: a save reloads the entry and moves the stored dates.
   await gotoTab(panel, 'settings');
+  await expect(panel.locator('#hk-settings-duetime ha-form')).toBeVisible();
+  await panel.locator('#hk-settings-duetime').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+
+  //    Settings → Shopping list — where auto-buy reminders get mirrored onto an
+  //    existing to-do list, so "go buy more" reaches a voice assistant.
   await expect(panel.locator('#hk-settings-shopping ha-form')).toBeVisible();
   await page.waitForTimeout(BEAT);
   await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();
@@ -1001,6 +1039,33 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('.hk-comp-configure').first()).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
+
+  // 6b. A companion panel tab. The demo companion owns a Library tab, which the
+  //     seeded options hide. Its row has the Panel tab chip and a Show switch: turn it
+  //     on, open the tab, let the tab move to a sub-page through the host, then come
+  //     back and turn the switch off again, so the seed stays as it was.
+  const tabRow = panel.locator('#hk-companions .hk-companion').filter({ hasText: 'Demo library' });
+  await tabRow.scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT);
+  await tabRow.locator('.hk-comp-tab-switch ha-switch').first().click();
+  const libraryTab = panel.locator('#tab-x-demo-tab');
+  await expect(libraryTab).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(BEAT);
+  await libraryTab.click();
+  const demoTab = panel.locator('home-keeper-demo-tab');
+  await expect(demoTab.locator('#demo-path')).toHaveText('/', { timeout: 30_000 });
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  await demoTab.locator('#demo-go').click();
+  await expect(demoTab.locator('#demo-path')).toHaveText('/sub');
+  await page.waitForTimeout(BEAT);
+  await gotoTab(panel, 'settings');
+  await tabRow.scrollIntoViewIfNeeded();
+  await tabRow.locator('.hk-comp-tab-switch ha-switch').first().click();
+  await expect(libraryTab).toHaveCount(0, { timeout: 30_000 });
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT);
 
   // 6a. Declarative companions — the same card's last section: specs Home Keeper
   //     runs itself, one managed task per matching entity, no glue integration.
@@ -1198,14 +1263,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     await page.waitForTimeout(BEAT * 2);
   }
 
-  // 7a. Import and export — the last stop on the rail. A document goes into the box
-  //     and Preview answers before anything is written: what it would add, how much
-  //     history rides along, and anything wrong with the file.
+  // 7a. Import and export — the last stop on the rail. The export lists Home Keeper,
+  //     each companion that joins the export (the stub Pawsistant), the files and
+  //     the settings, and the Settings row adds them to a bundle. Then a document
+  //     goes into the box and Preview answers before anything is written: what it
+  //     would add, how much history rides along, and anything wrong with the file.
   await panel.locator('.hk-rail-link[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
   await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
-  await page.waitForTimeout(BEAT * 2);
+  await expect(panel.locator('input[data-transfer-source="pawsistant"]')).toBeChecked();
+  await page.waitForTimeout(BEAT);
+  await panel.locator('input[data-transfer-source="settings"]').check();
+  await page.waitForTimeout(BEAT);
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1424,6 +1494,12 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('.hk-subtab[data-tab="history"]').click();
   await page.waitForTimeout(BEAT * 2);
+  // 5a. The QR label dialog fills the phone screen.
+  await panel.locator('.d-label').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog .hk-label-qr svg')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
   await panel.locator('#back-btn').click();
   await page.waitForTimeout(BEAT);
 
@@ -1455,6 +1531,7 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   //    importing it would change before anything is written.
   await panel.locator('.hk-index-row[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await expect(panel.locator('input[data-transfer-source="pawsistant"]')).toBeChecked();
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
@@ -1464,6 +1541,36 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
+
+  // 7. The same panel for a household member who is not an admin. Sign in as
+  //    `viewer` (global-setup.ts) in this context: the appliances are a read view
+  //    with a View only note, and Settings is for admins only.
+  await signInAsViewer(page);
+  await openPanel(page);
+  await gotoTab(panel, 'appliances');
+  await expect(panel.locator('.hk-view-only-banner')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.hk-subtab[data-tab="documents"]').click();
+  await expect(panel.locator('ha-assist-chip.hk-view-only')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await gotoTab(panel, 'settings');
+  await expect(panel.locator('.hk-admin-only')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+}
+
+/**
+ * Swap this page's Home Assistant session for the one of the `viewer` user. The
+ * frontend keeps its tokens in localStorage, so the saved state of that user is
+ * enough. The video stays in 1 context.
+ */
+async function signInAsViewer(page: Page): Promise<void> {
+  const state = JSON.parse(fs.readFileSync(VIEWER_STATE_PATH, 'utf8'));
+  const origin = state.origins.find((o: { origin: string }) => page.url().startsWith(o.origin));
+  if (!origin) throw new Error('no saved viewer session for this origin');
+  await page.evaluate((items: Array<{ name: string; value: string }>) => {
+    for (const { name, value } of items) window.localStorage.setItem(name, value);
+  }, origin.localStorage);
 }
 
 const TOURS: Tour[] = [

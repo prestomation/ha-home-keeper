@@ -123,6 +123,40 @@ async function shotDialog(page: Page, dialog: Locator, path: string): Promise<vo
   });
 }
 
+/**
+ * Put 2 of the top rows in a room, or take them out again (`room` false). The anode
+ * rod has a device, so its row still shows only the device chip. The door battery has
+ * no device, so its row shows the area chip. The card shows 1 chip for the place.
+ * An area change leaves the to-do item as it was, so the card gets no update. Open the
+ * dashboard again to read the tasks again.
+ */
+async function placeTopRows(page: Page, room: boolean): Promise<void> {
+  await page.evaluate(
+    async ({ IDS, room }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      let areaId = '';
+      if (room) {
+        // HA's onboarding seeds a handful of areas; reuse one (see step 42 of
+        // screenshots.capture.ts).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const areas: any[] = await hass.callWS({ type: 'config/area_registry/list' });
+        const area =
+          areas.find((a) => a.area_id === 'living_room') ??
+          areas[0] ??
+          (await hass.callWS({ type: 'config/area_registry/create', name: 'Living Room' }));
+        areaId = area.area_id;
+      }
+      for (const id of [IDS.TASK.anode, IDS.TASK.doorBattery]) {
+        await hass.callService('home_keeper', 'update_task', { task_id: id, area_id: areaId });
+      }
+    },
+    { IDS: { TASK }, room },
+  );
+  await openCardDashboard(page);
+}
+
 test('capture Home Keeper card screenshots', async ({ page }) => {
   // Tall viewport so even the second (grouped) card sits above the fold and its
   // clip stays inside the rendered image. The default card carries the water-filter
@@ -311,6 +345,18 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
 
+  // 6b. The device chip on a row is a link (#446). The water-filter row's chip names
+  // its appliance device and opens the appliance page, the same as the panel's chip.
+  // A row shows 1 chip for the place: the anode rod is in a room and has a device, so
+  // it shows only the device chip. The door battery has no device and shows its area.
+  await placeTopRows(page, true);
+  const roomChip = card.locator('.hk-row ha-assist-chip[label="Living Room"]');
+  await expect(roomChip).toHaveCount(1);
+  await expect(card.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, card, `${OUT}/card-device-chip.png`, 3);
+  await placeTopRows(page, false);
+  await expect(roomChip).toHaveCount(0);
+
   // 7a. Rows with the schedule and the completion count turned off (#432). Compare
   // with card-note-chip.png, which shows the same 3 rows with the defaults.
   const compact = {
@@ -341,6 +387,15 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await shotDialog(page, mobileNoteDialog, `${OUT}/card-note-dialog-mobile.png`);
   await mobileNoteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7b1. The device chip link and the area chip from step 6b at phone width (#446).
+  await placeTopRows(page, true);
+  const mobileRoomChip = mobileCard.locator('.hk-row ha-assist-chip[label="Living Room"]');
+  await expect(mobileRoomChip).toHaveCount(1);
+  await expect(mobileCard.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, mobileCard, `${OUT}/card-device-chip-mobile.png`, 3);
+  await placeTopRows(page, false);
+  await expect(mobileRoomChip).toHaveCount(0);
 
   // 7b2. The compact rows from step 7a at phone width (#432).
   await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);

@@ -51,11 +51,8 @@ A skip advances the schedule. The step depends on the kind of task:
 
 A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.
 
-`move_occurrence` moves 1 date of a fixed task's RRULE schedule and fires
-`home_keeper_task_occurrence_moved`. Its `occurrence` is the date on the rule and `to` is
-the new date. `previous_to` is the date before the call, or `null` if it had not moved. An
-undo moves the date back to itself, so `to` is equal to `occurrence`. `next_due` changes
-only if the moved date is the date that the task shows. A snoozed date stays.
+`move_occurrence` moves 1 date of a fixed task and fires `home_keeper_task_occurrence_moved`
+with `occurrence` (the rule date), `to` and `previous_to`. An undo sets `to` to `occurrence`.
 
 Home Keeper records a skip in a `skips` list, next to the `completions` list. A skip
 never sets `last_completed`, and nothing that uses the completion log counts it.
@@ -94,13 +91,13 @@ is one case. A `state` entity that enters its state is another. The task then be
 the baseline of a usage meter. A usage meter with a **time backstop** (`also_every` in its
 `sensor` block) arms on the first half that is due, also while the entity is unavailable.
 
-With `clear_on_recover`, the task completes itself. A task that a declarative companion
-with `clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task`
-refuses it, and its device page has no Mark done button. If the task is linked to a
-consumable, the auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock`
-or `home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a recovery.
-It counts as no reading and fires no event. A device that goes off the network never
-completes a task.
+With `clear_on_recover`, the task completes itself. A task that a declarative companion with
+`clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task` refuses it,
+and its device page has no Mark done button. If the task is linked to a consumable, the
+auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock` or
+`home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a recovery. It
+counts as no reading and fires no event. A device that goes off the network never completes
+a task.
 
 The baseline bookkeeping of the watcher (a new meter anchor, a re-anchor after a meter
 reset) fires **no event**, because it is internal state. A baseline that a user moves
@@ -110,6 +107,9 @@ with the `set_task_meter` service fires `home_keeper_task_updated` with
 **Task photos.** A photo change is a task change. When a user adds a photo, removes a
 photo or makes a photo the cover, Home Keeper fires `home_keeper_task_updated` with
 `changed_fields: ["photos"]`. There is no separate photo event.
+
+**New appliance device.** If an appliance gets a new device, each moved task and appliance fires
+an `_updated` event with `device_id`, `source` or `related_device_ids` in `changed_fields`.
 
 **Shopping list.** When *Settings → Shopping list* names a to-do list, each automatic
 "Buy {part}" reminder goes on it. The completion has
@@ -295,6 +295,6 @@ its `task_id`, because those task events have `device_id: null`.
 - **An import fires 1 event per record, not 1 per completion.** A document that
   `home_keeper.import_data` reads holds old history, from before the import. A backfilled
   completion fires no `home_keeper_task_completed`. The record arrives as 1
-  `home_keeper_task_created` or `home_keeper_task_updated`. An update that
-  only adds history still fires, with `completions` in its `changed_fields`. To mirror
-  completions, read the task history on that event. Do not count completion events.
+  `home_keeper_task_created` or `home_keeper_task_updated`. An update that only adds history
+  still fires, with `completions` in its `changed_fields`. To mirror completions, read the
+  task history on that event. Do not count completion events.

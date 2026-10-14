@@ -142,3 +142,11 @@ Details are in [transfer](../../docs/design/transfer.md).
 - Match records by `id`, then `external_id`, then `name`. An ambiguous match raises.
 - Validate everything before anything is written. An unknown field is a named warning, and a
   newer `format` is an error.
+- **Validate every section before a write, companion sections included.** Dry-run each
+  companion's `import_data` first. Apply only when no section has an error.
+- **Never read a companion section.** Store the companion's export response as is, under
+  its domain. A new Home Keeper section name goes in `transfer.RESERVED_SECTIONS`.
+- **Extract a bundle only through `transfer_bundle.safe_extract`**, into a run folder that a
+  `finally` deletes. Count real bytes, never the sizes in the zip headers.
+- **An import never deletes.** A record, profile or notification that the file does not
+  name stays.

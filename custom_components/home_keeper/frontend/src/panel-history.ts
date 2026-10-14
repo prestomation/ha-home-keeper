@@ -228,9 +228,12 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
       const moveBtn = editTask
         ? `<ha-icon-button class="${skip ? 'hk-hist-skip-move' : 'hk-hist-move'}" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
         : '';
+      // An archived group's delete is admin-only, so a view-only user does not get it.
       const delBtn = skip
         ? `<ha-icon-button class="hk-hist-skip-del" data-del-skip="${escapeHTML(group.taskId || '')}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`
-        : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
+        : group.assetId && !group.taskId && p._readOnly()
+          ? ''
+          : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
       // The chip is what stops a skip reading as a completion at a glance — the
       // dates alone look identical, and mistaking the two misreads the whole list.
       const chip = skip

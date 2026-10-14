@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ekskluderte etiketter",
           "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)",
           "shopping_list_entity": "Handleliste",
-          "shopping_line_style": "Tekst på handlelisten"
+          "shopping_line_style": "Tekst på handlelisten",
+          "due_time_mode": "Forfallstid",
+          "due_time": "Fast forfallstid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Påminnelser for den tilbyr Utsett i stedet for Ferdig.",
           "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
           "shopping_list_entity": "Synkroniserer automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av synkroniseringen.",
-          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner»."
+          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner».",
+          "due_time_mode": "Når en oppgave som gjentas etter hver utførelse, forfaller. Med et fast klokkeslett forfaller oppgaven på det klokkeslettet på forfallsdatoen. En utsettelse slutter også på det klokkeslettet.",
+          "due_time": "Det lokale klokkeslettet da disse oppgavene forfaller. Brukes bare med et fast klokkeslett."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Hvilke deler som eksporteres. Begge som standard."
+          "description": "Hvilke deler som eksporteres: apparater, oppgaver, innstillinger eller domenet til en følgesvenn. Alle som standard."
+        },
+        "kind": {
+          "name": "Slag",
+          "description": "\"data\" returnerer YAML-dokumentet. \"bundle\" skriver en zip-fil med de opplastede filene og innstillingene til mappen home_keeper_exports og returnerer banen."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokumentet som leses, i formen export_data gir. Oppgi det som et oppslag eller som hele fila i én streng."
         },
+        "bundle": {
+          "name": "Pakke",
+          "description": "Navnet på en pakkefil i mappen home_keeper_exports. Bruk den i stedet for dokumentet."
+        },
         "dry_run": {
           "name": "Bare forhåndsvisning",
           "description": "Sjekker dokumentet og melder hva som ville endret seg, uten å skrive noe."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Treff",
           "description": "Hvordan oppføringen det gjelder finnes. \"auto\" søker på id, så external_id, så navnet. \"none\" oppretter hver oppføring."
+        },
+        "include_settings": {
+          "name": "Ta med innstillinger",
+          "description": "Importer også profilene, varslene og alternativene i dokumentet."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Tekst på handlelisten",
           "description": "Slik vises en kjøpspåminnelse på handlelisten. with_verb (standard) viser navnet på påminnelsen, for eksempel «Kjøp tøymykner». product_only viser bare navnet på delen."
         },
+        "due_time_mode": {
+          "name": "Forfallstid",
+          "description": "Når en oppgave som gjentas etter hver utførelse, forfaller. completion (standard) beholder klokkeslettet for siste utførelse, utsettelse eller hopp. set_time gjør at den forfaller kl. due_time på forfallsdatoen."
+        },
+        "due_time": {
+          "name": "Fast forfallstid",
+          "description": "Det lokale klokkeslettet (TT:MM) for set_time. Standard er 08:00."
+        },
         "dismissed_companions": {
           "name": "Avviste følgesvenner",
           "description": "Glue-integrasjonsdomener som skal skjules fra \"Foreslått\"-listen under Innstillinger → Følgesvenner. Avvisning demper kun et forslag; en tilkoblet paring vises alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skjulte panelfaner",
+          "description": "ID-ene til følgefanene som panelet ikke viser."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Med verb",
         "product_only": "Bare produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tidspunkt for utførelse",
+        "set_time": "Fast klokkeslett"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Filen overskrider grensen på {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Et skjemafelt i opplastingen er større enn grensen på {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Forventet en multipart-opplasting."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan ikke slette disse profilene: {profiles}. Disse varslene bruker dem: {notifications}. Endre eller slett hvert varsel, og lagre deretter på nytt."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan ikke eksportere disse delene: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Bare en administrator kan eksportere eller importere Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen er verken en zip-fil eller UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Oppgi et dokument eller en pakke som skal importeres."
     },
     "calendar_edit_in_panel": {
       "message": "Her kan bare klokkeslettet for én dato endres. Åpne Home Keeper-panelet for å endre oppgaven eller tidsplanen."

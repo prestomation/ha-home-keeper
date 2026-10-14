@@ -91,7 +91,8 @@ in place of the cover.
 ## Who can add photos
 
 A photo is part of the task. So any user who can create a task can also add, remove
-and reorder its photos. A user who is not an admin does this from the dashboard card.
+and reorder its photos. A user who is not an admin does this from the panel or the
+dashboard card.
 See [the security model](../../SECURITY.md) for the details.
 
 ## Where the files are

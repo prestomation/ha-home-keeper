@@ -1,6 +1,6 @@
 ---
 title: Frontend
-summary: The admin sidebar panel, the dashboard task card, and the text both show in the user's language.
+summary: The sidebar panel, the dashboard task card, and the text both show in the user's language.
 implements:
   - custom_components/home_keeper/frontend/src/panel.ts
   - custom_components/home_keeper/frontend/src/panel-host.ts
@@ -30,7 +30,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 9f58548419df
+source_hash: 55e96b6fe378
 ---
 
 # Frontend
@@ -59,7 +59,8 @@ on a dashboard that any user can see.
 Rollup builds `src/index.ts` and `src/card-index.ts` into 2 IIFE files in `frontend/dist/`.
 `panel.async_register_panel` serves only `dist/` as a static path, because Home Assistant
 serves static paths before authentication. Each module URL has a `?v=` content hash from
-`panel.cache_token`, so a rebuild busts caches. The panel registers with `require_admin=True`.
+`panel.cache_token`, so a rebuild busts caches. The panel has `require_admin=False`, and
+`HomeKeeperPanel._readOnly` hides each admin-only control from a non-admin.
 Both entry files check the registry before `customElements.define`, so a second load is safe.
 `global.d.ts` types the `panel-version` module that Rollup fills from `const.py`.
 
@@ -80,24 +81,23 @@ stale values over another. `dialogs.makeDialog` is the one `ha-dialog` builder.
 
 ### Routes
 
-`utils.parseRoute` and `utils.buildPath` are pure and round-trip. Paths: `/tasks`,
-`/tasks/<id>`, `/appliances`, `/appliances/<id>`, `/appliances/<id>/<tab>` (`ASSET_TABS`) and
-`/settings/<section>` (`SETTINGS_SECTIONS`). An unknown path gives the task list. `set route`
-is the only place that changes `_view` and `_detail`, via `_applyLocation`. Code navigates with
-`_navigate(loc, replace)`: opening a detail pushes; a tab switch, a close or a delete replaces.
-A form is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible mark.
+`utils.parseRoute` and `utils.buildPath` are pure and round-trip. Paths: `/tasks`, `/tasks/<id>`,
+`/appliances`, `/appliances/<id>`, `/appliances/<id>/<tab>` (`ASSET_TABS`), `/settings/<section>`
+(`SETTINGS_SECTIONS`) and `/<tab id>/<path>` for a companion tab ([panel-tabs](panel-tabs.md)).
+Other paths give the task list. Only `set route` changes `_view` and `_detail` (`_applyLocation`).
+`_navigate(loc, replace)`: a detail pushes; a tab switch, a close or a delete replaces. A form
+is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible mark.
 
 ### Data and refresh
 
-`api.ts` wraps the websocket commands; `types.ts` declares their shapes. `_refresh` loads all
-data. On each `hass` push, `_liveRefresh` compares `utils.hkStateSignal` and loads again when
-a task changed elsewhere, but not while a form or a dialog is open.
+`api.ts` wraps the websocket commands and `types.ts` their shapes. `_refresh` loads all data.
+`_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
+open. `_lookUpDetail` loads again, with a spinner, for a detail id that the lists do not have.
 
 ### Task layouts and preferences
 
 The Tasks tab draws a list as Rows, Tiles or a Board. `task-layout.ts` holds the pure part:
-`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action-sheet actions, which
-follow `defer.deferVerbs`.
+`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action sheet (`defer.deferVerbs`).
 `panel-lists.ts` draws the markup; `panel-controls.groupTasks` gives the board columns.
 
 - **Per browser:** a choice about this screen (group by, filter, tree collapse) goes in

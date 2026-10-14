@@ -88,6 +88,13 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - **PRs test `stable`.** `HA_TAG` in `tests/integration/docker-compose.yml` defaults to
   it. Override locally with `HA_TAG=beta bash ci/e2e-up.sh`. The nightly tests `beta`, about
   4 weeks before a release.
+- **The oldest supported HA is named in `ci/oldest-ha.env`, and nowhere else.** The
+  Docker integration tier (`integration.yml`) runs on it for each PR, as well as on
+  `stable`. `hacs.json` and the README badge must match it; `tests/unit/test_oldest_ha.py`
+  fails if they do not. A failure on the oldest lane is a choice: fix the code, or drop
+  that version (change those 3 places and add a CHANGELOG entry). Never skip the lane.
+- **mypy runs on the newest HA only.** The stubs in `typings/voluptuous/` match HA 2026.9
+  and later, so mypy on an older HA reports hundreds of false errors.
 - **A job that installs HA runs on a Python at or above HA's floor, and checks what pip
   resolved.** On an older Python, pip goes back to an old HA and the job checks an API
   that nobody runs. Run `python ci/check-ha-version.py` (`--pre` for a pre-release) (#199).

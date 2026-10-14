@@ -10,6 +10,7 @@ import { openPanel, openSettingsSection, trackPanelErrors } from './helpers';
  *     (the push path), so it surfaces as a *connected* companion.
  *   - `home_keeper_battery_notes` is in Home Keeper's companion catalog, so simply
  *     being installed makes Home Keeper detect it as connected (the pull path).
+ *   - `hk_demo_tab` self-registers too, and adds a companion panel tab.
  *
  * This locks the rendered Companions surface (previously only the pure
  * `build_companion_list` logic was unit-tested) so it can't silently regress.
@@ -32,7 +33,11 @@ test.describe('Home Keeper panel — companions', { tag: '@responsive' }, () => 
     await expect(
       companions.locator('.hk-companion-name', { hasText: 'Battery Notes' }),
     ).toBeVisible();
-    await expect(companions.locator('.hk-comp-configure')).toHaveCount(2);
+    // The demo tab stub registers too, so it is the third connected row.
+    await expect(
+      companions.locator('.hk-companion-name', { hasText: 'Demo library' }),
+    ).toBeVisible();
+    await expect(companions.locator('.hk-comp-configure')).toHaveCount(3);
     // The push-registered companion carries its docs link from the descriptor.
     await expect(companions.locator('.hk-comp-docs').first()).toBeVisible();
 

@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from . import recurrence
@@ -891,6 +891,16 @@ def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) ->
     return changed
 
 
+def _wall_time_exists(value: datetime) -> bool:
+    """True if the wall time of *value* exists in its timezone.
+
+    A wall time in a daylight-saving gap does not survive a trip through UTC: the
+    trip gives a different wall time. A time in the repeated hour does survive it.
+    """
+    back = value.astimezone(UTC).astimezone(value.tzinfo)
+    return back.replace(tzinfo=None) == value.replace(tzinfo=None)
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -1018,6 +1028,15 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 if tz is not None
                 else parsed_anchor.astimezone()
             )
+            # A wall time in a daylight-saving gap has no instant. The stored offset
+            # makes it the time 1 hour later, and the engine keeps that later time for
+            # every occurrence. Refuse it, so that the schedule keeps the time that the
+            # user typed (recurrence G3).
+            if tz is not None and not _wall_time_exists(parsed_anchor):
+                raise TaskValidationError(
+                    f"anchor {anchor} does not exist in {tz}, because the clock skips "
+                    "it for daylight saving time. Pick a different time."
+                )
         # RFC 5545 counts in whole seconds, so the rule engine drops a fraction.
         # Storing it would make the anchor itself read as off the schedule.
         parsed_anchor = parsed_anchor.replace(microsecond=0)
@@ -1184,7 +1203,7 @@ def infer_recurrence_type(data: dict) -> str:
     return REC_ONE_OFF
 
 
-def build_task(data: dict, *, now: datetime) -> dict:
+def build_task(data: dict, *, now: datetime, due_time: time | None = None) -> dict:
     """Create a brand-new task dict (with id, history, and computed next_due).
 
     An optional ``last_completed`` seed records an initial completion so the task
@@ -1197,6 +1216,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
 
     A one-off task without an explicit ``due`` defaults to *now* (due today), so the
     service / a caller can create a do-once task with just a name.
+
+    *due_time* is the set due time for floating tasks (see
+    ``recurrence.snap_to_due_time``), or ``None``.
     """
     rec_type = infer_recurrence_type(data)
     if rec_type != data.get("recurrence_type"):
@@ -1269,7 +1291,11 @@ def build_task(data: dict, *, now: datetime) -> dict:
         if baseline is not None and task_records_reading(task):
             meta["reading"] = baseline
         recurrence.apply_completion(
-            task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
+            task,
+            _coerce_seed(seed, tz=now.tzinfo),
+            now=now,
+            metadata=meta,
+            due_time=due_time,
         )
     elif task["recurrence_type"] in (REC_SENSOR, REC_USE):
         # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
@@ -1280,7 +1306,9 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # arms nothing.
         task["next_due"] = None
     else:
-        task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+        task["next_due"] = recurrence.compute_next_due(
+            task, now=now, due_time=due_time
+        ).isoformat()
     return task
 
 
@@ -1320,7 +1348,9 @@ def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
 _TYPE_SCHEDULE_KEYS = ("interval", "unit", "freq", "anchor", "due", "sensor")
 
 
-def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
+def merge_update(
+    existing: dict, updates: dict, *, now: datetime, due_time: time | None = None
+) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
     Only the recurrence-relevant fields trigger a next_due recompute; editing the
@@ -1535,7 +1565,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         for key in recurrence_keys
     )
     if new_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE) and recurrence_changed:
-        merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
+        merged["next_due"] = recurrence.compute_next_due(
+            merged, now=now, due_time=due_time
+        ).isoformat()
     elif new_type == REC_USE:
         # A use task has no due date to recompute, in either direction. Converting an
         # existing scheduled task into one drops its stale schedule date (carried

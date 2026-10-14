@@ -60,6 +60,8 @@ else that recurs.
   with a live preview.
 - A task can link to a Home Assistant tag so that a scan completes it. The task
   can require the scan.
+- The panel prints QR code labels that link to the page of an appliance or a
+  task. See [QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).
 - An appliance has a device page with structured metadata and optional
   tracked-date sensors. It has parts and wear items and spare-part inventory and
   documents. A CSV appliance report is available for insurance.
@@ -123,7 +125,7 @@ releases.
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40prestomation-blue.svg?style=for-the-badge
 [hacs-validation-shield]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml/badge.svg
 [hacs-validation]: https://github.com/prestomation/ha-home-keeper/actions/workflows/hacs.yml
-[ha-version-shield]: https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg?style=for-the-badge
+[ha-version-shield]: https://img.shields.io/badge/Home%20Assistant-2026.1%2B-blue.svg?style=for-the-badge
 [ha-version]: https://www.home-assistant.io/
 [docs-shield]: https://img.shields.io/badge/docs-website-03a9f4.svg?style=for-the-badge
 [docs]: https://prestomation.github.io/ha-home-keeper/

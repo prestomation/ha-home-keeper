@@ -140,6 +140,14 @@ class CompanionRegistry:
         self._registered[domain] = stored
         return stored
 
+    def registration_order(self) -> list[str]:
+        """The registered companion domains, in the order of first registration.
+
+        The import of companion sections runs in this order (docs/INTEGRATING.md
+        §11). An update to a registered domain keeps its place.
+        """
+        return list(self._registered)
+
     def _installed_domains(self) -> set[str]:
         """Domains that currently have at least one config entry.
 
@@ -232,6 +240,12 @@ def async_list_companions(hass: HomeAssistant) -> list[dict[str, Any]]:
 
 
 @callback
+def async_registration_order(hass: HomeAssistant) -> list[str]:
+    """Return the registered companion domains in the order of registration."""
+    return async_get_registry(hass).registration_order()
+
+
+@callback
 def async_reconcile(hass: HomeAssistant) -> None:
     """Recompute companion state and fire edge-triggered events (coordinator tick)."""
     async_get_registry(hass).reconcile()
@@ -265,6 +279,7 @@ __all__ = [
     "async_list_companions",
     "async_reconcile",
     "async_register_companion",
+    "async_registration_order",
     "async_request_registration",
     "async_set_live",
 ]

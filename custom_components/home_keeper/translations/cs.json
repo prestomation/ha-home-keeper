@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Vyloučené štítky",
           "one_off_retention_days": "Uchování jednorázových úkolů (dny)",
           "shopping_list_entity": "Nákupní seznam",
-          "shopping_line_style": "Text na nákupním seznamu"
+          "shopping_line_style": "Text na nákupním seznamu",
+          "due_time_mode": "Čas splatnosti",
+          "due_time": "Pevný čas splatnosti"
         },
         "data_description": {
           "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
           "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí.",
-          "shopping_line_style": "Jak se nákupní připomínka zobrazí na nákupním seznamu. „Jen produkt“ zobrazí název dílu bez slovesa, například „Aviváž“ místo „Koupit aviváž“."
+          "shopping_line_style": "Jak se nákupní připomínka zobrazí na nákupním seznamu. „Jen produkt“ zobrazí název dílu bez slovesa, například „Aviváž“ místo „Koupit aviváž“.",
+          "due_time_mode": "Kdy je splatný úkol, který se opakuje po každém dokončení. S pevným časem je úkol splatný v tento čas v den splatnosti. Odložení také končí v tento čas.",
+          "due_time": "Místní čas, kdy jsou tyto úkoly splatné. Používá se jen s pevným časem."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Zahrnout",
-          "description": "Které části se exportují. Ve výchozím nastavení obě."
+          "description": "Které části se exportují: spotřebiče, úkoly, nastavení nebo doména doplňku. Ve výchozím nastavení všechny."
+        },
+        "kind": {
+          "name": "Druh",
+          "description": "\"data\" vrátí dokument YAML. \"bundle\" zapíše soubor zip s nahranými soubory a nastavením do složky home_keeper_exports a vrátí jeho cestu."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokument ke čtení ve tvaru, který vrací export_data. Předejte ho jako mapování nebo jako celý soubor v jednom řetězci."
         },
+        "bundle": {
+          "name": "Balíček",
+          "description": "Název souboru balíčku ve složce home_keeper_exports. Použijte jej místo dokumentu."
+        },
         "dry_run": {
           "name": "Jen náhled",
           "description": "Zkontroluje dokument a oznámí, co by se změnilo, aniž by cokoli zapsal."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Shoda",
           "description": "Jak se hledá míněný záznam. \"auto\" hledá podle id, pak podle external_id a pak podle názvu. \"none\" vytvoří každý záznam."
+        },
+        "include_settings": {
+          "name": "Zahrnout nastavení",
+          "description": "Importuje také profily, oznámení a možnosti z dokumentu."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Text na nákupním seznamu",
           "description": "Jak se nákupní připomínka zobrazí na nákupním seznamu. with_verb (výchozí) zobrazí název připomínky, například „Koupit aviváž“. product_only zobrazí jen název dílu."
         },
+        "due_time_mode": {
+          "name": "Čas splatnosti",
+          "description": "Kdy je splatný úkol, který se opakuje po každém dokončení. completion (výchozí) zachová čas posledního dokončení, odložení nebo přeskočení. set_time nastaví splatnost na due_time v den splatnosti."
+        },
+        "due_time": {
+          "name": "Pevný čas splatnosti",
+          "description": "Místní čas (HH:MM) pro set_time. Výchozí je 08:00."
+        },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
           "description": "Domény propojovacích integrací, které se mají skrýt ze seznamu „Navrhované“ v Nastavení → Společníci. Zamítnutí pouze umlčí návrh; propojené párování se zobrazuje vždy."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skryté karty panelu",
+          "description": "ID karet doprovodných integrací, které panel nezobrazuje."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Se slovesem",
         "product_only": "Jen produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Čas dokončení",
+        "set_time": "Pevný čas"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Soubor přesahuje limit {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Pole formuláře nahrávání překračuje limit {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Očekávalo se vícedílné nahrání (multipart)."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nemůže odstranit tyto profily: {profiles}. Tato oznámení je používají: {notifications}. Změňte nebo odstraňte každé oznámení a poté uložte znovu."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper nemůže exportovat tyto části: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Data Home Keeper může exportovat nebo importovat jen správce."
+    },
+    "import_not_text": {
+      "message": "Soubor není soubor zip ani text UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Zadejte dokument nebo balíček k importu."
     },
     "calendar_edit_in_panel": {
       "message": "Zde lze změnit jen čas jednoho termínu. Chcete-li změnit úkol nebo jeho rozvrh, otevřete panel Home Keeper."

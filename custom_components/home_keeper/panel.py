@@ -82,12 +82,11 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         frontend_url_path=PANEL_URL_PATH,
-        # Administration is admin-only, the same line HA core draws around Settings
-        # and Developer tools (and every ``config/*`` websocket command). Usage is
-        # unaffected: a non-admin household member still completes tasks through the
-        # todo list, the calendar, the per-task device entities and the dashboard
-        # card. See docs/design/architecture.md.
-        require_admin=True,
+        # Open to every user. A non-admin uses the tasks and reads the appliances in
+        # the panel. Each write that changes an appliance, a setting or a companion is
+        # admin-only in its websocket command and in its service, so the panel shows
+        # those controls only to an admin. See docs/design/architecture.md.
+        require_admin=False,
         config={
             "_panel_custom": {
                 "name": WEBCOMPONENT_NAME,

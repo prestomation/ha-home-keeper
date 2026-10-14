@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etichette escluse",
           "one_off_retention_days": "Conservazione delle attività singole (giorni)",
           "shopping_list_entity": "Lista della spesa",
-          "shopping_line_style": "Testo nella lista della spesa"
+          "shopping_line_style": "Testo nella lista della spesa",
+          "due_time_mode": "Ora di scadenza",
+          "due_time": "Ora di scadenza fissa"
         },
         "data_description": {
           "sync_problem_sensors": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I suoi promemoria offrono Posticipa invece di Fatto.",
           "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre.",
           "shopping_list_entity": "Sincronizza i promemoria di acquisto automatico con questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare.",
-          "shopping_line_style": "Come appare un promemoria di acquisto nella lista della spesa. «Solo prodotto» mostra il nome del ricambio senza il verbo, per esempio «Ammorbidente» invece di «Comprare ammorbidente»."
+          "shopping_line_style": "Come appare un promemoria di acquisto nella lista della spesa. «Solo prodotto» mostra il nome del ricambio senza il verbo, per esempio «Ammorbidente» invece di «Comprare ammorbidente».",
+          "due_time_mode": "Quando scade un'attività che si ripete dopo ogni completamento. Con un'ora fissa, l'attività scade a quell'ora nel giorno di scadenza. Anche un rinvio termina a quell'ora.",
+          "due_time": "L'ora locale in cui scadono queste attività. Usata solo con un'ora fissa."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Includi",
-          "description": "Quali sezioni esportare. Entrambe per impostazione predefinita."
+          "description": "Quali sezioni esportare: elettrodomestici, attività, impostazioni o il dominio di un compagno. Tutte per impostazione predefinita."
+        },
+        "kind": {
+          "name": "Tipo",
+          "description": "\"data\" restituisce il documento YAML. \"bundle\" scrive un file zip con i file caricati e le impostazioni nella cartella home_keeper_exports e ne restituisce il percorso."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Documento",
           "description": "Il documento da leggere, nella forma restituita da export_data. Indicatelo come mappatura o come intero file in una stringa."
         },
+        "bundle": {
+          "name": "Pacchetto",
+          "description": "Il nome di un file pacchetto nella cartella home_keeper_exports. Usalo al posto del documento."
+        },
         "dry_run": {
           "name": "Solo anteprima",
           "description": "Controlla il documento e riferisce che cosa cambierebbe, senza scrivere nulla."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Corrispondenza",
           "description": "Come si trova il record a cui si riferisce. \"auto\" cerca per id, poi external_id, poi il nome. \"none\" crea ogni record."
+        },
+        "include_settings": {
+          "name": "Includi le impostazioni",
+          "description": "Importa anche i profili, le notifiche e le opzioni del documento."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Testo nella lista della spesa",
           "description": "Come appare un promemoria di acquisto nella lista della spesa. with_verb (predefinito) mostra il nome del promemoria, per esempio «Comprare ammorbidente». product_only mostra solo il nome del ricambio."
         },
+        "due_time_mode": {
+          "name": "Ora di scadenza",
+          "description": "Quando scade un'attività che si ripete dopo ogni completamento. completion (predefinito) mantiene l'ora dell'ultimo completamento, rinvio o salto. set_time la fa scadere a due_time nel giorno di scadenza."
+        },
+        "due_time": {
+          "name": "Ora di scadenza fissa",
+          "description": "L'ora locale (HH:MM) per set_time. Il valore predefinito è 08:00."
+        },
         "dismissed_companions": {
           "name": "Companion ignorati",
           "description": "Domini delle integrazioni di collegamento da nascondere dall'elenco «Suggeriti» in Impostazioni → Companions. Ignorare silenzia solo un suggerimento; un abbinamento connesso viene sempre mostrato."
+        },
+        "hidden_panel_tabs": {
+          "name": "Schede del pannello nascoste",
+          "description": "Gli ID delle schede companion che il pannello non mostra."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Con verbo",
         "product_only": "Solo prodotto"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Ora del completamento",
+        "set_time": "Ora fissa"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "Il file supera il limite di {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Un campo del modulo di caricamento supera il limite di {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "Era previsto un caricamento multipart."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper non può eliminare questi profili: {profiles}. Queste notifiche li usano: {notifications}. Modifica o elimina ogni notifica, quindi salva di nuovo."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper non può esportare queste sezioni: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Solo un amministratore può esportare o importare i dati di Home Keeper."
+    },
+    "import_not_text": {
+      "message": "Il file non è un file zip né testo UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un documento o un pacchetto da importare."
     },
     "calendar_edit_in_panel": {
       "message": "Qui si può cambiare solo l'ora di una data. Per modificare l'attività o il suo calendario, apri il pannello di Home Keeper."

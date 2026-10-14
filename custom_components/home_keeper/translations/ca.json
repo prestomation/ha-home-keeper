@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etiquetes excloses",
           "one_off_retention_days": "Retenció de tasques úniques (dies)",
           "shopping_list_entity": "Llista de la compra",
-          "shopping_line_style": "Text a la llista de la compra"
+          "shopping_line_style": "Text a la llista de la compra",
+          "due_time_mode": "Hora de venciment",
+          "due_time": "Hora de venciment fixa"
         },
         "data_description": {
           "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
           "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho.",
-          "shopping_line_style": "Com apareix un recordatori de compra a la llista de la compra. «Només producte» mostra el nom del recanvi sense el verb, per exemple «Suavitzant» en lloc de «Comprar suavitzant»."
+          "shopping_line_style": "Com apareix un recordatori de compra a la llista de la compra. «Només producte» mostra el nom del recanvi sense el verb, per exemple «Suavitzant» en lloc de «Comprar suavitzant».",
+          "due_time_mode": "Quan venç una tasca que es repeteix després de cada realització. Amb una hora fixa, la tasca venç a aquesta hora en la data de venciment. Un ajornament també acaba a aquesta hora.",
+          "due_time": "L'hora local a la qual vencen aquestes tasques. Només s'usa amb una hora fixa."
         }
       }
     }
@@ -709,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Inclou",
-          "description": "Quines seccions s'exporten. Totes dues per defecte."
+          "description": "Quines seccions s'exporten: aparells, tasques, configuració o el domini d'un complement. Totes per defecte."
+        },
+        "kind": {
+          "name": "Tipus",
+          "description": "\"data\" retorna el document YAML. \"bundle\" escriu un fitxer zip amb els fitxers pujats i la configuració a la carpeta home_keeper_exports i en retorna el camí."
         }
       }
     },
@@ -721,6 +729,10 @@
           "name": "Document",
           "description": "El document que es llegirà, amb la forma que retorna export_data. Doneu-lo com a mapa o com tot el fitxer en una cadena."
         },
+        "bundle": {
+          "name": "Paquet",
+          "description": "El nom d'un fitxer de paquet de la carpeta home_keeper_exports. Fes-lo servir en lloc del document."
+        },
         "dry_run": {
           "name": "Només vista prèvia",
           "description": "Comprova el document i informa de què canviaria, sense escriure res."
@@ -728,6 +740,10 @@
         "match": {
           "name": "Coincidència",
           "description": "Com es busca el registre a què es refereix. \"auto\" cerca per id, després external_id i després el nom. \"none\" crea cada registre."
+        },
+        "include_settings": {
+          "name": "Inclou la configuració",
+          "description": "Importa també els perfils, les notificacions i les opcions del document."
         }
       }
     },
@@ -762,9 +778,21 @@
           "name": "Text a la llista de la compra",
           "description": "Com apareix un recordatori de compra a la llista de la compra. with_verb (per defecte) mostra el nom del recordatori, per exemple «Comprar suavitzant». product_only mostra només el nom del recanvi."
         },
+        "due_time_mode": {
+          "name": "Hora de venciment",
+          "description": "Quan venç una tasca que es repeteix després de cada realització. completion (per defecte) manté l'hora de l'última realització, ajornament o omissió. set_time la fa vèncer a due_time en la data de venciment."
+        },
+        "due_time": {
+          "name": "Hora de venciment fixa",
+          "description": "L'hora local (HH:MM) per a set_time. El valor per defecte és 08:00."
+        },
         "dismissed_companions": {
           "name": "Companys descartats",
           "description": "Dominis d'integracions de connexió a amagar de la llista «Suggerits» a Configuració → Companys. Descartar només silencia un suggeriment; un aparellament connectat es mostra sempre."
+        },
+        "hidden_panel_tabs": {
+          "name": "Pestanyes ocultes del panell",
+          "description": "Els identificadors de les pestanyes de companions que el panell no mostra."
         }
       }
     },
@@ -1087,6 +1115,12 @@
         "with_verb": "Amb verb",
         "product_only": "Només producte"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Hora de realització",
+        "set_time": "Hora fixa"
+      }
     }
   },
   "entity": {
@@ -1214,6 +1248,9 @@
     "file_too_large": {
       "message": "El fitxer supera el límit de {mb} MB."
     },
+    "upload_field_too_large": {
+      "message": "Un camp del formulari de la pujada supera el límit de {kb} KB."
+    },
     "expected_multipart_upload": {
       "message": "S'esperava una pujada multipart."
     },
@@ -1243,6 +1280,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no pot suprimir aquests perfils: {profiles}. Aquestes notificacions els utilitzen: {notifications}. Canvia o suprimeix cada notificació i torna a desar."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper no pot exportar aquestes seccions: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Només un usuari administrador pot exportar o importar les dades de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "El fitxer no és un fitxer zip ni text UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un document o un paquet per importar."
     },
     "calendar_edit_in_panel": {
       "message": "Aquí només es pot canviar l'hora d'una data. Per canviar la tasca o la seva programació, obre el panell de Home Keeper."
