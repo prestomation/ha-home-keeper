@@ -152,7 +152,7 @@ test.describe('Home Keeper panel — fixed schedules', { tag: '@responsive' }, (
     // The moved date shows where it came from. Picked, it starts on its own date, so
     // Move puts it back.
     dialog = await openSnooze();
-    const moved = dialog.locator('.hk-later-row', { has: dialog.locator('.hk-moved-badge') });
+    const moved = dialog.locator('.hk-later-row', { has: page.locator('.hk-moved-badge') });
     await expect(moved).toHaveCount(1);
     await moved.click();
     await dialog.locator('ha-button[slot="primaryAction"]').click();

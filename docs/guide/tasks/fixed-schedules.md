@@ -38,7 +38,7 @@ For "the first Tuesday of each month", set **First date** to a first Tuesday, th
 pick **the first Tuesday**. A task on the 29th, 30th or 31st uses the last day of a
 shorter month, then goes back to its own day.
 
-<img src="docs/images/75-panel-fixed-monthly.png" alt="The task form with Frequency set to monthly and Monthly on set to the second Tuesday" width="820">
+<img src="docs/images/75-panel-fixed-monthly.png" alt="The task form with Frequency set to monthly and Monthly on set to a weekday of the month" width="820">
 
 ## Custom rules
 

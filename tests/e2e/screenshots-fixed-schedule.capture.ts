@@ -122,6 +122,8 @@ async function snoozeShot(page: Page, id: string, suffix: string): Promise<void>
   await expect(dialog.locator('.hk-moved-badge')).toHaveCount(1, { timeout: 15_000 });
   await dialog.locator('.hk-later-row').nth(4).click();
   await expect(dialog.locator('.hk-move-hint')).toContainText('moves to');
+  // Off the rows, so no row shows its hover color in the shot.
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(500);
   await shotDialog(page, dialog, `${OUT}/74${suffix}-snooze-later-date.png`);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -138,6 +140,8 @@ async function cardShot(page: Page, id: string, path: string): Promise<void> {
   await expect(dialog.locator('.hk-moved-badge')).toHaveCount(1, { timeout: 15_000 });
   await dialog.locator('.hk-later-row').nth(1).click();
   await expect(dialog.locator('.hk-move-hint')).toContainText('moves to');
+  // Off the rows, so no row shows its hover color in the shot.
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(500);
   await shotDialog(page, dialog, path);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
