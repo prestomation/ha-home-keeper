@@ -103,9 +103,9 @@ dates. `store.add_task` and `store.update_task` refuse `moved_occurrences`, so e
 The task form never holds a second copy of the rule. Repeats, Every, Monthly on and the day buttons
 are views of `rrule`. `rrule.parseSimple` reads a rule into them, and `rrule.buildSimple` and
 `rrule.toggleDay` write them back. Monthly on offers `rrule.monthlyChoices`: the day of the first
-date, its weekday in the month (`2TU`), and in the last 7 days the last weekday (`-1TU`). If
-`rrule.parseSimple` gives `null`, the controls are disabled and `rrule.resetToSimple` gives Reset to
-simple. `panel-rule.ts` repaints each view in place, so the rule box keeps focus. The card form uses
+date or its weekday in the month (`2TU`, or `-1TU` in the last 7 days). If `rrule.parseSimple` gives
+`null`, the controls are disabled and `rrule.resetToSimple` gives Reset to simple. `panel-rule.ts`
+repaints each view in place, so the rule box keeps focus. The card form uses
 `forms.reconcileRuleEdit`. A line under the form shows the next dates from
 `home_keeper/upcoming_occurrences`.
 

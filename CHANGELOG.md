@@ -11,9 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
-  Set a fixed task to repeat on more than one day of the week, such as Tuesday and
-  Friday, or on a weekday of the month, such as the first Tuesday. For other schedules,
-  type an iCalendar rule. (Fixes #391)
+  Set a fixed task to repeat on Tuesday and Friday, or on the first Tuesday of each
+  month. For other schedules, type an iCalendar rule. (Fixes #391)
 - **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
   Move one future date of a fixed task from the Snooze dialog, and keep the other dates
   as they are. (Fixes #390)
