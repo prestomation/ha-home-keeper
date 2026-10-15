@@ -1,6 +1,7 @@
 """The quality scale ledger agrees with the manifest and with the setup (B20-4).
 
-``manifest.json`` requires Babel, so the 2 dependency rules must name it. Babel
+``manifest.json`` requires Babel and python-dateutil, so the 2 dependency rules must
+name both. Babel
 opens its locale data files on the first lookup, so ``async_setup_entry`` must do
 that lookup in the executor before the shopping-list sync calls it on the loop.
 """
@@ -26,7 +27,7 @@ def _requirements() -> list[str]:
 
 
 def test_b20_4_the_manifest_has_a_requirement():
-    assert _requirements() == ["Babel"]
+    assert _requirements() == ["Babel", "python-dateutil"]
 
 
 @pytest.mark.parametrize("rule", ["dependency-transparency", "async-dependency"])

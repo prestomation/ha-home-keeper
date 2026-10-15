@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.32.0b1"
+PANEL_VERSION = "0.32.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -183,6 +183,12 @@ EVENT_TASK_SKIPPED = f"{DOMAIN}_task_skipped"
 # just the other direction on the calendar. Driven by the set_due_today service.
 # See docs/EVENTS.md.
 EVENT_TASK_DUE_TODAY_SET = f"{DOMAIN}_task_due_today_set"
+# One date of a fixed task's schedule moved, or a move was undone. The rest of the
+# schedule is unchanged. The payload adds ``occurrence`` (the date on the rule),
+# ``to`` (where it is now; equal to ``occurrence`` for an undo) and
+# ``previous_to``. Driven by the move_occurrence service and the calendar entity.
+# See docs/EVENTS.md.
+EVENT_TASK_OCCURRENCE_MOVED = f"{DOMAIN}_task_occurrence_moved"
 # Time-based transitions — fired (edge-triggered) from the coordinator. A task is
 # announced at most once per ``next_due`` value while HA is running; see
 # transitions.detect_transitions and coordinator._async_update_data.
@@ -621,6 +627,20 @@ FREQ_DAILY = "DAILY"
 FREQ_WEEKLY = "WEEKLY"
 FREQ_MONTHLY = "MONTHLY"
 FREQS = [FREQ_DAILY, FREQ_WEEKLY, FREQ_MONTHLY]
+# A fixed schedule is stored as an RFC 5545 RRULE body. Its FREQ can also be YEARLY,
+# which the legacy ``freq`` field never offered. Sub-daily rules are refused: the
+# anchor gives the time of day, so a task is due at most once a day.
+FREQ_YEARLY = "YEARLY"
+RULE_FREQS = [FREQ_DAILY, FREQ_WEEKLY, FREQ_MONTHLY, FREQ_YEARLY]
+# RRULE parts a rule may not carry. COUNT and UNTIL end a schedule, and a task that
+# ends is not built yet. The BYHOUR/BYMINUTE/BYSECOND parts would put more than one
+# occurrence on a day, and DTSTART belongs to the task's ``anchor``.
+RULE_FORBIDDEN_PARTS = ("COUNT", "UNTIL", "BYHOUR", "BYMINUTE", "BYSECOND", "DTSTART")
+# Longest RRULE text a task may store, so a pasted document cannot fill the store.
+MAX_RULE_LENGTH = 500
+# How many moved dates one task may carry. Old moves are removed once their dates
+# pass, so this bounds only moves that are still in the future.
+MAX_MOVED_OCCURRENCES = 100
 
 # How far ahead the calendar expands fixed occurrences, and a hard iteration cap
 # to guard against runaway expansion loops.

@@ -45,6 +45,7 @@
     "custom_components/home_keeper/frontend/src/task-photos.ts",
     "custom_components/home_keeper/frontend/src/photo-staging.ts",
     "custom_components/home_keeper/frontend/src/task-layout.ts",
+    "custom_components/home_keeper/frontend/src/rrule.ts",
     "custom_components/home_keeper/frontend/src/transfer-view.ts"
   ],
   "thresholds": {

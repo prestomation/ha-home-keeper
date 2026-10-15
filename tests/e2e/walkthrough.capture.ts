@@ -607,7 +607,36 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await recurrence.click();
   await page.getByRole('menuitem', { name: /fixed schedule/i }).first().click();
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
-  await page.waitForTimeout(BEAT * 2);
+  await page.waitForTimeout(BEAT);
+  // A weekly schedule on more than one day (#390): pick weekly, then press Tuesday
+  // and Friday. The rule summary and the next dates rewrite under the form.
+  await panel.locator('#hk-task-form-cadence ha-select').first().click();
+  await page.getByRole('menuitem', { name: /^weekly$/i }).first().click();
+  const dayRow = panel.locator('#hk-rule-days');
+  await expect(dayRow).toBeVisible();
+  // A new task starts on today, so today's day is already pressed. Press Tuesday and
+  // Friday first, then release any other day, so the step works on every day.
+  const days = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  for (const pass of ['press', 'release']) {
+    for (const day of days) {
+      const btn = dayRow.locator(`.hk-day-btn[data-day="${day}"]`);
+      const want = day === 'TU' || day === 'FR';
+      const pressed = (await btn.getAttribute('aria-pressed')) === 'true';
+      if (pass === 'press' ? want && !pressed : !want && pressed) await btn.click();
+    }
+  }
+  await expect(dayRow.locator('.hk-day-btn[aria-pressed="true"]')).toHaveCount(2);
+  await page.waitForTimeout(BEAT);
+  // A weekday of the month (#391): pick monthly, then "Monthly on" the weekday that
+  // the start date falls on, such as "the second Tuesday". The day row goes away.
+  await panel.locator('#hk-task-form-cadence ha-select').first().click();
+  await page.getByRole('menuitem', { name: /^monthly$/i }).first().click();
+  const monthBy = panel.locator('#hk-task-form-cadence ha-select').nth(1);
+  await expect(monthBy).toBeVisible();
+  await monthBy.click();
+  await page.getByRole('menuitem', { name: /^the (first|second|third|fourth|last) /i }).first().click();
+  await expect(panel.locator('#hk-form-summary-value')).toContainText(/on the /i);
+  await page.waitForTimeout(BEAT);
 
   // 3b. The **active season**: hold a repeating task to the part of the year it
   //     belongs in. Switch back to a floating cadence, turn the season on, then add a
@@ -1317,9 +1346,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
   await expect(hkCard.locator('.hk-defer-due-today').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
-  await hkCard.locator('.hk-defer-snooze').first().click();
+  // The medicine task is on a fixed schedule, so its dialog also lists the later
+  // dates (#390): pick one, to show one date moving alone.
+  await hkCard.locator(`.hk-defer-snooze[data-id="${TASK.medicine}"]`).click();
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT);
+  const snoozeDialog = page.locator('ha-dialog[open]').first();
+  await expect(snoozeDialog.locator('.hk-later-row').nth(1)).toBeVisible({ timeout: 15_000 });
+  await snoozeDialog.locator('.hk-later-row').nth(1).click();
+  await expect(snoozeDialog.locator('.hk-move-hint')).toBeVisible();
+  await page.waitForTimeout(BEAT);
   await page.keyboard.press('Escape');
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);

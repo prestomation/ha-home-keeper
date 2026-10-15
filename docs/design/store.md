@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 4bf334ccb8ef
+source_hash: e9798d4d932e
 ---
 
 # Store
@@ -64,9 +64,9 @@ section is therefore additive and needs no version bump. Declarative specs go th
 dropped with a warning, because one lost spec is better than a failed startup.
 
 Then load runs idempotent shims: `assets.migrate_legacy_part_numbers`,
-`assets.migrate_documents_from_manual_url`, `_clean_relationship_links` and
-`reconcile.adopt_part_tags`. It saves once, only if a shim changed data. A new optional
-field needs no shim, because readers use `.get()` with a default.
+`assets.migrate_documents_from_manual_url`, `_clean_relationship_links`,
+`models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`. It saves once, only
+if a shim changed data. A new optional field needs no shim: readers use `.get()`.
 
 ### The mutation shape
 
@@ -87,10 +87,10 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
 
 ### Responsibilities
 
-- **Tasks:** add, update, delete, trigger, snooze, due today, skip, meter baseline. A
-  delete calls `_archive_task_history` to keep history on a linked appliance. The set due
-  time from `async_apply_due_time` goes to each recurrence call, and a floating snooze
-  rounds up to it ([recurrence](recurrence.md)).
+- **Tasks:** add, update, delete, trigger, snooze, due today, skip, `move_occurrence` and
+  meter baseline. A delete calls `_archive_task_history` to keep history on a linked
+  appliance. The set due time from `async_apply_due_time` goes to each recurrence call,
+  and a floating snooze rounds up to it ([recurrence](recurrence.md)).
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
 - **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and

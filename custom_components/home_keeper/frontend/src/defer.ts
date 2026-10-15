@@ -11,13 +11,14 @@
 
 import { haDateTimeToIso, isoToHaDateTime, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
-import type { Task } from './types';
+import type { Task, UpcomingOccurrence } from './types';
 import type { BtnWeight, SnoozePresetId } from './utils';
 import {
   DEFAULT_SNOOZE_PRESET,
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  formatOccurrenceTime,
   formatDue,
   isOverdue,
   scanRequired,
@@ -187,6 +188,14 @@ export interface SnoozeState {
    *  and the custom choice is a date. */
   dueTime?: string | null;
   error?: string;
+  /** A fixed task's next schedule dates. `undefined` until they are asked for. */
+  occurrences?: UpcomingOccurrence[];
+  /**
+   * The later date being moved, and where to (an `ha-form` date-time value). Absent
+   * means the due date itself is picked, and the dialog is a plain snooze.
+   */
+  picked?: UpcomingOccurrence;
+  moveTo?: string;
 }
 
 export interface SkipState {
@@ -262,6 +271,77 @@ function customDate(s: SnoozeState): Date | null {
   if (!iso) return null;
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** How many schedule dates the snooze dialog of a fixed task asks for. */
+export const LATER_DATES = 6;
+
+/**
+ * Whether the snooze dialog lists later dates to move. Only a fixed schedule has
+ * them: a floating task's next date does not exist until this one is done.
+ */
+export function offersLaterDates(task: Task | null | undefined): boolean {
+  return task?.recurrence_type === 'fixed';
+}
+
+/** The date on the rule a row stands for: where a moved date came from. */
+export function occurrenceOrigin(row: UpcomingOccurrence): string {
+  return row.moved_from ?? row.start;
+}
+
+/**
+ * A starting value for the new date: one day after the row, same time. The day is
+ * added on the wall clock of Home Assistant's zone, so the time stays the same across
+ * a clock change and in a browser in another zone.
+ */
+export function defaultMoveTo(start: string): string {
+  const shown = isoToHaDateTime(start);
+  if (!shown) return '';
+  const [date, time] = shown.split(' ');
+  const [y, mo, d] = date.split('-').map(Number);
+  return `${new Date(Date.UTC(y, mo - 1, d + 1)).toISOString().slice(0, 10)} ${time}`;
+}
+
+/**
+ * Pick *row* to move, seeding its new date, or pick the due date itself (no *row*)
+ * for a plain snooze. A date that already moved starts on its own date again, so Move
+ * puts it back: that is how a move is undone.
+ */
+export function pickOccurrence(s: SnoozeState, row?: UpcomingOccurrence): void {
+  s.picked = row;
+  if (!row) s.moveTo = undefined;
+  else if (row.moved_from) s.moveTo = isoToHaDateTime(row.moved_from);
+  else s.moveTo = defaultMoveTo(row.start);
+  s.error = undefined;
+}
+
+/**
+ * The schedule dates after the task's due date: the ones a move is for. The due date
+ * itself is the first choice of the dialog, and a snooze moves it.
+ */
+export function laterRows(s: SnoozeState): UpcomingOccurrence[] {
+  const due = s.task?.next_due ? new Date(s.task.next_due).getTime() : -Infinity;
+  return (s.occurrences ?? []).filter((row) => new Date(row.start).getTime() > due);
+}
+
+/** The instant the picked date moves to, or `null` when nothing usable is set. */
+export function moveTarget(s: SnoozeState): Date | null {
+  if (!s.picked || !s.moveTo) return null;
+  const iso = haDateTimeToIso(s.moveTo);
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** The line under "A later date": what moves where, or what to do next. */
+export function moveHintText(s: SnoozeState, lang?: string): string {
+  if (!s.picked) return t('defer.movePick');
+  const to = moveTarget(s);
+  if (!to) return t('defer.snoozePickDate');
+  return t('defer.moveResolves', {
+    from: formatOccurrenceTime(s.picked.start, lang),
+    to: formatOccurrenceTime(to, lang),
+  });
 }
 
 /**

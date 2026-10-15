@@ -460,9 +460,15 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     expect(formRecurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' })).toBe(
       'Every 3 months after completion',
     );
-    expect(formRecurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'Every 2 weeks',
-    );
+    // A new fixed task anchors at now, so the test fixes the anchor: Tuesday.
+    expect(
+      formRecurrenceSummary({
+        recurrence_type: 'fixed',
+        interval: 2,
+        freq: 'WEEKLY',
+        anchor: '2026-10-06T07:00:00',
+      }),
+    ).toBe('Every 2 weeks on Tuesday');
     // A triggered task is the trap here: buildTaskPayload drops recurrence_type for
     // that kind, so a naive preview reads "every day" instead of "Monitored".
     expect(formRecurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');

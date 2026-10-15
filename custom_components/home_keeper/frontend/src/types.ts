@@ -30,7 +30,17 @@ export type PartAction =
   | 'sharpen'
   | 'rotate'
   | 'inspect';
-export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+/** One moved date of a fixed schedule (`moved_occurrences`). */
+export interface MovedOccurrence {
+  from: string;
+  to: string;
+}
+/** One row of `home_keeper/upcoming_occurrences`: a date, and where it moved from. */
+export interface UpcomingOccurrence {
+  start: string;
+  moved_from: string | null;
+}
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
  *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
@@ -149,7 +159,16 @@ export interface Task {
   // Absent on triggered tasks (no schedule). Present for floating/fixed.
   interval?: number;
   unit?: Unit;
+  /** Legacy fixed-schedule fields. The store converts them to `rrule` on load, so a
+   *  stored task no longer carries them; the form still derives them from the rule
+   *  to drive its Repeats and Every controls. */
   freq?: Freq;
+  /** A fixed task's schedule: an RFC 5545 RRULE body, e.g. `FREQ=WEEKLY;BYDAY=TU,FR`.
+   *  The day buttons and the Repeats/Every controls read and write it; see rrule.ts. */
+  rrule?: string;
+  /** Single dates of a fixed schedule moved off the rule. `from` is the date on the
+   *  rule, `to` where it is now. */
+  moved_occurrences?: MovedOccurrence[];
   anchor?: string;
   // The chosen due date for a one-off task (absent on other kinds).
   due?: string;

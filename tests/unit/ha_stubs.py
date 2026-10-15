@@ -107,6 +107,10 @@ def _install_components(ha: types.ModuleType) -> None:
                 self.uid = uid
                 self.description = description
 
+            @property
+            def start_datetime_local(self):
+                return self.start
+
         comp_cal.CalendarEntity = CalendarEntity
         comp_cal.CalendarEvent = CalendarEvent
     components.calendar = comp_cal
@@ -388,6 +392,12 @@ def _install_util() -> None:
         dt.now = now
     if not hasattr(dt, "DEFAULT_TIME_ZONE"):
         dt.DEFAULT_TIME_ZONE = UTC
+    if not hasattr(dt, "get_default_time_zone"):
+
+        def get_default_time_zone():
+            return dt.DEFAULT_TIME_ZONE
+
+        dt.get_default_time_zone = get_default_time_zone
     if not hasattr(dt, "as_local"):
 
         def as_local(value):

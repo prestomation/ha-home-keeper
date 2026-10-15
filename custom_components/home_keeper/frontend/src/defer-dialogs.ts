@@ -11,14 +11,65 @@
 
 import * as api from './api';
 import type { DeferVerbs, SkipState, SnoozeState } from './defer';
-import { snoozeHintText, snoozeTarget } from './defer';
+import {
+  LATER_DATES,
+  laterRows,
+  moveHintText,
+  moveTarget,
+  occurrenceOrigin,
+  offersLaterDates,
+  pickOccurrence,
+  snoozeHintText,
+  snoozeTarget,
+} from './defer';
 import { makeDialog } from './dialogs';
 import type { FormField, HaFormElement } from './forms';
 import { selDate, selDateTime, selSelect, selText } from './forms';
 import { t } from './i18n';
 import type { Hass, Task } from './types';
 import type { SnoozePresetId } from './utils';
-import { SNOOZE_PRESETS, guardWrite, setBtnWeight, taskRecordsReading } from './utils';
+import {
+  SNOOZE_PRESETS,
+  escapeHTML,
+  formatOccurrenceTime,
+  guardWrite,
+  setBtnWeight,
+  taskRecordsReading,
+} from './utils';
+
+/**
+ * Styles for the date list of a fixed task's snooze dialog, shared by the panel and
+ * the card:
+ * the dialog is built in whichever shadow root opens it, so both stylesheets need
+ * them. Written in Home Assistant's own theme variables, because the card has none of
+ * the panel's `--hk-*` tokens.
+ */
+export const LATER_DATES_STYLES = `
+  .hk-later-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .hk-later-row {
+    appearance: none; font: inherit; text-align: left; cursor: pointer;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
+    min-height: 44px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--divider-color); background: transparent;
+    color: var(--primary-text-color);
+  }
+  .hk-later-row:hover { background: var(--secondary-background-color); }
+  .hk-later-row.picked {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  }
+  .hk-later-row:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .hk-later-date { font-weight: 500; }
+  .hk-later-tag { font-size: 0.85em; color: var(--secondary-text-color); }
+  .hk-later-head { font-size: 0.85em; color: var(--secondary-text-color); margin: 8px 0 0; }
+  .hk-later-from { flex-basis: 100%; font-size: 0.85em; color: var(--secondary-text-color); }
+  .hk-moved-badge {
+    font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--warning-color, #ffa600) 18%, transparent);
+    color: var(--primary-text-color);
+  }
+  .hk-move-lead { font-size: 0.85em; color: var(--secondary-text-color); margin-top: 6px; }
+`;
 
 /** What a host must supply for the menu to do anything. */
 export interface DeferMenuHost {
@@ -264,6 +315,18 @@ export function renderSnoozeDialog(
   close = closeOnce(s, close);
   const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
+  if (offersLaterDates(s.task)) {
+    renderDateList(host, s, body);
+    if (s.picked) {
+      renderMoveTo(host, s, body, mountTo);
+      errorAlert(body, s.error);
+      footerButtons(footer, t('btn.move'), () => void submitMove(host, s, close), close);
+      mount();
+      mountTo.appendChild(dialog);
+      return;
+    }
+  }
+
   const options = SNOOZE_PRESETS.map((p) => ({ value: p.id, label: t('defer.preset.' + p.id) }));
   const schema: FormField[] = [
     { name: 'snoozePreset', required: true, selector: selSelect(options) },
@@ -302,6 +365,145 @@ export function renderSnoozeDialog(
   footerButtons(footer, t('btn.snooze'), (b) => void submitSnooze(host, s, close, b), close);
   mount();
   mountTo.appendChild(dialog);
+}
+
+/**
+ * The dates of a fixed task's snooze dialog. The first row is the due date, and a
+ * snooze moves it. Each later row is a date of the schedule, and picking one moves
+ * only that date (for "the city moved next week's pickup"). The later dates are asked
+ * for when the dialog opens, from the engine the calendar reads, so a date that
+ * already moved shows where it is now.
+ */
+function renderDateList(host: DeferDialogHost, s: SnoozeState, body: HTMLElement): void {
+  const lang = host.lang();
+  const list = document.createElement('div');
+  list.className = 'hk-later-list';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-label', t('defer.snoozeTitle'));
+  body.appendChild(list);
+  const row = (html: string, picked: boolean, onPick: () => void, start?: string) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hk-later-row';
+    btn.classList.toggle('picked', picked);
+    btn.setAttribute('aria-pressed', String(picked));
+    if (start) btn.dataset.start = start;
+    btn.innerHTML = html;
+    btn.addEventListener('click', () => {
+      onPick();
+      host.rerender();
+    });
+    list.appendChild(btn);
+  };
+  const due = s.task?.next_due;
+  if (due) {
+    row(
+      `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(due, lang))}</span>` +
+        `<span class="hk-later-tag">${escapeHTML(t('defer.nextDate'))}</span>`,
+      !s.picked,
+      () => pickOccurrence(s),
+      due,
+    );
+  }
+  if (s.occurrences === undefined) {
+    const loading = document.createElement('div');
+    loading.className = 'hk-later-head';
+    loading.textContent = t('defer.loadingDates');
+    list.appendChild(loading);
+    void loadLaterDates(host, s);
+    return;
+  }
+  const later = laterRows(s);
+  if (!later.length) return;
+  const head = document.createElement('div');
+  head.className = 'hk-later-head';
+  head.textContent = t('defer.laterDate');
+  list.appendChild(head);
+  for (const occ of later) {
+    const picked = s.picked != null && occurrenceOrigin(s.picked) === occurrenceOrigin(occ);
+    const moved = occ.moved_from
+      ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
+        `<span class="hk-later-from">${escapeHTML(
+          t('upcoming.movedFrom', { date: formatOccurrenceTime(occ.moved_from, lang) }),
+        )}</span>`
+      : '';
+    row(
+      `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(occ.start, lang))}</span>${moved}`,
+      picked,
+      () => pickOccurrence(s, occ),
+      occ.start,
+    );
+  }
+}
+
+/** Where the picked later date goes, and what that does. */
+function renderMoveTo(
+  host: DeferDialogHost,
+  s: SnoozeState,
+  body: HTMLElement,
+  mountTo: HTMLElement,
+): void {
+  const form = host.makeForm(
+    [{ name: 'moveTo', required: true, selector: selDateTime() }],
+    { moveTo: s.moveTo ?? '' },
+    (value) => {
+      s.moveTo = value.moveTo == null ? s.moveTo : String(value.moveTo);
+      s.error = undefined;
+      updateMoveHint(mountTo, s, host.lang());
+    },
+  );
+  form.classList.add('hk-later-to');
+  body.appendChild(form);
+  const hint = document.createElement('div');
+  hint.className = 'hk-snooze-hint hk-move-hint';
+  hint.textContent = moveHintText(s, host.lang());
+  body.appendChild(hint);
+  const lead = document.createElement('div');
+  lead.className = 'hk-move-lead';
+  lead.textContent = t('move.lead');
+  body.appendChild(lead);
+}
+
+async function loadLaterDates(host: DeferDialogHost, s: SnoozeState): Promise<void> {
+  const hass = host.hass();
+  if (!hass || !s.task) return;
+  try {
+    s.occurrences = await api.upcomingOccurrences(hass, { taskId: s.task.id }, LATER_DATES);
+  } catch (err) {
+    s.occurrences = [];
+    s.error = String((err as { message?: string })?.message || err);
+  }
+  if (s.open) host.rerender();
+}
+
+/** Refresh the move line without re-rendering (which would steal focus). */
+export function updateMoveHint(root: ParentNode, s: SnoozeState, lang?: string): void {
+  const hint = root.querySelector<HTMLElement>('.hk-move-hint');
+  if (hint) hint.textContent = moveHintText(s, lang);
+}
+
+export async function submitMove(
+  host: DeferDialogHost,
+  s: SnoozeState,
+  close: () => void,
+): Promise<void> {
+  const to = moveTarget(s);
+  const hass = host.hass();
+  if (!hass || !s.task) return;
+  if (!s.picked || !to) {
+    // Say what is missing rather than doing nothing on Move.
+    s.error = t(s.picked ? 'defer.snoozePickDate' : 'defer.movePick');
+    host.rerender();
+    return;
+  }
+  try {
+    await api.moveOccurrence(hass, s.task.id, occurrenceOrigin(s.picked), to.toISOString());
+    close();
+    await host.refresh();
+  } catch (err) {
+    s.error = String((err as { message?: string })?.message || err);
+    host.rerender();
+  }
 }
 
 /** Refresh the resolved-date line without re-rendering (which would steal focus). */

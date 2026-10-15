@@ -89,6 +89,11 @@ export default captureConfig('walkthrough.capture.ts', {
   // 55s for the phone walk in the dev container, against 40s before. The desktop walk
   // is unchanged, so the cap stays 360s.
   //
+  // The fixed schedule PR (#393) added the "Monthly on" beat and paid for it: 4 of its
+  // own waits went from 2 beats to 1. Measured in the dev container: 4.8m (about 288s)
+  // before that cut and 4.6m (about 276s) after it, the same as before the PR. The
+  // phone walk ran 53s. The cap stays 360s.
+  //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
   // a fixed duration, so anything that eats the whole budget is a *call that never

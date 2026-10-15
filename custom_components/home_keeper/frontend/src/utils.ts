@@ -1,4 +1,14 @@
 import { getLanguage, t, tlist, tn } from './i18n';
+import {
+  anchorDay,
+  buildSimple,
+  dayList,
+  parseSimple,
+  shownDays,
+  splitMonthBy,
+  weekdayName,
+  type SimpleFreq,
+} from './rrule';
 import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -968,14 +978,7 @@ function recurrenceText(task: Task): string {
     const unit = tn(`recurrence.unit.${base}`, n);
     summary = tn('recurrence.floating', n, { unit });
   } else {
-    const freqBase: Record<string, string> = {
-      DAILY: 'day',
-      WEEKLY: 'week',
-      MONTHLY: 'month',
-    };
-    const base = freqBase[task.freq || 'DAILY'] || 'day';
-    const unit = tn(`recurrence.unit.${base}`, n);
-    summary = tn('recurrence.fixed', n, { unit });
+    summary = fixedRuleText(task);
   }
   if (task.active_season) {
     const windows = Array.isArray(task.active_season)
@@ -997,6 +1000,80 @@ function recurrenceText(task: Task): string {
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
+}
+
+/** A schedule date as a short label: "Tue, Oct 6". The year is left out. */
+export function formatOccurrence(value: string | Date, lang?: string): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang || undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: haTimeZone,
+  });
+}
+
+/**
+ * A schedule date with its weekday and time: "Tue, Oct 6, 7:00 AM". The weekday is
+ * the point for a weekly chore, so every list of schedule dates uses this.
+ */
+export function formatOccurrenceTime(value: string | Date, lang?: string): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: haTimeZone,
+  });
+}
+
+/**
+ * Which day of the month a monthly rule uses, in words: "day 13" for `''` (the start
+ * date's day), or "the second Tuesday" for `2TU`. *anchor* is from `anchorDay`.
+ */
+export function monthByText(token: string, anchor: Date | null, lang?: string): string {
+  const parts = splitMonthBy(token);
+  if (!parts) return t('rule.monthDay', { day: anchor ? anchor.getUTCDate() : '' });
+  return t(`rule.nth.${parts[0]}`, { weekday: weekdayName(parts[1], lang, 'long') });
+}
+
+/**
+ * A fixed schedule in words: "every 2 weeks on Tuesday and Friday", "every month on
+ * the first Tuesday", or "custom schedule" for a rule the simple controls cannot say.
+ *
+ * A task without `rrule` is described from its legacy `freq`/`interval`, which is what
+ * an old export or a form state built before this field existed carries.
+ */
+function fixedRuleText(task: Task): string {
+  const rule = task.rrule || buildSimple({
+    freq: (task.freq as SimpleFreq) || 'DAILY',
+    interval: task.interval || 1,
+    byday: [],
+  });
+  const simple = parseSimple(rule);
+  if (!simple) return t('recurrence.custom');
+  // Yearly is a whole phrase of its own: the shared "every {unit}" template cannot
+  // agree with the noun for "year" in every language (Danish needs "hvert år").
+  if (simple.freq === 'YEARLY') return tn('recurrence.yearly', simple.interval);
+  const freqBase: Record<Exclude<SimpleFreq, 'YEARLY'>, string> = {
+    DAILY: 'day',
+    WEEKLY: 'week',
+    MONTHLY: 'month',
+  };
+  const unit = tn(`recurrence.unit.${freqBase[simple.freq]}`, simple.interval);
+  const summary = tn('recurrence.fixed', simple.interval, { unit });
+  if (simple.freq === 'MONTHLY' && simple.monthBy) {
+    const day = monthByText(simple.monthBy, anchorDay(task.anchor), getLanguage());
+    return t('recurrence.fixedMonthly', { summary, day });
+  }
+  if (simple.freq !== 'WEEKLY') return summary;
+  const days = shownDays(rule, anchorDay(task.anchor));
+  if (!days.length) return summary;
+  return t('recurrence.fixedDays', { summary, days: dayList(days, getLanguage()) });
 }
 
 /**

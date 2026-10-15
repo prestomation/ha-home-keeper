@@ -165,7 +165,9 @@ def test_move_completion_fixed_stays_schedule_driven():
     # A fixed task's schedule doesn't care which day the occurrence was logged on.
     assert (
         out["next_due"]
-        == r.next_fixed_occurrence(anchor, "MONTHLY", 1, after=now).isoformat()
+        == r.next_fixed_occurrence(
+            anchor, r.legacy_rule("MONTHLY", 1), after=now
+        ).isoformat()
     )
     assert out["last_completed"] == dt(2026, 6, 10).isoformat()
 

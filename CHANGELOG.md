@@ -6,6 +6,26 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.32.0b2]
+
+### Added
+
+- **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
+  Set a fixed task to repeat on Tuesday and Friday, or on the first Tuesday of each
+  month. For other schedules, type an iCalendar rule. (Fixes #391)
+- **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
+  Move one future date of a fixed task from the Snooze dialog, and keep the other dates
+  as they are. (Fixes #390)
+
+### Changed
+
+- **Month-end dates.** A monthly task on the 29th, 30th or 31st uses the last day of
+  a short month and then goes back to its own day. Before, it stayed on the 28th after
+  February.
+- **Fixed schedule storage.** Home Keeper stores each fixed schedule as a rule and
+  converts the tasks you have when it starts. Version 0.32.0b1 and earlier cannot read
+  that form, so make a backup before you install this beta.
+
 ## [0.32.0b1]
 
 ### Added
