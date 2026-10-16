@@ -269,6 +269,9 @@
           "freq": {
             "type": "string"
           },
+          "rrule": {
+            "type": "string"
+          },
           "anchor": {
             "type": "string"
           },
@@ -527,6 +530,24 @@
               },
               "required": [
                 "skipped_at"
+              ]
+            }
+          },
+          "moved_occurrences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
               ]
             }
           }
