@@ -6,10 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.32.0b2]
+## [0.32.0] - 2026-10-16
 
 ### Added
 
+- **[View-only panel for household members](https://prestomation.github.io/ha-home-keeper/docs/guide/household-users).**
+  Users who are not admins can now open the Home Keeper panel. They can use their tasks
+  and read all appliance data, parts and manuals. Only an admin can change appliances
+  and settings. (Fixes #444)
 - **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
   Set a fixed task to repeat on Tuesday and Friday, or on the first Tuesday of each
   month. For other schedules, type an iCalendar rule. (Fixes #391)
@@ -23,17 +27,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   a short month and then goes back to its own day. Before, it stayed on the 28th after
   February.
 - **Fixed schedule storage.** Home Keeper stores each fixed schedule as a rule and
-  converts the tasks you have when it starts. Version 0.32.0b1 and earlier cannot read
-  that form, so make a backup before you install this beta.
-
-## [0.32.0b1]
-
-### Added
-
-- **[View-only panel for household members](https://prestomation.github.io/ha-home-keeper/docs/guide/household-users).**
-  Users who are not admins can now open the Home Keeper panel. They can use their tasks
-  and read all appliance data, parts and manuals. Only an admin can change appliances
-  and settings. (Fixes #444)
+  converts the tasks you have when it starts. Version 0.31.0 and earlier cannot read
+  that form, so make a backup before you install this version.
 
 ## [0.31.0] - 2026-10-13
 
