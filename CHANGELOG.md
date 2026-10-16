@@ -26,9 +26,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Month-end dates.** A monthly task on the 29th, 30th or 31st uses the last day of
   a short month and then goes back to its own day. Before, it stayed on the 28th after
   February.
-- **Fixed schedule storage.** Home Keeper stores each fixed schedule as a rule and
-  converts the tasks you have when it starts. Version 0.31.0 and earlier cannot read
-  that form, so make a backup before you install this version.
 
 ## [0.31.0] - 2026-10-13
 
