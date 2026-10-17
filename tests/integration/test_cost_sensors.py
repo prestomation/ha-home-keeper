@@ -63,7 +63,7 @@ def test_a_completion_cost_moves_the_spend(ha):
     created = call_service(
         ha,
         "home_keeper",
-        "create_task",
+        "add_task",
         {"name": "IT cost probe", "interval": 30, "unit": "days"},
         return_response=True,
     )
