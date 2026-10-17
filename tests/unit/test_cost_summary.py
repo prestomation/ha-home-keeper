@@ -231,3 +231,31 @@ def test_purchase_total() -> None:
 
 def test_purchase_total_empty() -> None:
     assert cs.purchase_total([]) == {"total": 0, "count": 0}
+
+
+def test_archived_history_gives_a_naive_time_the_zone() -> None:
+    zone = timezone(timedelta(hours=2))
+    assets = [
+        {
+            "id": "heater",
+            "task_history": [
+                {
+                    "task_id": "gone",
+                    "completions": [{"ts": "2026-01-01T10:00:00", "cost": 1}],
+                }
+            ],
+        }
+    ]
+    records = cs.spend_records([], assets, tz=zone)
+    assert records[0]["ts"] == "2026-01-01T10:00:00+02:00"
+
+
+def test_totals_round_to_cents() -> None:
+    records = _records((1, 1.234), (2, 1.0))
+    summary = cs.spend_summary(records, now=NOW, windows=[30])
+    assert summary["windows"][0]["total"] == 2.23
+    assert summary["all_time"]["total"] == 2.23
+    assert cs.purchase_total([{"cost": 1.234}, {"cost": 0.5}]) == {
+        "total": 1.73,
+        "count": 2,
+    }
