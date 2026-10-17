@@ -1734,6 +1734,7 @@ export const DEFAULT_TASK_TAB: TaskTab = 'schedule';
 export const SETTINGS_SECTIONS = [
   'general',
   'duetime',
+  'cost',
   'shopping',
   'problem',
   'skipsnooze',

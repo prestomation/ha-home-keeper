@@ -40,6 +40,7 @@ import { openCompletionDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
+import { spendStrip, wireSpend } from './panel-spend';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
 import {
@@ -102,7 +103,7 @@ function introCard(p: PanelHost): string {
 }
 
 export function tasksList(p: PanelHost): string {
-  const intro = introCard(p) + presetNudgeCard(p);
+  const intro = introCard(p) + presetNudgeCard(p) + spendStrip(p);
   if (!p._tasks.length) {
     const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
     return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
@@ -824,6 +825,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     if (p._taskLayout !== 'rows') wirePressCards(p, root);
     if (p._taskLayout === 'board') wireBoardEdges(root);
     wirePresetNudge(p, root);
+    wireSpend(p, root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

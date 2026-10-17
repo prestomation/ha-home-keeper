@@ -422,6 +422,57 @@ export const STYLES = `
   .hk-intro-body { color: var(--secondary-text-color); font-size: 0.9rem; margin: 8px 0; }
   .hk-intro ul { margin: 8px 0 12px; padding-inline-start: 20px; }
   .hk-intro li { color: var(--secondary-text-color); font-size: 0.9rem; margin: 4px 0; line-height: 1.4; }
+  /* Spend totals above the task list (#460). 1 toggle button per total; they wrap,
+     so a phone shows 2 or 3 to a row. The open total lists its records below. */
+  .hk-spend {
+    border: 1px solid var(--divider-color);
+    border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+    background: var(--card-background-color);
+  }
+  .hk-spend-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+  .hk-spend-heading { font-weight: 500; }
+  .hk-spend-help { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-spend-totals {
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .hk-spend-total {
+    font: inherit; color: inherit; text-align: start; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; min-height: 44px;
+    padding: 10px 12px; border-radius: 10px;
+    border: 2px solid var(--divider-color);
+    background: var(--card-background-color);
+  }
+  .hk-spend-total:hover { border-color: var(--primary-color); }
+  .hk-spend-total.open { border-color: var(--primary-color); background: var(--secondary-background-color); }
+  .hk-spend-total:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .hk-spend-label, .hk-spend-count { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-spend-value { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hk-spend-records { margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 8px; }
+  .hk-spend-records-head { font-weight: 500; margin-bottom: 4px; }
+  .hk-spend-list { list-style: none; margin: 0; padding: 0; }
+  .hk-spend-row {
+    display: grid; align-items: baseline; gap: 2px 12px; padding: 8px 0;
+    grid-template-columns: 7.5em minmax(0, 1fr) auto auto;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-spend-row:last-child { border-bottom: none; }
+  .hk-spend-date, .hk-spend-who { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-spend-task { color: var(--primary-color); overflow-wrap: anywhere; }
+  .hk-spend-tag {
+    grid-column: 2; font-size: 0.75rem; color: var(--secondary-text-color);
+  }
+  .hk-spend-cost { text-align: end; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .hk-spend-empty { color: var(--secondary-text-color); font-size: 0.9rem; padding: 8px 0; }
+  @media (max-width: 700px) {
+    .hk-spend-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hk-spend-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .hk-spend-date { grid-column: 1; grid-row: 2; }
+    .hk-spend-task { grid-column: 1; grid-row: 1; }
+    .hk-spend-cost { grid-column: 2; grid-row: 1; }
+    .hk-spend-who { grid-column: 2; grid-row: 2; text-align: end; }
+    .hk-spend-tag { grid-column: 1; grid-row: 3; }
+  }
   /* Preset suggestions above the task list: the same card as the intro, with one
      tile per preset. Two tiles side by side where they fit, one per row on a phone. */
   .hk-preset-nudge {

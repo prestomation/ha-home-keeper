@@ -24,7 +24,10 @@ import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { profileHasAnyTask } from './card-filter';
 import {
+  coerceCost,
   companionOptions,
+  costSchema,
+  costWindows,
   dueTimeSchema,
   generalSchema,
   notificationDeliverySchema,
@@ -150,6 +153,12 @@ export function settingsSectionList(p: PanelHost): {
       card: 'hk-settings-duetime',
       label: t('settings.duetime_heading'),
       mark: dot(setDueTime(opts) ? 'on' : 'off'),
+    },
+    {
+      key: 'cost',
+      card: 'hk-settings-cost',
+      label: t('settings.cost_heading'),
+      mark: dot(opts?.cost_summary_panel === false ? 'off' : 'on'),
     },
     {
       key: 'shopping',
@@ -334,6 +343,19 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
   );
   // Due time — when a floating task is due (#438).
   host.appendChild(dueTimeCard(p, opts));
+  // Cost tracking — the spend windows and the totals above the task list (#460).
+  host.appendChild(
+    settingsCard(
+      p,
+      'hk-settings-cost',
+      'settings.cost_heading',
+      'settings.cost_help',
+      costSchema(),
+      // The select holds strings; the option holds numbers.
+      { ...opts, cost_windows: costWindows(opts).map(String) } as unknown as HomeKeeperOptions,
+      { coerce: coerceCost },
+    ),
+  );
   // Shopping list — where auto-buy reminders are mirrored, and how they read there.
   host.appendChild(shoppingCard(p, opts));
   // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor). The
@@ -532,6 +554,9 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   if (id === 'hk-settings-duetime') {
     const due = setDueTime(opts);
     return due ? t('settings.duetime_on', { time: due }) : t('settings.duetime_off');
+  }
+  if (id === 'hk-settings-cost') {
+    return t('settings.cost_summary', { days: costWindows(opts).join(', ') });
   }
   if (id === 'hk-settings-shopping') {
     const entity = String(opts.shopping_list_entity ?? '');

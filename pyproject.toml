@@ -103,6 +103,8 @@ only_mutate = [
     "custom_components/home_keeper/task_counts.py",
     "custom_components/home_keeper/problem_tasks.py",
     "custom_components/home_keeper/appliance_report.py",
+    # Spend and purchase totals (#460). Pure, and driven by test_cost_summary.py.
+    "custom_components/home_keeper/cost_summary.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
     # Task photos (#399): the list rules and the on-disk paths. Pure, and driven by
