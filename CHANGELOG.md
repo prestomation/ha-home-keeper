@@ -11,9 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Maintenance spend totals](https://prestomation.github.io/ha-home-keeper/docs/guide/costs).**
-  Sensors and the panel show what you spent on maintenance in the last 30 days, the last
-  60 days and all time, and the total cost of your appliances. Select a total in the
-  panel to see its records, and set your own periods in Settings. (Fixes #460)
+  Sensors and the panel show your maintenance spend for periods such as 30 days and for
+  all time, plus the total cost of your appliances. Select a total in the panel to see
+  its records, and set your own periods in Settings. (Fixes #460)
 
 ## [0.32.0] - 2026-10-16
 
