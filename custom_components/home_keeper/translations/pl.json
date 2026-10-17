@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Ukryte karty panelu",
           "description": "Identyfikatory kart integracji towarzyszących, których panel nie pokazuje."
+        },
+        "cost_windows": {
+          "name": "Okresy wydatków (dni)",
+          "description": "Okresy sum wydatków na konserwację w dniach. Od 1 do 4 liczb od 1 do 3650. Każdy okres ma czujnik."
+        },
+        "cost_summary_panel": {
+          "name": "Pokaż wydatki w panelu",
+          "description": "Pokazuje sumy wydatków nad listą zadań w panelu."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Zadania z {profile}"
+      },
+      "spend_window": {
+        "name": "Wydatki na konserwację {days} dni"
+      },
+      "spend_all": {
+        "name": "Wydatki na konserwację łącznie"
+      },
+      "purchases_total": {
+        "name": "Zakupy urządzeń łącznie"
       }
     },
     "binary_sensor": {

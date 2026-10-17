@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Pestañas ocultas del panel",
           "description": "Los ID de las pestañas de companions que el panel no muestra."
+        },
+        "cost_windows": {
+          "name": "Periodos de gasto (días)",
+          "description": "Los periodos de los totales de gasto de mantenimiento, en días. De 1 a 4 números entre 1 y 3650. Cada periodo tiene un sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Mostrar el gasto en el panel",
+          "description": "Muestra los totales de gasto sobre la lista de tareas en el panel."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Tareas de {profile}"
+      },
+      "spend_window": {
+        "name": "Gasto de mantenimiento {days} días"
+      },
+      "spend_all": {
+        "name": "Gasto de mantenimiento total"
+      },
+      "purchases_total": {
+        "name": "Total de compras de aparatos"
       }
     },
     "binary_sensor": {

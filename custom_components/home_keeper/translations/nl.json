@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Verborgen paneeltabbladen",
           "description": "De ID's van de companion-tabbladen die het paneel niet toont."
+        },
+        "cost_windows": {
+          "name": "Kostenperioden (dagen)",
+          "description": "De perioden voor de onderhoudskosten, in dagen. 1 tot 4 getallen van 1 tot 3650. Elke periode krijgt een sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Kosten in het paneel tonen",
+          "description": "Toont de kostentotalen boven de takenlijst in het paneel."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Taken van {profile}"
+      },
+      "spend_window": {
+        "name": "Onderhoudskosten {days} dagen"
+      },
+      "spend_all": {
+        "name": "Onderhoudskosten totaal"
+      },
+      "purchases_total": {
+        "name": "Totaal aankoop apparaten"
       }
     },
     "binary_sensor": {

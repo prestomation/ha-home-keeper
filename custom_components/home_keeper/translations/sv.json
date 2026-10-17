@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Dolda panelflikar",
           "description": "ID:n för de följeflikar som panelen inte visar."
+        },
+        "cost_windows": {
+          "name": "Kostnadsperioder (dagar)",
+          "description": "Perioderna för underhållskostnaderna i dagar. 1 till 4 tal från 1 till 3650. Varje period får en sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Visa kostnader i panelen",
+          "description": "Visar kostnadssummorna ovanför uppgiftslistan i panelen."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Uppgifter i {profile}"
+      },
+      "spend_window": {
+        "name": "Underhållskostnad {days} dagar"
+      },
+      "spend_all": {
+        "name": "Underhållskostnad totalt"
+      },
+      "purchases_total": {
+        "name": "Köp av apparater totalt"
       }
     },
     "binary_sensor": {

@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Piilotetut paneelin välilehdet",
           "description": "Niiden kumppanivälilehtien tunnisteet, joita paneeli ei näytä."
+        },
+        "cost_windows": {
+          "name": "Kulujaksot (päivää)",
+          "description": "Huoltokulujen summien jaksot päivinä. 1–4 lukua väliltä 1–3650. Jokainen jakso saa anturin."
+        },
+        "cost_summary_panel": {
+          "name": "Näytä kulut paneelissa",
+          "description": "Näyttää kulujen summat tehtäväluettelon yläpuolella paneelissa."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Profiilin {profile} tehtävät"
+      },
+      "spend_window": {
+        "name": "Huoltokulut {days} päivää"
+      },
+      "spend_all": {
+        "name": "Huoltokulut yhteensä"
+      },
+      "purchases_total": {
+        "name": "Laiteostot yhteensä"
       }
     },
     "binary_sensor": {

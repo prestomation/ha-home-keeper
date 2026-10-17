@@ -927,6 +927,14 @@
         "hidden_panel_tabs": {
           "name": "Hidden panel tabs",
           "description": "The IDs of the companion tabs that the panel does not show."
+        },
+        "cost_windows": {
+          "name": "Spend windows (days)",
+          "description": "The windows for the maintenance spend totals, in days. 1 to 4 numbers from 1 to 3650. Each window gets a sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Show spend in the panel",
+          "description": "Show the spend totals above the task list in the panel."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "{profile} tasks"
+      },
+      "spend_window": {
+        "name": "Maintenance spend {days} days"
+      },
+      "spend_all": {
+        "name": "Maintenance spend all time"
+      },
+      "purchases_total": {
+        "name": "Appliance purchases total"
       }
     },
     "binary_sensor": {

@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Skjulte panelfaner",
           "description": "ID-ene til følgefanene som panelet ikke viser."
+        },
+        "cost_windows": {
+          "name": "Kostnadsperioder (dager)",
+          "description": "Periodene for vedlikeholdskostnadene i dager. 1 til 4 tall fra 1 til 3650. Hver periode får en sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Vis kostnader i panelet",
+          "description": "Viser kostnadssummene over oppgavelisten i panelet."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Oppgaver i {profile}"
+      },
+      "spend_window": {
+        "name": "Vedlikeholdskostnad {days} dager"
+      },
+      "spend_all": {
+        "name": "Vedlikeholdskostnad totalt"
+      },
+      "purchases_total": {
+        "name": "Kjøp av apparater totalt"
       }
     },
     "binary_sensor": {

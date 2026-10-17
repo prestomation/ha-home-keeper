@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import time
 from typing import TYPE_CHECKING, Any
 
-from . import notifications, profiles, shopping
+from . import cost_summary, notifications, profiles, shopping
 from .const import (
     DEFAULT_DUE_TIME,
     DUE_TIME_MODE_COMPLETION,
@@ -37,6 +37,8 @@ from .const import (
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
+    OPTION_COST_SUMMARY_PANEL,
+    OPTION_COST_WINDOWS,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_DUE_TIME,
     OPTION_DUE_TIME_MODE,
@@ -77,6 +79,7 @@ _BOOL_OPTIONS = (
     OPTION_ALLOW_SNOOZE,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_DUE_TODAY,
+    OPTION_COST_SUMMARY_PANEL,
 )
 
 
@@ -106,6 +109,8 @@ def _empty_options() -> dict[str, Any]:
         OPTION_SHOPPING_LINE_STYLE: shopping.LINE_STYLE_WITH_VERB,
         OPTION_PROFILES: [],
         OPTION_NOTIFICATIONS: [],
+        OPTION_COST_WINDOWS: list(cost_summary.DEFAULT_WINDOWS),
+        OPTION_COST_SUMMARY_PANEL: True,
         **{key: [] for key in _LIST_OPTIONS},
     }
 
@@ -351,6 +356,10 @@ def _normalize(
     if OPTION_SHOPPING_LINE_STYLE in updates:
         merged[OPTION_SHOPPING_LINE_STYLE] = shopping.normalize_line_style(
             updates[OPTION_SHOPPING_LINE_STYLE]
+        )
+    if OPTION_COST_WINDOWS in updates:
+        merged[OPTION_COST_WINDOWS] = cost_summary.normalize_windows(
+            updates[OPTION_COST_WINDOWS]
         )
     if OPTION_PROFILES in updates:
         merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])

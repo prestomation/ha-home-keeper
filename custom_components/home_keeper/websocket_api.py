@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 from . import (
     appliance_report,
     companions,
+    cost_summary,
     declarative_companion_sync,
     declarative_presets,
     devices,
@@ -35,6 +36,7 @@ from .assets import AssetValidationError
 from .backend_i18n import resolve_exception
 from .const import (
     COMPLETION_ENTRY_FIELDS,
+    OPTION_COST_WINDOWS,
     OPTION_PROFILES,
     REC_FIXED,
     SENSOR_MODE_TEMPLATE,
@@ -255,6 +257,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_export_data)
     websocket_api.async_register_command(hass, ws_import_data)
     websocket_api.async_register_command(hass, ws_get_options)
+    websocket_api.async_register_command(hass, ws_get_spend)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
     websocket_api.async_register_command(hass, ws_get_panel_tabs)
@@ -1479,6 +1482,39 @@ async def ws_get_options(
             "options": options.current_options(coord.entry),
             "notify_targets": notifier.available_targets(hass),
             "own_todo_entities": own_todo_entity_ids(hass),
+        },
+    )
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_spend"})
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_get_spend(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Return the spend totals and their records for the panel (#460).
+
+    Open to all users, as the cost sensors are: it gives the same numbers. The
+    windows come from the ``cost_windows`` option. ``records`` is every completion
+    with a cost, newest first, so the panel can list the records of each total.
+    """
+    assets = coord.store.list_assets()
+    records = cost_summary.spend_records(
+        coord.store.list_tasks(), assets, tz=dt_util.get_default_time_zone()
+    )
+    windows = cost_summary.normalize_windows(
+        options.current_options(coord.entry).get(OPTION_COST_WINDOWS)
+    )
+    summary = cost_summary.spend_summary(records, now=dt_util.now(), windows=windows)
+    connection.send_result(
+        msg["id"],
+        {
+            **summary,
+            "purchases": cost_summary.purchase_total(assets),
+            "records": records,
         },
     )
 
