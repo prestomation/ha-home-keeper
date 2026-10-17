@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.33.0b1]
+
+### Added
+
+- **[Maintenance spend totals](https://prestomation.github.io/ha-home-keeper/docs/guide/costs).**
+  Sensors and the panel show what you spent on maintenance in the last 30 days, the last
+  60 days and all time, and the total cost of your appliances. Select a total in the
+  panel to see its records, and set your own periods in Settings. (Fixes #460)
+
 ## [0.32.0] - 2026-10-16
 
 ### Added

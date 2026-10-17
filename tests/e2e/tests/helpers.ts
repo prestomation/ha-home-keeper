@@ -376,6 +376,7 @@ export async function openSettingsSection(
   section:
     | 'general'
     | 'duetime'
+    | 'cost'
     | 'shopping'
     | 'problem'
     | 'profiles'

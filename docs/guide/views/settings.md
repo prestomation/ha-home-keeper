@@ -5,12 +5,14 @@ Home Assistant options flow and saves each change immediately. The same options 
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
 
-The tab has 9 sections:
+The tab has 10 sections:
 
 - **General** sets how long completed one-off tasks are kept. This number saves
   when you leave the box or press Enter.
 - **Due time** sets when a task that repeats after each completion is due. See
   [Due time](#due-time).
+- **Cost tracking** sets the periods of the spend totals, and if the panel shows them.
+  See [Cost totals](./costs.md).
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](../appliances/appliances.md#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See

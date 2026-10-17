@@ -51,6 +51,9 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   has a person entity.
 - **Repair-vs-replace analytics.** Show the lifetime cost of an appliance from its
   completion costs, to help decide between repair and replacement.
+  `cost_summary.spend_records` already gives each cost with its task and appliance.
+- **Spending view.** A panel view with a period picker, a monthly chart and the costs per
+  task and per appliance, built on the cost totals (#460).
 
 ## Coordinator and entities
 
