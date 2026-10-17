@@ -194,6 +194,43 @@ describe('spendStrip', () => {
   });
 });
 
+describe('spend edges', () => {
+  it('a record at the start of a window is inside it', () => {
+    const data = spend();
+    data.records = [{ ...data.records[0], ts: data.windows[0].since }];
+    expect(spendRecordsFor(data, 'w30')).toHaveLength(1);
+  });
+
+  it('shows with records and no priced appliance', () => {
+    expect(showSpend(host({ _spend: spend({ purchases: { total: 0, count: 0 } }) }))).toBe(true);
+  });
+
+  it('names the heading, the help and who did it', () => {
+    const data = spend();
+    data.records = [{ ...data.records[0], who: 'person.kay' }];
+    const p = host({ _spend: data, _spendOpen: SPEND_ALL });
+    p._hass.states = { 'person.kay': { attributes: { friendly_name: 'Kay' } } };
+    const div = document.createElement('div');
+    div.innerHTML = spendStrip(p);
+    expect(div.querySelector('section.hk-spend').getAttribute('aria-label')).toBe(
+      'Maintenance spend',
+    );
+    expect(div.querySelector('.hk-spend-heading').textContent).toBe('Maintenance spend');
+    expect(div.querySelector('.hk-spend-help').textContent).toContain('Select a total');
+    expect(div.querySelector('.hk-spend-who').textContent).toBe('Kay');
+    expect(div.querySelector('.hk-spend-tag')).toBeNull();
+    expect(div.querySelectorAll('.hk-spend-list')).toHaveLength(1);
+  });
+
+  it('an archived record with no appliance opens its task', () => {
+    const data = spend();
+    data.records = [{ ...data.records[3], asset_id: null, task_id: 'gone' }];
+    const div = document.createElement('div');
+    div.innerHTML = spendStrip(host({ _spend: data, _spendOpen: SPEND_ALL }));
+    expect(div.querySelector('.hk-spend-task').dataset.spendOpen).toBe('task:gone');
+  });
+});
+
 describe('wireSpend', () => {
   function wired(p) {
     const div = document.createElement('div');
@@ -214,12 +251,24 @@ describe('wireSpend', () => {
   it('a record opens the task history, or the appliance history', () => {
     const p = host({ _spendOpen: SPEND_ALL });
     const links = [...wired(p).querySelectorAll('[data-spend-open]')];
-    links[0].click();
+    const ev = new MouseEvent('click', { bubbles: true, cancelable: true });
+    links[0].dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
     links[3].click();
     expect(p.navigated).toEqual([
       { view: 'tasks', detail: { kind: 'task', id: 't1', tab: 'history' } },
       { view: 'appliances', detail: { kind: 'asset', id: 'heater', tab: 'history' } },
     ]);
+  });
+
+  it('a link with no id goes nowhere', () => {
+    const p = host({ _spendOpen: SPEND_ALL });
+    const div = wired(p);
+    const link = div.querySelector('[data-spend-open]');
+    link.dataset.spendOpen = 'task:';
+    link.click();
+    link.removeAttribute('data-spend-open');
+    expect(p.navigated).toEqual([]);
   });
 
   it('the purchases total opens the appliance list', () => {
