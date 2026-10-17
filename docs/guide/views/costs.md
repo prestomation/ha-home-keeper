@@ -11,7 +11,7 @@ record:
 From these, Home Keeper makes sensors that you can put on a dashboard or use in an
 automation. The panel also shows the totals above the task list.
 
-<!-- SCREENSHOT: costs desktop -->
+![The spend totals above the task list, with All time open and its 4 records listed](../../images/72-panel-spend.png)
 
 ## The totals
 
@@ -67,7 +67,7 @@ appliance list.
 
 The strip shows only when there is a completion with a cost or an appliance with a cost.
 
-<!-- SCREENSHOT: costs phone -->
+![The spend totals on a phone, 2 totals to a row, with the records of All time below](../../images/72c-panel-mobile-spend.png)
 
 ## Settings
 
@@ -87,4 +87,4 @@ data:
   cost_summary_panel: true
 ```
 
-<!-- SCREENSHOT: costs settings -->
+![The Cost tracking settings card with the periods 30 and 60 days and the panel switch on](../../images/72b-panel-settings-cost.png)
