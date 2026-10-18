@@ -43,3 +43,55 @@ Events are edge-triggered. Home Keeper fires 1 event per transition and does not
 repeat it each cycle. Events are baselined on restart, so no overdue events are
 fired after a reboot. The full catalog with every event and payload is in
 [docs/EVENTS.md](../../EVENTS.md).
+
+## Task history in the logbook
+
+Home Keeper writes a logbook row for each of these task events:
+
+| Event | Row |
+| --- | --- |
+| Completed | was completed by Ann |
+| Completed by a sensor | was completed by its sensor |
+| Completion removed | had a completion removed |
+| Skipped | was skipped |
+| Snoozed | was snoozed until 2026-10-20 |
+| Due soon | is due in 48 hours |
+| Overdue | became overdue |
+| Armed | became due |
+| Due today set | was set to due today |
+| Occurrence moved | has its occurrence on 2026-11-01 moved to 2026-11-03 |
+
+Each row starts with the task name. The rows show in these places:
+
+- **Activity** in the sidebar, filtered to the Home Keeper to-do list
+- the logbook of the Home Keeper to-do list
+- the Activity card on the device page of the task, if the task has a device
+
+The logbook text is in English. Created, updated and deleted tasks get no row.
+
+![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
+
+![The Activity card on the device page of a water heater, with the completion of its task](../../images/logbook-after-device.png)
+
+### Show the history on a dashboard
+
+A card that reads the logbook can show the rows. Use the `logbook` source of
+[Chronicle Card](https://github.com/KadenThomp36/chronicle-card) with the to-do list:
+
+```yaml
+type: custom:chronicle-card
+title: Task history
+days_back: 30
+sources:
+  - type: logbook
+    entities:
+      - todo.home_keeper_tasks
+```
+
+The logbook keeps the rows for as long as the recorder keeps its data. The default is
+10 days. To keep the rows longer, set `purge_keep_days`:
+
+```yaml
+recorder:
+  purge_keep_days: 90
+```

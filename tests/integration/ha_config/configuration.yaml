@@ -34,6 +34,12 @@ notify:
 # environment representative and the console clean.
 recorder:
 
+# The logbook and history, which default_config also loads. The logbook capture
+# photographs the logbook rows of Home Keeper events, and the more-info dialog reads
+# both.
+logbook:
+history:
+
 # A `device_class: problem` binary sensor, kept "on", so the problem-sensor sync
 # (enabled via the home_keeper config entry's options) has something to mirror — it
 # drives the seeded `task_sump_problem` synced task used by the screenshot capture

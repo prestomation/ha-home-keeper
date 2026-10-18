@@ -289,6 +289,12 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "the date ranges the task is scheduled in, each a "
             '{"start": "MM-DD", "end": "MM-DD"} window, or None when it runs all year',
         ),
+        Field(
+            "entity_id",
+            "str | None",
+            "the Home Keeper to-do list entity, so the logbook shows the event on it, "
+            "or None before the entity is registered",
+        ),
     ),
     "stock": (
         Field("asset_id", "str"),

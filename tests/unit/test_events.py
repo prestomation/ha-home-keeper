@@ -7,6 +7,7 @@ both the real store and the test fake, so the contract can't drift.
 from datetime import datetime, timedelta, timezone
 
 import hk_events as ev
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 WHEN = datetime(2026, 6, 14, 10, tzinfo=TZ)
@@ -39,6 +40,7 @@ def test_payload_has_contract_fields():
         "task_chips": [],
         "tag_id": None,
         "active_season": None,
+        "entity_id": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
@@ -257,3 +259,85 @@ def test_declarative_companion_event_reads_enabled_from_the_spec():
         {"id": "spec-1", "name": "x", "preset_id": None, "enabled": False}
     )
     assert data["enabled"] is False
+
+
+# ── Logbook rows ─────────────────────────────────────────────────────────────
+
+
+def test_spine_carries_the_to_do_entity_id():
+    assert ev.task_event_data({})["entity_id"] is None
+    data = ev.task_event_data({"id": "t1"}, entity_id="todo.home_keeper_tasks")
+    assert data["entity_id"] == "todo.home_keeper_tasks"
+
+
+def test_completion_event_passes_the_entity_id_on():
+    data = ev.completion_event_data({}, WHEN, None, entity_id="todo.tasks")
+    assert data["entity_id"] == "todo.tasks"
+
+
+def test_every_logbook_event_has_an_icon():
+    assert set(ev.LOGBOOK_ICONS) == set(ev.LOGBOOK_EVENTS)
+    assert all(icon.startswith("mdi:") for icon in ev.LOGBOOK_ICONS.values())
+
+
+def test_created_updated_and_deleted_get_no_row():
+    assert "home_keeper_task_created" not in ev.LOGBOOK_EVENTS
+    assert "home_keeper_task_updated" not in ev.LOGBOOK_EVENTS
+    assert "home_keeper_task_deleted" not in ev.LOGBOOK_EVENTS
+
+
+@pytest.mark.parametrize(
+    ("event", "data", "message"),
+    [
+        ("home_keeper_task_completed", {}, "was completed"),
+        ("home_keeper_task_completed", {"who": "Ann"}, "was completed by Ann"),
+        (
+            "home_keeper_task_completed",
+            {"who": "Ann", "origin": "home_keeper_tag_scan"},
+            "was completed by Ann with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"origin": "home_keeper_tag_scan"},
+            "was completed with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"who": "Ann", "origin": "home_keeper_problem_sensor_sync"},
+            "was completed by its sensor",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"origin": "home_keeper_sensor_recover"},
+            "was completed by its sensor",
+        ),
+        ("home_keeper_task_completed", {"origin": "pawsistant"}, "was completed"),
+        ("home_keeper_task_uncompleted", {}, "had a completion removed"),
+        ("home_keeper_task_skipped", {}, "was skipped"),
+        (
+            "home_keeper_task_snoozed",
+            {"snoozed_until": "2026-10-20T09:00:00-04:00"},
+            "was snoozed until 2026-10-20",
+        ),
+        ("home_keeper_task_snoozed", {}, "was snoozed until ?"),
+        ("home_keeper_task_overdue", {"days_overdue": 3}, "became overdue"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 12.0}, "is due in 12 hours"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 2.5}, "is due in 2.5 hours"),
+        ("home_keeper_task_due_soon", {}, "is due in 0 hours"),
+        ("home_keeper_task_triggered", {}, "became due"),
+        ("home_keeper_task_due_today_set", {}, "was set to due today"),
+        (
+            "home_keeper_task_occurrence_moved",
+            {"occurrence": "2026-11-01T08:00:00-04:00", "to": "2026-11-03"},
+            "has its occurrence on 2026-11-01 moved to 2026-11-03",
+        ),
+        (
+            "home_keeper_task_occurrence_moved",
+            {"occurrence": "2026-11-01", "to": "2026-11-01T08:00:00-04:00"},
+            "has its occurrence on 2026-11-01 back on its date",
+        ),
+        ("home_keeper_other", {}, "home_keeper_other"),
+    ],
+)
+def test_logbook_message(event: str, data: dict, message: str):
+    assert ev.logbook_message(event, data) == message

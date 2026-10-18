@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.33.0b1]
+
+### Added
+
+- **[Task history in the logbook](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
+  Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
+  logbook, with the task name. The rows show on the Home Keeper to-do list and on the
+  device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
+
 ## [0.32.0] - 2026-10-16
 
 ### Added

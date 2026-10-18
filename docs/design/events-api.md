@@ -3,6 +3,7 @@ title: Events and API surface
 summary: The events, device triggers, services and websocket commands, and their model.
 implements:
   - custom_components/home_keeper/events.py
+  - custom_components/home_keeper/logbook.py
   - custom_components/home_keeper/transitions.py
   - custom_components/home_keeper/device_trigger.py
   - custom_components/home_keeper/api_surface.py
@@ -12,7 +13,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 4a1965875249
+source_hash: 552926ae9318
 ---
 
 # Events and API surface
@@ -49,10 +50,10 @@ Privileges: [SECURITY.md](../SECURITY.md).
 
 ### Payload builders
 
-`events.py` has no Home Assistant imports. Each builder returns the dict for the bus, for
-example `events.task_event_data` (the task spine) and `events.stock_event_data`. All task
-events share 1 spine, so 1 automation template works for all of them. Per-event keys
-(`changed_fields`, `days_overdue`, `due_in_hours`) merge on top through `extra`.
+`events.py` has no Home Assistant imports. Each builder returns the dict for the bus. All
+task events share 1 spine (`events.task_event_data`), so 1 automation template works for
+all of them. Per-event keys merge on top through `extra`. The spine `entity_id` is the
+to-do list, which `todo.async_added_to_hass` gives to the store as `todo_entity_id`.
 
 `store.py` fires at each mutation point, never in a handler, also on the wear-part
 reconcile and the appliance delete cascade. An update that changes no field fires no event.
@@ -62,19 +63,25 @@ reconcile and the appliance delete cascade. An update that changes no field fire
 
 `transitions.detect_transitions` is pure. It takes the previous edge state, the task map
 and an injected `now`, and returns the events plus the next state. The state per task is
-`{"next_due", "due_soon_fired", "overdue_fired"}`. The flags are separate because a task
-crosses due soon and then overdue against the same `next_due`. A changed `next_due` clears
-both flags. A task with no `next_due`, or a disabled task, fires nothing.
-`transitions.DUE_SOON_WINDOW` is 3 days, the same as the binary sensor attribute.
+`{"next_due", "due_soon_fired", "overdue_fired"}`. A task crosses due soon and then overdue
+against 1 `next_due`, so the flags are separate. A changed `next_due` clears both. A task
+with no `next_due`, or a disabled task, fires nothing. `DUE_SOON_WINDOW` is 3 days.
 
 `coordinator._async_update_data` runs the detector on each periodic and post-mutation
 refresh. Until setup calls `coordinator.enable_transition_events`, it keeps the detected
 state as a silent baseline. The edge state lives in `hass.data` per config entry, so a
-reload keeps it. `transitions.auto_crossings` drops a due-soon crossing that a snooze or a
-completion caused, before notifications use the list.
+reload keeps it. It sets `entity_id` on each payload before it fires. `auto_crossings`
+drops a due-soon crossing from a snooze or a completion, before notifications use the list.
 
 `assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop to 0
 fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fires.
+
+### Logbook rows
+
+`logbook.py` describes each event in `events.LOGBOOK_EVENTS` with English text from
+`events.logbook_message`. The logbook matches the `entity_id` and `device_id` in the data,
+so a row shows on the to-do list and on the device of its task. The row names no entity,
+because the logbook then shows the entity name in place of the task name.
 
 ### Device triggers
 
@@ -88,20 +95,18 @@ fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fi
 | Other device with tasks attached | foreign | `device_id` |
 
 A standalone task has `device_id: null` in its payload, so its device filters on `task_id`.
-`device_trigger._attach_filter` reads only the device registry, because automations attach
-at startup, often before the entry loads. `device_trigger._filters` reads the coordinator,
-but only to choose which triggers to offer.
+`device_trigger._attach_filter` reads only the device registry: automations attach at
+startup, often before the entry loads. `_filters` reads the coordinator to choose triggers.
 
 ### Services and websocket commands
 
 `__init__._register_services` runs 1 time, from `async_setup`, and a reload removes no
 service. With no loaded entry, a handler raises `integration_not_loaded`. Read services
-use `SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold all labels.
+use `SupportsResponse.ONLY`.
 
 `websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
 codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets no
-later translation. Each `WebsocketSpec` names its service twin, except the panel tab list
-([panel-tabs](panel-tabs.md)). `home_keeper/sign_task_photo_urls` signs a list of photos.
+later translation. Each `WebsocketSpec` names its service twin, except the panel tab list.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.
@@ -110,9 +115,8 @@ An admin-only operation has 2 gates: `@websocket_api.require_admin` on the comma
 
 `resolve.resolve_task_id` tries an exact id, then an exact name, then a trimmed, case-folded
 name. Parts and documents resolve only inside 1 resolved appliance. More than 1 match
-raises `resolve.AmbiguousName`, and the error lists every candidate id. No match returns
-the key unchanged, so the not-found error quotes the user's text. A delete of an unknown
-uuid succeeds (`resolve.looks_like_id`).
+raises `resolve.AmbiguousName`, which lists every candidate id. No match returns the key
+unchanged, so the error quotes the user's text. An unknown uuid deletes with success.
 
 `service_errors.store_errors` turns a store `KeyError`, `TaskValidationError` or
 `AssetValidationError` into a `ServiceValidationError` with a translation key. The innermost id
@@ -121,12 +125,11 @@ given picks the key: `unknown_task_photo` or `unknown_part` before `asset_not_fo
 ### The declared surface
 
 `api_surface.py` imports only `const`. Its tables (`SERVICES`, `EVENTS`, `PAYLOAD_SPINES`,
-`COMPANION_CAPABILITIES`, `WEBSOCKET_COMMANDS` and others) hold names and structure only.
-The text fields are `EventSpec.summary` and `CompanionCapabilitySpec.summary`, which have
-no string in `strings.json`. `tests/unit/test_api_surface.py` parses the source with `ast`
-and checks the services, events, payload keys, websocket commands, views and admin gates
-against the model. `tests/integration/test_api_surface.py` checks a running instance, and
-`ci/generate_api_docs.py` renders the Developer Guide API page from the model.
+`WEBSOCKET_COMMANDS` and others) hold names and structure. The only text is each `summary`.
+`tests/unit/test_api_surface.py` parses the source with `ast` and checks the services,
+events, payload keys, websocket commands, views and admin gates against the model.
+`tests/integration/test_api_surface.py` checks a running instance. `ci/generate_api_docs.py`
+renders the Developer Guide API page from the model.
 
 `testing.async_setup_fake_home_keeper` registers a `FakeHomeKeeper` under the real service
 names. It uses `models.build_task` and the `events.py` builders, but no overdue events.
@@ -135,16 +138,13 @@ names. It uses `models.build_task` and the `events.py` builders, but no overdue 
 
 - **Fire from the store** over **from the handlers**: every surface reaches 1 method.
 - **Silent baseline at startup** over **saved edge state**: no overdue storm after a
-  restart, and no storage write per tick. A crossing during downtime is not announced; the
-  binary sensors still show the state.
-- **Device triggers** over **an integration-level trigger platform**: users look on the
-  device page. Global automations use a plain `platform: event` trigger.
+  restart. A crossing during downtime is not announced; the binary sensors show the state.
+- **Device triggers** over **a trigger platform for the integration**: users look on devices.
 - **Ambiguity raises** over **first match wins**: names are not unique; deletes must not guess.
-- **Text in string files** over **text in the model**: the reference and the UI read 1 string.
 
 ## One-way doors
 
-- Event names and every payload key in `PAYLOAD_SPINES`.
+- Event names, every payload key in `PAYLOAD_SPINES`, and the logbook message text.
 - Device trigger `type` values, which user automations store.
 - Service names, field names, and the name-or-id form of each `*_id` field.
 - The `testing.py` entry point and the `FakeHomeKeeper` helper names.
