@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/number.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 8c9493957e34
+source_hash: f4589c8648fd
 ---
 
 # Coordinator and entities

@@ -1363,3 +1363,18 @@ def test_x02_2_the_unload_closes_the_store():
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_unload_entry"
     )
     assert "coordinator.store.close()" in ast.unparse(unload)
+
+
+# ── The entity id of the to-do list on task events (#467) ────────────────────
+
+
+def test_task_events_carry_the_to_do_entity_id(store) -> None:
+    """The logbook ties a task event to the to-do list by this key."""
+    task = _task(store)
+    _run(store.complete_task(task["id"]))
+    assert store._hass.bus.of("home_keeper_task_completed")[-1]["entity_id"] is None
+    store.todo_entity_id = "todo.home_keeper_tasks"
+    _run(store.skip_task(task["id"]))
+    _run(store.complete_task(task["id"]))
+    for event in ("home_keeper_task_skipped", "home_keeper_task_completed"):
+        assert store._hass.bus.of(event)[-1]["entity_id"] == "todo.home_keeper_tasks"

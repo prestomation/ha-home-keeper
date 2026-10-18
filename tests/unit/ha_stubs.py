@@ -175,6 +175,13 @@ def _install_components(ha: types.ModuleType) -> None:
         comp_button.ButtonEntity = ButtonEntity
     components.button = comp_button
 
+    comp_logbook = _mod("homeassistant.components.logbook")
+    for key in ("icon", "message", "name"):
+        const_name = f"LOGBOOK_ENTRY_{key.upper()}"
+        if not hasattr(comp_logbook, const_name):
+            setattr(comp_logbook, const_name, key)
+    components.logbook = comp_logbook
+
 
 def _install_config_entries() -> None:
     """``homeassistant.config_entries`` — names only; nothing calls into them."""
