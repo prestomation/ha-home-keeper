@@ -17,7 +17,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings).**
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
   Home Keeper now suggests tasks for the Compit ventilation filter. Ecovacs presets also
   cover more filters, the mop washing tray, the cleaning solution and the strainer.
 
