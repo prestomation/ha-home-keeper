@@ -6,6 +6,22 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Changed
+
+- **Installation from HACS default list.** Search for Home Keeper in HACS to install it.
+  You no longer add it as a custom repository.
+
+### Fixed
+
+- **Admin-only companion registration.** Only an admin can register a companion now. A
+  household member can no longer choose an integration that an admin's export or import
+  then calls.
+- **Your own list items.** If a to-do or shopping list already has an open item with the
+  same name, Home Keeper uses it but never ticks off, renames, removes or rewrites it. A
+  tick on that item still completes the task or buys the part.
+
 ## [0.32.0] - 2026-10-16
 
 ### Added

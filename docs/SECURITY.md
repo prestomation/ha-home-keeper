@@ -52,6 +52,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost, with the companion sections, the files and the settings of a bundle) | `export_data`, `import_data`, the bundle download (`GET /api/home_keeper/export_bundle`) and the import upload (`POST /api/home_keeper/import_upload`) |
+| Companion registration (an `import_export` companion is called with the admin's context during an export or import) | `register_companion` |
 | Declarative companions (they read entities with templates) | `add_declarative_companion`, `update_declarative_companion`, `delete_declarative_companion` |
 
 Home Keeper creates a Home Assistant device for each appliance and removes it with the
@@ -77,8 +78,8 @@ admin panel with the session of the admin. For this reason, only Python code tha
 the Home Assistant process can add a tab, through `panel_tabs.async_register_panel_tab`.
 That code already has full access to Home Assistant, so the API adds no new risk.
 
-The `home_keeper.register_companion` service does not accept a tab. Any user with service
-access can call that service.
+The `home_keeper.register_companion` service does not accept a tab. That service is
+admin-only. An integration calls it from its own setup, which has no user.
 
 Home Keeper accepts only a same-origin module path for a tab, with no scheme and no `..`
 segment. The `home_keeper/get_panel_tabs` websocket command is admin-only, so only an

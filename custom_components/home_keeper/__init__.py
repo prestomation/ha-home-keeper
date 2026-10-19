@@ -2033,7 +2033,12 @@ def _register_services(hass: HomeAssistant) -> None:
         automation can react to ``home_keeper_companion_connected``). Home Keeper
         stores the descriptor verbatim and never imports the companion. See
         docs/INTEGRATING.md and companions.py.
+
+        Admin-only: a companion with ``import_export`` has its services called with
+        the admin's context during an export or import. An integration registers
+        from its own setup, which has no user, so that call still passes.
         """
+        await _verify_admin(call)
         companions.async_register_companion(hass, dict(call.data))
         return {"ok": True}
 

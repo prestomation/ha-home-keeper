@@ -444,7 +444,80 @@ def test_the_next_pass_binds_the_uid_of_the_item_it_added():
 def test_an_open_item_already_reading_the_same_is_adopted():
     plan = _plan(desired=_desired([_want()]), items=[_item(uid="theirs")])
     assert plan.add == []
-    assert plan.tracked == {KEY: _entry(uid="theirs")}
+    assert plan.tracked == {KEY: _adopted()}
+
+
+# ── an adopted item is the household's ───────────────────────────────────────
+
+
+def _adopted(**kw):
+    kw.setdefault("uid", "theirs")
+    return {**_entry(**kw), "adopted": True}
+
+
+def test_an_adopted_item_is_never_rewritten():
+    # A new name, a new date and new notes: all are Home Keeper's to write on its
+    # own items only. The date on the item is not a move either.
+    plan = _plan(
+        tracked={KEY: _adopted()},
+        desired=_desired([_want(name="Swap the filter", due="2026-06-20", notes="N")]),
+        items=[_item(uid="theirs", due="2026-06-18", description="Mine")],
+    )
+    assert plan.update == [] and plan.remove == [] and plan.add == []
+    assert plan.reschedule == [] and plan.complete == []
+    assert plan.tracked == {KEY: _adopted(due="2026-06-20")}
+
+
+def test_an_adopted_item_stays_when_the_task_stops_matching():
+    plan = _plan(
+        tracked={KEY: _adopted()}, desired=_desired([]), items=[_item("theirs")]
+    )
+    assert plan.remove == [] and plan.update == []
+    assert plan.tracked == {}
+
+
+def test_an_adopted_item_is_not_ticked_off_when_the_task_completes():
+    plan = _plan(
+        tracked={KEY: _adopted()},
+        desired=_desired([_want(last_completed=DONE_ISO)]),
+        items=[_item(uid="theirs")],
+    )
+    assert plan.update == [] and plan.remove == []
+    # Settled: the same pass must not put a second line next to it.
+    assert plan.add == [] and plan.tracked == {}
+
+
+def test_an_adopted_item_stays_on_the_old_list_when_the_sync_moves():
+    plan = _plan(
+        synced=[_synced_profile(entity_id=OTHER)],
+        tracked={KEY: _adopted()},
+        desired=_desired([_want()]),
+        lists={LIST: [_item(uid="theirs")]},
+    )
+    assert plan.remove == [] and plan.update == [] and plan.add == []
+    assert plan.tracked == {}
+
+
+def test_an_adopted_item_stays_when_the_profile_is_deleted():
+    plan = _plan(synced=[], tracked={KEY: _adopted()}, items=[_item(uid="theirs")])
+    assert plan.remove == []
+    assert plan.tracked == {}
+
+
+def test_a_tick_on_an_adopted_item_still_completes_the_task():
+    plan = _plan(
+        tracked={KEY: _adopted()},
+        desired=_desired([_want()]),
+        items=[_item(uid="theirs", status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+    assert plan.update == [] and plan.remove == []
+
+
+def test_needs_pass_ignores_the_name_of_an_adopted_item():
+    renamed = _desired([_want(name="Swap the filter")])
+    assert _needs(tracked={KEY: _adopted()}, desired=renamed) is False
+    assert _needs(tracked=_tracked(), desired=renamed) is True
 
 
 def test_a_ticked_off_lookalike_is_never_adopted():
@@ -1129,7 +1202,8 @@ def test_b10_2_a_chore_on_a_list_that_is_gone_moves_to_the_new_one():
 
 
 def test_b10_2_a_chore_already_on_the_new_list_is_adopted_when_the_old_is_gone():
-    # B10-2, entity rename: the line is already on the list under its new id.
+    # B10-2, entity rename: the line is already on the list under its new id. The
+    # planner cannot tell it from a line a person wrote, so it is adopted.
     plan = _plan(
         tracked=_tracked(_entry(entity_id=GHOST)),
         desired=_desired([_want()]),
@@ -1137,7 +1211,7 @@ def test_b10_2_a_chore_already_on_the_new_list_is_adopted_when_the_old_is_gone()
         gone=frozenset({GHOST}),
     )
     assert plan.add == []
-    assert plan.tracked == {KEY: _entry(uid="n1")}
+    assert plan.tracked == {KEY: _adopted(uid="n1")}
 
 
 def test_b10_2_a_target_that_is_gone_keeps_its_bookkeeping():
@@ -1599,7 +1673,7 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m1:h": _added(summary="Sweep the chimney"),
         "m1:i": _entry(entity_id=GHOST, uid="ii", summary="Oil the hinges"),
         # Adopted: a line already reading the same is never duplicated.
-        "m1:k": _entry(uid="ik", summary="Test the RCD"),
+        "m1:k": {**_entry(uid="ik", summary="Test the RCD"), "adopted": True},
         # Held: its add is unconfirmed and still inside the grace.
         "m1:m": _added(summary="Prune the hedge"),
         "m1:z": _added(summary="Defrost the freezer"),

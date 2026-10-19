@@ -459,7 +459,7 @@ def plan_sync(
             )
             if item is not None:
                 claimed.add((entity_id, item_identity(item)))
-                if item_is_open(item):
+                if item_is_open(item) and not entry.get("adopted"):
                     plan.remove.append(RemoveOp(key, entity_id, item_identity(item)))
             continue
 
@@ -551,6 +551,25 @@ def plan_sync(
                     plan.tracked[key] = dict(entry)
             continue
 
+        if entry.get("adopted"):
+            # A line someone wrote before Home Keeper wanted it. A tick on it still
+            # counts (above), but Home Keeper never removes, ticks off, renames or
+            # rewrites it, and never reads its date as a move. When the task no
+            # longer needs it, the entry is dropped and the line stays as written.
+            if (
+                entity_id == target
+                and want is not None
+                and not completed_since(
+                    entry.get("last_completed"), want["last_completed"]
+                )
+            ):
+                bound = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+                bound["summary"] = summary
+                bound["adopted"] = True
+                plan.tracked[key] = bound
+            else:
+                settled.add(key)
+            continue
         if want is None:
             plan.remove.append(RemoveOp(key, entity_id, identity))
             continue
@@ -651,9 +670,12 @@ def plan_sync(
             if existing is not None:
                 # Adopt a matching line rather than stacking a duplicate on top
                 # of it — someone may have written it themselves, or our own
-                # bookkeeping may have been lost.
+                # bookkeeping may have been lost. It is marked ``adopted``, so
+                # pass one never changes it.
                 claimed.add((target, item_identity(existing)))
-                plan.tracked[key] = _entry(target, existing.get("uid"), want)
+                adopted = _entry(target, existing.get("uid"), want)
+                adopted["adopted"] = True
+                plan.tracked[key] = adopted
                 continue
             notes = str(want["notes"])
             plan.add.append(
@@ -721,9 +743,8 @@ def needs_pass(
             return True
         if str(entry.get("entity_id") or "") != _target(profile):
             return True
-        if not entry.get("user_named") and str(want["name"]) != str(
-            entry.get("summary") or ""
-        ):
+        named = entry.get("user_named") or entry.get("adopted")
+        if not named and str(want["name"]) != str(entry.get("summary") or ""):
             return True
         if str(want["due"]) != str(entry.get("due") or ""):
             return True

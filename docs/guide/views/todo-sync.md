@@ -46,7 +46,9 @@ Synchronization works in both directions:
 Items include the task's due date and notes if the list supports these fields.
 The due date is the date in the Home Assistant time zone.
 Home Keeper modifies only the items it added and does not modify an item that is
-already complete. Home Keeper keeps the name that you give an item on the list and
+already complete. If an open item with the same name is already on the list, Home
+Keeper uses it and does not add a second item. A tick on that item completes the
+task, but Home Keeper does not change or remove it. Home Keeper keeps the name that you give an item on the list and
 still syncs the other fields of that item. This works on a list that gives each item
 an ID.
 

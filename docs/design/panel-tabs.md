@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/panel_tabs.py
   - custom_components/home_keeper/frontend/src/panel-tabs.ts
 related: [companions-presets, frontend, events-api, architecture]
-source_hash: 323bcccfe25a
+source_hash: b89129453519
 ---
 
 # Companion panel tabs

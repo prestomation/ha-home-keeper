@@ -20,7 +20,8 @@ Run the tests locally before you push. CI is not the test runner.
 - The pure unit lane needs only
   `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
   The full unit suite adds `pytest-homeassistant-custom-component`. `ci/setup-ci-deps.sh`
-  installs everything into `.venv`. Run `source .venv/bin/activate` first.
+  installs everything into `.venv`. The SessionStart hook puts `.venv/bin` first on `PATH`.
+  Elsewhere, run `source .venv/bin/activate` first.
 - `tests/conftest.py` runs each pure module under its real dotted name
   (`custom_components.home_keeper.<mod>`) with stub parent packages, and registers
   `hk.<mod>` and `hk_<mod>` as aliases. Keep the real name: mutmut matches a mutant key to
