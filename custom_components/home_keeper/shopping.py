@@ -303,7 +303,7 @@ def plan_sync(
     """Decide what to do about the mirror this pass.
 
     *tracked* is what we mirrored last time (``key -> {entity_id, summary, uid,
-    description?, user_named?, user_described?}``), *desired* is
+    description?, user_named?, user_described?, adopted?}``), *desired* is
     :func:`buy_tasks_by_part` over the current task map, *items_by_entity* holds
     the live contents of every list we could read, *target* is the configured list
     (``""`` when the mirror is off), and *capabilities* says which optional fields
@@ -316,6 +316,11 @@ def plan_sync(
 
     A line that holds a note Home Keeper did not write is marked ``user_described``,
     and its note is not replaced with the amount while the note is there.
+
+    An open line that already read as the reminder is adopted, not duplicated, and
+    marked ``adopted``. Home Keeper changes only lines it added: a tick on an
+    adopted line completes the reminder, but Home Keeper never removes, ticks off,
+    renames or rewrites it. It lets go of the line instead.
 
     A list absent from *items_by_entity* could not be read — it is unavailable,
     or the integration behind it is not loaded — so nothing is planned for it and
@@ -390,6 +395,22 @@ def plan_sync(
                     plan.tracked[key] = held
                     continue
                 plan.complete.append(CompleteOp(key, str(want["task_id"])))
+                settled.add(key)
+            continue
+
+        if entry.get("adopted"):
+            # A line the shopper wrote before Home Keeper wanted it. A tick on it
+            # still counts (above), but Home Keeper never removes, ticks off,
+            # renames or rewrites it. When the reminder no longer needs it, the
+            # entry is dropped and the line stays as the shopper wrote it.
+            if entity_id == target and want is not None and not want["completed"]:
+                plan.tracked[key] = {
+                    "entity_id": entity_id,
+                    "summary": summary,
+                    "uid": item.get("uid"),
+                    "adopted": True,
+                }
+            else:
                 settled.add(key)
             continue
 
@@ -486,12 +507,14 @@ def plan_sync(
         if existing is not None:
             # Adopt a matching entry rather than stacking a duplicate on top of
             # it — the shopper may have written it themselves, or our own
-            # bookkeeping may have been lost.
+            # bookkeeping may have been lost. It is marked ``adopted``, so pass
+            # one never changes it.
             claimed.add((target, item_identity(existing)))
             plan.tracked[key] = {
                 "entity_id": target,
                 "summary": name,
                 "uid": existing.get("uid"),
+                "adopted": True,
             }
             continue
         plan.add.append(AddOp(key, target, name, description or None))
@@ -563,6 +586,8 @@ def needs_pass(
         want = desired.get(key)
         if want is None or want["completed"]:
             return True
+        if entry.get("adopted"):
+            continue
         name, description = line_for(want, capabilities)
         if not entry.get("user_named") and name != str(entry.get("summary") or ""):
             return True

@@ -218,7 +218,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("export_data", admin_only=True, response="only"),
     ServiceSpec("import_data", admin_only=True, response="only"),
     ServiceSpec("set_options", admin_only=True),
-    ServiceSpec("register_companion", response="optional"),
+    ServiceSpec("register_companion", admin_only=True, response="optional"),
     ServiceSpec("list_companions", response="only"),
     ServiceSpec("add_declarative_companion", admin_only=True, response="only"),
     ServiceSpec("update_declarative_companion", admin_only=True, response="only"),
