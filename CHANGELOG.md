@@ -8,10 +8,18 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [Unreleased]
 
+## [0.33.0b1]
+
 ### Changed
 
 - **Installation from HACS default list.** Search for Home Keeper in HACS to install it.
   You no longer add it as a custom repository.
+
+### Added
+
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings).**
+  Home Keeper now suggests tasks for the Compit ventilation filter. Ecovacs presets also
+  cover more filters, the mop washing tray, the cleaning solution and the strainer.
 
 ### Fixed
 
