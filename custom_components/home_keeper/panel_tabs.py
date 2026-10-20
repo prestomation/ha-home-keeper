@@ -8,8 +8,7 @@ websocket command, imports the tab's ES module and shows its custom element.
 This is a Python API and not a service. A tab runs JavaScript in the admin panel
 with the session of the admin, so only code that runs in the Home Assistant process
 can add one. That code already has full access, so the API adds no new risk. The
-``register_companion`` service, which any user with service access can call, does
-not accept a tab.
+``register_companion`` service does not accept a tab.
 
 The registry is in memory on ``hass.data`` for the Home Assistant run. A reload of
 the Home Keeper entry keeps it, as it keeps the sidebar panel. The removal of the

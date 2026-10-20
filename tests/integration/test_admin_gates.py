@@ -226,6 +226,7 @@ _ADMIN_ONLY_CALLS: dict[str, dict] = {
     "export_data": {},
     "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
     "set_options": {"sync_problem_sensors": True},
+    "register_companion": {"domain": "pawsistant", "name": "Should not exist"},
     "add_declarative_companion": {"name": "Should not exist"},
     "update_declarative_companion": {"id": "x"},
     "delete_declarative_companion": {"id": "x"},

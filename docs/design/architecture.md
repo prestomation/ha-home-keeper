@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 29aeefbda481
+source_hash: 705e174d477f
 ---
 
 # Architecture
@@ -63,8 +63,8 @@ has `@websocket_api.require_admin` on the command, and its service handler calls
 local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
 `context.user_id` comes from an automation or from the core and is trusted.
 The gate covers appliance edits, asset documents, part files and stock, declarative companion
-edits, the orphan and archive deletes, `set_options`, the appliance report, data export and
-import with their HTTP views, `list_entity_keys` and the companion preview. All else is open.
+edits, `register_companion`, orphan and archive deletes, `set_options`, the appliance report,
+export and import with their HTTP views, `list_entity_keys` and the companion preview. Else open.
 
 ### Setup
 

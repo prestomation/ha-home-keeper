@@ -34,7 +34,9 @@ Writes are admin-only and reads are open ([SECURITY.md](../../docs/SECURITY.md))
 - Raise the bare `Unauthorized`. It is the 1 exception to localized exceptions, and the
   websocket and REST layers map it to `unauthorized` and 401.
 - Usage stays open: task reads, create, edit, delete, complete, snooze and skip, task
-  photos, profiles, companions, and the reads of the panel and the card.
+  photos, profiles, the companion list, and the reads of the panel and the card.
+- `register_companion` is admin-only. A companion with `import_export` gets the admin's
+  context during an export or import, so a user must not choose which domain that is.
 - **An appliance read is the full record for every user.** Home Keeper has no private
   appliance field.
 - **Allowlist notify targets where they are stored.** `notifications.split_targets` keeps

@@ -230,6 +230,9 @@ Call `home_keeper.register_companion` at setup to show your integration in the p
 **Settings → Companions** section. Call it again on `home_keeper_register_companions`, which
 Home Keeper fires at its own setup and reload.
 
+The service is admin-only. A call from your setup or from the event listener has no user, so
+it passes. Do not pass the context of a user to it.
+
 ```python
 await hass.services.async_call(DOMAIN_HK, "register_companion", {
     "domain": "my_integration", "name": "My Integration", "icon": "mdi:puzzle",

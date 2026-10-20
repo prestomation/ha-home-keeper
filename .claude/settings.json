@@ -28,7 +28,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nohup bash ci/setup-ci-deps.sh >/tmp/setup-ci-deps.log 2>&1 & disown; echo 'Home Keeper: installing the CI dependencies in the background (see /tmp/setup-ci-deps.log). This includes Docker and Playwright Chromium. Run e2e with: bash ci/e2e-up.sh'"
+            "command": "if [ -n \"$CLAUDE_ENV_FILE\" ]; then echo 'export PATH=\"'\"$CLAUDE_PROJECT_DIR\"'/.venv/bin:$PATH\"' >> \"$CLAUDE_ENV_FILE\"; fi"
+          },
+          {
+            "type": "command",
+            "command": "nohup bash ci/setup-ci-deps.sh >/tmp/setup-ci-deps.log 2>&1 & disown; echo 'Home Keeper: installing the CI dependencies in the background (see /tmp/setup-ci-deps.log). This includes Docker and Playwright Chromium. Python, Home Assistant, mypy and pytest go in .venv, which is first on PATH. Run e2e with: bash ci/e2e-up.sh'"
           }
         ]
       }
