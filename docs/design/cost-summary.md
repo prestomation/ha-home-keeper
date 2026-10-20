@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/cost_summary.py
   - custom_components/home_keeper/frontend/src/panel-spend.ts
 related: [completions, appliances, coordinator-entities, frontend]
-source_hash: 8e486fc922df
+source_hash: 3222a3c8dda7
 ---
 
 # Cost totals
@@ -50,7 +50,9 @@ the `count` and `since` (`now` minus N days, inclusive), and for all time the `t
 appliance `cost` and counts the appliances that have one.
 
 A deleted standalone task keeps no history, so its cost leaves the totals. A deleted task
-of an appliance stays in the totals, because the appliance keeps its history.
+of an appliance stays in the totals, because the appliance keeps its history. A log cut to
+`MAX_COMPLETION_HISTORY`, or a use log that `reconcile.trim_use_completions` cuts, drops
+the cost of each removed entry, so the all-time total can go down.
 
 ### The options
 
@@ -68,7 +70,7 @@ panel strip. Both are panel options, not in the options flow. A change reloads t
 is `hass.config.currency`. The all-time and purchase sensors have the state class `total`.
 A window sensor has none, because its value goes down as time passes. Each one calculates
 again on each coordinator update, so the clock moves the windows. A window that the user
-removes is pruned at the reload. Attributes: `count`, plus `since` or `first`.
+removes is pruned at the reload. Attributes: `count`, plus `first` for all time.
 
 ### The panel
 
@@ -93,6 +95,6 @@ not part of the URL. Settings → Cost tracking edits the 2 options.
 - The unique ids `home_keeper_spend_<days>d`, `home_keeper_spend_all` and
   `home_keeper_purchases`, and the translation keys `spend_window`, `spend_all` and
   `purchases_total`.
-- The sensor attributes `count`, `since` and `first`.
+- The sensor attributes `count` and `first`.
 - The options `cost_windows` and `cost_summary_panel`.
 - The `home_keeper/get_spend` response keys.

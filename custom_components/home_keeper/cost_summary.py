@@ -37,6 +37,8 @@ def normalize_windows(value: Any) -> list[int]:
         return list(DEFAULT_WINDOWS)
     days: set[int] = set()
     for item in value:
+        if isinstance(item, bool):
+            continue
         try:
             number = int(float(item))
         except (TypeError, ValueError, OverflowError):

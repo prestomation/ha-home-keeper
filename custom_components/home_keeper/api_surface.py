@@ -781,7 +781,6 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
                 "cost sensors; the completions with a cost in the total, or the "
                 "appliances with a purchase cost",
             ),
-            Field("since", "str", "spend window sensors; ISO, start of the window"),
             Field(
                 "first",
                 "str | None",

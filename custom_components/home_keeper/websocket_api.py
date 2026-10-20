@@ -1370,8 +1370,8 @@ async def ws_export_appliance_report(
 ) -> None:
     """Return the appliance report plus a ready-to-save CSV.
 
-    Admin-only: the report exposes every asset's serial numbers, purchase costs and
-    value totals, which a non-admin household member shouldn't be able to exfiltrate.
+    Admin-only: the report puts every serial number, cost and value total in 1 file
+    to save. Each appliance record is open through ``get_assets`` (SECURITY.md).
     """
     report = appliance_report.build_report(
         coord.store.list_assets(),

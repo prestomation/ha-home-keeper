@@ -477,8 +477,7 @@ class HomeKeeperSpendSensor(_CostSensor):
     """Maintenance spend in the last *days* days, or in all time when *days* is None.
 
     The value is the sum of the completion costs (see ``cost_summary``). The
-    attributes are ``count`` and ``since`` (start of the window) or ``first``
-    (the oldest record, all time only).
+    attributes are ``count``, and ``first`` (the oldest record) for all time only.
     """
 
     _attr_icon = "mdi:cash-multiple"
@@ -517,10 +516,9 @@ class HomeKeeperSpendSensor(_CostSensor):
             }
         else:
             block = summary["windows"][0]
-            self._attr_extra_state_attributes = {
-                "count": block["count"],
-                "since": block["since"],
-            }
+            # No ``since`` here: it moves on each tick, and each change writes a
+            # new state row. ``get_spend`` gives it to the panel.
+            self._attr_extra_state_attributes = {"count": block["count"]}
         self._attr_native_value = block["total"]
 
 

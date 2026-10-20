@@ -24,7 +24,9 @@ automation. The panel also shows the totals above the task list.
 Only a completion with a cost counts. A skip has no cost. The totals update when a
 completion or a task changes. The cost of a deleted task stays in the
 totals only if an appliance keeps the history of that task. The
-[appliance page](../appliances/appliances.md) shows that history.
+[appliance page](../appliances/appliances.md) shows that history. A task keeps its
+newest 500 completions. When an older completion with a cost is removed, its cost leaves
+the totals.
 
 All totals use the currency that is set in Home Assistant under
 **Settings → System → General**.
@@ -33,13 +35,13 @@ All totals use the currency that is set in Home Assistant under
 
 | Sensor | Value | Attributes |
 |---|---|---|
-| `sensor.home_keeper_maintenance_spend_30_days` | Spend in the last 30 days | `count`, `since` |
-| `sensor.home_keeper_maintenance_spend_60_days` | Spend in the last 60 days | `count`, `since` |
+| `sensor.home_keeper_maintenance_spend_30_days` | Spend in the last 30 days | `count` |
+| `sensor.home_keeper_maintenance_spend_60_days` | Spend in the last 60 days | `count` |
 | `sensor.home_keeper_maintenance_spend_all_time` | Spend in all time | `count`, `first` |
 | `sensor.home_keeper_appliance_purchases_total` | Sum of the appliance costs | `count` |
 
 Each period that you set gets its own sensor. `count` is how many completions (or
-appliances) make the total. `since` is the start of the period. `first` is the time of
+appliances) make the total. `first` is the time of
 the oldest completion with a cost. The entity IDs are the defaults for an English
 install. Home Assistant can give other IDs in another language.
 

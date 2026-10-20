@@ -100,3 +100,17 @@ def test_window_sensors_follow_the_option(ha):
         call_service(ha, "home_keeper", "set_options", {"cost_windows": [30, 60]})
     assert _poll(lambda: _registry_entry(ha, "home_keeper_spend_60d"))
     assert _poll(lambda: _registry_entry(ha, "home_keeper_spend_7d") is None)
+
+
+def test_duplicate_windows_count_once_for_the_cap(ha):
+    # 5 items but 3 days: the service drops duplicates before it checks the cap of 4.
+    call_service(
+        ha, "home_keeper", "set_options", {"cost_windows": [30, 30, 60, 60, 90]}
+    )
+    try:
+        assert _poll(lambda: _registry_entry(ha, "home_keeper_spend_90d")), (
+            "a list with duplicates should still set its windows"
+        )
+    finally:
+        call_service(ha, "home_keeper", "set_options", {"cost_windows": [30, 60]})
+    assert _poll(lambda: _registry_entry(ha, "home_keeper_spend_90d") is None)

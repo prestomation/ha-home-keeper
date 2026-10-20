@@ -37,6 +37,7 @@ def _task(tid: str, *entries: dict) -> dict:
         ("30", [30, 60]),
         ((14,), [14]),
         ([float("inf")], [30, 60]),
+        ([True, 7], [7]),
     ],
 )
 def test_normalize_windows(value, expected) -> None:

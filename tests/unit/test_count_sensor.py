@@ -175,7 +175,7 @@ def test_spend_window_sensor() -> None:
     assert entity.device_class == "monetary"
     assert entity.native_value == 3.19
     assert entity.extra_state_attributes["count"] == 1
-    assert set(entity.extra_state_attributes) == {"count", "since"}
+    assert set(entity.extra_state_attributes) == {"count"}
 
 
 def test_spend_all_time_sensor_counts_archived_history() -> None:

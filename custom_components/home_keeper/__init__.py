@@ -846,11 +846,13 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
         # Cost tracking (#460): the spend windows in days, and the panel totals.
-        # ``cost_summary.normalize_windows`` sorts them and drops duplicates.
+        # Duplicates are dropped before the length check, so [30, 30, 60] is 2
+        # windows. ``cost_summary.normalize_windows`` then sorts them.
         vol.Optional(OPTION_COST_WINDOWS): vol.All(
             cv.ensure_list,
-            vol.Length(min=1, max=4),
             [vol.All(vol.Coerce(int), vol.Range(min=1, max=3650))],
+            lambda days: sorted(set(days)),
+            vol.Length(min=1, max=4),
         ),
         vol.Optional(OPTION_COST_SUMMARY_PANEL): cv.boolean,
         # When a floating task is due: at the completion time, or at 1 set local
