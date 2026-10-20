@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Skryté karty panelu",
           "description": "ID karet doprovodných integrací, které panel nezobrazuje."
+        },
+        "cost_windows": {
+          "name": "Období výdajů (dny)",
+          "description": "Období pro součty výdajů na údržbu ve dnech. 1 až 4 čísla od 1 do 3650. Každé období má senzor."
+        },
+        "cost_summary_panel": {
+          "name": "Zobrazit výdaje v panelu",
+          "description": "Zobrazí součty výdajů nad seznamem úkolů v panelu."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Úkoly {profile}"
+      },
+      "spend_window": {
+        "name": "Výdaje na údržbu za {days} dní"
+      },
+      "spend_all": {
+        "name": "Výdaje na údržbu celkem"
+      },
+      "purchases_total": {
+        "name": "Nákupy spotřebičů celkem"
       }
     },
     "binary_sensor": {

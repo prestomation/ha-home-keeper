@@ -686,6 +686,30 @@ export interface HomeKeeperOptions {
   // that consume them.
   profiles: Profile[];
   notifications: Notification[];
+  // Cost tracking (#460): the spend windows in days, and whether the task list shows
+  // the totals. Absent reads as [30, 60] and true.
+  cost_windows?: number[];
+  cost_summary_panel?: boolean;
+}
+
+/** 1 completion with a cost, as `home_keeper/get_spend` sends it. */
+export interface SpendRecord {
+  ts: string;
+  cost: number;
+  who?: string | null;
+  task_id: string;
+  task_name: string;
+  /** The appliance that keeps the history of a deleted task, else null. */
+  asset_id: string | null;
+  archived: boolean;
+}
+
+/** The spend totals for the panel (#460). See the backend `cost_summary.py`. */
+export interface SpendSummary {
+  windows: { days: number; total: number; count: number; since: string }[];
+  all_time: { total: number; count: number; first: string | null };
+  purchases: { total: number; count: number };
+  records: SpendRecord[];
 }
 
 /**

@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: a51f6953045d
+source_hash: 7e91de761b91
 ---
 
 # Events and API surface
@@ -100,8 +100,8 @@ use `SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold all labels.
 
 `websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
 codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets no
-later translation. Each `WebsocketSpec` names its service twin, except the panel tab list
-([panel-tabs](panel-tabs.md)). `home_keeper/sign_task_photo_urls` signs a list of photos.
+later translation. Each `WebsocketSpec` names its service twin, except the panel tab list and
+the reads `get_options` and `get_spend`. `home_keeper/sign_task_photo_urls` signs a list of photos.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.

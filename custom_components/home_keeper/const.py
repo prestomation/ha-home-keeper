@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.33.0b1"
+PANEL_VERSION = "0.33.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -377,6 +377,12 @@ OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 # list of tab id strings. An id of a tab that is not registered stays stored, so the
 # tab stays hidden when its companion registers it again. See panel_tabs.py.
 OPTION_HIDDEN_PANEL_TABS = "hidden_panel_tabs"
+# Cost tracking (#460). The spend windows in days: a list of 1 to 4 whole numbers,
+# default ``[30, 60]``. Each gets a spend sensor and a total in the panel. See
+# cost_summary.py.
+OPTION_COST_WINDOWS = "cost_windows"
+# Whether the panel shows the spend totals above the task list. bool, default True.
+OPTION_COST_SUMMARY_PANEL = "cost_summary_panel"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
 # the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the

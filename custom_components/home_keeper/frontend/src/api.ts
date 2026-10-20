@@ -17,6 +17,7 @@ import type {
   Part,
   PortableDocument,
   Profile,
+  SpendSummary,
   Task,
   UpcomingOccurrence,
 } from './types';
@@ -88,6 +89,19 @@ export async function getTags(hass: Hass): Promise<{ value: string; label: strin
     value: tag.id,
     label: tag.name || tag.id,
   }));
+}
+
+/** Read the spend totals and their records (#460). Open to all users. */
+export async function getSpend(hass: Hass): Promise<SpendSummary> {
+  const res = await hass.callWS<Partial<SpendSummary> | null>({ type: 'home_keeper/get_spend' });
+  // Each part has a default, so an older backend or a short answer shows no strip
+  // rather than breaking the task list.
+  return {
+    windows: Array.isArray(res?.windows) ? res.windows : [],
+    all_time: res?.all_time ?? { total: 0, count: 0, first: null },
+    purchases: res?.purchases ?? { total: 0, count: 0 },
+    records: Array.isArray(res?.records) ? res.records : [],
+  };
 }
 
 /** Read the integration options (for the Settings tab). */

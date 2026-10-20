@@ -98,6 +98,8 @@ Any signed-in user can use these surfaces:
 - Read tasks and profiles.
 - Read the full record of each appliance, with its parts, documents, costs and serial
   numbers (`home_keeper/get_assets` and `home_keeper.list_assets`).
+- Read the spend and purchase totals, from the cost sensors and from
+  `home_keeper/get_spend`. They add up the same costs that the 2 reads above give.
 
 ## Notifications
 

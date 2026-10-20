@@ -34,6 +34,7 @@ export const USER_SECTIONS = [
   {slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},
   {slug: 'notifications', title: 'Notifications', label: 'Notifications', group: 'views'},
   {slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card', group: 'views'},
+  {slug: 'costs', title: 'Cost totals', label: 'Cost totals', group: 'views'},
   {slug: 'settings', title: 'Settings', group: 'views'},
   {slug: 'import-export', title: 'Import and export', label: 'Import and export', group: 'automation'},
   {slug: 'services', title: 'Services', group: 'automation'},

@@ -249,6 +249,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1d-0. The spend totals above the list (#460). All time opens the completions
+  //       with a cost, and a second press closes them.
+  const spendAll = panel.locator('.hk-spend [data-spend="all"]');
+  await spendAll.scrollIntoViewIfNeeded();
+  await spendAll.click();
+  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await spendAll.click();
+  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   // 1d-1. A battery task's part chip is a link. One click opens the Batteries
   //       appliance on the part the task takes, scrolled to and marked; Back
   //       returns to the list.

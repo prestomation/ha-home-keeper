@@ -115,6 +115,7 @@ import type {
   PanelTabInfo,
   PortableDocument,
   Profile,
+  SpendSummary,
   Task,
 } from './types';
 import {
@@ -340,6 +341,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Whether the current user has dismissed the first-run intro banner — loaded from
   // HA's per-user frontend data store in `_reload` (see `_introCard`).
   _introDismissed = false;
+  // The spend totals and the total whose records are open (see `panel-spend.ts`).
+  _spend: SpendSummary | null = null;
+  _spendOpen = '';
   // Which layout this user reads the task list in — same per-user store as
   // `_introDismissed`, but read and written rather than write-once (see
   // `_setTaskLayout`).
@@ -1035,6 +1039,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         presets,
         presetNudge,
         panelTabs,
+        spend,
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
@@ -1068,6 +1073,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._readOnly()
           ? Promise.resolve([] as PanelTabInfo[])
           : this._soft(api.getPanelTabs(this._hass), [] as PanelTabInfo[]),
+        // The spend totals. A failed read hides the strip.
+        this._soft(api.getSpend(this._hass), null),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -1080,6 +1087,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._panelTabs = panelTabs ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
+      this._spend = spend;
       if (!this._taskLayoutPicked) this._taskLayout = taskLayout;
       this._tags = tags;
       if (presets) this._declarativePresets = presets;

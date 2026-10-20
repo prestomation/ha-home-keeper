@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Abas ocultas do painel",
           "description": "Os IDs das abas de companions que o painel não mostra."
+        },
+        "cost_windows": {
+          "name": "Períodos de gasto (dias)",
+          "description": "Os períodos dos totais de gasto com manutenção, em dias. De 1 a 4 números entre 1 e 3650. Cada período tem um sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Mostrar o gasto no painel",
+          "description": "Mostra os totais de gasto acima da lista de tarefas no painel."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Tarefas de {profile}"
+      },
+      "spend_window": {
+        "name": "Gasto com manutenção {days} dias"
+      },
+      "spend_all": {
+        "name": "Gasto com manutenção total"
+      },
+      "purchases_total": {
+        "name": "Total de compras de aparelhos"
       }
     },
     "binary_sensor": {

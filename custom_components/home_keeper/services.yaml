@@ -1658,6 +1658,19 @@ set_options:
       selector:
         text:
           multiple: true
+    cost_windows:
+      name: Spend windows (days)
+      description: >-
+        The windows for the maintenance spend totals, in days. 1 to 4 numbers from
+        1 to 3650. Each window gets a sensor. The default is 30 and 60.
+      example: "[30, 60]"
+      selector:
+        object:
+    cost_summary_panel:
+      name: Show spend in the panel
+      description: Show the spend totals above the task list in the panel.
+      selector:
+        boolean:
 
 register_companion:
   name: Register companion

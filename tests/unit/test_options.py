@@ -222,6 +222,9 @@ _PROBES: dict[str, Any] = {
     const.OPTION_HIDDEN_PANEL_TABS: ["library"],
     const.OPTION_PROFILES: [{"id": "px", "name": "X", "filter": {"status": "all"}}],
     const.OPTION_NOTIFICATIONS: [{"id": "nx", "name": "X", "profile_id": "px"}],
+    const.OPTION_COST_WINDOWS: [7, 90],
+    # Defaults on, so the non-default probe is False.
+    const.OPTION_COST_SUMMARY_PANEL: False,
 }
 
 
@@ -387,6 +390,8 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "shopping_line_style": "with_verb",
         "profiles": [],
         "notifications": [],
+        "cost_windows": [30, 60],
+        "cost_summary_panel": True,
         "problem_sensor_exclude_entities": [],
         "problem_sensor_exclude_devices": [],
         "problem_sensor_exclude_areas": [],

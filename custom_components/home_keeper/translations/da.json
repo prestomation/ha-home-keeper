@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Skjulte panelfaner",
           "description": "ID'erne på de ledsagerfaner, som panelet ikke viser."
+        },
+        "cost_windows": {
+          "name": "Udgiftsperioder (dage)",
+          "description": "Perioderne for vedligeholdelsesudgifterne i dage. 1 til 4 tal fra 1 til 3650. Hver periode får en sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Vis udgifter i panelet",
+          "description": "Vis udgiftstotalerne over opgavelisten i panelet."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Opgaver i {profile}"
+      },
+      "spend_window": {
+        "name": "Vedligeholdelsesudgift {days} dage"
+      },
+      "spend_all": {
+        "name": "Vedligeholdelsesudgift i alt"
+      },
+      "purchases_total": {
+        "name": "Køb af apparater i alt"
       }
     },
     "binary_sensor": {

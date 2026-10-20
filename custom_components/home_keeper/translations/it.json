@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Schede del pannello nascoste",
           "description": "Gli ID delle schede companion che il pannello non mostra."
+        },
+        "cost_windows": {
+          "name": "Periodi di spesa (giorni)",
+          "description": "I periodi dei totali di spesa di manutenzione, in giorni. Da 1 a 4 numeri tra 1 e 3650. Ogni periodo ha un sensore."
+        },
+        "cost_summary_panel": {
+          "name": "Mostra la spesa nel pannello",
+          "description": "Mostra i totali di spesa sopra l'elenco delle attività nel pannello."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Attività di {profile}"
+      },
+      "spend_window": {
+        "name": "Spesa di manutenzione {days} giorni"
+      },
+      "spend_all": {
+        "name": "Spesa di manutenzione totale"
+      },
+      "purchases_total": {
+        "name": "Totale acquisti elettrodomestici"
       }
     },
     "binary_sensor": {

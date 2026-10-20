@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Ausgeblendete Panel-Tabs",
           "description": "Die IDs der Companion-Tabs, die das Panel nicht anzeigt."
+        },
+        "cost_windows": {
+          "name": "Kostenzeiträume (Tage)",
+          "description": "Die Zeiträume für die Wartungskosten in Tagen. 1 bis 4 Zahlen von 1 bis 3650. Jeder Zeitraum erhält einen Sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Kosten im Panel anzeigen",
+          "description": "Zeigt die Kostensummen über der Aufgabenliste im Panel."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Aufgaben in {profile}"
+      },
+      "spend_window": {
+        "name": "Wartungskosten {days} Tage"
+      },
+      "spend_all": {
+        "name": "Wartungskosten gesamt"
+      },
+      "purchases_total": {
+        "name": "Gerätekäufe gesamt"
       }
     },
     "binary_sensor": {
