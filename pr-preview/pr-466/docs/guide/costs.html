@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Cost totals | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/costs"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Cost totals | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper adds up what you spend on your home. It uses 2 numbers that you already"><meta data-rh="true" property="og:description" content="Home Keeper adds up what you spend on your home. It uses 2 numbers that you already"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-466/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/costs"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/costs" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/costs" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Cost totals","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/costs"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-466/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.c02d615c.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.053a218a.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-466/assets/js/main.99308f17.js" defer="defer"></script>
 </head>
 <body>
@@ -33,7 +33,9 @@ recorded it.</li>
 <p>Only a completion with a cost counts. A skip has no cost. The totals update when a
 completion or a task changes. The cost of a deleted task stays in the
 totals only if an appliance keeps the history of that task. The
-<a class="" href="/ha-home-keeper/pr-preview/pr-466/docs/guide/appliances">appliance page</a> shows that history.</p>
+<a class="" href="/ha-home-keeper/pr-preview/pr-466/docs/guide/appliances">appliance page</a> shows that history. A task keeps its
+newest 500 completions. When an older completion with a cost is removed, its cost leaves
+the totals.</p>
 <p>All totals use the currency that is set in Home Assistant under
 <strong>Settings → System → General</strong>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-sensors">The sensors<a href="#the-sensors" class="hash-link" aria-label="Direct link to The sensors" title="Direct link to The sensors" translate="no">​</a></h2>
@@ -67,9 +69,9 @@ totals only if an appliance keeps the history of that task. The
 
 
 
-<table><thead><tr><th>Sensor</th><th>Value</th><th>Attributes</th></tr></thead><tbody><tr><td><code>sensor.home_keeper_maintenance_spend_30_days</code></td><td>Spend in the last 30 days</td><td><code>count</code>, <code>since</code></td></tr><tr><td><code>sensor.home_keeper_maintenance_spend_60_days</code></td><td>Spend in the last 60 days</td><td><code>count</code>, <code>since</code></td></tr><tr><td><code>sensor.home_keeper_maintenance_spend_all_time</code></td><td>Spend in all time</td><td><code>count</code>, <code>first</code></td></tr><tr><td><code>sensor.home_keeper_appliance_purchases_total</code></td><td>Sum of the appliance costs</td><td><code>count</code></td></tr></tbody></table>
+<table><thead><tr><th>Sensor</th><th>Value</th><th>Attributes</th></tr></thead><tbody><tr><td><code>sensor.home_keeper_maintenance_spend_30_days</code></td><td>Spend in the last 30 days</td><td><code>count</code></td></tr><tr><td><code>sensor.home_keeper_maintenance_spend_60_days</code></td><td>Spend in the last 60 days</td><td><code>count</code></td></tr><tr><td><code>sensor.home_keeper_maintenance_spend_all_time</code></td><td>Spend in all time</td><td><code>count</code>, <code>first</code></td></tr><tr><td><code>sensor.home_keeper_appliance_purchases_total</code></td><td>Sum of the appliance costs</td><td><code>count</code></td></tr></tbody></table>
 <p>Each period that you set gets its own sensor. <code>count</code> is how many completions (or
-appliances) make the total. <code>since</code> is the start of the period. <code>first</code> is the time of
+appliances) make the total. <code>first</code> is the time of
 the oldest completion with a cost. The entity IDs are the defaults for an English
 install. Home Assistant can give other IDs in another language.</p>
 <p>The all-time and purchase sensors keep long-term statistics, so a statistics graph card

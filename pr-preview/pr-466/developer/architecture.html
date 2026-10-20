@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Architecture | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/developer/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Architecture | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><meta data-rh="true" property="og:description" content="Home Keeper is a Home Assistant integration that tracks home maintenance and chores."><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-466/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/developer/architecture"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/developer/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/developer/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/developer/architecture"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-466/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.c02d615c.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.053a218a.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-466/assets/js/main.99308f17.js" defer="defer"></script>
 </head>
 <body>
@@ -77,8 +77,8 @@ has <code>@websocket_api.require_admin</code> on the command, and its service ha
 local <code>_verify_admin</code>, which raises the bare <code>Unauthorized</code>. A call with no
 <code>context.user_id</code> comes from an automation or from the core and is trusted.
 The gate covers appliance edits, asset documents, part files and stock, declarative companion
-edits, the orphan and archive deletes, <code>set_options</code>, the appliance report, data export and
-import with their HTTP views, <code>list_entity_keys</code> and the companion preview. All else is open.</p>
+edits, <code>register_companion</code>, orphan and archive deletes, <code>set_options</code>, the appliance report,
+export and import with their HTTP views, <code>list_entity_keys</code> and the companion preview. Else open.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setup">Setup<a href="#setup" class="hash-link" aria-label="Direct link to Setup" title="Direct link to Setup" translate="no">​</a></h3>
 <p><code>async_setup</code> calls <code>_register_services</code> 1 time for each Home Assistant run, so services
 stay through reloads. A handler raises <code>integration_not_loaded</code> when no entry is loaded.

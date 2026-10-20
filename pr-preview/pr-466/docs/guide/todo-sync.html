@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">To-do list sync | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/todo-sync"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="To-do list sync | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports synchronizing the tasks from a"><meta data-rh="true" property="og:description" content="Home Keeper supports synchronizing the tasks from a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-466/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/todo-sync"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/todo-sync" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/todo-sync" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"To-do list sync","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-466/docs/guide/todo-sync"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-466/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.c02d615c.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-466/assets/js/runtime~main.053a218a.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-466/assets/js/main.99308f17.js" defer="defer"></script>
 </head>
 <body>
@@ -52,7 +52,9 @@ A cleared date gets the task&#x27;s date back.</li>
 <p>Items include the task&#x27;s due date and notes if the list supports these fields.
 The due date is the date in the Home Assistant time zone.
 Home Keeper modifies only the items it added and does not modify an item that is
-already complete. Home Keeper keeps the name that you give an item on the list and
+already complete. If an open item with the same name is already on the list, Home
+Keeper uses it and does not add a second item. A tick on that item completes the
+task, but Home Keeper does not change or remove it. Home Keeper keeps the name that you give an item on the list and
 still syncs the other fields of that item. This works on a list that gives each item
 an ID.</p>
 <p>Items that a user adds to the list are not imported into Home Keeper. Only the
