@@ -434,8 +434,8 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 # normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart
 # from "somebody pressed Done". It also *authorizes* one thing: a declarative
 # companion task with ``managed_by.completion_blocked`` refuses every completion but
-# this one (and the problem-sensor sync's), because the declarative companion owns
-# both ends of that task (#377).
+# this one and the problem-sensor sync's, because the declarative companion owns
+# both ends of that task (#377). A glue's blocked task takes its owner's origin.
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
 
 # Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an
