@@ -36,6 +36,7 @@ from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     ASSET_KIND_VIRTUAL,
     COMPLETION_ENTRY_FIELDS,
+    DOMAIN,
     EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
     EVENT_ASSET_DELETED,
@@ -213,18 +214,32 @@ _BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
 )
 
 
+def _is_blocked_task_owner(task: dict[str, Any], origin: str | None) -> bool:
+    """Whether *origin* names the integration that owns *task*.
+
+    A glue that sets ``completion_blocked`` mirrors a state that only it can read, so
+    it clears the task with its own domain as the origin. Home Keeper owns its own
+    blocked tasks through the system origins only, so its domain is not an owner here.
+    """
+    managed_by = task.get("managed_by")
+    if not isinstance(managed_by, dict):
+        return False
+    return bool(origin) and origin != DOMAIN and origin == managed_by.get("integration")
+
+
 def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* may complete a task whose owner withholds Done.
 
-    A declarative companion with ``clear_on_recover`` owns both ends of its task: the
-    watcher arms it on the crossing and completes it on the recovery. A completion by
-    hand while the condition is still true records work that was not done (#377). The
-    panel, the card, the to-do list and the notification already withhold Done; this
-    stops the device-page button, the service and an automation too.
+    The owner of a ``completion_blocked`` task clears it when the condition recovers:
+    the watcher for a declarative companion with ``clear_on_recover``, the
+    problem-sensor sync, or the glue named in ``managed_by.integration``. A completion
+    by hand while the condition is still true records work that was not done (#377).
+    The panel, the card, the to-do list and the notification already withhold Done;
+    this stops the device-page button, the service and an automation too.
     """
     if not notifications.is_completion_blocked(task):
         return
-    if origin in _BLOCKED_COMPLETION_ORIGINS:
+    if origin in _BLOCKED_COMPLETION_ORIGINS or _is_blocked_task_owner(task, origin):
         return
     raise models.TaskValidationError(
         "Home Keeper completes this task when the watched condition recovers, so it "
@@ -975,7 +990,7 @@ class HomeKeeperStore:
         as a completion anywhere; the skip itself is logged in ``skips`` with the
         optional *metadata* (``note``/``who``, plus ``reading`` for a meter task).
         Rejects a synced problem-sensor task, and a ``completion_blocked`` task
-        unless the watcher's recovery marker comes with it. Fires
+        unless the owner's origin comes with it. Fires
         ``home_keeper_task_skipped``.
 
         For a **usage** sensor task it also resets the meter, exactly as a completion
@@ -2627,7 +2642,7 @@ class HomeKeeperStore:
         caller-supplied marker echoed back in the event so a contributing integration
         can ignore the echo of a completion it initiated. Two gates also read it:
         a problem-sensor-synced task accepts only the sync's marker, a
-        ``completion_blocked`` task accepts only the watcher's recovery marker, and a
+        ``completion_blocked`` task accepts only its owner's origin, and a
         ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
         trusted as given (any service caller may pass any marker), so those gates are
         household accountability, not a security boundary — the same trust level as
