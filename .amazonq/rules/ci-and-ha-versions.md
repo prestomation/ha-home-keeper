@@ -132,3 +132,5 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - The `open-work` skill only reports open work, sorted by who must act next.
 - The `preview-comment` skill drafts the note that tells a reporter a preview build is
   ready. It posts the note only after the maintainer approves the exact text.
+- The `coordinator` skill holds the standing rules of the coordinator session: the backlog,
+  the 8-hour tick, workers and merges. Change a coordinator rule there, in the same PR.
