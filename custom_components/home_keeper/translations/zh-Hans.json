@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "隐藏的面板标签页",
           "description": "面板不显示的伴侣标签页的 ID。"
+        },
+        "cost_windows": {
+          "name": "支出时段（天）",
+          "description": "维护支出总计的时段，以天为单位。1 到 4 个数字，范围 1 到 3650。每个时段有一个传感器。"
+        },
+        "cost_summary_panel": {
+          "name": "在面板中显示支出",
+          "description": "在面板的任务列表上方显示支出总计。"
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "{profile} 任务"
+      },
+      "spend_window": {
+        "name": "维护支出 {days} 天"
+      },
+      "spend_all": {
+        "name": "维护支出总计"
+      },
+      "purchases_total": {
+        "name": "电器购买总计"
       }
     },
     "binary_sensor": {

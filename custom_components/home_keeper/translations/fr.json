@@ -793,6 +793,14 @@
         "hidden_panel_tabs": {
           "name": "Onglets du panneau masqués",
           "description": "Les identifiants des onglets de companions que le panneau n'affiche pas."
+        },
+        "cost_windows": {
+          "name": "Périodes de dépenses (jours)",
+          "description": "Les périodes des totaux de dépenses d'entretien, en jours. De 1 à 4 nombres entre 1 et 3650. Chaque période a un capteur."
+        },
+        "cost_summary_panel": {
+          "name": "Afficher les dépenses dans le panneau",
+          "description": "Affiche les totaux de dépenses au-dessus de la liste des tâches dans le panneau."
         }
       }
     },
@@ -1133,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Tâches de {profile}"
+      },
+      "spend_window": {
+        "name": "Dépenses d'entretien {days} jours"
+      },
+      "spend_all": {
+        "name": "Dépenses d'entretien totales"
+      },
+      "purchases_total": {
+        "name": "Total des achats d'appareils"
       }
     },
     "binary_sensor": {

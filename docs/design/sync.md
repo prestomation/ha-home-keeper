@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 3fa9c53c64ef
+source_hash: 93862d92f066
 ---
 
 # To-do, calendar and list sync
@@ -76,7 +76,10 @@ No driver syncs onto Home Keeper's own entity (`shopping_sync.own_todo_entity_id
 `todo_items.resolve_tracked` finds the item of an entry by `uid` first, then by summary,
 an open item before a ticked one. A `claimed` set spans the whole plan, so 2 entries never
 share 1 item. A planner adopts an open item with the same summary (`todo_items.find_open`)
-before it adds one. Due date and description are written and compared only when the list
+before it adds one, and marks the entry `adopted: True`. Home Keeper changes only items it
+added: a tick on an adopted item still counts, but it is never removed, ticked off, renamed
+or rewritten, and its date is never a move. When the item is not needed, the entry goes and
+the item stays. Due date and description are written and compared only when the list
 supports them (`CAP_DUE_DATE`, `CAP_DESCRIPTION`), or each pass rewrites them.
 
 The `add_item` service returns no uid, so a new entry has `uid: None` and `added_at`. The
@@ -93,7 +96,7 @@ A sync is a profile: its `sync` block is `{entity_id, two_way, vanish_as_complet
 `todo_list.desired_by_sync` gives each profile its wanted tasks (name, local due date,
 notes, `last_completed`, `blocked`), minus the buy reminders that the mirror owns. The
 store key `todo_list_items` maps `todo_list.sync_key` (profile id, task id) to
-`{entity_id, uid, summary, due, last_completed, added_at}`, plus `user_named`. When
+`{entity_id, uid, summary, due, last_completed, added_at}`, plus `user_named` and `adopted`. When
 `todo_list.completed_since` finds a newer `last_completed`, Home Keeper completed the task,
 so the item is ticked off. When the task is due again, a new item goes next to it.
 

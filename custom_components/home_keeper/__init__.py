@@ -64,6 +64,8 @@ from .const import (
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
+    OPTION_COST_SUMMARY_PANEL,
+    OPTION_COST_WINDOWS,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_DUE_TIME,
     OPTION_DUE_TIME_MODE,
@@ -843,6 +845,16 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
+        # Cost tracking (#460): the spend windows in days, and the panel totals.
+        # Duplicates are dropped before the length check, so [30, 30, 60] is 2
+        # windows. ``cost_summary.normalize_windows`` then sorts them.
+        vol.Optional(OPTION_COST_WINDOWS): vol.All(
+            cv.ensure_list,
+            [vol.All(vol.Coerce(int), vol.Range(min=1, max=3650))],
+            lambda days: sorted(set(days)),
+            vol.Length(min=1, max=4),
+        ),
+        vol.Optional(OPTION_COST_SUMMARY_PANEL): cv.boolean,
         # When a floating task is due: at the completion time, or at 1 set local
         # time on its date (#438). ``options.normalize_due_time`` reads the time.
         vol.Optional(OPTION_DUE_TIME_MODE): vol.In(DUE_TIME_MODES),
@@ -2033,7 +2045,12 @@ def _register_services(hass: HomeAssistant) -> None:
         automation can react to ``home_keeper_companion_connected``). Home Keeper
         stores the descriptor verbatim and never imports the companion. See
         docs/INTEGRATING.md and companions.py.
+
+        Admin-only: a companion with ``import_export`` has its services called with
+        the admin's context during an export or import. An integration registers
+        from its own setup, which has no user, so that call still passes.
         """
+        await _verify_admin(call)
         companions.async_register_companion(hass, dict(call.data))
         return {"ok": True}
 

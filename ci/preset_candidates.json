@@ -70,12 +70,30 @@
       ],
       "reason": "not a duty: the filter cycle is a pump schedule, not a filter change"
     },
+    "core:centriconnect": {
+      "keys": [
+        "sensor.tank_remaining_volume"
+      ],
+      "reason": "a tank volume, not a duty"
+    },
+    "core:compit": {
+      "keys": [
+        "binary_sensor.ventilation_filter_dirty"
+      ],
+      "reason": "added"
+    },
     "core:coolmaster": {
       "keys": [
         "binary_sensor.clean_filter",
         "button.reset_filter"
       ],
       "reason": "added"
+    },
+    "core:ecoforest": {
+      "keys": [
+        "sensor.working_hours"
+      ],
+      "reason": "a runtime counter, no reset duty"
     },
     "core:fjaraskupan": {
       "keys": [
@@ -91,6 +109,12 @@
         "sensor.hepa_filter_status"
       ],
       "reason": "filter status is an enum, no clear limit"
+    },
+    "core:guntamatic": {
+      "keys": [
+        "sensor.service_date"
+      ],
+      "reason": "a service date, not a duty"
     },
     "core:helty": {
       "keys": [
@@ -110,6 +134,23 @@
         "binary_sensor.filter_cleaning"
       ],
       "reason": "added"
+    },
+    "core:intellifire": {
+      "keys": [
+        "binary_sensor.maintenance_error"
+      ],
+      "reason": "an error flag, not a duty"
+    },
+    "core:neopool": {
+      "keys": [
+        "sensor.cell_runtime_part",
+        "sensor.cell_runtime_pol_changes",
+        "sensor.cell_runtime_pola",
+        "sensor.cell_runtime_polb",
+        "sensor.cell_runtime_total",
+        "sensor.filtvalve_remaining"
+      ],
+      "reason": "runtime counters and settings, not a duty"
     },
     "core:sensibo": {
       "keys": [

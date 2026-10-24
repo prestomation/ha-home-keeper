@@ -13,6 +13,7 @@ import importlib.util
 import sys
 import types
 from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -120,3 +121,100 @@ def test_x08_4_the_first_write_has_counts() -> None:
     assert entity.native_value == 3
     assert entity.extra_state_attributes == {"total": 7, "next_task_id": "t1"}
     assert len(calls) == 1
+
+
+# ── cost sensors (#460) ──────────────────────────────────────────────────────
+
+
+def _coordinator(tasks: dict, assets: list) -> types.SimpleNamespace:
+    return types.SimpleNamespace(
+        data=tasks, store=types.SimpleNamespace(list_assets=lambda: assets)
+    )
+
+
+def _ago(days: float) -> str:
+    from homeassistant.util import dt as dt_util
+
+    return (dt_util.now() - timedelta(days=days)).isoformat()
+
+
+_COST_TASKS = {
+    "a": {
+        "id": "a",
+        "name": "Fix shower",
+        "completions": [{"ts": _ago(5), "cost": 3.19}, {"ts": _ago(45), "cost": 20}],
+    }
+}
+_COST_ASSETS = [
+    {
+        "id": "heater",
+        "cost": 900,
+        "task_history": [
+            {"task_id": "gone", "completions": [{"ts": _ago(400), "cost": 50}]}
+        ],
+    },
+    {"id": "fridge", "cost": 1200.5},
+    {"id": "lamp"},
+]
+
+
+def _written(entity) -> None:
+    entity.async_write_ha_state = lambda: None
+    entity._handle_coordinator_update()
+
+
+def test_spend_window_sensor() -> None:
+    entity = sensor.HomeKeeperSpendSensor(
+        _coordinator(_COST_TASKS, _COST_ASSETS), days=30
+    )
+    _written(entity)
+    assert entity.unique_id == "home_keeper_spend_30d"
+    assert entity.translation_key == "spend_window"
+    assert entity.translation_placeholders == {"days": "30"}
+    assert entity.state_class is None
+    assert entity.device_class == "monetary"
+    assert entity.native_value == 3.19
+    assert entity.extra_state_attributes["count"] == 1
+    assert set(entity.extra_state_attributes) == {"count"}
+
+
+def test_spend_all_time_sensor_counts_archived_history() -> None:
+    entity = sensor.HomeKeeperSpendSensor(
+        _coordinator(_COST_TASKS, _COST_ASSETS), days=None
+    )
+    _written(entity)
+    assert entity.unique_id == "home_keeper_spend_all"
+    assert entity.translation_key == "spend_all"
+    assert entity.state_class == "total"
+    assert entity.native_value == 73.19
+    oldest = _COST_ASSETS[0]["task_history"][0]["completions"][0]["ts"]
+    assert entity.extra_state_attributes == {"count": 3, "first": oldest}
+
+
+def test_purchase_sensor() -> None:
+    entity = sensor.HomeKeeperPurchaseSensor(_coordinator({}, _COST_ASSETS))
+    _written(entity)
+    assert entity.unique_id == "home_keeper_purchases"
+    assert entity.translation_key == "purchases_total"
+    assert entity.state_class == "total"
+    assert entity.native_value == 2100.5
+    assert entity.extra_state_attributes == {"count": 2}
+
+
+def test_cost_sensor_unit_is_the_currency() -> None:
+    entity = sensor.HomeKeeperPurchaseSensor(_coordinator({}, []))
+    entity.hass = types.SimpleNamespace(config=types.SimpleNamespace(currency="EUR"))
+    assert entity.native_unit_of_measurement == "EUR"
+    entity.hass.config.currency = ""
+    assert entity.native_unit_of_measurement is None
+
+
+def test_cost_entities_follow_the_windows() -> None:
+    entities, live = sensor._cost_entities(_coordinator({}, []), object())
+    assert [e.unique_id for e in entities] == [
+        "home_keeper_spend_30d",
+        "home_keeper_spend_60d",
+        "home_keeper_spend_all",
+        "home_keeper_purchases",
+    ]
+    assert live == {e.unique_id for e in entities}

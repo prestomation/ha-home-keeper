@@ -13,7 +13,7 @@ dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "requests>=2.34.2"]
 # ``custom_components/`` and ignores this packaging metadata.
 #   pip install "home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main"
 [build-system]
-requires = ["setuptools>=84.0.0"]
+requires = ["setuptools>=84.2.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -103,6 +103,8 @@ only_mutate = [
     "custom_components/home_keeper/task_counts.py",
     "custom_components/home_keeper/problem_tasks.py",
     "custom_components/home_keeper/appliance_report.py",
+    # Spend and purchase totals (#460). Pure, and driven by test_cost_summary.py.
+    "custom_components/home_keeper/cost_summary.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
     # Task photos (#399): the list rules and the on-disk paths. Pure, and driven by

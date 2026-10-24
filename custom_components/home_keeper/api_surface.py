@@ -218,7 +218,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("export_data", admin_only=True, response="only"),
     ServiceSpec("import_data", admin_only=True, response="only"),
     ServiceSpec("set_options", admin_only=True),
-    ServiceSpec("register_companion", response="optional"),
+    ServiceSpec("register_companion", admin_only=True, response="optional"),
     ServiceSpec("list_companions", response="only"),
     ServiceSpec("add_declarative_companion", admin_only=True, response="only"),
     ServiceSpec("update_declarative_companion", admin_only=True, response="only"),
@@ -720,7 +720,14 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
     EntityPlatformSpec("button", ("mark_done",)),
     EntityPlatformSpec(
         "sensor",
-        ("next_due", "all_tasks", "profile_tasks"),
+        (
+            "next_due",
+            "all_tasks",
+            "profile_tasks",
+            "spend_window",
+            "spend_all",
+            "purchases_total",
+        ),
         attributes=(
             Field("task_id", "str", "next-due sensor"),
             Field("task_name", "str", "next-due sensor"),
@@ -773,6 +780,17 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
                 "float | None",
                 "count sensors; days past due for the most overdue task, to one "
                 "decimal place; absent value when nothing is overdue",
+            ),
+            Field(
+                "count",
+                "int",
+                "cost sensors; the completions with a cost in the total, or the "
+                "appliances with a purchase cost",
+            ),
+            Field(
+                "first",
+                "str | None",
+                "all-time spend sensor; ISO, the oldest completion with a cost",
             ),
         ),
     ),
@@ -883,6 +901,9 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/export_data", admin_only=True, service="export_data"),
     WebsocketSpec("home_keeper/import_data", admin_only=True, service="import_data"),
     WebsocketSpec("home_keeper/get_options"),
+    # The panel's spend totals and records (#460). A read with no service twin, as
+    # ``get_options``: the cost sensors give the same totals to automations.
+    WebsocketSpec("home_keeper/get_spend"),
     WebsocketSpec("home_keeper/set_options", admin_only=True, service="set_options"),
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
     # The companion panel tabs. It has no service twin, because a tab is not data:
@@ -1007,6 +1028,8 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, in_flow=True),
     OptionSpec(const.OPTION_DISMISSED_COMPANIONS, in_flow=False),
     OptionSpec(const.OPTION_HIDDEN_PANEL_TABS, in_flow=False),
+    OptionSpec(const.OPTION_COST_WINDOWS, in_flow=False),
+    OptionSpec(const.OPTION_COST_SUMMARY_PANEL, in_flow=False),
 )
 
 

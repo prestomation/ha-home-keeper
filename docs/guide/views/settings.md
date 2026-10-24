@@ -5,12 +5,14 @@ Home Assistant options flow and saves each change immediately. The same options 
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
 
-The tab has 9 sections:
+The tab has 10 sections:
 
 - **General** sets how long completed one-off tasks are kept. This number saves
   when you leave the box or press Enter.
 - **Due time** sets when a task that repeats after each completion is due. See
   [Due time](#due-time).
+- **Cost tracking** sets the periods of the spend totals, and if the panel shows them.
+  See [Cost totals](./costs.md).
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](../appliances/appliances.md#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See
@@ -334,7 +336,7 @@ These integrations have presets:
 
 | Type of device | Integrations |
 |---|---|
-| Air and ventilation | Actron Air, CoolMasterNet, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Fjäråskupan, Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), homee, IKEA Trådfri (STARKVIND), IntelliClima, Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Sensibo, Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
+| Air and ventilation | Actron Air, CoolMasterNet, Compit, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Fjäråskupan, Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), homee, IKEA Trådfri (STARKVIND), IntelliClima, Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Sensibo, Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
 | Cars | Bosch eBike (Smart System & eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda) |
 | Garden and pool | Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision |
 | Heating and water | AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare |

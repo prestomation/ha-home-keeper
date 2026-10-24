@@ -1879,6 +1879,66 @@ export function generalSchema(): FormField[] {
   ];
 }
 
+/** The spend windows a new install has, in days (the backend `DEFAULT_WINDOWS`). */
+export const DEFAULT_COST_WINDOWS = [30, 60];
+/** How many windows a user can set, and the longest one (the backend limits). */
+export const MAX_COST_WINDOWS = 4;
+export const MAX_COST_WINDOW_DAYS = 3650;
+/** The windows the picker offers. The user can type any other number of days. */
+const COST_WINDOW_CHOICES = [7, 14, 30, 60, 90, 180, 365];
+
+/**
+ * Clean a list of spend windows the same way the backend does: whole days in
+ * `1..MAX_COST_WINDOW_DAYS`, no duplicates, sorted, at most `MAX_COST_WINDOWS`. A list
+ * with no good item gives the defaults.
+ */
+export function normalizeCostWindows(value: unknown): number[] {
+  if (!Array.isArray(value)) return [...DEFAULT_COST_WINDOWS];
+  const days = new Set<number>();
+  for (const item of value) {
+    const n = Math.trunc(Number(item));
+    if (Number.isFinite(n) && n >= 1 && n <= MAX_COST_WINDOW_DAYS) days.add(n);
+  }
+  const sorted = [...days].sort((a, b) => a - b).slice(0, MAX_COST_WINDOWS);
+  return sorted.length ? sorted : [...DEFAULT_COST_WINDOWS];
+}
+
+/** The spend windows of an options object. */
+export function costWindows(options: { cost_windows?: unknown } | null | undefined): number[] {
+  return normalizeCostWindows(options?.cost_windows);
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Cost tracking** card (#460): the
+ * spend windows, and whether the task list shows the totals. The windows picker holds
+ * strings and accepts a typed number of days.
+ */
+export function costSchema(): FormField[] {
+  return [
+    {
+      name: 'cost_windows',
+      selector: {
+        select: {
+          mode: 'dropdown',
+          multiple: true,
+          custom_value: true,
+          sort: false,
+          options: COST_WINDOW_CHOICES.map((d) => ({ value: String(d), label: String(d) })),
+        },
+      },
+    },
+    { name: 'cost_summary_panel', selector: selBool() },
+  ];
+}
+
+/** The Cost tracking card's form data, cleaned to the stored shape before a save. */
+export function coerceCost(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    cost_windows: normalizeCostWindows(raw.cost_windows),
+    cost_summary_panel: boolOr(raw.cost_summary_panel, true),
+  };
+}
+
 /**
  * The `ha-form` schema for the Settings tab's **Due time** card (#438): when a
  * floating task is due, and the time of day, which shows only for a set time.

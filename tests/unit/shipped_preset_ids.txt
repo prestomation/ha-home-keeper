@@ -9,6 +9,7 @@ bwt_aqa_perla_ble_percent_low
 bwt_perla_life_low
 bwt_perla_percent_low
 candy_reading_low
+compit_alert_binary_sensor_on
 connectlife_alert_binary_sensor_on
 connectlife_wear_high
 coolmaster_alert_binary_sensor_on

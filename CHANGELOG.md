@@ -6,7 +6,9 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.33.0b1]
+## [Unreleased]
+
+## [0.33.0b3]
 
 ### Added
 
@@ -14,6 +16,37 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
   logbook, with the task name. The rows show on the Home Keeper to-do list and on the
   device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
+
+## [0.33.0b2]
+
+### Added
+
+- **[Maintenance spend totals](https://prestomation.github.io/ha-home-keeper/docs/guide/costs).**
+  Sensors and the panel show your maintenance spend for periods such as 30 days and for
+  all time, plus the total cost of your appliances. Select a total in the panel to see
+  its records, and set your own periods in Settings. (Fixes #460)
+
+## [0.33.0b1]
+
+### Changed
+
+- **Installation from HACS default list.** Search for Home Keeper in HACS to install it.
+  You no longer add it as a custom repository.
+
+### Added
+
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Home Keeper now suggests tasks for the Compit ventilation filter. Ecovacs presets also
+  cover more filters, the mop washing tray, the cleaning solution and the strainer.
+
+### Fixed
+
+- **Admin-only companion registration.** Only an admin can register a companion now. A
+  household member can no longer choose an integration that an admin's export or import
+  then calls.
+- **Your own list items.** If a to-do or shopping list already has an open item with the
+  same name, Home Keeper uses it but never ticks off, renames, removes or rewrites it. A
+  tick on that item still completes the task or buys the part.
 
 ## [0.32.0] - 2026-10-16
 

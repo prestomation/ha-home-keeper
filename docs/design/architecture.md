@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 06e4bf6f21c6
+source_hash: 9d9bbd7f3af6
 ---
 
 # Architecture
@@ -42,7 +42,7 @@ the tasks through native entities, such as the to-do list and the calendar, and 
 
 | Layer | Modules | Rule |
 |---|---|---|
-| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
+| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `cost_summary.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
 | Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `transfer_runner.py`, `transfer_http.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
@@ -62,10 +62,9 @@ A websocket command and its service twin are the same operation. An admin-only o
 has `@websocket_api.require_admin` on the command, and its service handler calls the
 local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
 `context.user_id` comes from an automation or from the core and is trusted.
-The gate covers appliance edits, asset documents, part files and stock, declarative
-companion edits, the orphan and archive deletes, `set_options`, the appliance report, data
-export and import with their HTTP views, `list_entity_keys` and the companion preview.
-All else is open.
+The gate covers appliance edits, asset documents, part files and stock, declarative companion
+edits, `register_companion`, orphan and archive deletes, `set_options`, the appliance report,
+export and import with their HTTP views, `list_entity_keys` and the companion preview. Else open.
 
 ### Setup
 
@@ -132,6 +131,7 @@ keys in `diagnostics.TO_REDACT`, because users attach dumps to public issues.
 | [transfer](transfer.md) | Import and export |
 | [frontend](frontend.md) | The panel and the dashboard card |
 | [qr-labels](qr-labels.md) | QR code labels that link to a panel page |
+| [cost-summary](cost-summary.md) | Maintenance spend and appliance purchase totals |
 
 ## Trade-offs
 

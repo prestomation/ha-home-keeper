@@ -2053,6 +2053,18 @@ test('capture the appliances, parts and stock', async () => {
 });
 
 test('capture Settings and the usage surfaces', async () => {
+  // 72. The spend totals above the task list (#460), with All time open. The fixture
+  // costs are months old, so the 30 and 60 day totals are 0 and All time holds them.
+  await openPanel(page);
+  const spend = panel.locator('.hk-spend');
+  await expect(spend).toBeVisible();
+  await spend.locator('[data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await panel.locator('.hk-spend').screenshot({ path: `${OUT}/72-panel-spend.png` });
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
   // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
@@ -2103,6 +2115,13 @@ test('capture Settings and the usage surfaces', async () => {
     path: `${OUT}/45f-panel-settings-duetime.png`,
   });
   await setDueTimeMode(panel, 'At the time of completion');
+
+  // 72b. The Cost tracking card (#460): the spend periods and the panel switch.
+  await panel.locator('#hk-settings-cost').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await panel
+    .locator('#hk-settings-cost')
+    .screenshot({ path: `${OUT}/72b-panel-settings-cost.png` });
 
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
@@ -2512,6 +2531,15 @@ test('capture the phone layout', async () => {
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+
+  // 72c. The spend totals on a phone (#460): 2 totals to a row, and the records of
+  // the open total stacked under them.
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/72c-panel-mobile-spend.png` });
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
 
   // 71d. Tiles on a phone. Two to a row rather than three, which is the layout the
   // picker exists for: a phone list row is a tall stacked block, so the same screen

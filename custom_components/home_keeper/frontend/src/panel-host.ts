@@ -52,6 +52,7 @@ import type {
   Hass,
   HomeKeeperOptions,
   PanelTabInfo,
+  SpendSummary,
   Task,
 } from './types';
 import type { TaskLayout } from './task-layout';
@@ -197,6 +198,11 @@ export interface PanelHost extends HTMLElement {
   _installedIntegrations: string[] | null;
   /** Whether this user has dismissed the first-run intro banner. */
   _introDismissed: boolean;
+  /** The spend totals above the task list (#460). Null until read, or when the read
+   *  failed, which hides the strip. */
+  _spend: SpendSummary | null;
+  /** The total whose records are open under the strip, or '' (see `panel-spend.ts`). */
+  _spendOpen: string;
   /** Profile / notification rows (and a profile's sync group) the user has expanded. */
   _itemExpanded: Set<string>;
   /** The language dates, times and numbers are formatted in (Home Assistant's). */
