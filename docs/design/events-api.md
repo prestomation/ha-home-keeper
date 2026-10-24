@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 7e91de761b91
+source_hash: a6b0ed435c3a
 ---
 
 # Events and API surface
@@ -78,10 +78,9 @@ fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fi
 
 ### Logbook rows
 
-`logbook.py` describes each event in `events.LOGBOOK_EVENTS` with English text from
-`events.logbook_message`. The logbook matches the `entity_id` and `device_id` in the data,
-so a row shows on the to-do list and on the device of its task. The row names no entity,
-because the logbook then shows the entity name in place of the task name.
+`logbook.py` describes each event in `events.LOGBOOK_EVENTS`, with text from
+`events.logbook_message`. The logbook matches the `entity_id` and `device_id` in the data, so a
+row shows on the to-do list and on the task device. A row names no entity, to keep the task name.
 
 ### Device triggers
 
@@ -100,14 +99,14 @@ startup, often before the entry loads. `_filters` reads the coordinator to choos
 
 ### Services and websocket commands
 
-`__init__._register_services` runs 1 time, from `async_setup`, and a reload removes no
-service. With no loaded entry, a handler raises `integration_not_loaded`. Read services
-use `SupportsResponse.ONLY`.
+`__init__._register_services` runs 1 time, from `async_setup`; a reload removes no service.
+With no loaded entry, a handler raises `integration_not_loaded`. Read services use
+`SupportsResponse.ONLY`.
 
 `websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
-codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets no
-later translation. Each `WebsocketSpec` names its service twin, except the panel tab list and
-the reads `get_options` and `get_spend`. `home_keeper/sign_task_photo_urls` signs a list of photos.
+codes. `backend_i18n.resolve_exception` localizes the text, as a websocket error gets no later
+translation. Each `WebsocketSpec` names its service twin, except the panel tab list and the
+reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of photos.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.
