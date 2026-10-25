@@ -118,6 +118,8 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
   never merges it. The coordinator makes it green, fixes review findings, and reports it.
 - A dependency PR: the coordinator may squash merge it after every check is green. Read the
   checks yourself. Do not tag, release or bump a version.
+- A PR that changes only this skill, made because the maintainer asked for the change: the
+  coordinator may squash merge it after every check is green. Read the checks yourself.
 - Never merge on a red or running check. Fix a failure you did not cause, or report it.
 - Pawsistant: ignore the `notify / notify` check. The Discord secret is not set there. The
   maintainer decided this. Every other red check still blocks a merge.
