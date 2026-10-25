@@ -110,6 +110,7 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
   result, the head SHA if any, the checks it ran and their exit codes. A worker that makes no
   change says so in the message.
 - The worker never comments on an issue and never merges.
+- The brief asks for a mutation report (see "Mutation metrics").
 
 ## PRs and merges
 
@@ -128,6 +129,21 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
 - Merge conflicts: merge the base branch into the PR. Never rewrite someone else's history.
 - Many PRs can be open. Watch for merge conflicts between them.
 
+## Mutation metrics
+
+The maintainer wants to know if mutation testing improves code quality, not only test
+quality. Count the real bugs that it finds.
+
+- When the worker stops, its message gives the mutation score and the number of mutants
+  killed, survived and equivalent. It lists each finding with a class, a file and one line
+  of text, and says if it fixed the finding. If the worker ran no mutation test, it says why.
+- Classes: `real-bug` (the code was wrong), `test-gap` (the code was right and a test was
+  missing) and `equivalent` (no change in behavior).
+- Save one document for each task in the `mutation` collection of the backlog Artifact.
+  Fields: `task`, `repo`, `pr`, `date`, `score`, `killed`, `survived`, `equivalent`,
+  `real_bugs`, `test_gaps`, `findings` (a list of `{file, class, note, fixed}`), `note`, `by`.
+  The backlog page shows the totals.
+
 ## When a worker is done
 
 1. Read the cost from `get_session`: `external_metadata.usage.cost_usd`.
@@ -135,7 +151,8 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
 3. Never put the cost on GitHub: not in a PR title, a PR body, a commit or a comment.
    The cost goes only in the session name and in the backlog notes.
 4. Archive the session with `archive_session`.
-5. Update the backlog item and its notes.
+5. Save the mutation report.
+6. Update the backlog item and its notes.
 
 ## Reports to the maintainer
 
