@@ -222,6 +222,11 @@ class DeclarativeCompanionSync:
         # the reload replaced, so the debouncer is shut down with the listeners.
         self._entry.async_on_unload(self._reconcile_debouncer.async_shutdown)
         self._entry.async_on_unload(self._stop)
+        # The initial pass read the registry earlier in this setup, and these listeners
+        # start only now. A registry change in between has no listener: an entity
+        # enabled while the entry reloads after a pause left its task off until the
+        # next registry event. One catch-up pass covers that window.
+        self._trigger_reconcile()
 
     # ── snapshot builders ────────────────────────────────────────────────────
     def _registry_snapshot(self) -> dict[str, Any]:

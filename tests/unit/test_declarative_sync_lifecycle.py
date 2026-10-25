@@ -336,6 +336,31 @@ def test_a_failed_reload_is_logged_and_the_wait_ends(caplog):
     assert "after a companion change" in caplog.text
 
 
+def test_a_registry_change_between_setup_and_the_listeners_gets_a_pass(monkeypatch):
+    # The initial pass reads the registry, and the listeners start later in the same
+    # setup. An entity enabled in between fires no event for any listener, so the
+    # paused task of that entity stayed off until the next registry event.
+    calls = []
+
+    async def _call():
+        calls.append("pass")
+
+    async def _scenario():
+        sync = _spec_sync([])
+        sync._hass.bus = SimpleNamespace(async_listen=lambda *a: lambda: None)
+        sync._entry = SimpleNamespace(async_on_unload=lambda unsub: None)
+        sync._preset_counts = {}
+        sync._reconcile_debouncer = SimpleNamespace(
+            async_call=_call, async_shutdown=lambda: None
+        )
+        monkeypatch.setattr(sync_mod, "async_dispatcher_connect", lambda *a: None)
+        sync.async_start_listeners()
+        await asyncio.sleep(0)
+
+    asyncio.run(_scenario())
+    assert calls == ["pass"]
+
+
 def test_settle_waits_on_the_sync_of_the_coordinator():
     calls = []
 
