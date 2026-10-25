@@ -13,6 +13,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Glue integration task completion.** A read-only task from a glue integration, such as
   the Bambu Lab firmware task, completes again when the glue reports that the work is done.
   A user still cannot complete it by hand.
+- **Resumed task after enabling an entity.** A task that Home Keeper paused for a disabled
+  entity now resumes when you enable the entity, also when Home Assistant reloads Home
+  Keeper at that time. (Fixes #470)
 
 ## [0.33.0b2]
 
