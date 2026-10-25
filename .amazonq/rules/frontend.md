@@ -76,6 +76,10 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   the HA sidebar.
 - Never dim a container whose child must stay bright. Fade the elements one by one.
 - Dimming is not disabling. Use `inert` where the drawer covers the list.
+- **A bar that pins on scroll gets its state from an `IntersectionObserver`** on a sentinel
+  above it, set as an attribute in place. Never render on scroll (`_observeBar`).
+- **A folded filter stays visible.** Each active filter of the task list shows as a chip
+  with a clear button while its control is folded (`list-bar.activeListChips`).
 
 ## Accessibility
 
