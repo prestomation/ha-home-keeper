@@ -6,7 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.33.0b6]
+
+### Added
+
+- **[Event entities](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).**
+  Each device that has a Home Keeper task or appliance now has an event entity, and 1 more
+  entity gets all Home Keeper events. In the automation editor, use the Event received
+  trigger and select a device, area or label. (Fixes #415)
+
+## [0.33.0b5]
+
+### Added
+
+- **[Compact task list bar](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-bar).**
+  On a phone, Search, Filters and the spend button share 1 bar that stays at the top
+  while you scroll, and a chip shows each filter that is on. On a desktop, the spend
+  totals take 1 line. (Fixes #488)
 
 ### Fixed
 
@@ -16,15 +32,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Resumed task after enabling an entity.** A task that Home Keeper paused for a disabled
   entity now resumes when you enable the entity, also when Home Assistant reloads Home
   Keeper at that time. (Fixes #470)
-
-## [0.33.0b4]
-
-### Added
-
-- **[Event entities](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).**
-  Each device that has a Home Keeper task or appliance now has an event entity, and 1 more
-  entity gets all Home Keeper events. In the automation editor, use the Event received
-  trigger and select a device, area or label. (Fixes #415)
 
 ## [0.33.0b2]
 

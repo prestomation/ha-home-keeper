@@ -27,7 +27,7 @@
  * The text-line choice is kept per browser, and each shot starts from the default.
  */
 import { test, expect, Locator, Page } from '@playwright/test';
-import { callService, gotoTab, openAppliance, openPanel } from './tests/helpers';
+import { callService, gotoTab, openAppliance, openListFilters, openPanel } from './tests/helpers';
 import { ASSET, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
 
@@ -175,6 +175,8 @@ async function taskPickerShot(page: Page, name: string): Promise<void> {
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
   await gotoTab(panel, 'tasks');
+  // A phone folds the filter controls and Print labels behind Filters (#488).
+  await openListFilters(panel);
   const overdue = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"]');
   if (await overdue.isVisible()) await overdue.click();
   else await panel.locator('select[data-seg-select="filter"]').selectOption('overdue');

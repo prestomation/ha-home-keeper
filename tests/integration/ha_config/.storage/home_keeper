@@ -79,7 +79,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "5cc6c9df3de92adc0c2ad2baba25f60f",
+        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -484,7 +484,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "5cc6c9df3de92adc0c2ad2baba25f60f",
+        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -675,7 +675,7 @@
         "name": "Wear rain jacket",
         "notes": "",
         "recurrence_type": "use",
-        "device_id": "3db63a9c94c28f352cabc63ca616b765",
+        "device_id": "f42abbadb961d83263e90cfc86906018",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -709,7 +709,7 @@
         "name": "Renew DWR coating (Rain jacket)",
         "notes": "",
         "recurrence_type": "triggered",
-        "device_id": "3db63a9c94c28f352cabc63ca616b765",
+        "device_id": "f42abbadb961d83263e90cfc86906018",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -723,7 +723,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "5cc6c9df3de92adc0c2ad2baba25f60f",
+        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
         "identifiers": [
           [
             "home_keeper",
@@ -892,7 +892,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "de8ba6cc11d03faa52806a623b7f7b35",
+        "device_id": "0fccb50292fe7db25e68281fc5674e52",
         "identifiers": [
           [
             "home_keeper",
@@ -917,7 +917,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "17750abdab3c41523e7fd98cdc328e2d",
+        "device_id": "62154922305bb240bbce96989f06869d",
         "identifiers": [
           [
             "home_keeper",
@@ -943,7 +943,7 @@
         "name": "Rain jacket",
         "kind": "virtual",
         "external_id": "",
-        "device_id": "3db63a9c94c28f352cabc63ca616b765",
+        "device_id": "f42abbadb961d83263e90cfc86906018",
         "area_id": null,
         "manufacturer": "Fjallraven",
         "model": "Keb Eco-Shell",
@@ -994,7 +994,7 @@
         "id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
         "kind": "virtual",
         "name": "Batteries",
-        "device_id": "1412b7ebfd56369d4165dad9c798ebff",
+        "device_id": "4c74232621908b59cba590f76b1efb3d",
         "identifiers": [
           [
             "home_keeper",

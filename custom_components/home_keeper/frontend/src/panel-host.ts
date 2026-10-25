@@ -203,6 +203,21 @@ export interface PanelHost extends HTMLElement {
   _spend: SpendSummary | null;
   /** The total whose records are open under the strip, or '' (see `panel-spend.ts`). */
   _spendOpen: string;
+  /** Whether the spend sheet is open over the task list (the spend button opens it). */
+  _spendSheet: boolean;
+  /** Open the spend sheet and move focus into it. */
+  _openSpendSheet(): void;
+  /** Close the spend sheet and give focus back to the spend button. */
+  _closeSpendSheet(): void;
+  /** Whether the task list's filter controls are open where a phone folds them. */
+  _controlsOpen: boolean;
+  /** Whether the task list bar is pinned to the top because the list scrolled. */
+  _barStuck: boolean;
+  /** The Filters button: fold or open the controls. While the bar is pinned, open them
+   *  and scroll back to them. */
+  _toggleControls(): void;
+  /** Clear 1 active filter of the task list, or all of them. */
+  _clearListFilter(key: 'scope' | 'profile' | 'query' | 'all'): void;
   /** Profile / notification rows (and a profile's sync group) the user has expanded. */
   _itemExpanded: Set<string>;
   /** The language dates, times and numbers are formatted in (Home Assistant's). */
