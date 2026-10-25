@@ -28,6 +28,11 @@ const INTENTIONALLY_IDENTICAL = new Set([
   // Two placeholders and a comma: "Replace filter, 3 days overdue". Both halves are
   // already translated where they are built, so there is no word of its own here.
   'layout.cardAria',
+  // Placeholders and punctuation only: "Profile: Chores" and "Maintenance spend, Last
+  // 30 days: $325". Each placeholder is translated where it is built. French and
+  // Chinese change the punctuation, so their values differ.
+  'filter.chip',
+  'spend.button',
 ]);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to
@@ -85,6 +90,8 @@ const DECLARATIVE_COGNATES = {
     'declarative.companions.summary_filters.one',
     'declarative.companions.summary_filters.other',
     'defer.preset.1w',
+    // "Filters" is the Dutch plural too, as the summary_filters keys above show.
+    'filter.toggle',
     'transfer.documentLabel',
   ],
   sv: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],

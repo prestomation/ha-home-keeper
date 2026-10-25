@@ -25,6 +25,7 @@ import {
   type Group,
 } from './card-filter';
 import { t } from './i18n';
+import { activeListChips, type ListChip } from './list-bar';
 import type { PanelHost } from './panel-host';
 import {
   PANEL_BUCKETS,
@@ -34,6 +35,7 @@ import {
   type GroupBy,
   type TaskFilter,
 } from './panel-types';
+import { spendButton } from './panel-spend';
 import { TASK_LAYOUTS, boardColumnLabel, parseTaskLayout } from './task-layout';
 import type { Asset, Profile, Task } from './types';
 import {
@@ -174,7 +176,128 @@ export function controls(p: PanelHost): string {
         t('labels.printButton'),
       )}</ha-button>
       ${addBtn}`;
+  if (onTasks) return taskBar(p, { filterControl, menuPair, addBtn });
   return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
+}
+
+/**
+ * The Tasks tab's controls (#488), in 2 parts.
+ *
+ * - The list bar stays at the top of the screen while the list scrolls. It holds
+ *   Search, the Filters button, the spend button and Add, and under them a chip for
+ *   each active filter. A sentinel above it tells the panel when the bar is pinned.
+ * - The filter controls follow it: the scope pills, the Profile, Group by, Layout and
+ *   Print labels. A phone folds them behind the Filters button.
+ *
+ * The stylesheet decides what each width shows (see the list bar rules in
+ * `panel-styles.ts`). A desktop shows the controls at all times, and shows the
+ * Filters button and the chips only while the bar is pinned. Add stays in the bar,
+ * so the phone's floating Add button is never folded away.
+ */
+function taskBar(
+  p: PanelHost,
+  parts: { filterControl: string; menuPair: string; addBtn: string },
+): string {
+  const chips = listChips(p);
+  return `
+      <div class="hk-listbar-sentinel" aria-hidden="true"></div>
+      <div class="hk-listbar"${p._barStuck ? ' data-stuck' : ''}>
+        <div class="hk-listbar-row">
+          ${searchControl(p)}
+          ${filtersButton(p, chips.length)}
+          ${spendButton(p)}
+          ${parts.addBtn}
+        </div>
+        <div class="hk-active-filters" role="group" aria-label="${escapeHTML(
+          t('filter.activeGroup'),
+        )}">${chipsHtml(chips)}</div>
+      </div>
+      <div class="hk-controls hk-list-controls" id="hk-list-controls"${p._controlsOpen ? ' data-open' : ''}>
+        ${parts.filterControl}${profileControl(p)}${parts.menuPair}
+        <span class="hk-controls-spacer"></span>
+        <ha-button ${btnAttrs('secondary')} id="labels-btn" class="hk-labels-btn">${escapeHTML(
+          t('labels.printButton'),
+        )}</ha-button>
+      </div>`;
+}
+
+/** The active filters of the task list, as chips. */
+function listChips(p: PanelHost): ListChip[] {
+  return activeListChips({
+    filter: p._filter,
+    profileName: activeProfile(p)?.name ?? null,
+    query: p._query,
+  });
+}
+
+/**
+ * The Filters button. With active filters, a badge shows their count, and the name
+ * says it in words, because the badge is hidden from a screen reader.
+ */
+function filtersButton(p: PanelHost, active: number): string {
+  return `<button type="button" class="hk-filters-btn" id="hk-filters-btn" data-controls-toggle
+      aria-expanded="${p._controlsOpen}" aria-controls="hk-list-controls"${filtersName(
+        active,
+      )}><ha-icon icon="mdi:filter-variant"></ha-icon><span class="hk-filters-label">${escapeHTML(
+        t('filter.toggle'),
+      )}</span>${filtersBadge(active)}</button>`;
+}
+
+function filtersName(active: number): string {
+  return active ? ` aria-label="${escapeHTML(t('filter.toggleCount', { n: active }))}"` : '';
+}
+
+function filtersBadge(active: number): string {
+  return active ? `<span class="hk-filters-badge" aria-hidden="true">${active}</span>` : '';
+}
+
+/** 1 chip with a clear button for each active filter, then Clear all for 2 or more. */
+function chipsHtml(chips: ListChip[]): string {
+  const items = chips.map(
+    (c) => `<span class="hk-filter-chip"><span class="hk-filter-chip-text">${escapeHTML(
+      c.label,
+    )}</span><button type="button" class="hk-filter-chip-clear" data-clear-filter="${c.key}" aria-label="${escapeHTML(
+      t('filter.clearOne', { name: c.label }),
+    )}"><ha-icon icon="mdi:close"></ha-icon></button></span>`,
+  );
+  if (chips.length > 1) {
+    items.push(
+      `<button type="button" class="hk-filter-clear-all" data-clear-filter="all">${escapeHTML(
+        t('filter.clearAll'),
+      )}</button>`,
+    );
+  }
+  return items.join('');
+}
+
+/** Make the chips' clear buttons live. */
+function wireChips(p: PanelHost, root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('[data-clear-filter]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const key = b.dataset.clearFilter;
+      if (key === 'scope' || key === 'profile' || key === 'query' || key === 'all') {
+        p._clearListFilter(key);
+      }
+    }),
+  );
+}
+
+/**
+ * Put the chips and the count of the Filters button back after the search text
+ * changed, without a new control row. The counterpart to `patchFilterCounts`: the
+ * search box being typed in stays as it is.
+ */
+export function patchListBar(p: PanelHost, root: ParentNode): void {
+  const box = root.querySelector<HTMLElement>('.hk-listbar .hk-active-filters');
+  const btn = root.querySelector<HTMLElement>('#hk-filters-btn');
+  if (!box || !btn) return;
+  const chips = listChips(p);
+  box.innerHTML = chipsHtml(chips);
+  wireChips(p, box);
+  btn.querySelector('.hk-filters-badge')?.remove();
+  btn.insertAdjacentHTML('beforeend', filtersBadge(chips.length));
+  if (chips.length) btn.setAttribute('aria-label', t('filter.toggleCount', { n: chips.length }));
+  else btn.removeAttribute('aria-label');
 }
 
 /**
@@ -574,6 +697,10 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
     if (p._view === 'tasks') p._openCreate();
     else p._openCreateAsset();
   });
+  // The task list bar: the Filters button and the chips of the active filters.
+  root.getElementById('hk-filters-btn')?.addEventListener('click', () => p._toggleControls());
+  const chipBox = root.querySelector('.hk-listbar .hk-active-filters');
+  if (chipBox) wireChips(p, chipBox);
   // Filter / group-by segmented controls.
   root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
     b.addEventListener('click', () => {

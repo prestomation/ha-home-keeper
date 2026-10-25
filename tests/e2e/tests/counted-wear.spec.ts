@@ -6,6 +6,7 @@ import {
   gotoTab,
   listTasks,
   openAppliance,
+  openListFilters,
   openPanel,
   todoSummaries,
 } from './helpers';
@@ -71,6 +72,7 @@ test.describe('Home Keeper panel — counted wear items', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await gotoTab(panel, 'tasks');
+    await openListFilters(panel);
     await panel
       .locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="counted"]')
       .click();
@@ -90,6 +92,7 @@ test.describe('Home Keeper panel — counted wear items', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await gotoTab(panel, 'tasks');
+    await openListFilters(panel);
     await panel.locator('select[data-seg-select="group"]').selectOption('status');
     const counted = panel.locator('details.hk-group[data-bucket="counted"]');
     await expect(counted).toBeVisible();

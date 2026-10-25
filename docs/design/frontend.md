@@ -14,6 +14,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-task-form.ts
   - custom_components/home_keeper/frontend/src/panel-types.ts
   - custom_components/home_keeper/frontend/src/task-layout.ts
+  - custom_components/home_keeper/frontend/src/list-bar.ts
   - custom_components/home_keeper/frontend/src/types.ts
   - custom_components/home_keeper/frontend/src/utils.ts
   - custom_components/home_keeper/frontend/src/api.ts
@@ -30,7 +31,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 29e2bc22b121
+source_hash: da11a0d3c00e
 ---
 
 # Frontend
@@ -94,23 +95,22 @@ is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible m
 `_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
 open. `_lookUpDetail` loads again, with a spinner, for a detail id that the lists do not have.
 
-### Task layouts and preferences
+### Task layouts, the list bar and preferences
 
-The Tasks tab draws a list as Rows, Tiles or a Board. `task-layout.ts` holds the pure part:
-`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action sheet (`defer.deferVerbs`).
-`panel-lists.ts` draws the markup; `panel-controls.groupTasks` gives the board columns.
+The Tasks tab draws a list as Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`).
+Above it, `panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add,
+and a chip for each active filter (`list-bar.ts`). The filter controls follow the bar. An
+observer on a sentinel marks a pinned bar `data-stuck`. A phone folds the filter controls.
 
-- **Per browser:** a choice about this screen (group by, filter, tree collapse) goes in
-  `localStorage` under the `LS_*` keys in `panel-types.ts`.
+- **Per browser:** a choice about this screen goes in `localStorage` (`LS_*`, `panel-types.ts`).
 - **Per user:** a choice about the person (task layout, intro dismissed) goes in Home Assistant
   frontend user data under a `home_keeper_<pref>` key, through `api.getTaskLayout` and peers.
 
 ### Styles and the phone layout
 
 `panel-styles.STYLES` starts with `--hk-*` tokens on `:host`, each mapped to a Home Assistant
-theme variable; no rule uses a literal colour. Viewport media queries change the layout at
-1150px (bottom-sheet drawer), 1000px (Settings index) and 700px (phone: bottom tab bar,
-floating Add, wrapped chips, stacked rows). Never put `container-type` on `:host`.
+theme variable. Media queries change the layout at 1150px (sheet drawer), 1000px (Settings
+index) and 700px (bottom tabs, folded filters, stacked rows). No `container-type` on `:host`.
 
 ### Dashboard card
 

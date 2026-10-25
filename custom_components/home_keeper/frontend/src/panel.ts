@@ -17,6 +17,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t, tn } from './i18n';
+import { CONTROLS_FOLDED, CONTROLS_OPEN, parseControlsOpen } from './list-bar';
 import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES, importFitsWebsocket } from './limits';
 import {
   exportInclude,
@@ -38,7 +39,7 @@ import { renderAssetForm } from './panel-asset-form';
 import { sourceOwnedTask, wireDeviceChips, wirePartChips } from './panel-chips';
 import { emptySkipState, emptySnoozeState, type SkipState, type SnoozeState } from './defer';
 import { DeferMenus } from './defer-dialogs';
-import { controls, patchFilterCounts, wireControls } from './panel-controls';
+import { controls, patchFilterCounts, patchListBar, wireControls } from './panel-controls';
 import { renderDeclarativeDialog } from './panel-declarative';
 import { openSkip, openSnooze, setDueToday, renderSkip, renderSnooze } from './panel-defer';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
@@ -60,6 +61,7 @@ import {
   switchView,
   wireSettings,
 } from './panel-settings';
+import { spendSheet } from './panel-spend';
 import { STYLES } from './panel-styles';
 import { renderTaskForm } from './panel-task-form';
 import {
@@ -79,6 +81,7 @@ import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
+  LS_CONTROLS,
   LS_FILTER,
   LS_GROUP,
   LS_PROFILE,
@@ -344,6 +347,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // The spend totals and the total whose records are open (see `panel-spend.ts`).
   _spend: SpendSummary | null = null;
   _spendOpen = '';
+  // The spend sheet of a phone (#488): open or closed, and its document-level Escape
+  // handler while it is open (see `_syncSpendSheet`).
+  _spendSheet = false;
+  private _spendOnKey: ((e: KeyboardEvent) => void) | null = null;
+  // The task list bar (#488). The fold of the filter controls is per browser
+  // (`LS_CONTROLS`). Whether the bar is pinned comes from an observer on the sentinel
+  // above it, and the stylesheet reads it as `data-stuck`.
+  _controlsOpen = false;
+  _barStuck = false;
+  private _barObserver: IntersectionObserver | null = null;
   // Which layout this user reads the task list in — same per-user store as
   // `_introDismissed`, but read and written rather than write-once (see
   // `_setTaskLayout`).
@@ -652,6 +665,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     wireDeviceChips(this, list);
     wirePartChips(this, list);
     patchFilterCounts(this, root);
+    patchListBar(this, root);
     // A query the panel set itself — the empty state's way out, Escape, the clear
     // button — has to reach the box too. Guarded, because assigning the same string
     // still moves the caret to the end.
@@ -765,6 +779,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
     this._sheetOnChange = null;
     this._sheetQuery = null;
+    if (this._spendOnKey) document.removeEventListener('keydown', this._spendOnKey);
+    this._spendOnKey = null;
+    this._barObserver?.disconnect();
+    this._barObserver = null;
     for (const id of Object.values(this._persistTimers)) clearTimeout(id);
     this._persistTimers = {};
     // Markdown previews hold a debounce timer that would otherwise fire against a
@@ -818,6 +836,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         } catch { /* ignore malformed */ }
       }
       this._profile = localStorage.getItem(LS_PROFILE) ?? '';
+      this._controlsOpen = parseControlsOpen(localStorage.getItem(LS_CONTROLS));
     } catch {
       // localStorage unavailable (e.g. private mode) — fall back to defaults.
     }
@@ -907,6 +926,81 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       /* ignore */
     }
     this._render();
+  }
+
+  /**
+   * The Filters button of the task list bar.
+   *
+   * At the top of the list it folds or opens the filter controls, and the choice is
+   * kept for this browser. While the bar is pinned, the controls are off screen, so
+   * the button opens them and scrolls back to them, and the keyboard moves into them.
+   */
+  _toggleControls(): void {
+    if (!this._barStuck) {
+      this._setControlsOpen(!this._controlsOpen);
+      // Explicit, because Safari does not focus a button that a tap or click pressed.
+      this._focus(this.shadowRoot?.querySelector<HTMLElement>('#hk-filters-btn') ?? null);
+      return;
+    }
+    this._setControlsOpen(true);
+    const root = this.shadowRoot;
+    const sentinel = root?.querySelector<HTMLElement>('.hk-listbar-sentinel');
+    if (sentinel && typeof sentinel.scrollIntoView === 'function') {
+      sentinel.scrollIntoView({ block: 'start', behavior: this._scrollBehavior() });
+    }
+    this._focus(
+      root?.querySelector<HTMLElement>('#hk-list-controls button, #hk-list-controls select') ?? null,
+    );
+  }
+
+  private _setControlsOpen(open: boolean): void {
+    this._controlsOpen = open;
+    try {
+      localStorage.setItem(LS_CONTROLS, open ? CONTROLS_OPEN : CONTROLS_FOLDED);
+    } catch {
+      /* ignore */
+    }
+    this._render();
+  }
+
+  /**
+   * Clear 1 active filter of the task list, or all of them, from its chip. The keyboard
+   * goes to the Filters button, because the chip it was on is gone.
+   */
+  _clearListFilter(key: 'scope' | 'profile' | 'query' | 'all'): void {
+    if (key === 'scope' || key === 'all') {
+      this._filter = 'all';
+      try {
+        localStorage.setItem(LS_FILTER, 'all');
+      } catch {
+        /* ignore */
+      }
+    }
+    if (key === 'profile' || key === 'all') {
+      this._profile = '';
+      try {
+        localStorage.setItem(LS_PROFILE, '');
+      } catch {
+        /* ignore */
+      }
+    }
+    if (key === 'query' || key === 'all') this._query = '';
+    this._render();
+    this._focus(this.shadowRoot?.querySelector<HTMLElement>('#hk-filters-btn') ?? null);
+  }
+
+  /** Open the spend sheet over the task list. `_syncSpendSheet` moves focus into it. */
+  _openSpendSheet(): void {
+    this._spendSheet = true;
+    this._render();
+  }
+
+  /** Close the spend sheet and give the keyboard back to the spend button. */
+  _closeSpendSheet(): void {
+    if (!this._spendSheet) return;
+    this._spendSheet = false;
+    this._render();
+    this._focus(this.shadowRoot?.querySelector<HTMLElement>('#hk-spend-btn') ?? null);
   }
 
   // ── detail page lifecycle ───────────────────────────────────────────────────
@@ -2190,6 +2284,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // drawer is a sibling of the content column, so it is laid out by the shell's
     // flex row instead of overlaying the page.
     const drawerOpen = this._drawerOpen();
+    // The spend sheet sits outside `.hk-wrap`, so the page under it can go inert.
+    const sheet = this._loaded && onTasks && !this._detail ? spendSheet(this) : '';
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
       <div class="hk-toolbar">
@@ -2212,6 +2308,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         </aside>
       </div>
       ${this._loaded ? this._bottomTabs() : ''}
+      ${sheet}
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
@@ -2222,6 +2319,66 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._renderedDrawerSubject = drawerSubject;
     this._restoreFocus(focused);
     this._syncDrawerModality();
+    this._syncSpendSheet();
+    this._observeBar();
+  }
+
+  /**
+   * Keep the spend sheet modal while it is open: the page under it is inert, Escape
+   * closes it, and the keyboard lands in it on the way in.
+   *
+   * Runs after `_syncDrawerModality`, which takes `inert` off when no drawer is open.
+   * This pass only adds it, so the 2 cannot undo each other.
+   */
+  private _syncSpendSheet(): void {
+    const root = this.shadowRoot;
+    if (!root) return;
+    const sheet = root.querySelector<HTMLElement>('.hk-spend-sheet');
+    if (!sheet) {
+      if (this._spendOnKey) document.removeEventListener('keydown', this._spendOnKey);
+      this._spendOnKey = null;
+      return;
+    }
+    for (const el of root.querySelectorAll('.hk-wrap, .hk-bottombar')) el.setAttribute('inert', '');
+    if (!this._spendOnKey) {
+      this._spendOnKey = (e: KeyboardEvent): void => {
+        if (e.key !== 'Escape' || !this._spendSheet) return;
+        e.stopPropagation();
+        this._closeSpendSheet();
+      };
+      document.addEventListener('keydown', this._spendOnKey);
+    }
+    if (!sheet.contains(root.activeElement)) this._focus(sheet);
+  }
+
+  /**
+   * Watch the sentinel above the task list bar. When it leaves the top of the screen,
+   * the bar is pinned: `data-stuck` goes on the bar for the stylesheet, and the
+   * Filters button scrolls back to the controls instead of folding them.
+   *
+   * Set on the element in place, with no render, so a scroll never rebuilds the list.
+   * The observer is made again after each render, because the sentinel is new.
+   */
+  private _observeBar(): void {
+    this._barObserver?.disconnect();
+    this._barObserver = null;
+    const root = this.shadowRoot;
+    const sentinel = root?.querySelector<HTMLElement>('.hk-listbar-sentinel');
+    if (!root || !sentinel || typeof IntersectionObserver !== 'function') {
+      this._barStuck = false;
+      return;
+    }
+    this._barObserver = new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (!entry) return;
+      // Out of view above the top edge. Below the bottom edge is not pinned.
+      const top = entry.rootBounds?.top ?? 0;
+      const stuck = !entry.isIntersecting && entry.boundingClientRect.top < top;
+      if (stuck === this._barStuck) return;
+      this._barStuck = stuck;
+      root.querySelector('.hk-listbar')?.toggleAttribute('data-stuck', stuck);
+    });
+    this._barObserver.observe(sentinel);
   }
 
   /**
@@ -2236,6 +2393,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _focusKey(): string | null {
     const el = this.shadowRoot?.activeElement as HTMLElement | null;
     if (!el) return null;
+    // A spend total is drawn twice, in the strip above the list and in the sheet, so
+    // the key names which of the 2 the keyboard was on.
+    const spend = el.getAttribute('data-spend');
+    if (spend !== null) {
+      const where = el.closest('.hk-spend-sheet') ? '.hk-spend-sheet' : '#hk-list';
+      return `${where} [data-spend="${CSS.escape(spend)}"]`;
+    }
     for (const attr of ['data-seg-val', 'data-seg-select', 'data-section', 'data-rail', 'data-tab']) {
       const v = el.getAttribute(attr);
       // Two segments can share a value ("active" appears in more than one), so the

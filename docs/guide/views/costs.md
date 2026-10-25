@@ -62,14 +62,16 @@ actions:
 
 ## The totals in the panel
 
-The strip above the task list shows 1 total for each period, the all-time total and the
-appliance purchases. Select a total to see the completions that make it. Select a task
-name to open the history of that task. Select **Appliance purchases** to open the
-appliance list.
+On a desktop, the strip above the task list shows 1 total for each period, the all-time
+total and the appliance purchases. On a phone, press the spend button in the task list bar
+to see the same totals in a sheet. Select a total to see the completions that make it.
+Select a task name to open the history of that task. Select **Appliance purchases** to
+open the appliance list.
 
-The strip shows only when there is a completion with a cost or an appliance with a cost.
+The strip and the spend button show only when there is a completion with a cost or an
+appliance with a cost.
 
-![The spend totals on a phone, 2 totals to a row, with the records of All time below](../../images/72c-panel-mobile-spend.png)
+![The spend totals in a sheet on a phone, 2 totals to a row, with the records of All time below](../../images/72c-panel-mobile-spend.png)
 
 ## Settings
 

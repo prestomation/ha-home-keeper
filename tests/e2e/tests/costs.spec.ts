@@ -8,6 +8,7 @@ import {
   openSettingsSection,
   trackPanelErrors,
 } from './helpers';
+import { band } from '../viewports';
 
 /**
  * The cost totals (#460): a completion with a cost shows in the spend sensors and in
@@ -48,7 +49,12 @@ test.describe('Home Keeper panel — Cost totals', { tag: '@responsive' }, () =>
 
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    const strip = panel.locator('.hk-spend');
+    // A phone shows the totals in a sheet that the spend button opens (#488).
+    // A wider screen shows them in the compact strip above the list.
+    if (band(page) === 'phone') await panel.locator('#hk-spend-btn').click();
+    const strip = panel
+      .locator(band(page) === 'phone' ? '.hk-spend-sheet .hk-spend' : '#hk-list .hk-spend')
+      .first();
     await expect(strip).toBeVisible();
     const total = strip.locator('[data-spend="w30"]');
     await expect(total).toHaveAttribute('aria-pressed', 'false');
@@ -79,6 +85,7 @@ test.describe('Home Keeper panel — Cost totals', { tag: '@responsive' }, () =>
     });
     await expect.poll(async () => Boolean(await spendState('_7_days')), { timeout: 30_000 }).toBe(true);
     await openPanel(page);
-    await expect(page.locator('home-keeper-panel').first().locator('.hk-spend')).toHaveCount(0);
+    await expect(panel.locator('.hk-spend')).toHaveCount(0);
+    await expect(panel.locator('#hk-spend-btn')).toHaveCount(0);
   });
 });

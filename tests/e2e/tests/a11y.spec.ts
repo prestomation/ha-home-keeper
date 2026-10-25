@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { callService, openPanel } from './helpers';
+import { callService, openListFilters, openPanel } from './helpers';
 import { TASK } from '../fixture-ids';
 import { PHONE, WIDE } from '../viewports';
 
@@ -20,6 +20,7 @@ test.describe(
   test('the selected filter is stated, not just coloured', async ({ page }) => {
     await openPanel(page);
     const panel = panelOf(page);
+    await openListFilters(panel);
     const chips = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn');
     await expect(chips.first()).toBeVisible();
     // Exactly one is pressed, and it is the one that is styled active.
@@ -55,6 +56,7 @@ test.describe(
     // filter click drops the keyboard at the top of the document.
     await openPanel(page);
     const panel = panelOf(page);
+    await openListFilters(panel);
     await panel.locator('.hk-seg-btn').nth(1).focus();
     await page.keyboard.press('Enter');
     await expect(panel.locator('.hk-seg-btn.active')).toHaveText(/Overdue/);
