@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { callService, openPanel, trackPanelErrors } from './helpers';
+import { callService, openListFilters, openPanel, trackPanelErrors } from './helpers';
 
 test.describe('Home Keeper panel — synced problem task', { tag: '@responsive' }, () => {
   test('the Tasks-list Done is replaced by a caption and explains (not completes) on click', async ({
@@ -55,6 +55,7 @@ test.describe('Home Keeper panel — synced problem task', { tag: '@responsive' 
       const card = panel.locator('.hk-card', { hasText: 'Sump pump problem' });
       await expect(card).toBeVisible();
 
+      await openListFilters(panel);
       const picker = panel.locator('select[data-profile-filter]');
       await expect(picker).toBeVisible();
       await picker.selectOption('e2e_everything');
