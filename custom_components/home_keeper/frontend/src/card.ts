@@ -1807,7 +1807,17 @@ export class HomeKeeperCardEditor extends HTMLElement {
     heading.textContent = S.groupsHeading;
     const intro = document.createElement('div');
     intro.className = 'hk-settings-intro';
-    intro.textContent = S.groupsIntro;
+    // DESIGN PROTOTYPE ONLY: option B states the AND rule instead.
+    let protoB = false;
+    try {
+      protoB = localStorage.getItem('hk-proto') === 'B';
+    } catch {
+      protoB = false;
+    }
+    intro.textContent = protoB
+      ? 'A task shows when it is in the profile above (if any) AND matches any group. ' +
+        'Leave every group empty to show the whole profile.'
+      : S.groupsIntro;
 
     this.shadowRoot.innerHTML = '';
     this.shadowRoot.append(style, this._form, heading, intro, this._groupsHost, this._tail);
