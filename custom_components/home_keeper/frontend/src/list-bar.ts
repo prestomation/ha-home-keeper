@@ -89,6 +89,9 @@ export function spendButtonText(
 ): SpendButtonText {
   const whole = Math.round(amount);
   const number = formatWhole(whole, lang);
+  // Stryker disable next-line ConditionalExpression: equivalent. With no currency,
+  // `Intl.NumberFormat` with `style: 'currency'` throws, and the catch below returns
+  // the same value.
   if (!currency) return { icon: SPEND_ICON, text: number };
   let parts: Intl.NumberFormatPart[];
   try {
@@ -102,6 +105,8 @@ export function spendButtonText(
   } catch {
     return { icon: SPEND_ICON, text: number };
   }
+  // Stryker disable next-line OptionalChaining,StringLiteral: equivalent. A currency
+  // format always has a currency part, and any symbol with no icon reads the same.
   const symbol = parts.find((part) => part.type === 'currency')?.value ?? '';
   const icon = SYMBOL_ICONS[symbol];
   if (icon) return { icon, text: number };
@@ -110,6 +115,8 @@ export function spendButtonText(
 
 function formatWhole(value: number, lang: string | undefined): string {
   try {
+    // Stryker disable next-line ObjectLiteral: equivalent. The value is a whole
+    // number already, so the default fraction digits give the same text.
     return new Intl.NumberFormat(lang, { maximumFractionDigits: 0 }).format(value);
   } catch {
     return String(value);

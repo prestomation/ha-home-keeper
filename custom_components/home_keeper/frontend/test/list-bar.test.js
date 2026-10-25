@@ -100,8 +100,10 @@ describe('spendButtonText', () => {
     const out = spendButtonText(500, 'SEK', 'en');
     expect(out.icon).toBe(SPEND_ICON);
     expect(SPEND_ICON).toBe('mdi:cash-multiple');
-    expect(out.text).toContain('500');
-    expect(out.text).toContain('kr');
+    // The symbol and the number, joined as Intl formats them.
+    expect(out.text).toBe(new Intl.NumberFormat('en', {
+      style: 'currency', currency: 'SEK', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
+    }).format(500));
   });
 
   it('shows the number with no currency or an unknown code', () => {

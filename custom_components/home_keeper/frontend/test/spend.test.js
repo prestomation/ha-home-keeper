@@ -13,7 +13,15 @@ import {
   costWindows,
   normalizeCostWindows,
 } from '../src/forms.ts';
-import { SPEND_ALL, showSpend, spendRecordsFor, spendStrip, wireSpend } from '../src/panel-spend.ts';
+import {
+  SPEND_ALL,
+  showSpend,
+  spendButton,
+  spendRecordsFor,
+  spendSheet,
+  spendStrip,
+  wireSpend,
+} from '../src/panel-spend.ts';
 import { definePanelStubs, makeHass, mountPanel, waitFor } from './panel-harness.js';
 
 const NOW = Date.parse('2026-10-17T12:00:00Z');
@@ -45,6 +53,7 @@ function host(overrides = {}) {
     _options: {},
     _spend: spend(),
     _spendOpen: '',
+    _spendSheet: false,
     _lang: () => 'en',
     _navigate: (loc) => navigated.push(loc),
     _render: () => {
@@ -271,10 +280,11 @@ describe('wireSpend', () => {
     expect(p.navigated).toEqual([]);
   });
 
-  it('the purchases total opens the appliance list', () => {
-    const p = host();
+  it('the purchases total opens the appliance list, and closes the sheet', () => {
+    const p = host({ _spendSheet: true });
     wired(p).querySelector('[data-spend-purchases]').click();
     expect(p.navigated).toEqual([{ view: 'appliances', detail: null }]);
+    expect(p._spendSheet).toBe(false);
   });
 });
 
@@ -307,5 +317,70 @@ describe('the strip in the panel', () => {
   it('shows no strip for an answer with no data', async () => {
     const { panel } = await mountPanel('/tasks', hassWithSpend({}));
     expect(panel.shadowRoot.querySelector('.hk-spend')).toBeNull();
+  });
+});
+
+describe('the strip kinds, the spend button and the sheet (#488)', () => {
+  const html = (markup) => {
+    const div = document.createElement('div');
+    div.innerHTML = markup;
+    return div;
+  };
+
+  it('the full strip has the help, the counts and its own records id', () => {
+    const div = html(spendStrip(host({ _spendOpen: 'w30' })));
+    const section = div.querySelector('section.hk-spend');
+    expect(section.classList.contains('hk-spend-compact')).toBe(false);
+    expect(div.querySelector('.hk-spend-help')).toBeTruthy();
+    expect(div.querySelectorAll('.hk-spend-count')).toHaveLength(4);
+    expect(div.querySelector('#hk-spend-records')).toBeTruthy();
+    expect(div.querySelector('[data-spend="w30"]').getAttribute('aria-controls')).toBe(
+      'hk-spend-records',
+    );
+  });
+
+  it('the compact strip is a heading and label-value totals, with no stray text', () => {
+    const div = html(spendStrip(host(), 'compact'));
+    const section = div.querySelector('section.hk-spend.hk-spend-compact');
+    expect(section).toBeTruthy();
+    expect(div.querySelector('.hk-spend-help')).toBeNull();
+    expect(div.querySelector('.hk-spend-heading').textContent).toBe('Maintenance spend');
+    expect(div.querySelector('.hk-spend-count')).toBeNull();
+    expect(div.querySelector('.hk-spend-records')).toBeNull();
+    const words = (el) => el.textContent.replace(/\s+/g, ' ').trim();
+    expect(words(div.querySelector('[data-spend="w30"]'))).toBe('Last 30 days $28.18');
+    expect(words(div.querySelector('[data-spend-purchases]'))).toBe('Appliance purchases $2,100.50');
+    expect(words(div.querySelector('.hk-spend-totals'))).toBe(
+      'Last 30 days $28.18 Last 60 days $208.18 All time $258.18 Appliance purchases $2,100.50',
+    );
+    expect(words(section)).toBe(
+      'Maintenance spend Last 30 days $28.18 Last 60 days $208.18 All time $258.18 Appliance purchases $2,100.50',
+    );
+  });
+
+  it('the compact strip names its own records list', () => {
+    const div = html(spendStrip(host({ _spendOpen: 'w30' }), 'compact'));
+    expect(div.querySelector('#hk-spend-strip-records')).toBeTruthy();
+    expect(div.querySelector('#hk-spend-records')).toBeNull();
+  });
+
+  it('the button and the sheet are empty with no data or a closed sheet', () => {
+    expect(spendButton(host({ _spend: null }))).toBe('');
+    expect(spendSheet(host({ _spendSheet: true, _spend: null }))).toBe('');
+    expect(spendSheet(host())).toBe('');
+  });
+
+  it('the button reads with no hass', () => {
+    const div = html(spendButton(host({ _hass: undefined })));
+    expect(div.querySelector('.hk-spend-btn-text').textContent).toBe('28');
+  });
+
+  it('the sheet holds the full strip and a named Close', () => {
+    const div = html(spendSheet(host({ _spendSheet: true })));
+    const sheet = div.querySelector('.hk-spend-sheet');
+    expect(sheet.querySelector('.hk-spend-help')).toBeTruthy();
+    expect(sheet.querySelectorAll('.hk-spend-count')).toHaveLength(4);
+    expect(sheet.querySelector('.hk-spend-sheet-close').getAttribute('aria-label')).toBe('Close');
+    expect(div.querySelector('.hk-spend-scrim')).toBeTruthy();
   });
 });
