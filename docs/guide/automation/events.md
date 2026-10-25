@@ -118,9 +118,9 @@ data, without the large fields (`source`, `managed_by`, `task_chips`, `active_se
 `note`, `photo` and `sections`). Add a condition on the `task_id` attribute to select
 1 task.
 
-The entity copies the bus events. If an event fires while Home Keeper reloads, the
-entity can miss it. Home Keeper reloads when you add a task to a device. The bus
-event always fires, and the Home Keeper triggers listen on the bus.
+If an event fires while Home Keeper reloads, the Events entity can miss it. Adding a
+task to a device starts a reload. The Home Keeper triggers read each event from the
+bus, so they get every event.
 
 An automation can add a part to the shopping list when the part goes out of stock.
 This is useful for a part without
