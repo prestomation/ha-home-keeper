@@ -47,7 +47,8 @@
     "custom_components/home_keeper/frontend/src/task-layout.ts",
     "custom_components/home_keeper/frontend/src/rrule.ts",
     "custom_components/home_keeper/frontend/src/transfer-view.ts",
-    "custom_components/home_keeper/frontend/src/panel-spend.ts"
+    "custom_components/home_keeper/frontend/src/panel-spend.ts",
+    "custom_components/home_keeper/frontend/src/list-bar.ts"
   ],
   "thresholds": {
     "high": 90,
