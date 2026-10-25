@@ -1037,5 +1037,11 @@
   "spend.records.one": "{n} record",
   "spend.records.other": "{n} records",
   "spend.appliances.one": "{n} appliance",
-  "spend.appliances.other": "{n} appliances"
+  "spend.appliances.other": "{n} appliances",
+  "field.consumable_quantity": "Takes per completion",
+  "help.consumable_quantity": "How many of this part 1 completion takes. Leave empty to use the part's own amount.",
+  "field.consumable_links": "Linked consumables",
+  "help.consumable_links": "Each completion draws every part in this list from its own stock.",
+  "field.replaced_with": "Replaced together with",
+  "help.replaced_with": "The task for this wear item also draws 1 of each of these parts from stock."
 }

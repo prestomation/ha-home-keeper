@@ -501,6 +501,66 @@ export function snoozeHoursFromForm(value: unknown): number | null {
  * a field relative to the schema the payload builder and the tests are written
  * against.
  */
+/** SCRATCH (#493 options mock): which option the capture shows, set on window. */
+export function mock493(): string {
+  return String((globalThis as unknown as { __HK_MOCK493?: string }).__HK_MOCK493 ?? '');
+}
+
+/** SCRATCH (#493 options mock): labels of the per-part amount fields. */
+export const MOCK493_LABELS: Record<string, string> = {};
+
+/** SCRATCH (#493 options mock): help text that option A adds. */
+export function mock493Help(name: string): string | null {
+  if (mock493() !== 'A' || name !== 'consumable_link') return null;
+  return (
+    'Each completion takes the part\'s "Used per completion" amount. ' +
+    'Set it to 2 on the part for 2 filters of the same type. ' +
+    'For 2 different filters, add both to the appliance as wear items with the same interval.'
+  );
+}
+
+/** SCRATCH (#493 options mock): sibling parts that option D offers. */
+function mock493Siblings(): { value: string; label: string }[] {
+  return (globalThis as unknown as { __HK_MOCK493_SIBLINGS?: { value: string; label: string }[] })
+    .__HK_MOCK493_SIBLINGS ?? [];
+}
+
+/** SCRATCH (#493 options mock): the consumable fields for options B and C. */
+function mock493Fields(consumables: { value: string; label: string }[]): FormField[] | null {
+  const mode = mock493();
+  if (mode === 'B') {
+    return [
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          {
+            name: 'consumable_link',
+            selector: selSelect([{ value: '', label: t('opt.consumable.none') }, ...consumables]),
+          },
+          { name: 'consumable_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') },
+        ],
+      } as FormField,
+    ];
+  }
+  if (mode === 'C') {
+    for (const c of consumables) {
+      MOCK493_LABELS[`consumable_qty_${c.value.split(':')[1]}`] = `${c.label}: takes per completion`;
+    }
+    return [
+      { name: 'consumable_links', selector: selSelect(consumables, true) } as FormField,
+      ...consumables.map(
+        (c) =>
+          ({
+            name: `consumable_qty_${c.value.split(':')[1]}`,
+            selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
+          }) as FormField,
+      ),
+    ];
+  }
+  return null;
+}
+
 export function taskSchemaSections(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
@@ -869,7 +929,7 @@ export function taskSchemaSections(
     // (and fires the low-stock reorder event). Only offered when the user has at
     // least one consumable defined; the leading blank option clears the link.
     ...(consumables.length && !locked.has('consumable_link')
-      ? [
+      ? mock493Fields(consumables) ?? [
           {
             name: 'consumable_link',
             selector: selSelect([
@@ -1187,6 +1247,9 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // task) or the flat token strings the form mutates onto the edit state.
     card_links: cardLinkTokens(task),
     completion_detail: task.completion_detail ?? 'none',
+    // SCRATCH (#493 options mock): preset values for the mocked fields.
+    ...((globalThis as unknown as { __HK_MOCK493_DATA?: Record<string, unknown> }).__HK_MOCK493_DATA ??
+      {}),
   };
 }
 
@@ -2220,6 +2283,9 @@ export function partDependentSchema(
   // The replacement schedule describes the part, so it goes with the rest of the
   // owner's fields. The three above stay: they are the counts, and every one of
   // them answers "how much do I have and when do I buy more".
+  if (mock493() === 'D' && part.type === 'wear' && !locked) {
+    fields.push({ name: 'replaced_with', selector: selSelect(mock493Siblings(), true) });
+  }
   if (part.type === 'wear' && !locked) {
     fields.push({
       name: '',
@@ -2311,6 +2377,9 @@ export function partFormData(part: Part): Record<string, unknown> {
     part_name: part.name ?? '',
     part_number: part.part_number ?? '',
     type: part.type ?? 'consumable',
+    // SCRATCH (#493 options mock): option D's preset companion parts.
+    replaced_with:
+      (globalThis as unknown as { __HK_MOCK493_WITH?: string[] }).__HK_MOCK493_WITH ?? [],
     vendor: part.vendor ?? '',
     cost: part.cost ?? undefined,
     part_url: part.url ?? '',

@@ -13,6 +13,8 @@ import {
   consumableLinkToken,
   duplicateTaskSeed,
   seasonFieldLabelKey,
+  MOCK493_LABELS,
+  mock493Help,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -2853,12 +2855,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // reads the label authored once for `season_start_month` — windows that named
       // themselves individually is the inconsistency reported on #242.
       form.computeLabel = (s: { name: string }): string =>
-        s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '';
+        MOCK493_LABELS[s.name] ?? (s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '');
       // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
       // where no string is authored, so helpers appear only where we wrote them.
       form.computeHelper = (s: { name: string }): string => {
         if (!s.name) return '';
         const name = seasonFieldLabelKey(s.name);
+        const mockHelp = mock493Help(name);
+        if (mockHelp) return mockHelp;
         const h = t('help.' + name);
         return h === 'help.' + name ? '' : h;
       };

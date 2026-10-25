@@ -28,6 +28,7 @@ import {
   taskFormData,
   taskFormSchemaKey,
   taskSchemaSections,
+  mock493Help,
 } from './forms';
 import { t } from './i18n';
 import { isManagedOrphan } from './panel-chips';
@@ -495,6 +496,8 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     const fixed = formData.recurrence_type === 'fixed';
     form.computeHelper = (s: { name: string }): string => {
       if (!s.name) return '';
+      const mockHelp = mock493Help(s.name);
+      if (mockHelp) return mockHelp;
       const key = fixed && s.name === 'interval' ? 'help.intervalFixed' : 'help.' + s.name;
       const h = t(key);
       return h === key ? '' : h;

@@ -196,6 +196,15 @@ function ownerChip(p: PanelHost, mb?: ManagedByBase | null): string {
  * *use* task, which draws nothing off the shelf.
  */
 export function consumableChip(p: PanelHost, task: Task): string {
+  // SCRATCH (#493 options mock): options C and D show 1 chip for each linked part.
+  const extra = (globalThis as unknown as {
+    __HK_MOCK493_EXTRA?: Record<string, { asset_id: string; part_id: string; quantity?: number }[]>;
+  }).__HK_MOCK493_EXTRA?.[task.id];
+  if (extra?.length && task.source?.part && !(task as { _mock?: boolean })._mock) {
+    const one = (l: { asset_id: string; part_id: string; quantity?: number }): string =>
+      consumableChip(p, { ...task, _mock: true, source: { ...task.source, part: l } } as unknown as Task);
+    return [one(task.source.part as { asset_id: string; part_id: string }), ...extra.map(one)].join('');
+  }
   const link = task.source?.part;
   if (!link || isUseTask(task)) return '';
   const asset = p._assets.find((a) => a.id === link.asset_id);
