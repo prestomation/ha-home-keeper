@@ -24,9 +24,9 @@ only for the 1 integration a device belongs to.
 
 ## Event entities
 
-Home Keeper adds an event entity for each Home Assistant device that has a Home
-Keeper task or appliance. The entity is named **Home Keeper events** and is on the
-device page. It gets each task, part and appliance event of that device.
+Home Keeper adds a **Home Keeper events** entity to each Home Assistant device that
+has a Home Keeper task or appliance. You find it on the device page. It gets each task,
+part and appliance event of that device.
 
 ![Device page with the Home Keeper events entity](../../images/79-device-event-entity.png)
 

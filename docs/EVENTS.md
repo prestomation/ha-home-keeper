@@ -45,8 +45,8 @@ All event names use the pattern `home_keeper_<noun>_<verb>`. Task events share a
 A snooze moves only `next_due`. The recurrence does not change. "Due today" is the
 opposite: `next_due` moves to now, and the recurrence does not change.
 
-A skip advances the schedule. A **floating** task starts a new interval from now. A
-**fixed** task moves to the next scheduled occurrence. A **one-off**, **triggered** or
+A skip starts a new interval from now on a **floating** task, and moves a **fixed** task
+to its next scheduled occurrence. After a skip, a **one-off**, **triggered** or
 **sensor** task goes dormant.
 
 A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.
