@@ -128,7 +128,8 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
 
 1. Read the cost from `get_session`: `external_metadata.usage.cost_usd`.
 2. Rename the session to `$<cost> <title>` with `set_session_title`.
-3. Put `$<cost> ` at the start of the PR title, if the worker made a PR.
+3. Never put the cost on GitHub: not in a PR title, a PR body, a commit or a comment.
+   The cost goes only in the session name and in the backlog notes.
 4. Archive the session with `archive_session`.
 5. Update the backlog item and its notes.
 
