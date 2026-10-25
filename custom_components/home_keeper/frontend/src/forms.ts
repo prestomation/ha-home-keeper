@@ -2831,6 +2831,15 @@ export function companionOptions(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/** DESIGN PROTOTYPE ONLY (scratch branch). */
+export function protoFlag(key = 'hk-proto'): string {
+  try {
+    return localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export function profileSchema(companions: CompanionOption[] = []): FormField[] {
   // Home Assistant has no companion selector, so the include/exclude pair is a
   // multi-select over *companionOptions* — the integrations this install can actually
@@ -2846,6 +2855,10 @@ export function profileSchema(companions: CompanionOption[] = []): FormField[] {
     { name: 'name', required: true, selector: selText() },
     { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
     { name: 'labels', selector: selLabel(true) },
+    ...(protoFlag() ? [{ name: 'labels_match', selector: selSelect([
+      { value: 'any', label: 'Any selected label' },
+      { value: 'all', label: 'All selected labels' },
+    ]) }] : []),
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
     ...(companionFields.length ? [companionFields[0]] : []),

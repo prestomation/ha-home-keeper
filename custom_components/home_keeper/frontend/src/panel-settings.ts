@@ -49,6 +49,7 @@ import {
   toProfileSync,
   type FormField,
   type HaFormElement,
+  protoFlag,
 } from './forms';
 import { t, tlist, tn } from './i18n';
 import {
@@ -1361,6 +1362,7 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
             computeLabel: (s) => {
               if (s.name === 'name') return t('field.name');
               if (s.name === 'labels') return t('field.labels');
+              if (s.name === 'labels_match') return 'Label match';
               return t('notify.' + s.name);
             },
             // The three status values are nested tiers, not independent buckets —
@@ -1377,6 +1379,7 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
           },
         ),
       );
+      if (protoFlag() === 'D') body.appendChild(protoOrArea(p));
 
       body.appendChild(
         profileSyncGroup(p, profile, sync, (next) => {
@@ -2583,4 +2586,43 @@ export function wireSettings(p: PanelHost, root: ShadowRoot): void {
     }),
   );
   root.getElementById('settings-back')?.addEventListener('click', () => p._closeSettingsSection());
+}
+
+/** DESIGN PROTOTYPE ONLY (scratch branch): option D's OR rules under a profile rule. */
+function protoOrArea(p: PanelHost): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'margin:8px 0 12px;display:flex;flex-direction:column;gap:8px';
+  if (protoFlag('hk-proto-or') === '1') {
+    const box = document.createElement('div');
+    box.style.cssText =
+      'border:1px solid var(--divider-color);border-radius:8px;padding:8px 12px 12px';
+    const head = document.createElement('div');
+    head.style.cssText =
+      'display:flex;justify-content:space-between;align-items:center;font-weight:500;margin-bottom:4px';
+    head.innerHTML =
+      '<span><span style="color:var(--primary-color);font-weight:700">OR</span> &nbsp;Rule 2</span>' +
+      '<span style="color:var(--secondary-text-color);font-size:13px">Remove</span>';
+    const f = document.createElement('ha-form') as HTMLElement & Record<string, unknown>;
+    f.hass = p._hass;
+    f.schema = [
+      { name: 'labels', selector: { label: { multiple: true } } },
+      { name: 'areas', selector: { area: { multiple: true } } },
+      { name: 'exclude_labels', selector: { label: { multiple: true } } },
+    ];
+    f.data = { labels: ['p2_task'], areas: ['garage'], exclude_labels: [] };
+    f.computeLabel = (s: { name: string }): string =>
+      s.name === 'labels' ? t('field.labels') : t('notify.' + s.name);
+    box.append(head, f);
+    wrap.appendChild(box);
+  }
+  const add = document.createElement('button');
+  add.textContent = '+ Add an OR rule';
+  add.style.cssText =
+    'align-self:flex-start;background:none;border:1px dashed var(--divider-color);border-radius:8px;' +
+    'padding:8px 14px;color:var(--primary-color);font:inherit;font-weight:500;cursor:pointer';
+  const hint = document.createElement('div');
+  hint.textContent = 'A task is in the profile when it matches the rule above or any OR rule.';
+  hint.style.cssText = 'color:var(--secondary-text-color);font-size:13px';
+  wrap.append(add, hint);
+  return wrap;
 }

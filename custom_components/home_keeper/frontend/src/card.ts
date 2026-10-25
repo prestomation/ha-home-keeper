@@ -151,6 +151,9 @@ const S: Record<string, string> = {
   devices: 'Limit to devices',
   labels: 'Limit to labels',
   label_match: 'Label match',
+  exclude_labels: 'Exclude labels',
+  exclude_areas: 'Exclude areas',
+  exclude_devices: 'Exclude devices',
   recurrence_types: 'Limit to recurrence types',
   horizon_days: 'Show tasks due within (days, 0 = no limit)',
   max_items: 'Max tasks shown (0 = unlimited)',
@@ -1687,6 +1690,15 @@ export class HomeKeeperCard extends HTMLElement {
 }
 
 /** GUI editor for the card configuration. Built from a single `ha-form`. */
+/** DESIGN PROTOTYPE ONLY (scratch branch): which filter option the editor draws. */
+function proto(key = 'hk-proto'): string {
+  try {
+    return localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export class HomeKeeperCardEditor extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
@@ -1721,6 +1733,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
   }
 
   private _schema(): FormField[] {
+    if (proto() === 'D') return this._protoRuleSchema();
+    const p = proto();
     return [
       { name: 'title', selector: selText() },
       {
@@ -1763,6 +1777,13 @@ export class HomeKeeperCardEditor extends HTMLElement {
       { name: 'devices', selector: selDevice(true) },
       { name: 'labels', selector: selLabel(true) },
       { name: 'label_match', selector: selSelect(LABEL_MATCH_OPTS) },
+      ...(p === 'C'
+        ? [
+            { name: 'exclude_labels', selector: selLabel(true) },
+            { name: 'exclude_areas', selector: selArea(true) },
+            { name: 'exclude_devices', selector: selDevice(true) },
+          ]
+        : []),
       { name: 'recurrence_types', selector: selSelect(RECURRENCE_OPTS, true) },
       {
         name: '',
@@ -1791,13 +1812,100 @@ export class HomeKeeperCardEditor extends HTMLElement {
     ];
   }
 
+  /** Option D: the card's own rule in one block, then the OR rules, then the looks. */
+  private _protoRuleSchema(): FormField[] {
+    return [
+      { name: 'title', selector: selText() },
+      {
+        name: 'profile',
+        selector: selSelect([
+          { value: '', label: S.profileNone },
+          ...this._profiles.map((p) => ({ value: p.id, label: p.name })),
+        ]),
+      },
+      {
+        name: '',
+        type: 'expandable',
+        flatten: true,
+        expanded: true,
+        title: 'Which tasks (narrows the profile)',
+        schema: [
+          { name: 'filter', selector: selSelect(FILTER_OPTS) },
+          { name: 'labels', selector: selLabel(true) },
+          { name: 'label_match', selector: selSelect(LABEL_MATCH_OPTS) },
+          { name: 'areas', selector: selArea(true) },
+          { name: 'devices', selector: selDevice(true) },
+          { name: 'exclude_labels', selector: selLabel(true) },
+          { name: 'exclude_areas', selector: selArea(true) },
+          { name: 'horizon_days', selector: selNumber(0) },
+        ],
+      },
+    ] as FormField[];
+  }
+
+  private _protoLooksSchema(): FormField[] {
+    return [
+      {
+        name: '',
+        type: 'expandable',
+        flatten: true,
+        title: 'How the list looks',
+        schema: [
+          { name: 'sort', selector: selSelect(SORT_OPTS) },
+          { name: 'group_by', selector: selSelect(GROUP_OPTS) },
+          { name: 'max_items', selector: selNumber(0) },
+        ],
+      },
+    ] as FormField[];
+  }
+
+  /** The OR area for option D: an open second rule (if asked) and the add button. */
+  private _protoOrArea(): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin:12px 0;display:flex;flex-direction:column;gap:8px';
+    if (proto('hk-proto-or') === '1') {
+      const box = document.createElement('div');
+      box.style.cssText =
+        'border:1px solid var(--divider-color);border-radius:8px;padding:8px 12px 12px';
+      const head = document.createElement('div');
+      head.style.cssText =
+        'display:flex;justify-content:space-between;align-items:center;font-weight:500;margin-bottom:4px';
+      head.innerHTML =
+        '<span><span style="color:var(--primary-color);font-weight:700">OR</span> &nbsp;Rule 2</span>' +
+        '<span style="color:var(--secondary-text-color);font-size:13px">Remove</span>';
+      const f = document.createElement('ha-form') as HaFormElement;
+      f.hass = this._hass;
+      f.schema = [
+        { name: 'labels', selector: selLabel(true) },
+        { name: 'areas', selector: selArea(true) },
+      ] as unknown[];
+      f.data = { labels: ['p2_task'], areas: ['garage'] };
+      f.computeLabel = (s: { name: string }): string => S[s.name] ?? s.name;
+      box.append(head, f);
+      wrap.appendChild(box);
+    }
+    const add = document.createElement('button');
+    add.textContent = '+ Add an OR rule';
+    add.style.cssText =
+      'align-self:flex-start;background:none;border:1px dashed var(--divider-color);border-radius:8px;' +
+      'padding:8px 14px;color:var(--primary-color);font:inherit;font-weight:500;cursor:pointer';
+    const hint = document.createElement('div');
+    hint.textContent = 'A task shows when it matches the rule above or any OR rule.';
+    hint.style.cssText = 'color:var(--secondary-text-color);font-size:13px';
+    wrap.append(add, hint);
+    return wrap;
+  }
+
   private _render(): void {
     if (!this.shadowRoot) return;
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
     form.schema = this._schema() as unknown[];
     form.data = this._config as unknown as Record<string, unknown>;
-    form.computeLabel = (s: { name: string }): string => S[s.name] ?? s.name;
+    form.computeLabel = (s: { name: string }): string =>
+      s.name === 'profile' && proto()
+        ? 'Start from profile (optional). The fields below narrow it.'
+        : (S[s.name] ?? s.name);
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       this._config = { ...this._config, ...value } as HomeKeeperCardConfig;
@@ -1812,6 +1920,14 @@ export class HomeKeeperCardEditor extends HTMLElement {
     this._form = form;
     this.shadowRoot.innerHTML = '';
     this.shadowRoot.appendChild(form);
+    if (proto() === 'D') {
+      const looks = document.createElement('ha-form') as HaFormElement;
+      looks.hass = this._hass;
+      looks.schema = this._protoLooksSchema() as unknown[];
+      looks.data = this._config as unknown as Record<string, unknown>;
+      looks.computeLabel = form.computeLabel;
+      this.shadowRoot.append(this._protoOrArea(), looks);
+    }
   }
 
   private _update(): void {
