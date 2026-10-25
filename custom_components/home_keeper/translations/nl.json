@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Home Keeper-gebeurtenissen",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Taak aangemaakt",
-              "task_updated": "Taak bijgewerkt",
-              "task_deleted": "Taak verwijderd",
-              "task_completed": "Taak voltooid",
-              "task_uncompleted": "Voltooiing verwijderd",
-              "task_completion_updated": "Voltooiing bijgewerkt",
-              "task_triggered": "Taak geactiveerd",
-              "task_snoozed": "Taak uitgesteld",
-              "task_skipped": "Taak overgeslagen",
-              "task_due_today_set": "Taak op vandaag gezet",
-              "task_skip_updated": "Overslaan bijgewerkt",
-              "task_skip_removed": "Overslaan verwijderd",
-              "task_occurrence_moved": "Taakmoment verplaatst",
-              "task_overdue": "Taak is verlopen",
-              "task_due_soon": "Taak vervalt binnenkort",
-              "part_low_stock": "Reserveonderdeel bijna op",
-              "part_out_of_stock": "Reserveonderdeel niet op voorraad",
-              "part_restocked": "Reserveonderdeel aangevuld",
-              "asset_created": "Apparaat toegevoegd",
-              "asset_updated": "Apparaat bijgewerkt",
-              "asset_deleted": "Apparaat verwijderd",
-              "asset_archived": "Apparaat gearchiveerd",
-              "asset_restored": "Apparaat hersteld"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Gebeurtenissen",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Reserveonderdeel bijna op",
       "part_out_of_stock": "Reserveonderdeel niet op voorraad",
       "part_restocked": "Reserveonderdeel aangevuld"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Taak aangemaakt",
+      "description": "Activeert wanneer een taak wordt aangemaakt."
+    },
+    "task_updated": {
+      "name": "Taak bijgewerkt",
+      "description": "Activeert wanneer een taak verandert."
+    },
+    "task_deleted": {
+      "name": "Taak verwijderd",
+      "description": "Activeert wanneer een taak wordt verwijderd."
+    },
+    "task_completed": {
+      "name": "Taak voltooid",
+      "description": "Activeert wanneer een taak wordt voltooid."
+    },
+    "task_uncompleted": {
+      "name": "Voltooiing verwijderd",
+      "description": "Activeert wanneer een voltooiing van een taak wordt verwijderd."
+    },
+    "task_completion_updated": {
+      "name": "Voltooiing bijgewerkt",
+      "description": "Activeert wanneer een voltooiing van een taak wordt bewerkt."
+    },
+    "task_triggered": {
+      "name": "Taak geactiveerd",
+      "description": "Activeert wanneer een getriggerde taak of een sensortaak verschuldigd wordt."
+    },
+    "task_snoozed": {
+      "name": "Taak uitgesteld",
+      "description": "Activeert wanneer een taak wordt uitgesteld."
+    },
+    "task_skipped": {
+      "name": "Taak overgeslagen",
+      "description": "Activeert wanneer een taak wordt overgeslagen."
+    },
+    "task_due_today_set": {
+      "name": "Taak op vandaag gezet",
+      "description": "Activeert wanneer een taak op vandaag wordt gezet."
+    },
+    "task_occurrence_moved": {
+      "name": "Taakmoment verplaatst",
+      "description": "Activeert wanneer een datum van een vaste taak verschuift."
+    },
+    "task_skip_updated": {
+      "name": "Overslaan bijgewerkt",
+      "description": "Activeert wanneer het overslaan van een taak wordt bewerkt."
+    },
+    "task_skip_removed": {
+      "name": "Overslaan verwijderd",
+      "description": "Activeert wanneer het overslaan van een taak wordt verwijderd."
+    },
+    "task_overdue": {
+      "name": "Taak is verlopen",
+      "description": "Activeert wanneer een taak achterstallig wordt."
+    },
+    "task_due_soon": {
+      "name": "Taak vervalt binnenkort",
+      "description": "Activeert wanneer een taak binnen 3 dagen verschuldigd wordt."
+    },
+    "part_low_stock": {
+      "name": "Reserveonderdeel bijna op",
+      "description": "Activeert wanneer de voorraad van een onderdeel tot de bestelgrens daalt."
+    },
+    "part_out_of_stock": {
+      "name": "Reserveonderdeel niet op voorraad",
+      "description": "Activeert wanneer de voorraad van een onderdeel 0 bereikt."
+    },
+    "part_restocked": {
+      "name": "Reserveonderdeel aangevuld",
+      "description": "Activeert wanneer de voorraad van een onderdeel boven de bestelgrens stijgt."
+    },
+    "asset_created": {
+      "name": "Apparaat toegevoegd",
+      "description": "Activeert wanneer een apparaat wordt toegevoegd."
+    },
+    "asset_updated": {
+      "name": "Apparaat bijgewerkt",
+      "description": "Activeert wanneer een apparaat verandert."
+    },
+    "asset_deleted": {
+      "name": "Apparaat verwijderd",
+      "description": "Activeert wanneer een apparaat wordt verwijderd."
+    },
+    "asset_archived": {
+      "name": "Apparaat gearchiveerd",
+      "description": "Activeert wanneer een apparaat wordt gearchiveerd."
+    },
+    "asset_restored": {
+      "name": "Apparaat hersteld",
+      "description": "Activeert wanneer een gearchiveerd apparaat wordt hersteld."
+    },
+    "companion_connected": {
+      "name": "Companion verbonden",
+      "description": "Activeert wanneer een companion-integratie verbinding maakt."
+    },
+    "companion_suggested": {
+      "name": "Companion voorgesteld",
+      "description": "Activeert wanneer Home Keeper een companion-integratie voorstelt."
+    },
+    "declarative_companion_added": {
+      "name": "Declaratieve companion toegevoegd",
+      "description": "Activeert wanneer een declaratieve companion wordt toegevoegd."
+    },
+    "declarative_companion_updated": {
+      "name": "Declaratieve companion bijgewerkt",
+      "description": "Activeert wanneer een declaratieve companion verandert."
+    },
+    "declarative_companion_removed": {
+      "name": "Declaratieve companion verwijderd",
+      "description": "Activeert wanneer een declaratieve companion wordt verwijderd."
+    },
+    "data_exported": {
+      "name": "Gegevens geëxporteerd",
+      "description": "Activeert wanneer Home Keeper gegevens exporteert."
+    },
+    "data_imported": {
+      "name": "Gegevens geïmporteerd",
+      "description": "Activeert wanneer Home Keeper gegevens importeert."
     }
   },
   "exceptions": {

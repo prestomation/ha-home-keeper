@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Home Keeper-hændelser",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Opgave oprettet",
-              "task_updated": "Opgave opdateret",
-              "task_deleted": "Opgave slettet",
-              "task_completed": "Opgave udført",
-              "task_uncompleted": "Gennemførelse fjernet",
-              "task_completion_updated": "Gennemførelse opdateret",
-              "task_triggered": "Opgave udløst",
-              "task_snoozed": "Opgave udsat",
-              "task_skipped": "Opgave sprunget over",
-              "task_due_today_set": "Opgave sat til i dag",
-              "task_skip_updated": "Overspringning opdateret",
-              "task_skip_removed": "Overspringning fjernet",
-              "task_occurrence_moved": "Opgaveforekomst flyttet",
-              "task_overdue": "Opgave blev forsinket",
-              "task_due_soon": "Opgave forfalder snart",
-              "part_low_stock": "Lavt lager af reservedel",
-              "part_out_of_stock": "Reservedel udsolgt",
-              "part_restocked": "Reservedel genopfyldt",
-              "asset_created": "Apparat tilføjet",
-              "asset_updated": "Apparat opdateret",
-              "asset_deleted": "Apparat slettet",
-              "asset_archived": "Apparat arkiveret",
-              "asset_restored": "Apparat gendannet"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Hændelser",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Lavt lager af reservedel",
       "part_out_of_stock": "Reservedel udsolgt",
       "part_restocked": "Reservedel genopfyldt"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Opgave oprettet",
+      "description": "Udløses, når en opgave oprettes."
+    },
+    "task_updated": {
+      "name": "Opgave opdateret",
+      "description": "Udløses, når en opgave ændres."
+    },
+    "task_deleted": {
+      "name": "Opgave slettet",
+      "description": "Udløses, når en opgave slettes."
+    },
+    "task_completed": {
+      "name": "Opgave udført",
+      "description": "Udløses, når en opgave fuldføres."
+    },
+    "task_uncompleted": {
+      "name": "Gennemførelse fjernet",
+      "description": "Udløses, når en fuldførelse af en opgave fjernes."
+    },
+    "task_completion_updated": {
+      "name": "Gennemførelse opdateret",
+      "description": "Udløses, når en fuldførelse af en opgave redigeres."
+    },
+    "task_triggered": {
+      "name": "Opgave udløst",
+      "description": "Udløses, når en udløst opgave eller en sensoropgave forfalder."
+    },
+    "task_snoozed": {
+      "name": "Opgave udsat",
+      "description": "Udløses, når en opgave udsættes."
+    },
+    "task_skipped": {
+      "name": "Opgave sprunget over",
+      "description": "Udløses, når en opgave springes over."
+    },
+    "task_due_today_set": {
+      "name": "Opgave sat til i dag",
+      "description": "Udløses, når en opgave sættes til at forfalde i dag."
+    },
+    "task_occurrence_moved": {
+      "name": "Opgaveforekomst flyttet",
+      "description": "Udløses, når en dato for en fast opgave flyttes."
+    },
+    "task_skip_updated": {
+      "name": "Overspringning opdateret",
+      "description": "Udløses, når en overspringning af en opgave redigeres."
+    },
+    "task_skip_removed": {
+      "name": "Overspringning fjernet",
+      "description": "Udløses, når en overspringning af en opgave fjernes."
+    },
+    "task_overdue": {
+      "name": "Opgave blev forsinket",
+      "description": "Udløses, når en opgave bliver forfalden."
+    },
+    "task_due_soon": {
+      "name": "Opgave forfalder snart",
+      "description": "Udløses, når en opgave forfalder om 3 dage eller mindre."
+    },
+    "part_low_stock": {
+      "name": "Lavt lager af reservedel",
+      "description": "Udløses, når lagerbeholdningen af en reservedel falder til genbestillingsgrænsen."
+    },
+    "part_out_of_stock": {
+      "name": "Reservedel udsolgt",
+      "description": "Udløses, når lagerbeholdningen af en reservedel når 0."
+    },
+    "part_restocked": {
+      "name": "Reservedel genopfyldt",
+      "description": "Udløses, når lagerbeholdningen af en reservedel stiger over genbestillingsgrænsen."
+    },
+    "asset_created": {
+      "name": "Apparat tilføjet",
+      "description": "Udløses, når et apparat tilføjes."
+    },
+    "asset_updated": {
+      "name": "Apparat opdateret",
+      "description": "Udløses, når et apparat ændres."
+    },
+    "asset_deleted": {
+      "name": "Apparat slettet",
+      "description": "Udløses, når et apparat slettes."
+    },
+    "asset_archived": {
+      "name": "Apparat arkiveret",
+      "description": "Udløses, når et apparat arkiveres."
+    },
+    "asset_restored": {
+      "name": "Apparat gendannet",
+      "description": "Udløses, når et arkiveret apparat gendannes."
+    },
+    "companion_connected": {
+      "name": "Ledsager forbundet",
+      "description": "Udløses, når en companion-integration forbinder."
+    },
+    "companion_suggested": {
+      "name": "Ledsager foreslået",
+      "description": "Udløses, når Home Keeper foreslår en companion-integration."
+    },
+    "declarative_companion_added": {
+      "name": "Deklarativ companion tilføjet",
+      "description": "Udløses, når en deklarativ companion tilføjes."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklarativ companion opdateret",
+      "description": "Udløses, når en deklarativ companion ændres."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklarativ companion slettet",
+      "description": "Udløses, når en deklarativ companion slettes."
+    },
+    "data_exported": {
+      "name": "Data eksporteret",
+      "description": "Udløses, når Home Keeper eksporterer data."
+    },
+    "data_imported": {
+      "name": "Data importeret",
+      "description": "Udløses, når Home Keeper importerer data."
     }
   },
   "exceptions": {

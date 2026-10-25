@@ -112,9 +112,9 @@ low-stock sensor per part with a reorder threshold. `sensor.py` gives a `date` s
 tracked date metadata entry. Before it adds entities, each platform calls
 `entity.prune_registry_entries`. Its `keep` returns `None` for a unique ID shape that the
 platform does not own, so no platform removes the entities of another.
-`event.py` gives `home_keeper_events` (service device, every event with a payload) and
-`home_keeper_device_<device_id>_events` on each device from `event.event_devices`, which gets
-the events with that `device_id`. They listen on the bus, so a reload can lose an event.
+`event.py` gives 1 `event` entity, `home_keeper_events`, on the service device. It gets
+every event with a payload, and it listens on the bus, so a reload can lose an event. To
+target 1 device, area or task, automations use the triggers ([events-api](events-api.md)).
 
 ### Count sensors and the service device
 
@@ -143,7 +143,8 @@ exists, so the device always has an entity. The cost sensors are on it too
 ## One-way doors
 
 - Unique ID shapes in the table above, plus `home_keeper_asset_<asset_id>_part_<part_id>_stock`,
-  `..._low_stock`, `home_keeper_asset_<asset_id>_meta_<entry_id>` and the event entity ids.
+  `..._low_stock`, `home_keeper_asset_<asset_id>_meta_<entry_id>` and `home_keeper_events`.
+  `trigger_targets.py` reads the task, part and appliance shapes.
 - Entity attributes, declared in `api_surface.ENTITY_PLATFORMS`. The `last_completion_<field>`
   keys follow `const.COMPLETION_ENTRY_FIELDS`, and `usage_*` keys exist only on usage tasks.
 - The count semantics: `due_soon` excludes overdue tasks; `due_today` is a local calendar date.

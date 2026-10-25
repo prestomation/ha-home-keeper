@@ -155,12 +155,15 @@ input_text:
   hk_last_event_entity_event:
     name: HK last event entity event
     max: 255
+  hk_last_trigger:
+    name: HK last trigger
+    max: 255
 
 # `automation manual` holds the fixed automations below. `automation ui` is the file
 # the automation editor and its REST API write to. tests/integration/
-# test_event_entities.py adds an automation there with the Event received trigger, and
-# removes it again. That trigger needs Home Assistant 2026.7 or later, so it cannot be
-# in this file: on an older Home Assistant it would stop every automation from loading.
+# test_event_entities.py and test_triggers.py add automations there, and remove them
+# again. The Event received trigger needs Home Assistant 2026.7 or later, so it cannot
+# be in this file: on an older Home Assistant it would stop every automation loading.
 automation ui: !include automations.yaml
 automation manual:
   - alias: Capture Home Keeper task completed

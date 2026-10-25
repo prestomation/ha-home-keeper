@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Esdeveniments de Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Tasca creada",
-              "task_updated": "Tasca actualitzada",
-              "task_deleted": "Tasca eliminada",
-              "task_completed": "Tasca completada",
-              "task_uncompleted": "Realització eliminada",
-              "task_completion_updated": "Realització actualitzada",
-              "task_triggered": "Tasca activada",
-              "task_snoozed": "Tasca posposada",
-              "task_skipped": "Tasca omesa",
-              "task_due_today_set": "Tasca marcada per a avui",
-              "task_skip_updated": "Omissió actualitzada",
-              "task_skip_removed": "Omissió eliminada",
-              "task_occurrence_moved": "Ocurrència de tasca moguda",
-              "task_overdue": "La tasca ha quedat endarrerida",
-              "task_due_soon": "La tasca venç aviat",
-              "part_low_stock": "Peça de recanvi amb estoc baix",
-              "part_out_of_stock": "Peça de recanvi sense estoc",
-              "part_restocked": "Peça de recanvi reabastida",
-              "asset_created": "Electrodomèstic afegit",
-              "asset_updated": "Electrodomèstic actualitzat",
-              "asset_deleted": "Electrodomèstic eliminat",
-              "asset_archived": "Electrodomèstic arxivat",
-              "asset_restored": "Electrodomèstic restaurat"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Esdeveniments",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Peça de recanvi amb estoc baix",
       "part_out_of_stock": "Peça de recanvi sense estoc",
       "part_restocked": "Peça de recanvi reabastida"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Tasca creada",
+      "description": "S'activa quan es crea una tasca."
+    },
+    "task_updated": {
+      "name": "Tasca actualitzada",
+      "description": "S'activa quan una tasca canvia."
+    },
+    "task_deleted": {
+      "name": "Tasca eliminada",
+      "description": "S'activa quan s'elimina una tasca."
+    },
+    "task_completed": {
+      "name": "Tasca completada",
+      "description": "S'activa quan es completa una tasca."
+    },
+    "task_uncompleted": {
+      "name": "Realització eliminada",
+      "description": "S'activa quan s'elimina una realització d'una tasca."
+    },
+    "task_completion_updated": {
+      "name": "Realització actualitzada",
+      "description": "S'activa quan s'edita una realització d'una tasca."
+    },
+    "task_triggered": {
+      "name": "Tasca activada",
+      "description": "S'activa quan una tasca activada o una tasca de sensor venç."
+    },
+    "task_snoozed": {
+      "name": "Tasca posposada",
+      "description": "S'activa quan s'ajorna una tasca."
+    },
+    "task_skipped": {
+      "name": "Tasca omesa",
+      "description": "S'activa quan s'omet una tasca."
+    },
+    "task_due_today_set": {
+      "name": "Tasca marcada per a avui",
+      "description": "S'activa quan una tasca es fixa per avui."
+    },
+    "task_occurrence_moved": {
+      "name": "Ocurrència de tasca moguda",
+      "description": "S'activa quan es mou una data d'una tasca fixa."
+    },
+    "task_skip_updated": {
+      "name": "Omissió actualitzada",
+      "description": "S'activa quan s'edita una omissió d'una tasca."
+    },
+    "task_skip_removed": {
+      "name": "Omissió eliminada",
+      "description": "S'activa quan s'elimina una omissió d'una tasca."
+    },
+    "task_overdue": {
+      "name": "La tasca ha quedat endarrerida",
+      "description": "S'activa quan una tasca queda vençuda."
+    },
+    "task_due_soon": {
+      "name": "La tasca venç aviat",
+      "description": "S'activa quan una tasca venç en 3 dies o menys."
+    },
+    "part_low_stock": {
+      "name": "Peça de recanvi amb estoc baix",
+      "description": "S'activa quan l'estoc d'una peça baixa fins al llindar de reposició."
+    },
+    "part_out_of_stock": {
+      "name": "Peça de recanvi sense estoc",
+      "description": "S'activa quan l'estoc d'una peça arriba a 0."
+    },
+    "part_restocked": {
+      "name": "Peça de recanvi reabastida",
+      "description": "S'activa quan l'estoc d'una peça puja per sobre del llindar de reposició."
+    },
+    "asset_created": {
+      "name": "Electrodomèstic afegit",
+      "description": "S'activa quan s'afegeix un electrodomèstic."
+    },
+    "asset_updated": {
+      "name": "Electrodomèstic actualitzat",
+      "description": "S'activa quan un electrodomèstic canvia."
+    },
+    "asset_deleted": {
+      "name": "Electrodomèstic eliminat",
+      "description": "S'activa quan s'elimina un electrodomèstic."
+    },
+    "asset_archived": {
+      "name": "Electrodomèstic arxivat",
+      "description": "S'activa quan s'arxiva un electrodomèstic."
+    },
+    "asset_restored": {
+      "name": "Electrodomèstic restaurat",
+      "description": "S'activa quan es restaura un electrodomèstic arxivat."
+    },
+    "companion_connected": {
+      "name": "Company connectat",
+      "description": "S'activa quan es connecta una integració companion."
+    },
+    "companion_suggested": {
+      "name": "Company suggerit",
+      "description": "S'activa quan Home Keeper suggereix una integració companion."
+    },
+    "declarative_companion_added": {
+      "name": "Companion declaratiu afegit",
+      "description": "S'activa quan s'afegeix un companion declaratiu."
+    },
+    "declarative_companion_updated": {
+      "name": "Companion declaratiu actualitzat",
+      "description": "S'activa quan un companion declaratiu canvia."
+    },
+    "declarative_companion_removed": {
+      "name": "Companion declaratiu eliminat",
+      "description": "S'activa quan s'elimina un companion declaratiu."
+    },
+    "data_exported": {
+      "name": "Dades exportades",
+      "description": "S'activa quan Home Keeper exporta dades."
+    },
+    "data_imported": {
+      "name": "Dades importades",
+      "description": "S'activa quan Home Keeper importa dades."
     }
   },
   "exceptions": {

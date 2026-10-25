@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Eventos de Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Tarea creada",
-              "task_updated": "Tarea actualizada",
-              "task_deleted": "Tarea eliminada",
-              "task_completed": "Tarea realizada",
-              "task_uncompleted": "Finalización eliminada",
-              "task_completion_updated": "Finalización actualizada",
-              "task_triggered": "Tarea activada",
-              "task_snoozed": "Tarea pospuesta",
-              "task_skipped": "Tarea omitida",
-              "task_due_today_set": "Tarea marcada para hoy",
-              "task_skip_updated": "Omisión actualizada",
-              "task_skip_removed": "Omisión eliminada",
-              "task_occurrence_moved": "Ocurrencia de tarea movida",
-              "task_overdue": "Tarea vencida",
-              "task_due_soon": "Tarea próxima a vencer",
-              "part_low_stock": "Pieza de repuesto con stock bajo",
-              "part_out_of_stock": "Pieza de repuesto agotada",
-              "part_restocked": "Pieza de repuesto repuesta",
-              "asset_created": "Electrodoméstico añadido",
-              "asset_updated": "Electrodoméstico actualizado",
-              "asset_deleted": "Electrodoméstico eliminado",
-              "asset_archived": "Electrodoméstico archivado",
-              "asset_restored": "Electrodoméstico restaurado"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Eventos",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Pieza de repuesto con stock bajo",
       "part_out_of_stock": "Pieza de repuesto agotada",
       "part_restocked": "Pieza de repuesto repuesta"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Tarea creada",
+      "description": "Se activa cuando se crea una tarea."
+    },
+    "task_updated": {
+      "name": "Tarea actualizada",
+      "description": "Se activa cuando cambia una tarea."
+    },
+    "task_deleted": {
+      "name": "Tarea eliminada",
+      "description": "Se activa cuando se elimina una tarea."
+    },
+    "task_completed": {
+      "name": "Tarea realizada",
+      "description": "Se activa cuando se completa una tarea."
+    },
+    "task_uncompleted": {
+      "name": "Finalización eliminada",
+      "description": "Se activa cuando se elimina una realización de una tarea."
+    },
+    "task_completion_updated": {
+      "name": "Finalización actualizada",
+      "description": "Se activa cuando se edita una realización de una tarea."
+    },
+    "task_triggered": {
+      "name": "Tarea activada",
+      "description": "Se activa cuando una tarea activada o una tarea de sensor vence."
+    },
+    "task_snoozed": {
+      "name": "Tarea pospuesta",
+      "description": "Se activa cuando se pospone una tarea."
+    },
+    "task_skipped": {
+      "name": "Tarea omitida",
+      "description": "Se activa cuando se omite una tarea."
+    },
+    "task_due_today_set": {
+      "name": "Tarea marcada para hoy",
+      "description": "Se activa cuando una tarea se fija para hoy."
+    },
+    "task_occurrence_moved": {
+      "name": "Ocurrencia de tarea movida",
+      "description": "Se activa cuando se mueve una fecha de una tarea fija."
+    },
+    "task_skip_updated": {
+      "name": "Omisión actualizada",
+      "description": "Se activa cuando se edita una omisión de una tarea."
+    },
+    "task_skip_removed": {
+      "name": "Omisión eliminada",
+      "description": "Se activa cuando se elimina una omisión de una tarea."
+    },
+    "task_overdue": {
+      "name": "Tarea vencida",
+      "description": "Se activa cuando una tarea queda vencida."
+    },
+    "task_due_soon": {
+      "name": "Tarea próxima a vencer",
+      "description": "Se activa cuando una tarea vence en 3 días o menos."
+    },
+    "part_low_stock": {
+      "name": "Pieza de repuesto con stock bajo",
+      "description": "Se activa cuando el stock de un repuesto baja a su umbral de reposición."
+    },
+    "part_out_of_stock": {
+      "name": "Pieza de repuesto agotada",
+      "description": "Se activa cuando el stock de un repuesto llega a 0."
+    },
+    "part_restocked": {
+      "name": "Pieza de repuesto repuesta",
+      "description": "Se activa cuando el stock de un repuesto sube por encima de su umbral de reposición."
+    },
+    "asset_created": {
+      "name": "Electrodoméstico añadido",
+      "description": "Se activa cuando se añade un electrodoméstico."
+    },
+    "asset_updated": {
+      "name": "Electrodoméstico actualizado",
+      "description": "Se activa cuando cambia un electrodoméstico."
+    },
+    "asset_deleted": {
+      "name": "Electrodoméstico eliminado",
+      "description": "Se activa cuando se elimina un electrodoméstico."
+    },
+    "asset_archived": {
+      "name": "Electrodoméstico archivado",
+      "description": "Se activa cuando se archiva un electrodoméstico."
+    },
+    "asset_restored": {
+      "name": "Electrodoméstico restaurado",
+      "description": "Se activa cuando se restaura un electrodoméstico archivado."
+    },
+    "companion_connected": {
+      "name": "Companion conectado",
+      "description": "Se activa cuando se conecta una integración companion."
+    },
+    "companion_suggested": {
+      "name": "Companion sugerido",
+      "description": "Se activa cuando Home Keeper sugiere una integración companion."
+    },
+    "declarative_companion_added": {
+      "name": "Companion declarativo añadido",
+      "description": "Se activa cuando se añade un companion declarativo."
+    },
+    "declarative_companion_updated": {
+      "name": "Companion declarativo actualizado",
+      "description": "Se activa cuando cambia un companion declarativo."
+    },
+    "declarative_companion_removed": {
+      "name": "Companion declarativo eliminado",
+      "description": "Se activa cuando se elimina un companion declarativo."
+    },
+    "data_exported": {
+      "name": "Datos exportados",
+      "description": "Se activa cuando Home Keeper exporta datos."
+    },
+    "data_imported": {
+      "name": "Datos importados",
+      "description": "Se activa cuando Home Keeper importa datos."
     }
   },
   "exceptions": {

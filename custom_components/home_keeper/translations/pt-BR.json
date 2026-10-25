@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Eventos do Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Tarefa criada",
-              "task_updated": "Tarefa atualizada",
-              "task_deleted": "Tarefa excluída",
-              "task_completed": "Tarefa concluída",
-              "task_uncompleted": "Conclusão removida",
-              "task_completion_updated": "Conclusão atualizada",
-              "task_triggered": "Tarefa acionada",
-              "task_snoozed": "Tarefa adiada",
-              "task_skipped": "Tarefa pulada",
-              "task_due_today_set": "Tarefa definida para hoje",
-              "task_skip_updated": "Omissão atualizada",
-              "task_skip_removed": "Omissão removida",
-              "task_occurrence_moved": "Ocorrência da tarefa movida",
-              "task_overdue": "Tarefa ficou atrasada",
-              "task_due_soon": "Tarefa vence em breve",
-              "part_low_stock": "Peça sobressalente com estoque baixo",
-              "part_out_of_stock": "Peça sobressalente sem estoque",
-              "part_restocked": "Peça sobressalente reposta",
-              "asset_created": "Eletrodoméstico adicionado",
-              "asset_updated": "Eletrodoméstico atualizado",
-              "asset_deleted": "Eletrodoméstico excluído",
-              "asset_archived": "Eletrodoméstico arquivado",
-              "asset_restored": "Eletrodoméstico restaurado"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Eventos",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Peça sobressalente com estoque baixo",
       "part_out_of_stock": "Peça sobressalente sem estoque",
       "part_restocked": "Peça sobressalente reposta"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Tarefa criada",
+      "description": "Dispara quando uma tarefa é criada."
+    },
+    "task_updated": {
+      "name": "Tarefa atualizada",
+      "description": "Dispara quando uma tarefa muda."
+    },
+    "task_deleted": {
+      "name": "Tarefa excluída",
+      "description": "Dispara quando uma tarefa é excluída."
+    },
+    "task_completed": {
+      "name": "Tarefa concluída",
+      "description": "Dispara quando uma tarefa é concluída."
+    },
+    "task_uncompleted": {
+      "name": "Conclusão removida",
+      "description": "Dispara quando uma conclusão de uma tarefa é removida."
+    },
+    "task_completion_updated": {
+      "name": "Conclusão atualizada",
+      "description": "Dispara quando uma conclusão de uma tarefa é editada."
+    },
+    "task_triggered": {
+      "name": "Tarefa acionada",
+      "description": "Dispara quando uma tarefa acionada ou uma tarefa de sensor vence."
+    },
+    "task_snoozed": {
+      "name": "Tarefa adiada",
+      "description": "Dispara quando uma tarefa é adiada."
+    },
+    "task_skipped": {
+      "name": "Tarefa pulada",
+      "description": "Dispara quando uma tarefa é pulada."
+    },
+    "task_due_today_set": {
+      "name": "Tarefa definida para hoje",
+      "description": "Dispara quando uma tarefa é definida para hoje."
+    },
+    "task_occurrence_moved": {
+      "name": "Ocorrência da tarefa movida",
+      "description": "Dispara quando uma data de uma tarefa fixa muda."
+    },
+    "task_skip_updated": {
+      "name": "Omissão atualizada",
+      "description": "Dispara quando um pulo de uma tarefa é editado."
+    },
+    "task_skip_removed": {
+      "name": "Omissão removida",
+      "description": "Dispara quando um pulo de uma tarefa é removido."
+    },
+    "task_overdue": {
+      "name": "Tarefa ficou atrasada",
+      "description": "Dispara quando uma tarefa fica atrasada."
+    },
+    "task_due_soon": {
+      "name": "Tarefa vence em breve",
+      "description": "Dispara quando uma tarefa vence em 3 dias ou menos."
+    },
+    "part_low_stock": {
+      "name": "Peça sobressalente com estoque baixo",
+      "description": "Dispara quando o estoque de uma peça cai até o limite de reposição."
+    },
+    "part_out_of_stock": {
+      "name": "Peça sobressalente sem estoque",
+      "description": "Dispara quando o estoque de uma peça chega a 0."
+    },
+    "part_restocked": {
+      "name": "Peça sobressalente reposta",
+      "description": "Dispara quando o estoque de uma peça sobe acima do limite de reposição."
+    },
+    "asset_created": {
+      "name": "Eletrodoméstico adicionado",
+      "description": "Dispara quando um aparelho é adicionado."
+    },
+    "asset_updated": {
+      "name": "Eletrodoméstico atualizado",
+      "description": "Dispara quando um aparelho muda."
+    },
+    "asset_deleted": {
+      "name": "Eletrodoméstico excluído",
+      "description": "Dispara quando um aparelho é excluído."
+    },
+    "asset_archived": {
+      "name": "Eletrodoméstico arquivado",
+      "description": "Dispara quando um aparelho é arquivado."
+    },
+    "asset_restored": {
+      "name": "Eletrodoméstico restaurado",
+      "description": "Dispara quando um aparelho arquivado é restaurado."
+    },
+    "companion_connected": {
+      "name": "Companion conectado",
+      "description": "Dispara quando uma integração companion se conecta."
+    },
+    "companion_suggested": {
+      "name": "Companion sugerido",
+      "description": "Dispara quando o Home Keeper sugere uma integração companion."
+    },
+    "declarative_companion_added": {
+      "name": "Companion declarativo adicionado",
+      "description": "Dispara quando um companion declarativo é adicionado."
+    },
+    "declarative_companion_updated": {
+      "name": "Companion declarativo atualizado",
+      "description": "Dispara quando um companion declarativo muda."
+    },
+    "declarative_companion_removed": {
+      "name": "Companion declarativo excluído",
+      "description": "Dispara quando um companion declarativo é excluído."
+    },
+    "data_exported": {
+      "name": "Dados exportados",
+      "description": "Dispara quando o Home Keeper exporta dados."
+    },
+    "data_imported": {
+      "name": "Dados importados",
+      "description": "Dispara quando o Home Keeper importa dados."
     }
   },
   "exceptions": {

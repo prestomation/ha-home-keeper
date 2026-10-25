@@ -1,4 +1,4 @@
-"""Unit tests for the event entities (``event.py``) and their model in ``api_surface``.
+"""Unit tests for the global event entity (``event.py``) and its ``api_surface`` model.
 
 The suite loads the real ``event.py`` under the synthetic ``hk`` package over the
 shared HA stub tree, as ``test_button.py`` does. The bus is a fake that keeps the
@@ -100,10 +100,6 @@ def _added(entity) -> FakeBus:
     return bus
 
 
-def _device(device_id: str):
-    return types.SimpleNamespace(id=device_id)
-
-
 # ── The model ────────────────────────────────────────────────────────────────
 
 
@@ -113,24 +109,21 @@ def test_event_type_is_the_bus_name_without_the_domain() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("key", "scope"), [("device_events", "device"), ("home_keeper_events", "global")]
-)
-def test_every_mirrored_event_type_has_a_label_in_every_language(
-    key: str, scope: str
-) -> None:
+def test_every_mirrored_event_type_has_a_label_in_every_language() -> None:
     """A new fired event with a payload needs a label, or the editor shows a raw key."""
     import json
 
-    want = set(api_surface.event_entity_events(scope))
+    want = set(api_surface.event_entity_events())
     files = [
         _COMPONENT_DIR / "strings.json",
         *_COMPONENT_DIR.glob("translations/*.json"),
     ]
     assert len(files) == 17
     for path in files:
-        entity = json.loads(path.read_text(encoding="utf-8"))["entity"]["event"][key]
-        have = set(entity["state_attributes"]["event_type"]["state"])
+        events = json.loads(path.read_text(encoding="utf-8"))["entity"]["event"]
+        assert set(events) == {"home_keeper_events"}, path.name
+        state = events["home_keeper_events"]["state_attributes"]["event_type"]
+        have = set(state["state"])
         assert have == want, (path.name, sorted(want ^ have))
 
 
@@ -143,20 +136,6 @@ def test_global_entity_mirrors_every_fired_event_with_a_payload() -> None:
     assert set(event.GLOBAL_EVENTS.values()) == expected
     assert "home_keeper_register_companions" not in expected
     assert "home_keeper_companion_connected" in expected
-
-
-def test_device_entity_mirrors_only_events_with_a_device_id() -> None:
-    payloads = {spec.name: spec.payload for spec in api_surface.EVENTS}
-    assert event.DEVICE_EVENTS
-    assert {payloads[name] for name in event.DEVICE_EVENTS.values()} == {
-        "task",
-        "stock",
-        "asset",
-    }
-    for payload in api_surface.EVENT_ENTITY_DEVICE_PAYLOADS:
-        keys = {f.name for f in api_surface.PAYLOAD_SPINES[payload]}
-        assert "device_id" in keys, payload
-    assert set(event.DEVICE_EVENTS) < set(event.GLOBAL_EVENTS)
 
 
 def test_dropped_fields_are_real_payload_keys_with_a_reason() -> None:
@@ -224,66 +203,6 @@ def test_event_attributes_drop_the_large_keys_only() -> None:
 # ── The entities ─────────────────────────────────────────────────────────────
 
 
-def test_device_entity_records_an_event_for_its_device() -> None:
-    entity = event.HomeKeeperDeviceEventEntity(_device("dev1"))
-    bus = _added(entity)
-    assert entity._attr_unique_id == "home_keeper_device_dev1_events"
-    assert entity.device_entry.id == "dev1"
-    assert entity._attr_translation_key == "device_events"
-    assert entity._attr_event_types == list(event.DEVICE_EVENTS)
-
-    bus.fire(
-        "home_keeper_task_completed",
-        {"task_id": "t1", "device_id": "dev1", "note": "x", "origin": "button"},
-    )
-    assert entity.last_event_type == "task_completed"
-    assert entity.last_event_attributes == {
-        "task_id": "t1",
-        "device_id": "dev1",
-        "origin": "button",
-    }
-    assert entity.writes == 1
-
-
-def test_device_entity_ignores_another_device_and_no_device() -> None:
-    entity = event.HomeKeeperDeviceEventEntity(_device("dev1"))
-    bus = _added(entity)
-    bus.fire("home_keeper_task_overdue", {"task_id": "t1", "device_id": "dev2"})
-    bus.fire("home_keeper_task_overdue", {"task_id": "t2", "device_id": None})
-    assert not hasattr(entity, "last_event_type")
-    assert entity.writes == 0
-
-
-def test_appliance_with_no_device_yet_reaches_only_the_global_entity() -> None:
-    """A virtual appliance's device_id is None until its device exists."""
-    device = event.HomeKeeperDeviceEventEntity(_device("dev1"))
-    glob = event.HomeKeeperGlobalEventEntity()
-    device_bus = _added(device)
-    global_bus = _added(glob)
-    data = {"asset_id": "a1", "asset_name": "Heater", "device_id": None}
-    device_bus.fire("home_keeper_asset_created", data)
-    global_bus.fire("home_keeper_asset_created", data)
-    assert device.writes == 0
-    assert glob.last_event_type == "asset_created"
-
-
-def test_device_entity_gets_part_and_appliance_events() -> None:
-    entity = event.HomeKeeperDeviceEventEntity(_device("dev1"))
-    bus = _added(entity)
-    bus.fire("home_keeper_part_low_stock", {"part_id": "p1", "device_id": "dev1"})
-    assert entity.last_event_type == "part_low_stock"
-    bus.fire("home_keeper_asset_archived", {"asset_id": "a1", "device_id": "dev1"})
-    assert entity.last_event_type == "asset_archived"
-    assert entity.writes == 2
-
-
-def test_device_entity_does_not_listen_for_companion_events() -> None:
-    entity = event.HomeKeeperDeviceEventEntity(_device("dev1"))
-    bus = _added(entity)
-    assert "home_keeper_companion_connected" not in bus.listeners
-    assert "home_keeper_task_completed" in bus.listeners
-
-
 def test_global_entity_records_every_event() -> None:
     entity = event.HomeKeeperGlobalEventEntity()
     bus = _added(entity)
@@ -308,62 +227,35 @@ def test_listeners_are_removed_with_the_entity() -> None:
 
 
 def test_unknown_event_type_is_ignored() -> None:
-    entity = event.HomeKeeperDeviceEventEntity(_device("dev1"))
+    entity = event.HomeKeeperGlobalEventEntity()
     entity._events = {"task_completed": "home_keeper_task_completed"}
     entity._attr_event_types = ["task_completed"]
     _added(entity)
     entity._async_handle_event(
-        types.SimpleNamespace(
-            event_type="home_keeper_task_overdue", data={"device_id": "dev1"}
-        )
+        types.SimpleNamespace(event_type="home_keeper_task_overdue", data={})
     )
     assert not hasattr(entity, "last_event_type")
 
 
-# ── Which devices get an entity ──────────────────────────────────────────────
-
-
-class FakeCoordinator:
-    def __init__(self, tasks, assets, known) -> None:
-        self.data = {task["id"]: task for task in tasks}
-        self.store = types.SimpleNamespace(list_assets=lambda: assets)
-        self._known = known
-
-    def device_attached_task_ids(self):
-        return [
-            tid
-            for tid, task in self.data.items()
-            if task.get("device_id") and task.get("enabled", True)
-        ]
-
-    def device_entry_for_device_id(self, device_id):
-        return _device(device_id) if device_id in self._known else None
-
-
-def test_event_devices_from_tasks_and_appliances() -> None:
-    coordinator = FakeCoordinator(
-        tasks=[
-            {"id": "t1", "device_id": "thermostat"},
-            {"id": "t2", "device_id": "thermostat"},
-            {"id": "t3", "device_id": "gone"},
-            {"id": "t4", "device_id": "off", "enabled": False},
-            {"id": "t5", "device_id": None},
-        ],
-        assets=[
-            {"id": "a1", "device_id": "heater"},
-            {"id": "a2", "device_id": "thermostat"},
-            {"id": "a3", "device_id": None},
-        ],
-        known={"thermostat", "heater", "off"},
+def test_global_entity_keeps_short_fields_and_drops_large_ones() -> None:
+    entity = event.HomeKeeperGlobalEventEntity()
+    bus = _added(entity)
+    bus.fire(
+        "home_keeper_task_completed",
+        {"task_id": "t1", "device_id": "dev1", "note": "x", "origin": "button"},
     )
-    ids = [device.id for device in event.event_devices(coordinator)]
-    assert ids == ["thermostat", "heater"]
+    assert entity.last_event_type == "task_completed"
+    assert entity.last_event_attributes == {
+        "task_id": "t1",
+        "device_id": "dev1",
+        "origin": "button",
+    }
+    assert entity.writes == 1
 
 
-def test_setup_prunes_stale_device_entities_only(monkeypatch) -> None:
-    coordinator = FakeCoordinator(
-        tasks=[{"id": "t1", "device_id": "heater"}], assets=[], known={"heater"}
-    )
+def test_setup_adds_the_global_entity_and_prunes_old_device_entities(
+    monkeypatch,
+) -> None:
     seen = {}
 
     def fake_prune(hass, entry, domain, keep):
@@ -372,17 +264,13 @@ def test_setup_prunes_stale_device_entities_only(monkeypatch) -> None:
 
     monkeypatch.setattr(event, "prune_registry_entries", fake_prune)
     added = []
-    entry = types.SimpleNamespace(runtime_data=coordinator)
+    entry = types.SimpleNamespace(runtime_data=None)
     asyncio.run(event.async_setup_entry(None, entry, added.extend))
 
-    assert [type(e).__name__ for e in added] == [
-        "HomeKeeperGlobalEventEntity",
-        "HomeKeeperDeviceEventEntity",
-    ]
+    assert [type(e).__name__ for e in added] == ["HomeKeeperGlobalEventEntity"]
     keep = seen["keep"]
     assert seen["domain"] == "event"
     assert keep("home_keeper_events") is True
-    assert keep("home_keeper_device_heater_events") is True
-    assert keep("home_keeper_device_old_events") is False
-    assert keep("home_keeper_device_heater") is None
+    assert keep("home_keeper_device_heater_events") is False
+    assert keep("home_keeper_device_x") is False
     assert keep("something_else") is None

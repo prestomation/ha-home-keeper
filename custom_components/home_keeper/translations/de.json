@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Home-Keeper-Ereignisse",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Aufgabe erstellt",
-              "task_updated": "Aufgabe aktualisiert",
-              "task_deleted": "Aufgabe gelöscht",
-              "task_completed": "Aufgabe erledigt",
-              "task_uncompleted": "Erledigung entfernt",
-              "task_completion_updated": "Erledigung aktualisiert",
-              "task_triggered": "Aufgabe ausgelöst",
-              "task_snoozed": "Aufgabe zurückgestellt",
-              "task_skipped": "Aufgabe übersprungen",
-              "task_due_today_set": "Aufgabe auf heute gesetzt",
-              "task_skip_updated": "Überspringen aktualisiert",
-              "task_skip_removed": "Überspringen entfernt",
-              "task_occurrence_moved": "Aufgabentermin verschoben",
-              "task_overdue": "Aufgabe wurde überfällig",
-              "task_due_soon": "Aufgabe bald fällig",
-              "part_low_stock": "Ersatzteil mit niedrigem Bestand",
-              "part_out_of_stock": "Ersatzteil nicht vorrätig",
-              "part_restocked": "Ersatzteil aufgefüllt",
-              "asset_created": "Gerät hinzugefügt",
-              "asset_updated": "Gerät aktualisiert",
-              "asset_deleted": "Gerät gelöscht",
-              "asset_archived": "Gerät archiviert",
-              "asset_restored": "Gerät wiederhergestellt"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Ereignisse",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Ersatzteil mit niedrigem Bestand",
       "part_out_of_stock": "Ersatzteil nicht vorrätig",
       "part_restocked": "Ersatzteil aufgefüllt"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Aufgabe erstellt",
+      "description": "Löst aus, wenn eine Aufgabe erstellt wird."
+    },
+    "task_updated": {
+      "name": "Aufgabe aktualisiert",
+      "description": "Löst aus, wenn sich eine Aufgabe ändert."
+    },
+    "task_deleted": {
+      "name": "Aufgabe gelöscht",
+      "description": "Löst aus, wenn eine Aufgabe gelöscht wird."
+    },
+    "task_completed": {
+      "name": "Aufgabe erledigt",
+      "description": "Löst aus, wenn eine Aufgabe erledigt wird."
+    },
+    "task_uncompleted": {
+      "name": "Erledigung entfernt",
+      "description": "Löst aus, wenn eine Erledigung einer Aufgabe entfernt wird."
+    },
+    "task_completion_updated": {
+      "name": "Erledigung aktualisiert",
+      "description": "Löst aus, wenn eine Erledigung einer Aufgabe bearbeitet wird."
+    },
+    "task_triggered": {
+      "name": "Aufgabe ausgelöst",
+      "description": "Löst aus, wenn eine ausgelöste Aufgabe oder eine Sensoraufgabe fällig wird."
+    },
+    "task_snoozed": {
+      "name": "Aufgabe zurückgestellt",
+      "description": "Löst aus, wenn eine Aufgabe zurückgestellt wird."
+    },
+    "task_skipped": {
+      "name": "Aufgabe übersprungen",
+      "description": "Löst aus, wenn eine Aufgabe übersprungen wird."
+    },
+    "task_due_today_set": {
+      "name": "Aufgabe auf heute gesetzt",
+      "description": "Löst aus, wenn eine Aufgabe auf heute fällig gesetzt wird."
+    },
+    "task_occurrence_moved": {
+      "name": "Aufgabentermin verschoben",
+      "description": "Löst aus, wenn sich ein Termin einer festen Aufgabe verschiebt."
+    },
+    "task_skip_updated": {
+      "name": "Überspringen aktualisiert",
+      "description": "Löst aus, wenn ein Überspringen einer Aufgabe bearbeitet wird."
+    },
+    "task_skip_removed": {
+      "name": "Überspringen entfernt",
+      "description": "Löst aus, wenn ein Überspringen einer Aufgabe entfernt wird."
+    },
+    "task_overdue": {
+      "name": "Aufgabe wurde überfällig",
+      "description": "Löst aus, wenn eine Aufgabe überfällig wird."
+    },
+    "task_due_soon": {
+      "name": "Aufgabe bald fällig",
+      "description": "Löst aus, wenn eine Aufgabe in 3 Tagen oder weniger fällig wird."
+    },
+    "part_low_stock": {
+      "name": "Ersatzteil mit niedrigem Bestand",
+      "description": "Löst aus, wenn der Bestand eines Ersatzteils auf die Nachbestellschwelle fällt."
+    },
+    "part_out_of_stock": {
+      "name": "Ersatzteil nicht vorrätig",
+      "description": "Löst aus, wenn der Bestand eines Ersatzteils 0 erreicht."
+    },
+    "part_restocked": {
+      "name": "Ersatzteil aufgefüllt",
+      "description": "Löst aus, wenn der Bestand eines Ersatzteils über die Nachbestellschwelle steigt."
+    },
+    "asset_created": {
+      "name": "Gerät hinzugefügt",
+      "description": "Löst aus, wenn ein Gerät hinzugefügt wird."
+    },
+    "asset_updated": {
+      "name": "Gerät aktualisiert",
+      "description": "Löst aus, wenn sich ein Gerät ändert."
+    },
+    "asset_deleted": {
+      "name": "Gerät gelöscht",
+      "description": "Löst aus, wenn ein Gerät gelöscht wird."
+    },
+    "asset_archived": {
+      "name": "Gerät archiviert",
+      "description": "Löst aus, wenn ein Gerät archiviert wird."
+    },
+    "asset_restored": {
+      "name": "Gerät wiederhergestellt",
+      "description": "Löst aus, wenn ein archiviertes Gerät wiederhergestellt wird."
+    },
+    "companion_connected": {
+      "name": "Companion verbunden",
+      "description": "Löst aus, wenn sich eine Companion-Integration verbindet."
+    },
+    "companion_suggested": {
+      "name": "Companion vorgeschlagen",
+      "description": "Löst aus, wenn Home Keeper eine Companion-Integration vorschlägt."
+    },
+    "declarative_companion_added": {
+      "name": "Deklarativer Companion hinzugefügt",
+      "description": "Löst aus, wenn ein deklarativer Companion hinzugefügt wird."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklarativer Companion aktualisiert",
+      "description": "Löst aus, wenn sich ein deklarativer Companion ändert."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklarativer Companion gelöscht",
+      "description": "Löst aus, wenn ein deklarativer Companion gelöscht wird."
+    },
+    "data_exported": {
+      "name": "Daten exportiert",
+      "description": "Löst aus, wenn Home Keeper Daten exportiert."
+    },
+    "data_imported": {
+      "name": "Daten importiert",
+      "description": "Löst aus, wenn Home Keeper Daten importiert."
     }
   },
   "exceptions": {

@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Home Keeper events",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Task created",
-              "task_updated": "Task updated",
-              "task_deleted": "Task deleted",
-              "task_completed": "Task completed",
-              "task_uncompleted": "Completion removed",
-              "task_completion_updated": "Completion updated",
-              "task_triggered": "Task triggered",
-              "task_snoozed": "Task snoozed",
-              "task_skipped": "Task skipped",
-              "task_due_today_set": "Task set due today",
-              "task_skip_updated": "Skip updated",
-              "task_skip_removed": "Skip removed",
-              "task_occurrence_moved": "Task occurrence moved",
-              "task_overdue": "Task became overdue",
-              "task_due_soon": "Task due soon",
-              "part_low_stock": "Spare part low on stock",
-              "part_out_of_stock": "Spare part out of stock",
-              "part_restocked": "Spare part restocked",
-              "asset_created": "Appliance added",
-              "asset_updated": "Appliance updated",
-              "asset_deleted": "Appliance deleted",
-              "asset_archived": "Appliance archived",
-              "asset_restored": "Appliance restored"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Events",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Spare part low on stock",
       "part_out_of_stock": "Spare part out of stock",
       "part_restocked": "Spare part restocked"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Task created",
+      "description": "Triggers when a task is created."
+    },
+    "task_updated": {
+      "name": "Task updated",
+      "description": "Triggers when a task changes."
+    },
+    "task_deleted": {
+      "name": "Task deleted",
+      "description": "Triggers when a task is deleted."
+    },
+    "task_completed": {
+      "name": "Task completed",
+      "description": "Triggers when a task is completed."
+    },
+    "task_uncompleted": {
+      "name": "Completion removed",
+      "description": "Triggers when a completion of a task is removed."
+    },
+    "task_completion_updated": {
+      "name": "Completion updated",
+      "description": "Triggers when a completion of a task is edited."
+    },
+    "task_triggered": {
+      "name": "Task triggered",
+      "description": "Triggers when a triggered task or a sensor task becomes due."
+    },
+    "task_snoozed": {
+      "name": "Task snoozed",
+      "description": "Triggers when a task is snoozed."
+    },
+    "task_skipped": {
+      "name": "Task skipped",
+      "description": "Triggers when a task is skipped."
+    },
+    "task_due_today_set": {
+      "name": "Task set due today",
+      "description": "Triggers when a task is set due today."
+    },
+    "task_occurrence_moved": {
+      "name": "Task occurrence moved",
+      "description": "Triggers when a date of a fixed task moves."
+    },
+    "task_skip_updated": {
+      "name": "Skip updated",
+      "description": "Triggers when a skip of a task is edited."
+    },
+    "task_skip_removed": {
+      "name": "Skip removed",
+      "description": "Triggers when a skip of a task is removed."
+    },
+    "task_overdue": {
+      "name": "Task became overdue",
+      "description": "Triggers when a task becomes overdue."
+    },
+    "task_due_soon": {
+      "name": "Task due soon",
+      "description": "Triggers when a task becomes due in 3 days or less."
+    },
+    "part_low_stock": {
+      "name": "Spare part low on stock",
+      "description": "Triggers when the stock of a part drops to its reorder threshold."
+    },
+    "part_out_of_stock": {
+      "name": "Spare part out of stock",
+      "description": "Triggers when the stock of a part reaches 0."
+    },
+    "part_restocked": {
+      "name": "Spare part restocked",
+      "description": "Triggers when the stock of a part rises above its reorder threshold."
+    },
+    "asset_created": {
+      "name": "Appliance added",
+      "description": "Triggers when an appliance is added."
+    },
+    "asset_updated": {
+      "name": "Appliance updated",
+      "description": "Triggers when an appliance changes."
+    },
+    "asset_deleted": {
+      "name": "Appliance deleted",
+      "description": "Triggers when an appliance is deleted."
+    },
+    "asset_archived": {
+      "name": "Appliance archived",
+      "description": "Triggers when an appliance is archived."
+    },
+    "asset_restored": {
+      "name": "Appliance restored",
+      "description": "Triggers when an archived appliance is restored."
+    },
+    "companion_connected": {
+      "name": "Companion connected",
+      "description": "Triggers when a companion integration connects."
+    },
+    "companion_suggested": {
+      "name": "Companion suggested",
+      "description": "Triggers when Home Keeper suggests a companion integration."
+    },
+    "declarative_companion_added": {
+      "name": "Declarative companion added",
+      "description": "Triggers when a declarative companion is added."
+    },
+    "declarative_companion_updated": {
+      "name": "Declarative companion updated",
+      "description": "Triggers when a declarative companion changes."
+    },
+    "declarative_companion_removed": {
+      "name": "Declarative companion deleted",
+      "description": "Triggers when a declarative companion is deleted."
+    },
+    "data_exported": {
+      "name": "Data exported",
+      "description": "Triggers when Home Keeper exports data."
+    },
+    "data_imported": {
+      "name": "Data imported",
+      "description": "Triggers when Home Keeper imports data."
     }
   },
   "exceptions": {

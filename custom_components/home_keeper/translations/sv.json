@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Home Keeper-händelser",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Uppgift skapad",
-              "task_updated": "Uppgift uppdaterad",
-              "task_deleted": "Uppgift borttagen",
-              "task_completed": "Uppgift slutförd",
-              "task_uncompleted": "Slutförande borttaget",
-              "task_completion_updated": "Slutförande uppdaterat",
-              "task_triggered": "Uppgift utlöst",
-              "task_snoozed": "Uppgift uppskjuten",
-              "task_skipped": "Uppgift överhoppad",
-              "task_due_today_set": "Uppgift satt till i dag",
-              "task_skip_updated": "Överhoppning uppdaterad",
-              "task_skip_removed": "Överhoppning borttagen",
-              "task_occurrence_moved": "Uppgiftstillfälle flyttat",
-              "task_overdue": "Uppgift blev försenad",
-              "task_due_soon": "Uppgift förfaller snart",
-              "part_low_stock": "Reservdel med lågt lagersaldo",
-              "part_out_of_stock": "Reservdel slut i lager",
-              "part_restocked": "Reservdel påfylld",
-              "asset_created": "Apparat tillagd",
-              "asset_updated": "Apparat uppdaterad",
-              "asset_deleted": "Apparat borttagen",
-              "asset_archived": "Apparat arkiverad",
-              "asset_restored": "Apparat återställd"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Händelser",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Reservdel med lågt lagersaldo",
       "part_out_of_stock": "Reservdel slut i lager",
       "part_restocked": "Reservdel påfylld"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Uppgift skapad",
+      "description": "Utlöses när en uppgift skapas."
+    },
+    "task_updated": {
+      "name": "Uppgift uppdaterad",
+      "description": "Utlöses när en uppgift ändras."
+    },
+    "task_deleted": {
+      "name": "Uppgift borttagen",
+      "description": "Utlöses när en uppgift tas bort."
+    },
+    "task_completed": {
+      "name": "Uppgift slutförd",
+      "description": "Utlöses när en uppgift slutförs."
+    },
+    "task_uncompleted": {
+      "name": "Slutförande borttaget",
+      "description": "Utlöses när ett slutförande av en uppgift tas bort."
+    },
+    "task_completion_updated": {
+      "name": "Slutförande uppdaterat",
+      "description": "Utlöses när ett slutförande av en uppgift redigeras."
+    },
+    "task_triggered": {
+      "name": "Uppgift utlöst",
+      "description": "Utlöses när en utlöst uppgift eller en sensoruppgift förfaller."
+    },
+    "task_snoozed": {
+      "name": "Uppgift uppskjuten",
+      "description": "Utlöses när en uppgift skjuts upp."
+    },
+    "task_skipped": {
+      "name": "Uppgift överhoppad",
+      "description": "Utlöses när en uppgift hoppas över."
+    },
+    "task_due_today_set": {
+      "name": "Uppgift satt till i dag",
+      "description": "Utlöses när en uppgift sätts att förfalla i dag."
+    },
+    "task_occurrence_moved": {
+      "name": "Uppgiftstillfälle flyttat",
+      "description": "Utlöses när ett datum för en fast uppgift flyttas."
+    },
+    "task_skip_updated": {
+      "name": "Överhoppning uppdaterad",
+      "description": "Utlöses när en överhoppning av en uppgift redigeras."
+    },
+    "task_skip_removed": {
+      "name": "Överhoppning borttagen",
+      "description": "Utlöses när en överhoppning av en uppgift tas bort."
+    },
+    "task_overdue": {
+      "name": "Uppgift blev försenad",
+      "description": "Utlöses när en uppgift blir försenad."
+    },
+    "task_due_soon": {
+      "name": "Uppgift förfaller snart",
+      "description": "Utlöses när en uppgift förfaller om 3 dagar eller mindre."
+    },
+    "part_low_stock": {
+      "name": "Reservdel med lågt lagersaldo",
+      "description": "Utlöses när lagersaldot för en reservdel sjunker till beställningsgränsen."
+    },
+    "part_out_of_stock": {
+      "name": "Reservdel slut i lager",
+      "description": "Utlöses när lagersaldot för en reservdel når 0."
+    },
+    "part_restocked": {
+      "name": "Reservdel påfylld",
+      "description": "Utlöses när lagersaldot för en reservdel stiger över beställningsgränsen."
+    },
+    "asset_created": {
+      "name": "Apparat tillagd",
+      "description": "Utlöses när en apparat läggs till."
+    },
+    "asset_updated": {
+      "name": "Apparat uppdaterad",
+      "description": "Utlöses när en apparat ändras."
+    },
+    "asset_deleted": {
+      "name": "Apparat borttagen",
+      "description": "Utlöses när en apparat tas bort."
+    },
+    "asset_archived": {
+      "name": "Apparat arkiverad",
+      "description": "Utlöses när en apparat arkiveras."
+    },
+    "asset_restored": {
+      "name": "Apparat återställd",
+      "description": "Utlöses när en arkiverad apparat återställs."
+    },
+    "companion_connected": {
+      "name": "Kompanjon ansluten",
+      "description": "Utlöses när en companion-integration ansluter."
+    },
+    "companion_suggested": {
+      "name": "Kompanjon föreslagen",
+      "description": "Utlöses när Home Keeper föreslår en companion-integration."
+    },
+    "declarative_companion_added": {
+      "name": "Deklarativ companion tillagd",
+      "description": "Utlöses när en deklarativ companion läggs till."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklarativ companion uppdaterad",
+      "description": "Utlöses när en deklarativ companion ändras."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklarativ companion borttagen",
+      "description": "Utlöses när en deklarativ companion tas bort."
+    },
+    "data_exported": {
+      "name": "Data exporterad",
+      "description": "Utlöses när Home Keeper exporterar data."
+    },
+    "data_imported": {
+      "name": "Data importerad",
+      "description": "Utlöses när Home Keeper importerar data."
     }
   },
   "exceptions": {

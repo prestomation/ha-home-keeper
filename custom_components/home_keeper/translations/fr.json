@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Événements Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Tâche créée",
-              "task_updated": "Tâche mise à jour",
-              "task_deleted": "Tâche supprimée",
-              "task_completed": "Tâche réalisée",
-              "task_uncompleted": "Réalisation supprimée",
-              "task_completion_updated": "Réalisation mise à jour",
-              "task_triggered": "Tâche déclenchée",
-              "task_snoozed": "Tâche reportée",
-              "task_skipped": "Tâche ignorée",
-              "task_due_today_set": "Tâche prévue aujourd'hui",
-              "task_skip_updated": "Omission mise à jour",
-              "task_skip_removed": "Omission supprimée",
-              "task_occurrence_moved": "Occurrence de tâche déplacée",
-              "task_overdue": "Tâche devenue en retard",
-              "task_due_soon": "Tâche bientôt due",
-              "part_low_stock": "Pièce de rechange en stock bas",
-              "part_out_of_stock": "Pièce de rechange en rupture de stock",
-              "part_restocked": "Pièce de rechange réapprovisionnée",
-              "asset_created": "Appareil ajouté",
-              "asset_updated": "Appareil mis à jour",
-              "asset_deleted": "Appareil supprimé",
-              "asset_archived": "Appareil archivé",
-              "asset_restored": "Appareil restauré"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Événements",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Pièce de rechange en stock bas",
       "part_out_of_stock": "Pièce de rechange en rupture de stock",
       "part_restocked": "Pièce de rechange réapprovisionnée"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Tâche créée",
+      "description": "Se déclenche quand une tâche est créée."
+    },
+    "task_updated": {
+      "name": "Tâche mise à jour",
+      "description": "Se déclenche quand une tâche change."
+    },
+    "task_deleted": {
+      "name": "Tâche supprimée",
+      "description": "Se déclenche quand une tâche est supprimée."
+    },
+    "task_completed": {
+      "name": "Tâche réalisée",
+      "description": "Se déclenche quand une tâche est réalisée."
+    },
+    "task_uncompleted": {
+      "name": "Réalisation supprimée",
+      "description": "Se déclenche quand une réalisation d'une tâche est supprimée."
+    },
+    "task_completion_updated": {
+      "name": "Réalisation mise à jour",
+      "description": "Se déclenche quand une réalisation d'une tâche est modifiée."
+    },
+    "task_triggered": {
+      "name": "Tâche déclenchée",
+      "description": "Se déclenche quand une tâche déclenchée ou une tâche de capteur devient due."
+    },
+    "task_snoozed": {
+      "name": "Tâche reportée",
+      "description": "Se déclenche quand une tâche est reportée."
+    },
+    "task_skipped": {
+      "name": "Tâche ignorée",
+      "description": "Se déclenche quand une tâche est ignorée."
+    },
+    "task_due_today_set": {
+      "name": "Tâche prévue aujourd'hui",
+      "description": "Se déclenche quand une tâche est prévue pour aujourd'hui."
+    },
+    "task_occurrence_moved": {
+      "name": "Occurrence de tâche déplacée",
+      "description": "Se déclenche quand une date d'une tâche fixe est déplacée."
+    },
+    "task_skip_updated": {
+      "name": "Omission mise à jour",
+      "description": "Se déclenche quand une omission d'une tâche est modifiée."
+    },
+    "task_skip_removed": {
+      "name": "Omission supprimée",
+      "description": "Se déclenche quand une omission d'une tâche est supprimée."
+    },
+    "task_overdue": {
+      "name": "Tâche devenue en retard",
+      "description": "Se déclenche quand une tâche devient en retard."
+    },
+    "task_due_soon": {
+      "name": "Tâche bientôt due",
+      "description": "Se déclenche quand une tâche devient due dans 3 jours ou moins."
+    },
+    "part_low_stock": {
+      "name": "Pièce de rechange en stock bas",
+      "description": "Se déclenche quand le stock d'une pièce descend à son seuil de réapprovisionnement."
+    },
+    "part_out_of_stock": {
+      "name": "Pièce de rechange en rupture de stock",
+      "description": "Se déclenche quand le stock d'une pièce atteint 0."
+    },
+    "part_restocked": {
+      "name": "Pièce de rechange réapprovisionnée",
+      "description": "Se déclenche quand le stock d'une pièce remonte au-dessus de son seuil de réapprovisionnement."
+    },
+    "asset_created": {
+      "name": "Appareil ajouté",
+      "description": "Se déclenche quand un appareil est ajouté."
+    },
+    "asset_updated": {
+      "name": "Appareil mis à jour",
+      "description": "Se déclenche quand un appareil change."
+    },
+    "asset_deleted": {
+      "name": "Appareil supprimé",
+      "description": "Se déclenche quand un appareil est supprimé."
+    },
+    "asset_archived": {
+      "name": "Appareil archivé",
+      "description": "Se déclenche quand un appareil est archivé."
+    },
+    "asset_restored": {
+      "name": "Appareil restauré",
+      "description": "Se déclenche quand un appareil archivé est restauré."
+    },
+    "companion_connected": {
+      "name": "Companion connecté",
+      "description": "Se déclenche quand une intégration companion se connecte."
+    },
+    "companion_suggested": {
+      "name": "Companion suggéré",
+      "description": "Se déclenche quand Home Keeper suggère une intégration companion."
+    },
+    "declarative_companion_added": {
+      "name": "Companion déclaratif ajouté",
+      "description": "Se déclenche quand un companion déclaratif est ajouté."
+    },
+    "declarative_companion_updated": {
+      "name": "Companion déclaratif mis à jour",
+      "description": "Se déclenche quand un companion déclaratif change."
+    },
+    "declarative_companion_removed": {
+      "name": "Companion déclaratif supprimé",
+      "description": "Se déclenche quand un companion déclaratif est supprimé."
+    },
+    "data_exported": {
+      "name": "Données exportées",
+      "description": "Se déclenche quand Home Keeper exporte des données."
+    },
+    "data_imported": {
+      "name": "Données importées",
+      "description": "Se déclenche quand Home Keeper importe des données."
     }
   },
   "exceptions": {

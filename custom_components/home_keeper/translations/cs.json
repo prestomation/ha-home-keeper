@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Události Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Úkol vytvořen",
-              "task_updated": "Úkol aktualizován",
-              "task_deleted": "Úkol smazán",
-              "task_completed": "Úkol dokončen",
-              "task_uncompleted": "Dokončení odebráno",
-              "task_completion_updated": "Dokončení upraveno",
-              "task_triggered": "Úkol spuštěn",
-              "task_snoozed": "Úkol odložen",
-              "task_skipped": "Úkol přeskočen",
-              "task_due_today_set": "Úkol nastaven na dnešek",
-              "task_skip_updated": "Přeskočení upraveno",
-              "task_skip_removed": "Přeskočení odebráno",
-              "task_occurrence_moved": "Výskyt úkolu přesunut",
-              "task_overdue": "Úkol se stal po termínu",
-              "task_due_soon": "Úkol brzy splatný",
-              "part_low_stock": "Náhradní díl s nízkou zásobou",
-              "part_out_of_stock": "Náhradní díl není skladem",
-              "part_restocked": "Náhradní díl doplněn",
-              "asset_created": "Spotřebič přidán",
-              "asset_updated": "Spotřebič aktualizován",
-              "asset_deleted": "Spotřebič smazán",
-              "asset_archived": "Spotřebič archivován",
-              "asset_restored": "Spotřebič obnoven"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Události",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Náhradní díl s nízkou zásobou",
       "part_out_of_stock": "Náhradní díl není skladem",
       "part_restocked": "Náhradní díl doplněn"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Úkol vytvořen",
+      "description": "Spustí se, když je vytvořen úkol."
+    },
+    "task_updated": {
+      "name": "Úkol aktualizován",
+      "description": "Spustí se, když se úkol změní."
+    },
+    "task_deleted": {
+      "name": "Úkol smazán",
+      "description": "Spustí se, když je úkol smazán."
+    },
+    "task_completed": {
+      "name": "Úkol dokončen",
+      "description": "Spustí se, když je úkol dokončen."
+    },
+    "task_uncompleted": {
+      "name": "Dokončení odebráno",
+      "description": "Spustí se, když je odebráno dokončení úkolu."
+    },
+    "task_completion_updated": {
+      "name": "Dokončení upraveno",
+      "description": "Spustí se, když je upraveno dokončení úkolu."
+    },
+    "task_triggered": {
+      "name": "Úkol spuštěn",
+      "description": "Spustí se, když se spouštěný nebo senzorový úkol stane splatným."
+    },
+    "task_snoozed": {
+      "name": "Úkol odložen",
+      "description": "Spustí se, když je úkol odložen."
+    },
+    "task_skipped": {
+      "name": "Úkol přeskočen",
+      "description": "Spustí se, když je úkol přeskočen."
+    },
+    "task_due_today_set": {
+      "name": "Úkol nastaven na dnešek",
+      "description": "Spustí se, když je úkol nastaven na dnešek."
+    },
+    "task_occurrence_moved": {
+      "name": "Výskyt úkolu přesunut",
+      "description": "Spustí se, když se posune datum pevného úkolu."
+    },
+    "task_skip_updated": {
+      "name": "Přeskočení upraveno",
+      "description": "Spustí se, když je upraveno přeskočení úkolu."
+    },
+    "task_skip_removed": {
+      "name": "Přeskočení odebráno",
+      "description": "Spustí se, když je odebráno přeskočení úkolu."
+    },
+    "task_overdue": {
+      "name": "Úkol se stal po termínu",
+      "description": "Spustí se, když je úkol po termínu."
+    },
+    "task_due_soon": {
+      "name": "Úkol brzy splatný",
+      "description": "Spustí se, když je úkol splatný do 3 dnů."
+    },
+    "part_low_stock": {
+      "name": "Náhradní díl s nízkou zásobou",
+      "description": "Spustí se, když zásoba dílu klesne na hranici pro doobjednání."
+    },
+    "part_out_of_stock": {
+      "name": "Náhradní díl není skladem",
+      "description": "Spustí se, když zásoba dílu dosáhne 0."
+    },
+    "part_restocked": {
+      "name": "Náhradní díl doplněn",
+      "description": "Spustí se, když zásoba dílu stoupne nad hranici pro doobjednání."
+    },
+    "asset_created": {
+      "name": "Spotřebič přidán",
+      "description": "Spustí se, když je přidán spotřebič."
+    },
+    "asset_updated": {
+      "name": "Spotřebič aktualizován",
+      "description": "Spustí se, když se spotřebič změní."
+    },
+    "asset_deleted": {
+      "name": "Spotřebič smazán",
+      "description": "Spustí se, když je spotřebič smazán."
+    },
+    "asset_archived": {
+      "name": "Spotřebič archivován",
+      "description": "Spustí se, když je spotřebič archivován."
+    },
+    "asset_restored": {
+      "name": "Spotřebič obnoven",
+      "description": "Spustí se, když je archivovaný spotřebič obnoven."
+    },
+    "companion_connected": {
+      "name": "Společník připojen",
+      "description": "Spustí se, když se připojí doprovodná integrace."
+    },
+    "companion_suggested": {
+      "name": "Společník navržen",
+      "description": "Spustí se, když Home Keeper navrhne doprovodnou integraci."
+    },
+    "declarative_companion_added": {
+      "name": "Deklarativní společník přidán",
+      "description": "Spustí se, když je přidán deklarativní companion."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklarativní společník aktualizován",
+      "description": "Spustí se, když se deklarativní companion změní."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklarativní společník smazán",
+      "description": "Spustí se, když je deklarativní companion smazán."
+    },
+    "data_exported": {
+      "name": "Data exportována",
+      "description": "Spustí se, když Home Keeper exportuje data."
+    },
+    "data_imported": {
+      "name": "Data importována",
+      "description": "Spustí se, když Home Keeper importuje data."
     }
   },
   "exceptions": {

@@ -1,0 +1,94 @@
+{
+  "triggers": {
+    "task_created": {
+      "trigger": "mdi:clipboard-plus-outline"
+    },
+    "task_updated": {
+      "trigger": "mdi:clipboard-edit-outline"
+    },
+    "task_deleted": {
+      "trigger": "mdi:clipboard-remove-outline"
+    },
+    "task_completed": {
+      "trigger": "mdi:clipboard-check-outline"
+    },
+    "task_uncompleted": {
+      "trigger": "mdi:undo"
+    },
+    "task_completion_updated": {
+      "trigger": "mdi:pencil-circle-outline"
+    },
+    "task_triggered": {
+      "trigger": "mdi:play-circle-outline"
+    },
+    "task_snoozed": {
+      "trigger": "mdi:sleep"
+    },
+    "task_skipped": {
+      "trigger": "mdi:skip-next"
+    },
+    "task_due_today_set": {
+      "trigger": "mdi:calendar-today"
+    },
+    "task_occurrence_moved": {
+      "trigger": "mdi:calendar-arrow-right"
+    },
+    "task_skip_updated": {
+      "trigger": "mdi:skip-next-circle-outline"
+    },
+    "task_skip_removed": {
+      "trigger": "mdi:skip-backward"
+    },
+    "task_overdue": {
+      "trigger": "mdi:alert-circle-outline"
+    },
+    "task_due_soon": {
+      "trigger": "mdi:clock-alert-outline"
+    },
+    "part_low_stock": {
+      "trigger": "mdi:package-down"
+    },
+    "part_out_of_stock": {
+      "trigger": "mdi:package-variant-remove"
+    },
+    "part_restocked": {
+      "trigger": "mdi:package-up"
+    },
+    "asset_created": {
+      "trigger": "mdi:plus-box-outline"
+    },
+    "asset_updated": {
+      "trigger": "mdi:pencil-box-outline"
+    },
+    "asset_deleted": {
+      "trigger": "mdi:delete-outline"
+    },
+    "asset_archived": {
+      "trigger": "mdi:archive-outline"
+    },
+    "asset_restored": {
+      "trigger": "mdi:archive-arrow-up-outline"
+    },
+    "companion_connected": {
+      "trigger": "mdi:link-variant"
+    },
+    "companion_suggested": {
+      "trigger": "mdi:lightbulb-on-outline"
+    },
+    "declarative_companion_added": {
+      "trigger": "mdi:file-plus-outline"
+    },
+    "declarative_companion_updated": {
+      "trigger": "mdi:file-edit-outline"
+    },
+    "declarative_companion_removed": {
+      "trigger": "mdi:file-remove-outline"
+    },
+    "data_exported": {
+      "trigger": "mdi:export"
+    },
+    "data_imported": {
+      "trigger": "mdi:import"
+    }
+  }
+}

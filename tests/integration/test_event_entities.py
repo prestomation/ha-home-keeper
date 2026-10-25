@@ -1,20 +1,21 @@
-"""Integration tests for the event entities against a real HA container.
+"""Integration tests for the global event entity against a real HA container.
 
-The fixture's garage water heater is a virtual appliance with an attached task
-("Replace Anode rod") and stocked parts. Its device gets a Home Keeper events
-entity, and the Home Keeper service device gets the global entity. The tests run
-services and read the entity states over REST. On Home Assistant 2026.7 or later,
-the ``event_trigger_automation`` fixture also adds an automation with the Event
-received trigger on the water heater entity. It writes what it saw to
-``input_text.hk_last_event_entity_event``. Older versions have no such trigger, so the
-tests skip that one check and keep every entity check.
+The Home Keeper service device has 1 event entity, ``event.home_keeper_events``.
+It gets every bus event that has a payload. No other device gets an event entity.
+The tests run services and read the entity state over REST. On Home Assistant
+2026.7 or later, the ``event_trigger_automation`` fixture also adds an automation
+with the Event received trigger on the global entity. It writes what it saw to
+``input_text.hk_last_event_entity_event``. Older versions have no such trigger, so
+the tests skip that one check and keep every entity check.
 """
 
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
+import yaml
 from conftest import HA_URL, call_service, get_state
 from ha_registry import device_registry, entity_registry, has_identifier
 from packaging.version import Version
@@ -45,7 +46,7 @@ def event_trigger_automation(ha):
         "triggers": [
             {
                 "trigger": "event.received",
-                "target": {"entity_id": "event.garage_water_heater_home_keeper_events"},
+                "target": {"entity_id": GLOBAL},
                 "options": {"event_type": ["task_completed", "part_low_stock"]},
             }
         ],
@@ -85,15 +86,15 @@ def _water_heater(ha):
     return next(a for a in _assets(ha) if a["name"] == "Garage water heater")
 
 
-def _device_entity(ha, device_id: str) -> dict:
-    uid = f"home_keeper_device_{device_id}_events"
-    matches = [
-        e
-        for e in entity_registry(ha)
-        if e["platform"] == "home_keeper" and e["unique_id"] == uid
-    ]
-    assert len(matches) == 1, f"no event entity for {device_id}"
-    return matches[0]
+def _payload_event_types() -> set[str]:
+    """Each event with a payload, from the trigger list that the model writes."""
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "triggers.yaml"
+    )
+    return {key for key in yaml.safe_load(path.read_text()) if key[0] != "."}
 
 
 def _wait_for(ha, entity_id, check, timeout=20):
@@ -107,35 +108,30 @@ def _wait_for(ha, entity_id, check, timeout=20):
     raise AssertionError(f"{entity_id} did not match in time; last state: {state}")
 
 
-def test_event_entities_exist_on_the_right_devices(ha):
-    heater = _water_heater(ha)
-    entry = _device_entity(ha, heater["device_id"])
-    assert entry["device_id"] == heater["device_id"]
-    assert entry["entity_id"] == "event.garage_water_heater_home_keeper_events"
-
-    state = get_state(ha, entry["entity_id"])
-    types = state["attributes"]["event_types"]
-    assert "task_completed" in types
-    assert "part_low_stock" in types
-    assert "asset_archived" in types
-    assert "companion_connected" not in types
-
-    glob = get_state(ha, GLOBAL)
-    assert glob is not None
-    assert "companion_connected" in glob["attributes"]["event_types"]
-    assert "task_created" in glob["attributes"]["event_types"]
+def test_only_the_global_event_entity_exists(ha):
+    events = [
+        e
+        for e in entity_registry(ha)
+        if e["platform"] == "home_keeper" and e["entity_id"].startswith("event.")
+    ]
+    assert [e["entity_id"] for e in events] == [GLOBAL]
     service_device = next(
         d for d in device_registry(ha) if has_identifier(d, "home_keeper", "service")
     )
-    glob_entry = next(e for e in entity_registry(ha) if e["entity_id"] == GLOBAL)
-    assert glob_entry["device_id"] == service_device["id"]
+    assert events[0]["device_id"] == service_device["id"]
+    assert events[0]["unique_id"] == "home_keeper_events"
 
 
-def test_a_completion_reaches_the_device_entity_and_the_global_entity(
-    ha, event_trigger_automation
-):
+def test_global_entity_mirrors_every_event_with_a_payload(ha):
+    glob = get_state(ha, GLOBAL)
+    assert glob is not None
+    assert set(glob["attributes"]["event_types"]) == _payload_event_types()
+    assert "register_companions" not in glob["attributes"]["event_types"]
+
+
+def test_a_completion_reaches_the_global_entity(ha, event_trigger_automation):
     heater = _water_heater(ha)
-    entity_id = _device_entity(ha, heater["device_id"])["entity_id"]
+    entity_id = GLOBAL
     task = next(t for t in _tasks(ha) if t["name"].startswith("Replace Anode rod"))
     before = get_state(ha, entity_id)["state"]
 
@@ -161,16 +157,6 @@ def test_a_completion_reaches_the_device_entity_and_the_global_entity(
     assert "note" not in attrs
     assert "source" not in attrs
 
-    glob = _wait_for(
-        ha,
-        GLOBAL,
-        lambda s: (
-            s["attributes"].get("event_type") == "task_completed"
-            and s["attributes"].get("task_id") == task["id"]
-        ),
-    )
-    assert glob["attributes"]["origin"] == "event_entity_test"
-
     if event_trigger_automation:
         # The automation with the Event received trigger ran.
         _wait_for(ha, CAPTURE, lambda s: s["state"] == f"task_completed:{task['id']}")
@@ -186,10 +172,7 @@ def test_a_completion_reaches_the_device_entity_and_the_global_entity(
     )
 
 
-def test_a_standalone_task_reaches_only_the_global_entity(ha):
-    heater = _water_heater(ha)
-    entity_id = _device_entity(ha, heater["device_id"])["entity_id"]
-    before = get_state(ha, entity_id)["state"]
+def test_a_standalone_task_reaches_the_global_entity(ha):
     task = next(t for t in _tasks(ha) if not t.get("device_id") and t.get("enabled"))
 
     call_service(ha, "home_keeper", "skip_task", {"task_id": task["id"]})
@@ -201,12 +184,11 @@ def test_a_standalone_task_reaches_only_the_global_entity(ha):
             and s["attributes"].get("task_id") == task["id"]
         ),
     )
-    assert get_state(ha, entity_id)["state"] == before
 
 
-def test_a_stock_crossing_reaches_the_appliance_entity(ha, event_trigger_automation):
+def test_a_stock_crossing_reaches_the_global_entity(ha, event_trigger_automation):
     heater = _water_heater(ha)
-    entity_id = _device_entity(ha, heater["device_id"])["entity_id"]
+    entity_id = GLOBAL
     part = next(p for p in heater["parts"] if p["name"] == "Sediment pre-filter")
     start = part["stock"]
     assert start > part["reorder_at"], "the fixture part must start above its threshold"

@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Eventi di Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Attività creata",
-              "task_updated": "Attività aggiornata",
-              "task_deleted": "Attività eliminata",
-              "task_completed": "Attività completata",
-              "task_uncompleted": "Completamento rimosso",
-              "task_completion_updated": "Completamento aggiornato",
-              "task_triggered": "Attività attivata",
-              "task_snoozed": "Attività posposta",
-              "task_skipped": "Attività saltata",
-              "task_due_today_set": "Attività in scadenza oggi",
-              "task_skip_updated": "Salto aggiornato",
-              "task_skip_removed": "Salto rimosso",
-              "task_occurrence_moved": "Occorrenza dell'attività spostata",
-              "task_overdue": "Attività diventata scaduta",
-              "task_due_soon": "Attività in scadenza",
-              "part_low_stock": "Ricambio con scorte basse",
-              "part_out_of_stock": "Ricambio esaurito",
-              "part_restocked": "Ricambio rifornito",
-              "asset_created": "Elettrodomestico aggiunto",
-              "asset_updated": "Elettrodomestico aggiornato",
-              "asset_deleted": "Elettrodomestico eliminato",
-              "asset_archived": "Elettrodomestico archiviato",
-              "asset_restored": "Elettrodomestico ripristinato"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Eventi",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Ricambio con scorte basse",
       "part_out_of_stock": "Ricambio esaurito",
       "part_restocked": "Ricambio rifornito"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Attività creata",
+      "description": "Si attiva quando viene creata un'attività."
+    },
+    "task_updated": {
+      "name": "Attività aggiornata",
+      "description": "Si attiva quando un'attività cambia."
+    },
+    "task_deleted": {
+      "name": "Attività eliminata",
+      "description": "Si attiva quando viene eliminata un'attività."
+    },
+    "task_completed": {
+      "name": "Attività completata",
+      "description": "Si attiva quando viene completata un'attività."
+    },
+    "task_uncompleted": {
+      "name": "Completamento rimosso",
+      "description": "Si attiva quando viene rimosso un completamento di un'attività."
+    },
+    "task_completion_updated": {
+      "name": "Completamento aggiornato",
+      "description": "Si attiva quando viene modificato un completamento di un'attività."
+    },
+    "task_triggered": {
+      "name": "Attività attivata",
+      "description": "Si attiva quando un'attività attivata o un'attività da sensore diventa in scadenza."
+    },
+    "task_snoozed": {
+      "name": "Attività posposta",
+      "description": "Si attiva quando un'attività viene posticipata."
+    },
+    "task_skipped": {
+      "name": "Attività saltata",
+      "description": "Si attiva quando un'attività viene saltata."
+    },
+    "task_due_today_set": {
+      "name": "Attività in scadenza oggi",
+      "description": "Si attiva quando un'attività viene impostata in scadenza oggi."
+    },
+    "task_occurrence_moved": {
+      "name": "Occorrenza dell'attività spostata",
+      "description": "Si attiva quando una data di un'attività fissa viene spostata."
+    },
+    "task_skip_updated": {
+      "name": "Salto aggiornato",
+      "description": "Si attiva quando viene modificato un salto di un'attività."
+    },
+    "task_skip_removed": {
+      "name": "Salto rimosso",
+      "description": "Si attiva quando viene rimosso un salto di un'attività."
+    },
+    "task_overdue": {
+      "name": "Attività diventata scaduta",
+      "description": "Si attiva quando un'attività diventa scaduta."
+    },
+    "task_due_soon": {
+      "name": "Attività in scadenza",
+      "description": "Si attiva quando un'attività scade entro 3 giorni."
+    },
+    "part_low_stock": {
+      "name": "Ricambio con scorte basse",
+      "description": "Si attiva quando la scorta di un ricambio scende alla soglia di riordino."
+    },
+    "part_out_of_stock": {
+      "name": "Ricambio esaurito",
+      "description": "Si attiva quando la scorta di un ricambio arriva a 0."
+    },
+    "part_restocked": {
+      "name": "Ricambio rifornito",
+      "description": "Si attiva quando la scorta di un ricambio risale sopra la soglia di riordino."
+    },
+    "asset_created": {
+      "name": "Elettrodomestico aggiunto",
+      "description": "Si attiva quando viene aggiunto un elettrodomestico."
+    },
+    "asset_updated": {
+      "name": "Elettrodomestico aggiornato",
+      "description": "Si attiva quando un elettrodomestico cambia."
+    },
+    "asset_deleted": {
+      "name": "Elettrodomestico eliminato",
+      "description": "Si attiva quando viene eliminato un elettrodomestico."
+    },
+    "asset_archived": {
+      "name": "Elettrodomestico archiviato",
+      "description": "Si attiva quando viene archiviato un elettrodomestico."
+    },
+    "asset_restored": {
+      "name": "Elettrodomestico ripristinato",
+      "description": "Si attiva quando viene ripristinato un elettrodomestico archiviato."
+    },
+    "companion_connected": {
+      "name": "Companion connesso",
+      "description": "Si attiva quando si connette un'integrazione companion."
+    },
+    "companion_suggested": {
+      "name": "Companion suggerito",
+      "description": "Si attiva quando Home Keeper suggerisce un'integrazione companion."
+    },
+    "declarative_companion_added": {
+      "name": "Companion dichiarativo aggiunto",
+      "description": "Si attiva quando viene aggiunto un companion dichiarativo."
+    },
+    "declarative_companion_updated": {
+      "name": "Companion dichiarativo aggiornato",
+      "description": "Si attiva quando un companion dichiarativo cambia."
+    },
+    "declarative_companion_removed": {
+      "name": "Companion dichiarativo eliminato",
+      "description": "Si attiva quando viene eliminato un companion dichiarativo."
+    },
+    "data_exported": {
+      "name": "Dati esportati",
+      "description": "Si attiva quando Home Keeper esporta i dati."
+    },
+    "data_imported": {
+      "name": "Dati importati",
+      "description": "Si attiva quando Home Keeper importa i dati."
     }
   },
   "exceptions": {

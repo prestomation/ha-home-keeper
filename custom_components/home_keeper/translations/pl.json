@@ -1181,38 +1181,6 @@
       }
     },
     "event": {
-      "device_events": {
-        "name": "Zdarzenia Home Keeper",
-        "state_attributes": {
-          "event_type": {
-            "state": {
-              "task_created": "Zadanie utworzone",
-              "task_updated": "Zadanie zaktualizowane",
-              "task_deleted": "Zadanie usunięte",
-              "task_completed": "Zadanie ukończone",
-              "task_uncompleted": "Wykonanie usunięte",
-              "task_completion_updated": "Wykonanie zaktualizowane",
-              "task_triggered": "Zadanie wyzwolone",
-              "task_snoozed": "Zadanie odłożone",
-              "task_skipped": "Zadanie pominięte",
-              "task_due_today_set": "Zadanie ustawione na dziś",
-              "task_skip_updated": "Pominięcie zaktualizowane",
-              "task_skip_removed": "Pominięcie usunięte",
-              "task_occurrence_moved": "Termin zadania przeniesiony",
-              "task_overdue": "Zadanie stało się zaległe",
-              "task_due_soon": "Termin zadania zbliża się",
-              "part_low_stock": "Niski stan części zapasowej",
-              "part_out_of_stock": "Brak części zapasowej na stanie",
-              "part_restocked": "Część zapasowa uzupełniona",
-              "asset_created": "Urządzenie dodane",
-              "asset_updated": "Urządzenie zaktualizowane",
-              "asset_deleted": "Urządzenie usunięte",
-              "asset_archived": "Urządzenie zarchiwizowane",
-              "asset_restored": "Urządzenie przywrócone"
-            }
-          }
-        }
-      },
       "home_keeper_events": {
         "name": "Zdarzenia",
         "state_attributes": {
@@ -1266,6 +1234,128 @@
       "part_low_stock": "Niski stan części zapasowej",
       "part_out_of_stock": "Brak części zapasowej na stanie",
       "part_restocked": "Część zapasowa uzupełniona"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Zadanie utworzone",
+      "description": "Uruchamia się, gdy zadanie zostanie utworzone."
+    },
+    "task_updated": {
+      "name": "Zadanie zaktualizowane",
+      "description": "Uruchamia się, gdy zadanie się zmieni."
+    },
+    "task_deleted": {
+      "name": "Zadanie usunięte",
+      "description": "Uruchamia się, gdy zadanie zostanie usunięte."
+    },
+    "task_completed": {
+      "name": "Zadanie ukończone",
+      "description": "Uruchamia się, gdy zadanie zostanie ukończone."
+    },
+    "task_uncompleted": {
+      "name": "Wykonanie usunięte",
+      "description": "Uruchamia się, gdy wykonanie zadania zostanie usunięte."
+    },
+    "task_completion_updated": {
+      "name": "Wykonanie zaktualizowane",
+      "description": "Uruchamia się, gdy wykonanie zadania zostanie zmienione."
+    },
+    "task_triggered": {
+      "name": "Zadanie wyzwolone",
+      "description": "Uruchamia się, gdy zadanie wyzwalane lub zadanie czujnika stanie się należne."
+    },
+    "task_snoozed": {
+      "name": "Zadanie odłożone",
+      "description": "Uruchamia się, gdy zadanie zostanie odłożone."
+    },
+    "task_skipped": {
+      "name": "Zadanie pominięte",
+      "description": "Uruchamia się, gdy zadanie zostanie pominięte."
+    },
+    "task_due_today_set": {
+      "name": "Zadanie ustawione na dziś",
+      "description": "Uruchamia się, gdy zadanie zostanie ustawione na dziś."
+    },
+    "task_occurrence_moved": {
+      "name": "Termin zadania przeniesiony",
+      "description": "Uruchamia się, gdy data stałego zadania zostanie przeniesiona."
+    },
+    "task_skip_updated": {
+      "name": "Pominięcie zaktualizowane",
+      "description": "Uruchamia się, gdy pominięcie zadania zostanie zmienione."
+    },
+    "task_skip_removed": {
+      "name": "Pominięcie usunięte",
+      "description": "Uruchamia się, gdy pominięcie zadania zostanie usunięte."
+    },
+    "task_overdue": {
+      "name": "Zadanie stało się zaległe",
+      "description": "Uruchamia się, gdy zadanie stanie się zaległe."
+    },
+    "task_due_soon": {
+      "name": "Termin zadania zbliża się",
+      "description": "Uruchamia się, gdy termin zadania przypada za 3 dni lub wcześniej."
+    },
+    "part_low_stock": {
+      "name": "Niski stan części zapasowej",
+      "description": "Uruchamia się, gdy stan części spadnie do progu zamówienia."
+    },
+    "part_out_of_stock": {
+      "name": "Brak części zapasowej na stanie",
+      "description": "Uruchamia się, gdy stan części osiągnie 0."
+    },
+    "part_restocked": {
+      "name": "Część zapasowa uzupełniona",
+      "description": "Uruchamia się, gdy stan części wzrośnie powyżej progu zamówienia."
+    },
+    "asset_created": {
+      "name": "Urządzenie dodane",
+      "description": "Uruchamia się, gdy urządzenie zostanie dodane."
+    },
+    "asset_updated": {
+      "name": "Urządzenie zaktualizowane",
+      "description": "Uruchamia się, gdy urządzenie się zmieni."
+    },
+    "asset_deleted": {
+      "name": "Urządzenie usunięte",
+      "description": "Uruchamia się, gdy urządzenie zostanie usunięte."
+    },
+    "asset_archived": {
+      "name": "Urządzenie zarchiwizowane",
+      "description": "Uruchamia się, gdy urządzenie zostanie zarchiwizowane."
+    },
+    "asset_restored": {
+      "name": "Urządzenie przywrócone",
+      "description": "Uruchamia się, gdy zarchiwizowane urządzenie zostanie przywrócone."
+    },
+    "companion_connected": {
+      "name": "Towarzysz połączony",
+      "description": "Uruchamia się, gdy połączy się integracja towarzysząca."
+    },
+    "companion_suggested": {
+      "name": "Towarzysz zasugerowany",
+      "description": "Uruchamia się, gdy Home Keeper zasugeruje integrację towarzyszącą."
+    },
+    "declarative_companion_added": {
+      "name": "Deklaratywny towarzysz dodany",
+      "description": "Uruchamia się, gdy deklaratywny towarzysz zostanie dodany."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklaratywny towarzysz zaktualizowany",
+      "description": "Uruchamia się, gdy deklaratywny towarzysz się zmieni."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklaratywny towarzysz usunięty",
+      "description": "Uruchamia się, gdy deklaratywny towarzysz zostanie usunięty."
+    },
+    "data_exported": {
+      "name": "Dane wyeksportowane",
+      "description": "Uruchamia się, gdy Home Keeper wyeksportuje dane."
+    },
+    "data_imported": {
+      "name": "Dane zaimportowane",
+      "description": "Uruchamia się, gdy Home Keeper zaimportuje dane."
     }
   },
   "exceptions": {

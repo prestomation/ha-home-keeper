@@ -47,7 +47,7 @@ import {
   openSettingsSection,
   openTaskTab,
 } from './tests/helpers';
-import { HEATER_EVENTS, deviceIdOf, openEventReceivedTrigger } from './event-trigger';
+import { openAddTrigger, searchTriggers, showDeviceTriggers } from './automation-triggers';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import { DESKTOP, PHONE, Viewport } from './viewports';
@@ -1354,17 +1354,14 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
 
-  // 7d. Event entities (#415). The water heater's device has a Home Keeper events
-  //     entity, so Home Assistant's own Event received trigger can target the device
-  //     and pick from Home Keeper's event types by name. Hold on the filled trigger,
-  //     then open the list of types: that list is what the entity adds.
-  await openEventReceivedTrigger(page, await deviceIdOf(page, HEATER_EVENTS), [
-    'task_completed',
-    'task_overdue',
-  ]);
+  // 7d. Home Keeper triggers (#415). Home Assistant's own Add trigger dialog lists
+  //     the Home Keeper triggers by name. Hold on the search for "overdue", then on
+  //     the triggers of the water heater device under By target.
+  let addTrigger = await openAddTrigger(page);
+  await searchTriggers(addTrigger, 'overdue');
   await page.waitForTimeout(BEAT * 3);
-  await page.getByText('Event type', { exact: true }).last().click();
-  await expect(page.getByText('Spare part low on stock').first()).toBeVisible();
+  addTrigger = await openAddTrigger(page);
+  await showDeviceTriggers(addTrigger, 'Garage water heater');
   await page.waitForTimeout(BEAT * 3);
   await page.keyboard.press('Escape');
 

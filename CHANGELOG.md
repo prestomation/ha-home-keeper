@@ -10,10 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **[Event entities](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).**
-  Each device that has a Home Keeper task or appliance now has an event entity, and 1 more
-  entity gets all Home Keeper events. In the automation editor, use the Event received
-  trigger and select a device, area or label. (Fixes #415)
+- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
+  Add trigger lists a Home Keeper trigger for each event by target, by type and in its
+  search, such as Task became overdue. Select a device, area, label or task entity as the
+  target, also a device of another integration. (Fixes #415)
 
 ## [0.33.0b5]
 
