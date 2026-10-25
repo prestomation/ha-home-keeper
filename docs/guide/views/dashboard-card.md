@@ -20,6 +20,8 @@ The card editor has these options:
 - Filter by status, area, device, label, recurrence type, a "due within N days"
   window, or a saved [Profile](./profiles.md).
 - Sort and group the tasks, and limit the number of rows.
+- When the card uses a Profile, the Profile decides the status, areas, devices and labels.
+  **Limit to labels** still removes the tasks that do not match the labels you select.
 - Select what each row shows.
 - **Hide card when empty** removes the card from the dashboard when the filter matches
   no task. Without it the card shows "No tasks match this filter."

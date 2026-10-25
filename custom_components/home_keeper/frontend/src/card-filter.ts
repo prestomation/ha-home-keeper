@@ -67,7 +67,8 @@ export interface HomeKeeperCardConfig {
   devices?: string[];
   /** Show only tasks matching this saved **profile** (id or name). When set, the
    *  profile's filter (status + labels/areas/devices) decides which tasks show; the
-   *  card's own labels/areas/devices/filter fields are ignored. See profileMatches. */
+   *  card's own areas/devices/filter fields are ignored. The card's own `labels` (with
+   *  `label_match`) still narrow the result. See profileMatches. */
   profile?: string;
   /** Restrict to tasks carrying these HA labels — on the task itself, its device,
    *  or its effective area. The backbone of per-subject cards (one per dog/car/kid). */
@@ -614,6 +615,25 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
 }
 
 /**
+ * Whether *task* passes the card's own **Limit to labels** setting. No labels set
+ * passes every task. `filterTasks` and a profile card both use it, so the setting
+ * narrows a profile result the same way it narrows a plain card.
+ */
+export function matchesCardLabels(
+  task: Task,
+  config: HomeKeeperCardConfig,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+): boolean {
+  if (!config.labels?.length) return true;
+  return matchesLabels(
+    taskLabelIds(task, devices, areas),
+    new Set(config.labels),
+    config.label_match === 'all' ? 'all' : 'any',
+  );
+}
+
+/**
  * Apply every configured filter, returning the surviving tasks (unsorted).
  *
  * `areas` is the HA area registry (passed last to stay backward-compatible with
@@ -629,8 +649,6 @@ export function filterTasks(
 ): Task[] {
   const areaSet = config.areas?.length ? new Set(config.areas) : null;
   const devSet = config.devices?.length ? new Set(config.devices) : null;
-  const labelSet = config.labels?.length ? new Set(config.labels) : null;
-  const labelMode = config.label_match === 'all' ? 'all' : 'any';
   const recTypes = config.recurrence_types?.length ? new Set(config.recurrence_types) : null;
   const filter = config.filter ?? 'all';
   const horizon = Math.max(0, Number(config.horizon_days) || 0);
@@ -647,8 +665,7 @@ export function filterTasks(
     if (config.hide_managed && task.managed_by) return false;
     if (areaSet && !areaSet.has(taskAreaId(task, devices) ?? '')) return false;
     if (devSet && !devSet.has(task.device_id ?? '')) return false;
-    if (labelSet && !matchesLabels(taskLabelIds(task, devices, areas), labelSet, labelMode))
-      return false;
+    if (!matchesCardLabels(task, config, devices, areas)) return false;
     if (recTypes && !recTypes.has(task.recurrence_type)) return false;
     if (!matchesFilter(task, filter, now)) return false;
     if (horizonCutoff) {
