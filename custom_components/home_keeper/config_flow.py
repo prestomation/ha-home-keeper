@@ -31,7 +31,10 @@ from homeassistant.helpers import selector
 from . import options
 from .const import (
     DOMAIN,
+    DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
+    OPTION_DUE_TIME,
+    OPTION_DUE_TIME_MODE,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
@@ -131,6 +134,21 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                     translation_key=OPTION_SHOPPING_LINE_STYLE,
                 )
             ),
+            # When a floating task is due: at the completion time, or at 1 set
+            # local time on its date (#438).
+            vol.Optional(
+                OPTION_DUE_TIME_MODE,
+                default=current[OPTION_DUE_TIME_MODE],
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(DUE_TIME_MODES),
+                    mode=selector.SelectSelectorMode.LIST,
+                    translation_key=OPTION_DUE_TIME_MODE,
+                )
+            ),
+            vol.Optional(
+                OPTION_DUE_TIME, default=current[OPTION_DUE_TIME]
+            ): selector.TimeSelector(),
         }
     )
 

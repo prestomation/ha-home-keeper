@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Wykluczone etykiety",
           "one_off_retention_days": "Przechowywanie jednorazowych (dni)",
           "shopping_list_entity": "Lista zakupów",
-          "shopping_line_style": "Tekst na liście zakupów"
+          "shopping_line_style": "Tekst na liście zakupów",
+          "due_time_mode": "Godzina terminu",
+          "due_time": "Stała godzina terminu"
         },
         "data_description": {
           "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
           "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze.",
           "shopping_list_entity": "Synchronizuje automatyczne przypomnienia o zakupie z tą listą zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć synchronizację.",
-          "shopping_line_style": "Jak przypomnienie o zakupie wygląda na liście zakupów. „Tylko produkt” pokazuje nazwę części bez czasownika, na przykład „Płyn do płukania” zamiast „Kup płyn do płukania”."
+          "shopping_line_style": "Jak przypomnienie o zakupie wygląda na liście zakupów. „Tylko produkt” pokazuje nazwę części bez czasownika, na przykład „Płyn do płukania” zamiast „Kup płyn do płukania”.",
+          "due_time_mode": "Kiedy przypada termin zadania, które powtarza się po każdym wykonaniu. Przy stałej godzinie termin zadania przypada o tej godzinie w dniu terminu. Odłożenie też kończy się o tej godzinie.",
+          "due_time": "Godzina lokalna, o której przypada termin tych zadań. Używana tylko przy stałej godzinie."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Częstotliwość",
           "description": "Dla zadań fixed: DAILY, WEEKLY lub MONTHLY."
+        },
+        "rrule": {
+          "name": "Reguła",
+          "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
         },
         "anchor": {
           "name": "Kotwica",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Częstotliwość",
           "description": "DAILY, WEEKLY lub MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Reguła",
+          "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
         },
         "anchor": {
           "name": "Kotwica",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Inicjator",
           "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_due_today_set, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować przyspieszenie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Przenieś jeden termin",
+      "description": "Przenosi jeden termin harmonogramu zadania stałego na nową datę i godzinę. Pozostałe terminy się nie zmieniają. Aby cofnąć przeniesienie, przenieś termin z powrotem na pierwotną godzinę.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania. Działa też jego nazwa. Panel pokazuje identyfikator."
+        },
+        "occurrence": {
+          "name": "Termin",
+          "description": "Data i godzina w harmonogramie, które mają zostać przeniesione."
+        },
+        "to": {
+          "name": "Nowy termin",
+          "description": "Nowa data i godzina. Musi być w przyszłości."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w dowolnej formie zwracany w zdarzeniu home_keeper_task_occurrence_moved, aby integracja współpracująca mogła rozpoznać i zignorować wywołaną przez siebie zmianę (zapobieganie pętlom). Home Keeper nigdy go nie interpretuje."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Uwzględnij",
-          "description": "Które sekcje wyeksportować. Domyślnie obie."
+          "description": "Które sekcje wyeksportować: urządzenia, zadania, ustawienia lub domena towarzysza. Domyślnie wszystkie."
+        },
+        "kind": {
+          "name": "Rodzaj",
+          "description": "\"data\" zwraca dokument YAML. \"bundle\" zapisuje plik zip z przesłanymi plikami i ustawieniami w folderze home_keeper_exports i zwraca jego ścieżkę."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokument do odczytania, w postaci zwracanej przez export_data. Podaj go jako mapowanie albo jako cały plik w jednym ciągu znaków."
         },
+        "bundle": {
+          "name": "Pakiet",
+          "description": "Nazwa pliku pakietu w folderze home_keeper_exports. Użyj jej zamiast dokumentu."
+        },
         "dry_run": {
           "name": "Tylko podgląd",
           "description": "Sprawdza dokument i zgłasza, co by się zmieniło, bez zapisywania czegokolwiek."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Dopasowanie",
           "description": "Jak odnaleźć wskazany wpis. \"auto\" szuka po id, potem external_id, potem po nazwie. \"none\" tworzy każdy wpis od nowa."
+        },
+        "include_settings": {
+          "name": "Uwzględnij ustawienia",
+          "description": "Importuje także profile, powiadomienia i opcje z dokumentu."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Tekst na liście zakupów",
           "description": "Jak przypomnienie o zakupie wygląda na liście zakupów. with_verb (domyślnie) pokazuje nazwę przypomnienia, na przykład „Kup płyn do płukania”. product_only pokazuje tylko nazwę części."
         },
+        "due_time_mode": {
+          "name": "Godzina terminu",
+          "description": "Kiedy przypada termin zadania, które powtarza się po każdym wykonaniu. completion (domyślnie) zachowuje godzinę ostatniego wykonania, odłożenia lub pominięcia. set_time ustawia termin na due_time w dniu terminu."
+        },
+        "due_time": {
+          "name": "Stała godzina terminu",
+          "description": "Godzina lokalna (HH:MM) dla set_time. Domyślnie 08:00."
+        },
         "dismissed_companions": {
           "name": "Odrzuceni towarzysze",
           "description": "Domeny integracji łączących do ukrycia z listy „Sugerowane” w Ustawienia → Towarzysze. Odrzucenie jedynie wycisza sugestię; połączone powiązanie jest zawsze wyświetlane."
+        },
+        "hidden_panel_tabs": {
+          "name": "Ukryte karty panelu",
+          "description": "Identyfikatory kart integracji towarzyszących, których panel nie pokazuje."
+        },
+        "cost_windows": {
+          "name": "Okresy wydatków (dni)",
+          "description": "Okresy sum wydatków na konserwację w dniach. Od 1 do 4 liczb od 1 do 3650. Każdy okres ma czujnik."
+        },
+        "cost_summary_panel": {
+          "name": "Pokaż wydatki w panelu",
+          "description": "Pokazuje sumy wydatków nad listą zadań w panelu."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Usuń zdjęcie zadania",
+      "description": "Usuwa zdjęcie z zadania i kasuje jego plik. Dodawaj zdjęcia w panelu, ponieważ wywołanie usługi nie może przenieść pliku.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ustaw okładkę zadania",
+      "description": "Ustawia zdjęcie jako okładkę jego zadania. Okładka to pierwsze zdjęcie. Widać ją na liście zadań, na stronie zadania i w oknie wykonania.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Podpisz URL zdjęcia zadania",
+      "description": "Tworzy krótkotrwały URL (bez nagłówka uwierzytelniania), który zwraca bajty zdjęcia zadania, na przykład aby pokazać zdjęcie w powiadomieniu.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Podpisuje URL małej kopii, o długim boku najwyżej 256 pikseli."
+        }
+      }
+    },
     "update_skip": {
       "name": "Aktualizuj pominięcie",
       "description": "Zmienia szczegóły zapisanego pominięcia wskazanego znacznikiem czasu. Pominięcie zachowuje swoją datę, a harmonogram pozostaje nietknięty.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Z czasownikiem",
         "product_only": "Tylko produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Godzina wykonania",
+        "set_time": "Stała godzina"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Zadania z {profile}"
+      },
+      "spend_window": {
+        "name": "Wydatki na konserwację {days} dni"
+      },
+      "spend_all": {
+        "name": "Wydatki na konserwację łącznie"
+      },
+      "purchases_total": {
+        "name": "Zakupy urządzeń łącznie"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Zadanie ustawione na dziś",
               "task_skip_updated": "Pominięcie zaktualizowane",
               "task_skip_removed": "Pominięcie usunięte",
+              "task_occurrence_moved": "Termin zadania przeniesiony",
               "task_overdue": "Zadanie stało się zaległe",
               "task_due_soon": "Termin zadania zbliża się",
               "part_low_stock": "Niski stan części zapasowej",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Zadanie ustawione na dziś",
               "task_skip_updated": "Pominięcie zaktualizowane",
               "task_skip_removed": "Pominięcie usunięte",
+              "task_occurrence_moved": "Termin zadania przeniesiony",
               "task_overdue": "Zadanie stało się zaległe",
               "task_due_soon": "Termin zadania zbliża się",
               "part_low_stock": "Niski stan części zapasowej",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Towarzysz zasugerowany",
               "declarative_companion_added": "Deklaratywny towarzysz dodany",
               "declarative_companion_updated": "Deklaratywny towarzysz zaktualizowany",
-              "declarative_companion_removed": "Deklaratywny towarzysz usunięty"
+              "declarative_companion_removed": "Deklaratywny towarzysz usunięty",
+              "data_exported": "Dane wyeksportowane",
+              "data_imported": "Dane zaimportowane"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Nieznany dokument: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Nieznane zdjęcie: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Licznik ma tylko zadanie powiązane z czujnikiem zużycia."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Plik przekracza limit {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Pole formularza przesyłania przekracza limit {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "Oczekiwano przesyłania typu multipart."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper nie może usunąć tych profili: {profiles}. Te powiadomienia ich używają: {notifications}. Zmień lub usuń każde powiadomienie, a następnie zapisz ponownie."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper nie może wyeksportować tych sekcji: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Tylko administrator może eksportować lub importować dane Home Keeper."
+    },
+    "import_not_text": {
+      "message": "Plik nie jest plikiem zip ani tekstem UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Podaj dokument lub pakiet do zaimportowania."
     }
   }
 }

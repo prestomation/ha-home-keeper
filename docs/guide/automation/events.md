@@ -51,8 +51,8 @@ To use an event entity in an automation (Home Assistant 2026.7 or later):
 
 The event type is the event name without `home_keeper_`, such as
 `task_completed` or `part_low_stock`. The attributes are the event data, without the
-large fields (`source`, `managed_by`, `task_chips`, `active_season`, `note` and
-`photo`). In YAML:
+large fields (`source`, `managed_by`, `task_chips`, `active_season`, `note`, `photo`
+and `sections`). In YAML:
 
 ```yaml
 automation:

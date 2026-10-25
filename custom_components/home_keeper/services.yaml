@@ -60,13 +60,24 @@ add_task:
             - months
     freq:
       name: Frequency
-      description: For fixed tasks - DAILY, WEEKLY, or MONTHLY.
+      description: >-
+        For fixed tasks - DAILY, WEEKLY, or MONTHLY. Home Keeper converts it to a
+        rule. Use rrule for more than one day of the week.
       selector:
         select:
           options:
             - DAILY
             - WEEKLY
             - MONTHLY
+    rrule:
+      name: Rule
+      description: >-
+        For fixed tasks - an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or
+        FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and
+        UNTIL are not allowed.
+      example: "FREQ=WEEKLY;BYDAY=TU,FR"
+      selector:
+        text:
     anchor:
       name: Anchor
       description: For fixed tasks - ISO datetime of the first occurrence (sets time-of-day).
@@ -299,13 +310,18 @@ update_task:
             - months
     freq:
       name: Frequency
-      description: DAILY, WEEKLY, or MONTHLY (fixed).
+      description: DAILY, WEEKLY, or MONTHLY (fixed). Changes the frequency of the rule.
       selector:
         select:
           options:
             - DAILY
             - WEEKLY
             - MONTHLY
+    rrule:
+      name: Rule
+      description: An iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR (fixed).
+      selector:
+        text:
     anchor:
       name: Anchor
       description: ISO datetime of the first occurrence (fixed).
@@ -809,6 +825,42 @@ set_due_today:
         Optional free-form marker echoed back in the home_keeper_task_due_today_set
         event so a contributing integration can recognise and ignore the change it
         triggered (loop prevention), and Home Keeper never interprets it.
+      selector:
+        text:
+
+move_occurrence:
+  name: Move one date
+  description: >-
+    Move one date of a fixed task's schedule to a new date and time, and keep the
+    other dates as they are. To undo a move, move the date back to its original time.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    occurrence:
+      name: Date
+      description: The date and time on the schedule to move.
+      required: true
+      example: "2026-10-10T07:00:00"
+      selector:
+        datetime:
+    to:
+      name: New date
+      description: The new date and time. It must be in the future.
+      required: true
+      example: "2026-10-11T07:00:00"
+      selector:
+        datetime:
+    origin:
+      name: Origin
+      description: >-
+        Optional free-form marker echoed back in the
+        home_keeper_task_occurrence_moved event so a contributing integration can
+        recognise and ignore the change it triggered (loop prevention), and Home
+        Keeper never interprets it.
       selector:
         text:
 
@@ -1428,6 +1480,69 @@ sign_part_file_url:
       selector:
         text:
 
+remove_task_photo:
+  name: Remove task photo
+  description: >-
+    Remove a photo from a task and delete its file. Add photos in the panel. A
+    service call cannot send a file.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+set_task_photo_cover:
+  name: Set task photo cover
+  description: >-
+    Make a photo the cover of its task. The cover is the first photo. It shows
+    on the task list, the task page and the completion dialog.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+sign_task_photo_url:
+  name: Sign task photo URL
+  description: >-
+    Mint a short-lived URL (no auth header needed) that gives the bytes of a task
+    photo. Use it to show the photo in a notification.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+    thumbnail:
+      name: Thumbnail
+      description: Sign the URL of the small copy, at most 256 pixels on its long side.
+      default: false
+      selector:
+        boolean:
+
 export_appliance_report:
   name: Export appliance report
   description: >-
@@ -1483,6 +1598,24 @@ set_options:
           options:
             - with_verb
             - product_only
+    due_time_mode:
+      name: Due time
+      description: >-
+        When a task that repeats after each completion is due. completion (the
+        default) keeps the time of the last completion, snooze or skip. set_time
+        makes it due at due_time on its due date.
+      selector:
+        select:
+          translation_key: due_time_mode
+          options:
+            - completion
+            - set_time
+    due_time:
+      name: Set due time
+      description: >-
+        The local time of day (HH:MM) for set_time. The default is 08:00.
+      selector:
+        time:
     problem_sensor_exclude_entities:
       name: Excluded sensors
       description: Problem binary sensors to leave out of syncing.
@@ -1519,6 +1652,25 @@ set_options:
       selector:
         text:
           multiple: true
+    hidden_panel_tabs:
+      name: Hidden panel tabs
+      description: The IDs of the companion tabs that the panel does not show.
+      selector:
+        text:
+          multiple: true
+    cost_windows:
+      name: Spend windows (days)
+      description: >-
+        The windows for the maintenance spend totals, in days. 1 to 4 numbers from
+        1 to 3650. Each window gets a sensor. The default is 30 and 60.
+      example: "[30, 60]"
+      selector:
+        object:
+    cost_summary_panel:
+      name: Show spend in the panel
+      description: Show the spend totals above the task list in the panel.
+      selector:
+        boolean:
 
 register_companion:
   name: Register companion
@@ -1642,14 +1794,29 @@ export_data:
     include:
       name: Include
       description: >-
-        Which sections to export. Both by default.
+        Which sections to export: appliances, tasks, settings or a companion
+        domain. All by default.
       example: '["tasks"]'
       selector:
         select:
           multiple: true
+          custom_value: true
           options:
             - appliances
             - tasks
+            - settings
+    kind:
+      name: Kind
+      description: >-
+        "data" returns the YAML document. "bundle" writes a zip file with the
+        uploaded files and the settings to the home_keeper_exports folder, and
+        returns its path.
+      default: data
+      selector:
+        select:
+          options:
+            - data
+            - bundle
 
 import_data:
   name: Import data
@@ -1665,10 +1832,17 @@ import_data:
       description: >-
         The document to read, in the shape export_data returns. Give it as a
         mapping, or as the whole file in one string.
-      required: true
       example: '{"home_keeper": {"format": 1}, "tasks": [{"name": "Replace furnace filter", "interval": 3, "unit": "months"}]}'
       selector:
         object:
+    bundle:
+      name: Bundle
+      description: >-
+        The name of a bundle file in the home_keeper_exports folder. Use it in
+        place of the document.
+      example: home-keeper-2026-10-11.zip
+      selector:
+        text:
     dry_run:
       name: Preview only
       description: >-
@@ -1688,3 +1862,11 @@ import_data:
           options:
             - auto
             - none
+    include_settings:
+      name: Include settings
+      description: >-
+        Also import the profiles, the notifications and the options of the
+        document.
+      default: false
+      selector:
+        boolean:

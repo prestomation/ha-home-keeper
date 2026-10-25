@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Límit: per sota de {limit}.",
   "declarative_preset.limit.above": "{description} Límit: per sobre de {limit}.",
   "declarative_preset.limit.life": "{description} Límit: menys de {limit} restants, o menys del 10%.",
+  "declarative_preset.limit_short.below": "per sota de {limit}",
+  "declarative_preset.limit_short.above": "per sobre de {limit}",
+  "declarative_preset.limit_short.life": "menys de {limit} restants",
   "declarative_preset.unit.hours": "{n} hores",
   "declarative_preset.unit.days": "{n} dies",
   "declarative_task.completion_prompt": "Oberta pel companion declaratiu «{name}». Home Keeper completa aquesta tasca automàticament quan la condició desapareix, així que no es pot completar manualment."

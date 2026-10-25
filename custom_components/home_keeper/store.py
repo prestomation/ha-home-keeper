@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable, Collection
+from datetime import datetime, time
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
@@ -29,11 +30,13 @@ from . import (
     sensor_tasks,
     sensor_watcher,
     tags,
+    task_photos,
 )
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     ASSET_KIND_VIRTUAL,
     COMPLETION_ENTRY_FIELDS,
+    DOMAIN,
     EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
     EVENT_ASSET_DELETED,
@@ -50,6 +53,7 @@ from .const import (
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
     EVENT_TASK_DUE_TODAY_SET,
+    EVENT_TASK_OCCURRENCE_MOVED,
     EVENT_TASK_SKIP_REMOVED,
     EVENT_TASK_SKIP_UPDATED,
     EVENT_TASK_SKIPPED,
@@ -60,6 +64,7 @@ from .const import (
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     ORIGIN_SENSOR_RECOVER,
+    REC_FIXED,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_TEMPLATE,
@@ -76,6 +81,7 @@ from .const import (
     resolve_use_task_naming,
     resolve_wear_task_naming,
 )
+from .models import StoreClosedError
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
@@ -168,6 +174,20 @@ def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
     return owns and entity_set_key(before) != entity_set_key(after)
 
 
+def _refuse_moves(data: dict[str, Any]) -> None:
+    """Refuse ``moved_occurrences`` in a task add or edit.
+
+    ``move_occurrence`` is the 1 way to move a date. It checks that the date is on the
+    rule and that the new date is free, and it fires ``task_occurrence_moved``. A list
+    written through ``add_task`` or ``update_task`` would skip all 3. An import keeps
+    the list, because it builds the task with ``models`` directly.
+    """
+    if "moved_occurrences" in data:
+        raise models.TaskValidationError(
+            "moved_occurrences cannot be set here; use move_occurrence to move a date"
+        )
+
+
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* authorizes mutating a problem-sensor-synced task.
 
@@ -194,18 +214,32 @@ _BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
 )
 
 
+def _is_blocked_task_owner(task: dict[str, Any], origin: str | None) -> bool:
+    """Whether *origin* names the integration that owns *task*.
+
+    A glue that sets ``completion_blocked`` mirrors a state that only it can read, so
+    it clears the task with its own domain as the origin. Home Keeper owns its own
+    blocked tasks through the system origins only, so its domain is not an owner here.
+    """
+    managed_by = task.get("managed_by")
+    if not isinstance(managed_by, dict):
+        return False
+    return bool(origin) and origin != DOMAIN and origin == managed_by.get("integration")
+
+
 def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* may complete a task whose owner withholds Done.
 
-    A declarative companion with ``clear_on_recover`` owns both ends of its task: the
-    watcher arms it on the crossing and completes it on the recovery. A completion by
-    hand while the condition is still true records work that was not done (#377). The
-    panel, the card, the to-do list and the notification already withhold Done; this
-    stops the device-page button, the service and an automation too.
+    The owner of a ``completion_blocked`` task clears it when the condition recovers:
+    the watcher for a declarative companion with ``clear_on_recover``, the
+    problem-sensor sync, or the glue named in ``managed_by.integration``. A completion
+    by hand while the condition is still true records work that was not done (#377).
+    The panel, the card, the to-do list and the notification already withhold Done;
+    this stops the device-page button, the service and an automation too.
     """
     if not notifications.is_completion_blocked(task):
         return
-    if origin in _BLOCKED_COMPLETION_ORIGINS:
+    if origin in _BLOCKED_COMPLETION_ORIGINS or _is_blocked_task_owner(task, origin):
         return
     raise models.TaskValidationError(
         "Home Keeper completes this task when the watched condition recovers, so it "
@@ -262,15 +296,6 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(k for k in keys if before.get(k) != after.get(k))
 
 
-class StoreClosedError(RuntimeError):
-    """A write reached a store that an unload closed (X02-2).
-
-    A reload builds a new store that loads the file again. A pass that started
-    before the unload still holds the old store, and its save would write the old
-    snapshot over the new one. The closed store refuses the save instead.
-    """
-
-
 class HomeKeeperStore:
     """Wrapper around HA's Store helper holding the task dictionary."""
 
@@ -280,6 +305,10 @@ class HomeKeeperStore:
         self._closed = False
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._tasks: dict[str, dict[str, Any]] = {}
+        # The ids of the tasks that had photos at the last save. A task in this set
+        # that the next save no longer holds was deleted, by any of the many paths
+        # that remove a task, so its photo folder goes then (see ``_save``).
+        self._photo_task_ids: set[str] = set()
         self._assets: dict[str, dict[str, Any]] = {}
         # Durable free-text notes for problem-sensor mirrors, keyed by the sensor
         # ``entity_id`` (not the task id). Kept outside the task so a note survives the
@@ -312,6 +341,30 @@ class HomeKeeperStore:
         # it matters most is after the task — or the sync — is deleted, since that
         # is when the item has to come off the list. See ``get_todo_list_items``.
         self._todo_list_items: dict[str, dict[str, Any]] = {}
+        # The set due time for floating tasks (#438), or ``None`` in the
+        # ``completion`` mode. Setup sets it from the options with
+        # ``async_apply_due_time``, and every recurrence call below passes it on.
+        self._due_time: time | None = None
+
+    async def async_apply_due_time(self, due_time: time | None) -> None:
+        """Set the set due time, and move the stored future floating dates to it.
+
+        Setup calls this after ``load`` on each entry load, so an options change,
+        which reloads the entry, applies at once. Each moved task fires
+        ``home_keeper_task_updated`` with ``changed_fields: ["next_due"]``.
+        """
+        self._due_time = due_time
+        moved = recurrence.snap_future_floating(
+            self._tasks, due_time, now=dt_util.now()
+        )
+        if not moved:
+            return
+        await self._save()
+        for task in moved:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["next_due"]}),
+            )
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
@@ -375,6 +428,11 @@ class HomeKeeperStore:
                 changed = True
         if self._clean_relationship_links():
             changed = True
+        # A fixed task stored before schedules were RRULEs carries ``freq`` and
+        # ``interval``. Convert it to the rule it means, once.
+        for task in self._tasks.values():
+            if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
+                changed = True
         # A tag bound to a wear part's derived task before parts carried one moves
         # onto the part here, or the first reconcile after the upgrade would clear
         # it. Load-time only: on every pass it would also undo a tag a user just
@@ -391,8 +449,16 @@ class HomeKeeperStore:
                 stray["name"],
                 stray["tag_id"],
             )
+        self._photo_task_ids = self._tasks_with_photos()
         if changed:
             await self._save()
+
+    def _tasks_with_photos(self) -> set[str]:
+        return {
+            task_id
+            for task_id, task in self._tasks.items()
+            if task_photos.photos_of(task)
+        }
 
     def close(self) -> None:
         """Refuse every later save. The config entry unload calls this (X02-2)."""
@@ -413,6 +479,14 @@ class HomeKeeperStore:
                 "todo_list_items": self._todo_list_items,
             }
         )
+        # Delete the photo folders of the tasks this save dropped. After the save,
+        # so a failed save never leaves a task that names deleted files.
+        gone = self._photo_task_ids - self._tasks.keys()
+        self._photo_task_ids = self._tasks_with_photos()
+        if gone:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            await manuals.async_delete_task_photo_dirs(self._hass, sorted(gone))
 
     async def async_persist(self) -> None:
         """Flush the current in-memory state to disk.
@@ -513,7 +587,8 @@ class HomeKeeperStore:
                     f"source keys {sorted(reserved)} are reserved for Home Keeper's "
                     "own task reconcilers and cannot be set via add_task"
                 )
-        task = models.build_task(data, now=dt_util.now())
+        _refuse_moves(data)
+        task = models.build_task(data, now=dt_util.now(), due_time=self._due_time)
         self._check_template_syntax(task)
         self._tasks[task["id"]] = task
         await self._save()
@@ -550,6 +625,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        _refuse_moves(updates)
         # The reconciler writes a wear part task's tag from its part, so a change
         # made here would be undone on the next pass without a message.
         if _is_part_owned_tag_update(existing, updates):
@@ -574,7 +650,9 @@ class HomeKeeperStore:
         source = models.merge_source(
             existing.get("source"), source_update, reserved=_RESERVED_SOURCE_NAMESPACES
         )
-        merged = models.merge_update(existing, updates, now=dt_util.now())
+        merged = models.merge_update(
+            existing, updates, now=dt_util.now(), due_time=self._due_time
+        )
         if source_update:
             merged["source"] = source
         if "sensor" in updates:
@@ -770,9 +848,16 @@ class HomeKeeperStore:
                 "is currently scheduled. Re-arm it instead (undo a completion, or wait "
                 "for its condition/sensor)."
             )
+        now = dt_util.now()
+        if existing.get("recurrence_type") == recurrence.REC_FLOATING:
+            # With a set due time, a snooze lands on the first set time at or after
+            # *until*, so it never ends earlier than the user asked (#438).
+            until = recurrence.snap_to_due_time(
+                dt_util.as_local(until), self._due_time, round_up=True
+            )
         # ``defer`` also keeps the grid occurrence of a fixed task, so a later Done
         # moves the schedule past it (B07-5).
-        recurrence.defer(existing, until, now=dt_util.now())
+        recurrence.defer(existing, until, now=now)
         await self._save()
         _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])
         self._hass.bus.async_fire(
@@ -780,6 +865,60 @@ class HomeKeeperStore:
             events.task_event_data(
                 existing,
                 extra={"snoozed_until": existing["next_due"], "origin": origin},
+            ),
+        )
+        return existing
+
+    async def move_occurrence(
+        self,
+        task_id: str,
+        occurrence: datetime,
+        to: datetime,
+        *,
+        origin: str | None = None,
+    ) -> dict[str, Any]:
+        """Move one date of a fixed task's schedule to *to*, or undo a move.
+
+        *occurrence* is the date on the rule, or the current date of a move (what a
+        calendar shows). Moving it back to its own date undoes the move. The other
+        dates do not change. ``next_due`` is recomputed only when the date the task
+        shows is the one that moved, so a snooze keeps its date.
+
+        Fires ``home_keeper_task_occurrence_moved``. Like ``snooze_task`` this is a
+        usage action, not an edit of the task, so a managed task's locked fields do
+        not stop it: the rule itself does not change.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        if existing.get("recurrence_type") != REC_FIXED:
+            raise models.TaskValidationError(
+                "Only a task on a fixed schedule has dates to move. Snooze a task of "
+                "another kind instead."
+            )
+        try:
+            _, original, previous_to = recurrence.move_occurrence(
+                existing, occurrence, to, now=dt_util.now()
+            )
+        except ValueError as err:
+            raise models.TaskValidationError(str(err)) from err
+        if to.tzinfo is None:
+            to = to.replace(tzinfo=original.tzinfo)
+        if previous_to is None and to == original:
+            # Moving an unmoved date to itself changes nothing; say nothing.
+            return existing
+        await self._save()
+        _LOGGER.debug("Moved occurrence %s of task %s to %s", original, task_id, to)
+        self._hass.bus.async_fire(
+            EVENT_TASK_OCCURRENCE_MOVED,
+            events.task_event_data(
+                existing,
+                extra=events.occurrence_moved_extra(
+                    original.isoformat(),
+                    to.isoformat(),
+                    previous_to.isoformat() if previous_to else None,
+                    origin=origin,
+                ),
             ),
         )
         return existing
@@ -851,7 +990,7 @@ class HomeKeeperStore:
         as a completion anywhere; the skip itself is logged in ``skips`` with the
         optional *metadata* (``note``/``who``, plus ``reading`` for a meter task).
         Rejects a synced problem-sensor task, and a ``completion_blocked`` task
-        unless the watcher's recovery marker comes with it. Fires
+        unless the owner's origin comes with it. Fires
         ``home_keeper_task_skipped``.
 
         For a **usage** sensor task it also resets the meter, exactly as a completion
@@ -889,7 +1028,7 @@ class HomeKeeperStore:
             if reading is not None:
                 clean_metadata["reading"] = reading
         updated = recurrence.skip_occurrence(
-            dict(existing), now=now, metadata=clean_metadata
+            dict(existing), now=now, metadata=clean_metadata, due_time=self._due_time
         )
         # Record the baseline this skip is about to replace *on the skip*, before the
         # reset below overwrites it, so deleting the skip restores the meter progress
@@ -1280,6 +1419,80 @@ class HomeKeeperStore:
         for event_type, data in events_to_fire:
             self._hass.bus.async_fire(event_type, data)
 
+    async def _mutate_task_photos(self, task_id: str, op: _AssetOp) -> Any:
+        """Run *op* against a task's photos, then save and fire ``task_updated``.
+
+        The task twin of :meth:`_mutate_asset`. *op* raises ``KeyError`` for a
+        photo it cannot find. :data:`_UNCHANGED` hands the task back with no save
+        and no event.
+        """
+        task = self._tasks.get(task_id)
+        if task is None:
+            raise KeyError(task_id)
+        result = await op(task)
+        if result is _UNCHANGED:
+            return task
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["photos"]}),
+        )
+        return result
+
+    async def add_task_photo(
+        self, task_id: str, photo: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Add an uploaded photo to a task; return the stored entry.
+
+        Only the upload view calls this, after the file is on disk. Raises
+        ``KeyError`` for an unknown task and ``TaskValidationError`` for a full list
+        or a bad entry.
+        """
+
+        async def append(task: dict[str, Any]) -> dict[str, Any]:
+            return task_photos.append_photo(
+                task, photo, created=dt_util.now().isoformat()
+            )
+
+        return await self._mutate_task_photos(task_id, append)
+
+    async def remove_task_photo(self, task_id: str, photo_id: str) -> dict[str, Any]:
+        """Remove a photo from a task and delete its files; return the task.
+
+        Raises ``KeyError`` for an unknown task or photo. The save comes before the
+        file delete. If the delete does not finish, a file stays on disk with no
+        record, and the setup sweep removes it. The other order can leave a record
+        whose file is gone.
+        """
+        removed: list[dict[str, Any]] = []
+
+        async def remove(task: dict[str, Any]) -> dict[str, Any]:
+            photo = task_photos.remove_photo(task, photo_id)
+            if photo is None:
+                raise KeyError(photo_id)
+            removed.append(photo)
+            return task
+
+        task = await self._mutate_task_photos(task_id, remove)
+        from . import manuals  # lazy: manuals -> devices would cycle at load
+
+        await manuals.async_delete_task_photo(
+            self._hass, task_id, photo_id, removed[0]["filename"]
+        )
+        return task
+
+    async def set_task_photo_cover(self, task_id: str, photo_id: str) -> dict[str, Any]:
+        """Make a photo the cover (the first photo) of a task; return the task.
+
+        Raises ``KeyError`` for an unknown task or photo. A photo that is already
+        the cover saves nothing and fires nothing.
+        """
+
+        async def cover(task: dict[str, Any]) -> Any:
+            return task if task_photos.make_cover(task, photo_id) else _UNCHANGED
+
+        return await self._mutate_task_photos(task_id, cover)
+
     async def _mutate_asset(
         self, asset_id: str, op: _AssetOp, *, changed_field: str
     ) -> Any:
@@ -1481,20 +1694,35 @@ class HomeKeeperStore:
         optional: contributors match their existing tasks on their own copy, so healing
         only ``task["device_id"]`` leaves them unable to find the task and they create a
         duplicate instead (measured in ``tests/upgrade``).
+
+        One write for the batch, then one ``home_keeper_task_updated`` event per task
+        that moved, with ``device_id`` and ``source`` as its changed fields.
         """
         changed = 0
+        moved: list[tuple[dict[str, Any], list[str]]] = []
         for task in self._tasks.values():
+            fields: list[str] = []
             if (new_id := mapping.get(task.get("device_id") or "")) is not None:
                 task["device_id"] = new_id
                 changed += 1
+                fields.append("device_id")
             for payload in (task.get("source") or {}).values():
                 if not isinstance(payload, dict):
                     continue
                 if (new_id := mapping.get(payload.get("device_id") or "")) is not None:
                     payload["device_id"] = new_id
                     changed += 1
+                    if "source" not in fields:
+                        fields.append("source")
+            if fields:
+                moved.append((task, fields))
         if changed:
             await self._save()
+        for task, fields in moved:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": fields}),
+            )
         return changed
 
     async def async_repoint_sensor_entity(
@@ -1559,20 +1787,32 @@ class HomeKeeperStore:
 
         ``related_device_ids`` moves too (X03-8): a task relates to an appliance
         through that list, so a dead id there drops the task from the appliance.
+        Each appliance that moved fires 1 ``home_keeper_asset_updated`` event.
         """
         changed = 0
+        moved: list[tuple[dict[str, Any], list[str]]] = []
         for asset in self._assets.values():
+            fields: list[str] = []
             if (new_id := mapping.get(asset.get("device_id") or "")) is not None:
                 asset["device_id"] = new_id
                 changed += 1
+                fields.append("device_id")
             related = asset.get("related_device_ids") or []
             if any(device_id in mapping for device_id in related):
                 asset["related_device_ids"] = list(
                     dict.fromkeys(mapping.get(d, d) for d in related)
                 )
                 changed += 1
+                fields.append("related_device_ids")
+            if fields:
+                moved.append((asset, fields))
         if changed:
             await self._save()
+        for asset, fields in moved:
+            self._hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(asset, extra={"changed_fields": fields}),
+            )
         return changed
 
     async def async_merge_split_duplicates(self, canonical: dict[str, str]) -> int:
@@ -1893,6 +2133,12 @@ class HomeKeeperStore:
             language=language,
             now=dt_util.now(),
         )
+        # The pure reconciler measures a wear-part task from ``last_replaced`` with
+        # no set due time. Snap its future dates here (#438).
+        if recurrence.snap_future_floating(
+            new_tasks, self._due_time, now=dt_util.now()
+        ):
+            changed = True
         if changed:
             # A part-derived task dropped here means its wear part was removed while
             # the appliance remains; preserve its history on the appliance. (Deleting
@@ -2265,7 +2511,7 @@ class HomeKeeperStore:
         """Materialize / update / orphan the managed tasks for *spec*.
 
         *dormant* and *stale* pass through to the pure pass: the keys of disabled
-        entities the spec selects (their tasks are switched off, not removed) and
+        entities the spec selects (a task with history is paused, else removed) and
         the keys whose render had no live state (their names and notes are kept).
 
         Called from ``declarative_companion_sync.py`` after it has built the
@@ -2396,7 +2642,7 @@ class HomeKeeperStore:
         caller-supplied marker echoed back in the event so a contributing integration
         can ignore the echo of a completion it initiated. Two gates also read it:
         a problem-sensor-synced task accepts only the sync's marker, a
-        ``completion_blocked`` task accepts only the watcher's recovery marker, and a
+        ``completion_blocked`` task accepts only its owner's origin, and a
         ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
         trusted as given (any service caller may pass any marker), so those gates are
         household accountability, not a security boundary — the same trust level as
@@ -2432,7 +2678,11 @@ class HomeKeeperStore:
             if reading is not None:
                 clean_metadata["reading"] = reading
         updated = recurrence.apply_completion(
-            dict(existing), when, now=now, metadata=clean_metadata
+            dict(existing),
+            when,
+            now=now,
+            metadata=clean_metadata,
+            due_time=self._due_time,
         )
         # Record the baseline this completion is about to replace *on the completion*
         # (``meter_start``), before the reset below overwrites it. Undoing the
@@ -2594,7 +2844,9 @@ class HomeKeeperStore:
         # last — undoing a completion that a later skip has since superseded must not
         # rewind the baseline the skip set.
         was_latest = ts == sensor_tasks.latest_decision_ts(existing)
-        updated = recurrence.remove_completion(dict(existing), ts, now=dt_util.now())
+        updated = recurrence.remove_completion(
+            dict(existing), ts, now=dt_util.now(), due_time=self._due_time
+        )
         # Undoing the anchoring completion of a usage meter restores the baseline it
         # moved — putting the partial progress the user had back, instead of leaving
         # the meter stuck at zero. Only the anchoring entry counts, so undoing an
@@ -2652,7 +2904,7 @@ class HomeKeeperStore:
         )
         try:
             updated = recurrence.move_completion(
-                dict(existing), old_ts, new_ts, now=now
+                dict(existing), old_ts, new_ts, now=now, due_time=self._due_time
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Uteslutna etiketter",
           "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)",
           "shopping_list_entity": "Inköpslista",
-          "shopping_line_style": "Text på inköpslistan"
+          "shopping_line_style": "Text på inköpslistan",
+          "due_time_mode": "Förfallotid",
+          "due_time": "Fast förfallotid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
           "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid.",
           "shopping_list_entity": "Synkroniserar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av synkroniseringen.",
-          "shopping_line_style": "Så visas en inköpspåminnelse på inköpslistan. ”Bara produkt” visar reservdelens namn utan verb, till exempel ”Sköljmedel” i stället för ”Köp sköljmedel”."
+          "shopping_line_style": "Så visas en inköpspåminnelse på inköpslistan. ”Bara produkt” visar reservdelens namn utan verb, till exempel ”Sköljmedel” i stället för ”Köp sköljmedel”.",
+          "due_time_mode": "När en uppgift som upprepas efter varje utförande förfaller. Med en fast tid förfaller uppgiften vid den tiden på förfallodagen. En uppskjutning slutar också vid den tiden.",
+          "due_time": "Den lokala tid då dessa uppgifter förfaller. Används bara med en fast tid."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Frekvens",
           "description": "För fixed-uppgifter: DAILY, WEEKLY eller MONTHLY."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "För fasta uppgifter: en iCalendar-RRULE, till exempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Använd den i stället för freq och interval. COUNT och UNTIL är inte tillåtna."
         },
         "anchor": {
           "name": "Ankare",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Frekvens",
           "description": "DAILY, WEEKLY eller MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "För fasta uppgifter: en iCalendar-RRULE, till exempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Använd den i stället för freq och interval. COUNT och UNTIL är inte tillåtna."
         },
         "anchor": {
           "name": "Ankare",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Ursprung",
           "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_due_today_set, så att en bidragande integration kan känna igen och ignorera den tidigareläggning den utlöste (loopförebyggande). Home Keeper tolkar den inte."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Flytta ett datum",
+      "description": "Flyttar ett datum i en fast uppgifts schema till ett nytt datum och en ny tid. De andra datumen ändras inte. Flytta tillbaka datumet till dess ursprungliga tid för att ångra flytten.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "Uppgiftens id. Namnet fungerar också. Panelen visar id:t."
+        },
+        "occurrence": {
+          "name": "Datum",
+          "description": "Det datum och den tid i schemat som ska flyttas."
+        },
+        "to": {
+          "name": "Nytt datum",
+          "description": "Det nya datumet och tiden. Måste ligga i framtiden."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som returneras i händelsen home_keeper_task_occurrence_moved så att en bidragande integration kan känna igen och ignorera ändringen den själv orsakade (förhindrar loopar). Home Keeper tolkar den aldrig."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Vilka delar som exporteras. Båda som standard."
+          "description": "Vilka delar som exporteras: apparater, uppgifter, inställningar eller domänen för en följeslagare. Alla som standard."
+        },
+        "kind": {
+          "name": "Sort",
+          "description": "\"data\" returnerar YAML-dokumentet. \"bundle\" skriver en zip-fil med de uppladdade filerna och inställningarna till mappen home_keeper_exports och returnerar dess sökväg."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokumentet som läses, i den form export_data ger. Ange det som en avbildning eller som hela filen i en sträng."
         },
+        "bundle": {
+          "name": "Paket",
+          "description": "Namnet på en paketfil i mappen home_keeper_exports. Använd det i stället för dokumentet."
+        },
         "dry_run": {
           "name": "Endast förhandsgranskning",
           "description": "Kontrollerar dokumentet och rapporterar vad som skulle ändras, utan att skriva något."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Träff",
           "description": "Hur posten som avses hittas. \"auto\" söker på id, sedan external_id, sedan namnet. \"none\" skapar varje post."
+        },
+        "include_settings": {
+          "name": "Ta med inställningar",
+          "description": "Importerar även profilerna, aviseringarna och alternativen i dokumentet."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Text på inköpslistan",
           "description": "Så visas en inköpspåminnelse på inköpslistan. with_verb (standard) visar påminnelsens namn, till exempel ”Köp sköljmedel”. product_only visar bara reservdelens namn."
         },
+        "due_time_mode": {
+          "name": "Förfallotid",
+          "description": "När en uppgift som upprepas efter varje utförande förfaller. completion (standard) behåller tiden för senaste utförande, uppskjutning eller hopp. set_time gör att den förfaller kl. due_time på förfallodagen."
+        },
+        "due_time": {
+          "name": "Fast förfallotid",
+          "description": "Den lokala tiden (HH:MM) för set_time. Standard är 08:00."
+        },
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",
           "description": "Domäner för kopplingsintegrationer att dölja från listan ”Föreslagna” under Inställningar → Kompanjoner. Att avfärda tystar bara ett förslag; en ansluten koppling visas alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Dolda panelflikar",
+          "description": "ID:n för de följeflikar som panelen inte visar."
+        },
+        "cost_windows": {
+          "name": "Kostnadsperioder (dagar)",
+          "description": "Perioderna för underhållskostnaderna i dagar. 1 till 4 tal från 1 till 3650. Varje period får en sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Visa kostnader i panelen",
+          "description": "Visar kostnadssummorna ovanför uppgiftslistan i panelen."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Ta bort uppgiftsfoto",
+      "description": "Tar bort ett foto från en uppgift och raderar filen. Lägg till foton i panelen, eftersom ett tjänsteanrop inte kan bära en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ange uppgiftens omslagsfoto",
+      "description": "Gör ett foto till omslagsfoto för sin uppgift. Omslagsfotot är det första fotot. Det visas i uppgiftslistan, på uppgiftssidan och i klar-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signera URL för uppgiftsfoto",
+      "description": "Skapar en kortlivad URL (ingen auth-header behövs) som ger ett uppgiftsfotos byte, till exempel för att visa fotot i en avisering.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        },
+        "thumbnail": {
+          "name": "Miniatyr",
+          "description": "Signera URL:en för den lilla kopian, högst 256 pixlar på den långa sidan."
+        }
+      }
+    },
     "update_skip": {
       "name": "Uppdatera överhoppning",
       "description": "Ändrar detaljerna i en loggad överhoppning som identifieras av sin tidsstämpel. Överhoppningen behåller sitt datum och schemat lämnas orört.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Med verb",
         "product_only": "Bara produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tid för utförande",
+        "set_time": "Fast tid"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Uppgifter i {profile}"
+      },
+      "spend_window": {
+        "name": "Underhållskostnad {days} dagar"
+      },
+      "spend_all": {
+        "name": "Underhållskostnad totalt"
+      },
+      "purchases_total": {
+        "name": "Köp av apparater totalt"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Uppgift satt till i dag",
               "task_skip_updated": "Överhoppning uppdaterad",
               "task_skip_removed": "Överhoppning borttagen",
+              "task_occurrence_moved": "Uppgiftstillfälle flyttat",
               "task_overdue": "Uppgift blev försenad",
               "task_due_soon": "Uppgift förfaller snart",
               "part_low_stock": "Reservdel med lågt lagersaldo",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Uppgift satt till i dag",
               "task_skip_updated": "Överhoppning uppdaterad",
               "task_skip_removed": "Överhoppning borttagen",
+              "task_occurrence_moved": "Uppgiftstillfälle flyttat",
               "task_overdue": "Uppgift blev försenad",
               "task_due_soon": "Uppgift förfaller snart",
               "part_low_stock": "Reservdel med lågt lagersaldo",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Kompanjon föreslagen",
               "declarative_companion_added": "Deklarativ companion tillagd",
               "declarative_companion_updated": "Deklarativ companion uppdaterad",
-              "declarative_companion_removed": "Deklarativ companion borttagen"
+              "declarative_companion_removed": "Deklarativ companion borttagen",
+              "data_exported": "Data exporterad",
+              "data_imported": "Data importerad"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Okänt dokument: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Okänt foto: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Bara en uppgift med en förbrukningssensor har en mätare."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Filen överskrider gränsen på {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Ett formulärfält i uppladdningen är större än gränsen på {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "En multipart-uppladdning förväntades."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan inte ta bort dessa profiler: {profiles}. Dessa aviseringar använder dem: {notifications}. Ändra eller ta bort varje avisering och spara sedan igen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan inte exportera dessa delar: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Endast en administratör kan exportera eller importera Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen är varken en zip-fil eller UTF-8-text."
+    },
+    "import_needs_document": {
+      "message": "Ange ett dokument eller ett paket att importera."
     }
   }
 }

@@ -77,6 +77,10 @@ class PresetDefinition(TypedDict):
     # when the reading rises past ``value``. The description then says the limit, and
     # the panel's preview draws each reading against it.
     limit: NotRequired[PresetLimit]
+    # An integration preset's shape (a key of ``SHAPES``) and the brand name of its
+    # integration. The panel shows them on a companion row made from the preset.
+    shape: NotRequired[str]
+    brand: NotRequired[str]
 
 
 CATALOG_PRESETS: list[PresetDefinition] = [
@@ -712,7 +716,7 @@ def preset_description(
     args = preset.get("name_args", {})
     description = resolve(lang, preset["description_key"], **args)
     limit = preset.get("limit")
-    shape = preset["description_key"].split(".")[-2]
+    shape = preset.get("shape", "")
     if limit is None or shape not in _LIMIT_KEYS:
         return description
     return resolve(
@@ -721,6 +725,22 @@ def preset_description(
         description=description,
         limit=format_limit(limit, lang, resolve),
     )
+
+
+def limit_text(
+    preset: PresetDefinition, lang: str, resolve: Callable[..., str]
+) -> str | None:
+    """*preset*'s limit as a short phrase in *lang*, such as ``below 10%``.
+
+    The panel shows it on a companion row. A preset with no limit, or with a shape
+    that has no limit sentence, gives ``None``.
+    """
+    limit = preset.get("limit")
+    key = _LIMIT_KEYS.get(preset.get("shape", ""))
+    if limit is None or key is None:
+        return None
+    short = key.replace(".limit.", ".limit_short.")
+    return resolve(lang, short, limit=format_limit(limit, lang, resolve))
 
 
 def _integration_presets() -> tuple[
@@ -774,6 +794,8 @@ def _integration_presets() -> tuple[
                 "name_args": {"integration": entry["brand"]},
                 "icon": entry["icon"],
                 "requires_integration": entry["domain"],
+                "shape": shape,
+                "brand": entry["brand"],
                 "default_spec": {
                     "name": SHAPES[shape].format(integration=entry["brand"]),
                     "description": "",

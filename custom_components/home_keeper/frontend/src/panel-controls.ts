@@ -18,6 +18,7 @@ import {
   bucketByKey,
   isBuyTask,
   isUseTask,
+  profileMatches,
   statusBucket,
   taskAreaId,
   taskMatchesQuery,
@@ -159,9 +160,20 @@ export function controls(p: PanelHost): string {
   // how what is listed is arranged. The pills keep the lead, because their counts
   // answer "how much is overdue" before anyone has to type anything.
   const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
+  // Print labels opens a checklist of what the list shows (`panel-labels.ts`). It is
+  // secondary: Add stays the 1 primary action of the row.
+  // A view-only user can add a task but not an appliance: only the task services
+  // are open to every user.
+  const addBtn =
+    !onTasks && p._readOnly()
+      ? ''
+      : `<ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
   const actions = `
       <span class="hk-controls-spacer"></span>
-      <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
+      <ha-button ${btnAttrs('secondary')} id="labels-btn" class="hk-labels-btn">${escapeHTML(
+        t('labels.printButton'),
+      )}</ha-button>
+      ${addBtn}`;
   return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
 
@@ -284,6 +296,29 @@ function seg(
   return `<div class="hk-seg" role="group" aria-label="${escapeHTML(
     groupLabel || name,
   )}" data-seg="${escapeHTML(name)}">${btns}</div>`;
+}
+
+/**
+ * The tasks that the task list shows, in store order: the active Profile, else the
+ * status pill, then the search box. The list and the QR label picker both read it,
+ * so a picker never offers a task that the list hides.
+ */
+export function listedTasks(p: PanelHost, now = Date.now()): Task[] {
+  const profile = activeProfile(p);
+  // A saved Profile replaces the inline filter: status + labels/areas/devices.
+  let tasks = profile
+    ? p._tasks.filter((task) =>
+        profileMatches(task, profile.filter, p._hass?.devices, p._hass?.areas, now),
+      )
+    : p._tasks.filter((task) => scopeMatches(task, p._filter, now));
+  // The text filter narrows whichever of the two chose the set, rather than replacing
+  // it: a Profile plus a word is how a household finds one task among its own.
+  if (p._query) {
+    tasks = tasks.filter((task) =>
+      taskMatchesQuery(task, p._query, p._hass?.devices, p._hass?.areas),
+    );
+  }
+  return tasks;
 }
 
 // ── list bucketing ──────────────────────────────────────────────────────────
@@ -539,7 +574,6 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
     if (p._view === 'tasks') p._openCreate();
     else p._openCreateAsset();
   });
-
   // Filter / group-by segmented controls.
   root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>
     b.addEventListener('click', () => {

@@ -256,8 +256,10 @@ The sync works in both directions:
 - If the part is restocked another way, the item is removed. A manual stock change
   and switching Auto-create buy task off both count.
 
-Home Keeper manages the items it added and an open item with the same name that
-is already on the list. A completed item is not modified. Home Keeper keeps the name
+Home Keeper manages the items it added. If an open item with the same name is
+already on the list, Home Keeper uses it and does not add a second item. A tick on
+that item marks the part bought, but Home Keeper does not change or remove it. A
+completed item is not modified. Home Keeper keeps the name
 that you give an item on the list and still syncs the item. This works on a list
 that gives each item an ID, such as the Home Assistant shopping list. Clear the
 setting to turn the feature off.

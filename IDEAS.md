@@ -37,9 +37,8 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **`set_due_today` on an overdue task.** The service does not refuse an overdue task.
   A call moves the due date later and clears the overdue state. The panel and the card
   hide the action, so only a service call can do this.
-- **Advanced fixed-schedule rules.** Add nth-weekday rules ("first Monday"), several
-  weekdays, `COUNT`/`UNTIL`, and custom durations. Consider `dateutil.rrule`, which adds a
-  Python requirement.
+- **Fixed schedules that end, and custom durations.** `normalize_rule` refuses `COUNT`
+  and `UNTIL`, so a fixed schedule cannot end. Calendar events are always 1 hour long.
 
 ## Completions
 
@@ -52,6 +51,9 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   has a person entity.
 - **Repair-vs-replace analytics.** Show the lifetime cost of an appliance from its
   completion costs, to help decide between repair and replacement.
+  `cost_summary.spend_records` already gives each cost with its task and appliance.
+- **Spending view.** A panel view with a period picker, a monthly chart and the costs per
+  task and per appliance, built on the cost totals (#460).
 
 ## Coordinator and entities
 
@@ -65,7 +67,8 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   button, sensor and binary sensor. Decide if a task without a device gets them too.
 - **Spares number entity is open to every user.** A non-admin can change a part's spare
   count from the dashboard. Gate it (the dashboard control then fails for non-admins), or
-  state in `docs/SECURITY.md` that the write is open by design.
+  state in `docs/SECURITY.md` that the write is open by design. The panel stock stepper
+  is admin-only, so the 2 paths do not agree now.
 
 ## Appliances
 
@@ -188,8 +191,11 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   tasks import without their appliance. Only a warning shows.
 - **Completion photos do not travel.** A site-relative photo exports as text, the image
   does not, and the skipped count does not include it.
-- **Sections not in the document.** Declarative companions, profiles, notifications,
-  options and uploaded file contents.
+- **Sections not in the document.** Declarative companions.
+- **Sync mode.** An opt-in import that deletes records not in the file, with the deletes
+  in the preview. Today an import is an upsert and never deletes.
+- **Companion files in a bundle are not checked.** Home Keeper skips a symbolic link, but
+  the companion's own `import_data` checks the type and size of its files.
 - **Spare stock on an integration-owned appliance.** The export leaves out a managed
   appliance, so the user's counts (`stock`, `reorder_at` and the other user keys) are
   lost on a new install. Export the user keys by source namespace and part name, or give
@@ -227,6 +233,14 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **Panel list actions.** Bulk actions, drag to reorder, and an activity log of
   completions.
 - **Per-task icons and colors.** Let a task carry an icon and a color for scanning.
+- **Follow the user's time zone setting.** The panel and the card always show and read
+  times in Home Assistant's zone (`setTimeZone(hass.config.time_zone)` in `panel.ts` and
+  `card.ts`, X04-7). A user away from home sees times that do not match the clock on the
+  device. Home Assistant has a per-user profile setting for this, `hass.locale.time_zone`,
+  with the values `local` and `server`. Use this setting to show and read times. Calculate
+  "due today", overdue and the day counts on the day in Home Assistant's zone, because the
+  schedule, the to-do list and the calendar use that day. Check which value Home Assistant
+  uses as the default.
 
 ## Product ideas
 
@@ -239,6 +253,9 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   registration: things with an expiry date that are not appliances.
 - **Natural-language task creation** and **nameplate scanning** to add an appliance.
 - **Adaptive intervals.** Learn the interval from the completion history.
+- **Photos from an owning integration.** Give each photo an optional owner
+  (`photos[].managed_by`). The owner adds and removes only its own photos. The user keeps
+  the rest, adds more and picks the cover, as with the user keys of a managed part.
 
 ## Testing and CI
 

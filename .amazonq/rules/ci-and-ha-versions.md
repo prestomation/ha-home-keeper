@@ -13,7 +13,7 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
 | `test.yml` | vitest, pytest unit, HACS validation, hassfest |
 | `mutation.yml` | mutmut and Stryker on the changed code, 80% gate |
 | `integration.yml` | Docker integration tests, and the upgrade suite against `stable` |
-| `e2e.yml` | Docker and Playwright; uploads the report on a failure |
+| `e2e.yml` | Docker and Playwright; uploads the report on a failure. The job limit is 25 min: shard the suite when a run takes more than 22 min, and never raise the limit again |
 | `walkthrough-preview.yml` | the walkthrough gif comment ([pr-workflow.md](pr-workflow.md#walkthrough-video)) |
 | `ha-beta.yml` | nightly against HA `beta`; gates nothing, files `ha-beta-regression` |
 | `pytest_coverage.yml` | the coverage comment on a PR |
@@ -88,6 +88,13 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - **PRs test `stable`.** `HA_TAG` in `tests/integration/docker-compose.yml` defaults to
   it. Override locally with `HA_TAG=beta bash ci/e2e-up.sh`. The nightly tests `beta`, about
   4 weeks before a release.
+- **The oldest supported HA is named in `ci/oldest-ha.env`, and nowhere else.** The
+  Docker integration tier (`integration.yml`) runs on it for each PR, as well as on
+  `stable`. `hacs.json` and the README badge must match it; `tests/unit/test_oldest_ha.py`
+  fails if they do not. A failure on the oldest lane is a choice: fix the code, or drop
+  that version (change those 3 places and add a CHANGELOG entry). Never skip the lane.
+- **mypy runs on the newest HA only.** The stubs in `typings/voluptuous/` match HA 2026.9
+  and later, so mypy on an older HA reports hundreds of false errors.
 - **A job that installs HA runs on a Python at or above HA's floor, and checks what pip
   resolved.** On an older Python, pip goes back to an old HA and the job checks an API
   that nobody runs. Run `python ci/check-ha-version.py` (`--pre` for a pre-release) (#199).
@@ -123,5 +130,5 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - The scripts only find. The weekly `preset-upkeep` skill decides, edits the catalog and
   opens 1 draft PR. Neither script is a PR gate.
 - The `open-work` skill only reports open work, sorted by who must act next.
-- The `preview-comment` skill tells a reporter that a preview build is ready. It posts
-  only what the maintainer approved ([pr-workflow.md](pr-workflow.md)).
+- The `preview-comment` skill drafts the note that tells a reporter a preview build is
+  ready. It posts the note only after the maintainer approves the exact text.

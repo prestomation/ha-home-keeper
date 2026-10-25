@@ -1,15 +1,17 @@
 ---
 title: Integrating with Home Keeper
 summary: How another integration adds tasks and appliances to Home Keeper and keeps them in sync.
+max_lines: 400
+exception: The panel tab and export contracts need their Python example and service tables.
 ---
 
 # Integrating with Home Keeper
 
 This guide is for **authors of other Home Assistant integrations** that push recurring tasks
 into Home Keeper, such as a battery, plant or pet integration. Your integration owns the
-schedule. It uses only the **event bus and services**: there is no Python import in either
-direction and no hard dependency. Home Keeper stores and echoes the `source` and `origin`
-values verbatim. It never branches on their contents.
+schedule. It uses only the **event bus and services**, with no Python import and no hard
+dependency. The 1 exception is a panel tab (§10), which is a Python API. Home Keeper stores
+and echoes the `source` and `origin` values verbatim. Only the completion gates read `origin`.
 
 Every action, field, event and payload is in the generated
 [API reference](https://prestomation.github.io/ha-home-keeper/developer/api). The event
@@ -28,7 +30,8 @@ catalog is in [EVENTS.md](EVENTS.md).
 ## 1. Creating a task
 
 Recurrence is **floating** (`interval` + `unit`, from the last completion) or **fixed**
-(`freq` + `interval` + `anchor`). Keep the returned `task_id`:
+(`rrule` + `anchor`). The older `freq` + `interval` for a fixed task still works. Keep
+the returned `task_id`:
 
 ```python
 DOMAIN_HK = "home_keeper"
@@ -38,7 +41,8 @@ if hass.services.has_service(DOMAIN_HK, "add_task"):
         "name": "Replace smoke-detector battery",
         "notes": "Uses a **9V** battery.",  # Markdown source, stored verbatim
         "recurrence_type": "floating", "interval": 6, "unit": "months",
-        # Fixed: "recurrence_type": "fixed", "freq": "MONTHLY", "anchor": "2026-01-01T08:00:00"
+        # Fixed: "recurrence_type": "fixed", "rrule": "FREQ=MONTHLY;BYDAY=1TU",
+        #        "anchor": "2026-01-06T08:00:00"
         "last_completed": "2026-01-01T08:00:00",  # optional; else the task is due now
         "device_id": my_device_id,  # optional device registry id
         "source": {"my_integration": {"thing_id": thing_id}},  # namespaced under YOUR domain
@@ -112,6 +116,7 @@ task. Home Keeper reads `managed_by` and acts on it.
 | `locked_fields` | The panel removes these fields from the edit form. With every field locked, the task page shows no Edit button. |
 | `config_entry_id` | Orphan detection, and an **Edit in {name}** link on the task page. |
 | `completion_prompt` | A short hint near the **Done** button. |
+| `completion_blocked` | No surface offers **Done**. `complete_task` and `skip_task` accept the task only with your domain as `origin`. Use it only for a read-only mirror. |
 | `deletion_protected` | The panel shows "Delete from {name} instead", and `delete_task` rejects the call while your entry is loaded. Requires `config_entry_id`. |
 
 - Set `managed_by` once, on `add_task`. The `update_task` service has no `managed_by`
@@ -119,6 +124,8 @@ task. Home Keeper reads `managed_by` and acts on it.
 - Home Keeper removes the locked fields from every `update_task` payload, also from your
   own calls. A locked field keeps the value it had at creation. Lock only the fields your
   integration never changes. To change one, delete the task and add it again.
+- `photos` cannot be locked. Photos belong to the household, like the stock of a managed
+  part, so users can always add, remove and reorder them.
 - `add_task` rejects `deletion_protected` without `config_entry_id` (`invalid_task`),
   because Home Keeper then cannot see that your integration is gone.
 
@@ -135,9 +142,9 @@ For work that a condition starts, such as a low battery or a wet water sensor, s
 `null` and the task shows only in the panel **Monitored** section).
 
 `add_task` creates the task armed. When the condition resolves, `complete_task` records a
-completion and makes the task dormant. When the condition comes back, `trigger_task` arms it
-again. Both calls are idempotent. Keep **one task per monitored thing** and toggle it, so
-that the id and the history stay.
+completion and makes the task dormant. Send your domain as `origin`. When the condition
+comes back, `trigger_task` arms it again. Both calls are idempotent. Keep **one task per
+monitored thing** and toggle it, so that the id and the history stay.
 
 ### Sensor-based tasks
 
@@ -224,6 +231,9 @@ Call `home_keeper.register_companion` at setup to show your integration in the p
 **Settings → Companions** section. Call it again on `home_keeper_register_companions`, which
 Home Keeper fires at its own setup and reload.
 
+The service is admin-only. A call from your setup or from the event listener has no user, so
+it passes. Do not pass the context of a user to it.
+
 ```python
 await hass.services.async_call(DOMAIN_HK, "register_companion", {
     "domain": "my_integration", "name": "My Integration", "icon": "mdi:puzzle",
@@ -252,6 +262,122 @@ and `list_declarative_companions` (all admin-only).
 
 Write a glue integration instead when you must write back to the upstream integration on
 completion, or keep state across completions. See [GLUE_INTEGRATIONS.md](GLUE_INTEGRATIONS.md).
+
+## 10. Add a panel tab
+
+A companion integration can add an admin tab to the Home Keeper panel at `/home-keeper/<id>/...`.
+The tab runs JavaScript in the admin panel. So only Python code in the Home Assistant process
+registers a tab. The `register_companion` service does not accept a tab.
+
+In your `manifest.json` put `http` in `dependencies` and `home_keeper` in
+`after_dependencies`. Then your config flow can tell the user to install Home Keeper. At
+setup import `panel_tabs` in a `try` block and create a repair issue if the import fails.
+
+```python
+from pathlib import Path
+
+from homeassistant.components.http import StaticPathConfig
+
+from custom_components.home_keeper.panel_tabs import PanelTab, async_register_panel_tab
+
+
+async def async_setup_entry(hass, entry):
+    if not hass.data.get("my_integration_static"):  # a static path stays for the run
+        await hass.http.async_register_static_paths([StaticPathConfig(
+            "/my_integration_static", str(Path(__file__).parent / "www"), False)])
+        hass.data["my_integration_static"] = True
+    unregister = async_register_panel_tab(hass, PanelTab(
+        companion="my_integration", id="library",
+        titles={"en": "Library", "de": "Bibliothek"}, icon="mdi:bookshelf",  # "en" is required
+        module_url="/my_integration_static/library-tab.js?v=1",  # change v on each release
+        element="home-keeper-library-tab", host_api=1, order=100))  # the defaults
+    entry.async_on_unload(unregister)
+    return True
+```
+
+- `id` matches `^[a-z][a-z0-9-]{1,30}$` and is not in `panel_tabs.RESERVED_TAB_IDS`.
+- `module_url` is a same-origin path of at most 500 characters: 1 leading `/`, no
+  scheme, no backslash and no `..` segment. `element` starts with `home-keeper-`.
+- The entry of the tab is in the tab bar now. A later release can move it to a menu or
+  a launcher, and `order` is only a hint. Make the page work from any entry.
+- A tab that is not valid, or a second tab with the same `id`, raises `ValueError` with
+  the reason. The unregister callable is idempotent.
+- A reload of Home Keeper keeps the tab. Call `register_companion` too (§9): the switch
+  that hides the tab is on your companion row in **Settings → Companions**.
+
+On the first open of the tab, the panel imports the module and makes 1 element. The
+element stays while the panel is open. A redraw moves it, so `connectedCallback` can run
+more than once. The panel sets these properties and keeps them current:
+
+```ts
+interface HomeKeeperTabElement extends HTMLElement {
+  hass: HomeAssistant; // on every update
+  narrow: boolean;
+  route: { path: string }; // the part after /home-keeper/<id>: "" or "/books/12"
+  host: HomeKeeperTabHost; // set 1 time
+}
+interface HomeKeeperTabHost { // host API version 1
+  readonly apiVersion: 1;
+  navigate(path: string, opts?: { replace?: boolean }): void; // to /home-keeper/<id><path>
+  taskLink(taskId: string): string; // the panel URL of a task page
+  applianceLink(assetId: string): string; // the panel URL of an appliance page
+  openTask(taskId: string): void; // open the task page, with no page load
+  openAppliance(assetId: string): void; // open the appliance page, with no page load
+  showToast(text: string): void;
+}
+```
+
+Move inside the tab only with `host.navigate`. Do not write to `history`. Use `taskLink`
+and `applianceLink` for an `href`. The panel opens a plain left click on a link to
+`/home-keeper/...` with no page load. A click with a modifier key, a `target` or a
+`download` attribute, or a click that the tab handled, goes to the browser. For a
+`host_api` that is higher than the panel supports, the panel asks the user to update Home
+Keeper. An import that fails or takes more than 10 seconds gives an error with **Retry**.
+
+## 11. Join the export and import
+
+The Home Keeper export can hold the data of your integration. Then a user does 1 export
+and 1 import for all of it. Your data goes in a top-level section with the key of your
+domain. Home Keeper stores your export response there as is, and does not read it.
+
+1. Add `import_export` to `capabilities` in `register_companion` (§9).
+2. Make 2 admin-only services that return a response. Check admin in each service, because a
+   user can call them directly. Home Keeper calls them with the context of its caller.
+
+| Service | Fields | Response |
+|---|---|---|
+| `<domain>.export_data` | `files_dir` (optional) | `{format, version, data, skipped}` |
+| `<domain>.import_data` | `document`, `dry_run`, `files_dir` (optional) | `{ok, dry_run, counts, records, problems}` |
+
+- `format` is an integer that you own. Increase it only when the meaning of a key changes.
+  Refuse a `document` with a higher `format`. `skipped` maps a name to a count.
+- `document` is your section as the export returned it. The user can edit it and import it
+  on a different install. Import is an upsert: match by your id, then by a natural key such as a
+  name. Never delete a record that is not in `document`.
+- `problems` is a list of `{level, path, message}`. `level` is `error` or `warning`. `path`
+  starts in `data`, such as `dogs[2].name`. An `error` blocks the whole import.
+- With `dry_run: true`, write nothing and return the report. Home Keeper does a dry run of
+  every section first. It applies a section only if all of them are clean.
+- `files_dir` is set only for a bundle (a `.zip` export). On export, copy your files into
+  it and put the relative paths in `data`. On import, read them from it. Refuse a
+  `files_dir` that is not below `.storage/home_keeper_import_export/`, and refuse a
+  relative path with `..`. Home Keeper skips a symbolic link in it.
+- Each call has 300 seconds. When an export fails, Home Keeper puts `failed` in
+  `skipped.companions` of its envelope. When an import fails, your section gets an `error`.
+
+Make the data portable:
+
+- Do not export an id that only one install knows, such as a Home Keeper task id or a to-do
+  item uid. Your reconcile makes them again.
+- Next to a person, area or entity id, export its name. On import use the id if it exists,
+  else the name, else return a `warning`.
+- Home Keeper does not export a task that has `managed_by`. Make your managed tasks again
+  after the import, in your normal reconcile.
+
+Home Keeper imports its own sections first, then each companion in the order of
+registration. A companion that is not installed, or that has no `import_export`, gets a
+`warning` and is skipped. The import report has your report under `sections.<domain>`, and
+your problems in `problems` with the path `<domain>.<path>`.
 
 ## Testing your integration
 

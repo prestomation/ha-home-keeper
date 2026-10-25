@@ -13,10 +13,13 @@ import type {
   HomeKeeperOptions,
   NotifyRun,
   NotifyRunOptions,
+  PanelTabInfo,
   Part,
   PortableDocument,
   Profile,
+  SpendSummary,
   Task,
+  UpcomingOccurrence,
 } from './types';
 import { parseNudgeState, type PresetNudgeState } from './preset-nudge';
 import { parseTaskLayout, type TaskLayout } from './task-layout';
@@ -44,6 +47,18 @@ export async function getCompanions(hass: Hass): Promise<Companion[]> {
     type: 'home_keeper/get_companions',
   });
   return res?.companions ?? [];
+}
+
+/**
+ * Read the companion panel tabs, with each title in the language of the panel.
+ * Admin-only, like the panel.
+ */
+export async function getPanelTabs(hass: Hass): Promise<PanelTabInfo[]> {
+  const res = await hass.callWS<{ tabs: PanelTabInfo[] }>({
+    type: 'home_keeper/get_panel_tabs',
+    ...(hass.language ? { language: hass.language } : {}),
+  });
+  return res?.tabs ?? [];
 }
 
 export async function getTasks(hass: Hass): Promise<Task[]> {
@@ -74,6 +89,19 @@ export async function getTags(hass: Hass): Promise<{ value: string; label: strin
     value: tag.id,
     label: tag.name || tag.id,
   }));
+}
+
+/** Read the spend totals and their records (#460). Open to all users. */
+export async function getSpend(hass: Hass): Promise<SpendSummary> {
+  const res = await hass.callWS<Partial<SpendSummary> | null>({ type: 'home_keeper/get_spend' });
+  // Each part has a default, so an older backend or a short answer shows no strip
+  // rather than breaking the task list.
+  return {
+    windows: Array.isArray(res?.windows) ? res.windows : [],
+    all_time: res?.all_time ?? { total: 0, count: 0, first: null },
+    purchases: res?.purchases ?? { total: 0, count: 0 },
+    records: Array.isArray(res?.records) ? res.records : [],
+  };
 }
 
 /** Read the integration options (for the Settings tab). */
@@ -370,6 +398,51 @@ export async function snoozeTask(hass: Hass, taskId: string, until: string): Pro
     until,
   });
   return res.task;
+}
+
+/**
+ * Move one date of a fixed task's schedule to *to*. *occurrence* is the date on the
+ * rule (or where a moved date is now); moving it to its own time undoes the move.
+ */
+export async function moveOccurrence(
+  hass: Hass,
+  taskId: string,
+  occurrence: string,
+  to: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/move_occurrence',
+    task_id: taskId,
+    occurrence,
+    to,
+  });
+  return res.task;
+}
+
+/**
+ * The next dates of a fixed schedule: a stored task's (moves included), or a draft
+ * rule's, computed by the same engine that will schedule it. A bad draft rule
+ * rejects with the backend's message, which the form shows as is.
+ */
+export async function upcomingOccurrences(
+  hass: Hass,
+  source:
+    | { taskId: string }
+    | { rrule: string; anchor: string; activeSeason?: unknown },
+  count = 4,
+): Promise<UpcomingOccurrence[]> {
+  const res = await hass.callWS<{ occurrences: UpcomingOccurrence[] }>({
+    type: 'home_keeper/upcoming_occurrences',
+    count,
+    ...('taskId' in source
+      ? { task_id: source.taskId }
+      : {
+          rrule: source.rrule,
+          anchor: source.anchor,
+          ...(source.activeSeason ? { active_season: source.activeSeason } : {}),
+        }),
+  });
+  return res?.occurrences ?? [];
 }
 
 /**
@@ -870,13 +943,153 @@ export async function signPartFileUrl(
   return res.url;
 }
 
+/**
+ * Upload a photo to a task (#399) via the Home Keeper HTTP view. *photoId* is a
+ * client-minted uuid that becomes the photo's id. Returns the updated task.
+ */
+export async function uploadTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+  file: File,
+  opts?: UploadOptions,
+): Promise<Task> {
+  const res = await postUploadAuthed<{ task: Task }>(
+    hass,
+    `/api/home_keeper/task_photo/${taskId}/${photoId}`,
+    uploadBody(file),
+    opts,
+  );
+  return res.task;
+}
+
+/** Remove a photo from a task; its files are deleted. Returns the updated task. */
+export async function removeTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/remove_task_photo',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** Make a photo the cover (the first photo) of its task. Returns the updated task. */
+export async function setTaskPhotoCover(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/set_task_photo_cover',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** One photo to sign: the original, or with `thumb` the small copy. */
+export interface TaskPhotoRef {
+  task_id: string;
+  photo_id: string;
+  thumb: boolean;
+}
+
+/** Sign many task photo URLs in one round trip. A gone photo gets `url: null`. */
+export async function signTaskPhotoUrls(
+  hass: Hass,
+  photos: TaskPhotoRef[],
+): Promise<Array<TaskPhotoRef & { url: string | null }>> {
+  const res = await hass.callWS<{ urls: Array<TaskPhotoRef & { url: string | null }> }>({
+    type: 'home_keeper/sign_task_photo_urls',
+    photos,
+  });
+  return res.urls;
+}
+
 /** Fetch the portable document plus a ready-to-save YAML file. */
 export async function exportData(
   hass: Hass,
+  // Home Keeper sections and companion domains. Leave it out for every section: the
+  // backend reads an empty list the same way.
+  include?: string[],
 ): Promise<{ document: PortableDocument; yaml: string }> {
   return hass.callWS<{ document: PortableDocument; yaml: string }>({
     type: 'home_keeper/export_data',
+    ...(include ? { include } : {}),
   });
+}
+
+/** An HTTP reply that is not a success, with the message of the backend if it sent one. */
+export class TransferHttpError extends Error {
+  status: number;
+  /** True when *message* is the text of the backend, in the user's language. */
+  serverMessage: boolean;
+  constructor(message: string, status: number, serverMessage = false) {
+    super(message);
+    this.status = status;
+    this.serverMessage = serverMessage;
+  }
+}
+
+async function failure(res: Response): Promise<TransferHttpError> {
+  let detail = '';
+  try {
+    detail = ((await res.json()) as { message?: string }).message ?? '';
+  } catch {
+    /* not JSON: a proxy's error page */
+  }
+  return new TransferHttpError(detail || `HTTP ${res.status}`, res.status, !!detail);
+}
+
+/**
+ * Download a bundle (a zip file) from the bundle export view.
+ *
+ * A bundle is binary and can be larger than a websocket message, so it comes over
+ * HTTP with the bearer token, like an upload. A 401 gets 1 retry with a fresh token.
+ * The file name comes from the `Content-Disposition` header, else *fallback*.
+ */
+export async function exportBundle(
+  hass: Hass,
+  include: string[],
+  fallback: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const url = `/api/home_keeper/export_bundle?include=${encodeURIComponent(include.join(','))}`;
+  const send = (token: string | undefined): Promise<Response> =>
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  let res = await send(
+    hass.auth?.expired && hass.auth.refreshAccessToken
+      ? await refreshedToken(hass)
+      : currentToken(hass),
+  );
+  if (res.status === 401 && hass.auth?.refreshAccessToken) {
+    res = await send(await refreshedToken(hass));
+  }
+  if (!res.ok) throw await failure(res);
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1]) : fallback;
+  return { blob: await res.blob(), filename };
+}
+
+/**
+ * Send a chosen file to the import upload view: a bundle, or a YAML file too large
+ * for a websocket message. The reply is the same report as `importData` returns.
+ */
+export async function importUpload(
+  hass: Hass,
+  file: File,
+  opts: { dryRun?: boolean; match?: 'auto' | 'none'; includeSettings?: boolean } = {},
+): Promise<ImportReport> {
+  const body = new FormData();
+  body.append('dry_run', opts.dryRun ? 'true' : 'false');
+  body.append('match', opts.match ?? 'auto');
+  body.append('include_settings', opts.includeSettings ? 'true' : 'false');
+  body.append('file', file, file.name);
+  return postUploadAuthed<ImportReport>(hass, '/api/home_keeper/import_upload', body);
 }
 
 /**
@@ -891,13 +1104,14 @@ export async function importData(
   // A parsed document, or the whole file as text. The panel sends text and lets the
   // backend read it, so the browser carries no YAML parser of its own.
   document: PortableDocument | string,
-  opts: { dryRun?: boolean; match?: 'auto' | 'none' } = {},
+  opts: { dryRun?: boolean; match?: 'auto' | 'none'; includeSettings?: boolean } = {},
 ): Promise<ImportReport> {
   return hass.callWS<ImportReport>({
     type: 'home_keeper/import_data',
     document,
     dry_run: !!opts.dryRun,
     match: opts.match ?? 'auto',
+    include_settings: !!opts.includeSettings,
   });
 }
 

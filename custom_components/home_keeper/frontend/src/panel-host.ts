@@ -22,8 +22,10 @@
  *   commit at a time, alongside the region that needs it.
  */
 
+import type { LabelDialogState } from './panel-labels';
 import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
+import type { TaskPhotoUrlCache } from './task-photos';
 import type { FormField, HaFormElement } from './forms';
 import type { MarkdownPreview } from './markdown';
 import type {
@@ -49,10 +51,20 @@ import type {
   DeclarativeCompanionPreset,
   Hass,
   HomeKeeperOptions,
+  PanelTabInfo,
+  SpendSummary,
   Task,
 } from './types';
 import type { TaskLayout } from './task-layout';
-import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
+import type { PanelTabRuntime } from './panel-tabs';
+import type {
+  AssetTab,
+  BtnWeight,
+  PanelLocation,
+  PanelView,
+  SettingsSection,
+  TaskTab,
+} from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -139,6 +151,8 @@ export interface PanelHost extends HTMLElement {
   _presetNudge: PresetNudgeState | null;
   /** The one-time "Presets you can use" dialog. */
   _presetDialog: PresetDialogState;
+  /** The QR label dialog (`panel-labels.ts`). */
+  _labelDialog: LabelDialogState;
   /** The last queued write of `_presetNudge`, so the writes land in order. */
   _presetNudgeSaving: Promise<void>;
   /** Delete a task outright (already confirmed). */
@@ -159,8 +173,10 @@ export interface PanelHost extends HTMLElement {
   _entryDomains: Record<string, string>;
   /** Download the appliance report (Settings -> Import and export). */
   _exportApplianceReport(): Promise<void>;
-  /** Save every task and appliance as one YAML file (Settings -> Import and export). */
+  /** Save the checked sources as one YAML file (Settings -> Import and export). */
   _exportData(): Promise<void>;
+  /** Save the checked sources, the files and the settings as a zip file. */
+  _exportBundle(): Promise<void>;
   /** The import card's state: the pasted or picked document text, the last preview,
    *  and whether a call is in flight. */
   _transfer: TransferState;
@@ -182,6 +198,11 @@ export interface PanelHost extends HTMLElement {
   _installedIntegrations: string[] | null;
   /** Whether this user has dismissed the first-run intro banner. */
   _introDismissed: boolean;
+  /** The spend totals above the task list (#460). Null until read, or when the read
+   *  failed, which hides the strip. */
+  _spend: SpendSummary | null;
+  /** The total whose records are open under the strip, or '' (see `panel-spend.ts`). */
+  _spendOpen: string;
   /** Profile / notification rows (and a profile's sync group) the user has expanded. */
   _itemExpanded: Set<string>;
   /** The language dates, times and numbers are formatted in (Home Assistant's). */
@@ -208,6 +229,9 @@ export interface PanelHost extends HTMLElement {
   ): HaFormElement;
   /** Navigate within the panel; `replace` for a lateral move that Back should skip. */
   _navigate(loc: PanelLocation, replace?: boolean): void;
+  /** Whether Home Assistant shows the panel in its narrow layout. A companion tab
+   *  gets the value. */
+  readonly narrow: boolean;
   /** The full panel URL for a location (prefix included). */
   _hrefFor(loc: PanelLocation): string;
   /** A detail page's Notes card contents — rendered Markdown, or the inline editor. */
@@ -245,6 +269,15 @@ export interface PanelHost extends HTMLElement {
   _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
+  /** The companion tab that the URL names, with the path inside it; null elsewhere. */
+  _panelTab: { id: string; path: string } | null;
+  /** The `kind:id` of a detail page that the loaded lists did not have, while the
+   *  panel loads again to look for it. `detailView` shows a spinner then. */
+  _detailLookup: string | null;
+  /** Every registered companion tab, hidden ones included (Settings lists them all). */
+  _panelTabs: PanelTabInfo[];
+  /** The companion tab elements and their load states, kept while the panel lives. */
+  _tabRuntime: PanelTabRuntime;
   /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
   _ownTodoEntities: string[];
   /** The saved Profile id the task list is filtered by ('' = none). */
@@ -252,6 +285,9 @@ export interface PanelHost extends HTMLElement {
   /** The text both lists filter on ('' = no text filter). Session-only: it is not
    *  persisted, so every panel load starts with the whole list. */
   _query: string;
+  /** True if the user is not a Home Assistant admin. The panel is then view only:
+   *  every write is admin-only on the backend, so the panel hides those controls. */
+  _readOnly(): boolean;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
   /** Reload every collection from the backend *without* re-rendering — for a save that
@@ -297,6 +333,9 @@ export interface PanelHost extends HTMLElement {
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;
+  _signedPhotos: TaskPhotoUrlCache;
+  /** The signed URL for a `data-sign` key, from whichever cache owns that kind. */
+  _signedUrl(key: string): string | undefined;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
   /** Which layout the task list is drawn in: rows, tiles or board. */
@@ -317,7 +356,7 @@ export interface PanelHost extends HTMLElement {
   /** Pending "the upload has run long enough to show a bar" timer. */
   _uploadShowTimer?: ReturnType<typeof setTimeout>;
   /** Which top-level tab is showing. */
-  _view: 'tasks' | 'appliances' | 'settings';
+  _view: PanelView;
   /** Wire a detail page's inline notes editor (buttons + live preview). Stays on the
    *  panel: the preview it builds must be registered in `_previews` for disposal. */
   _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void;

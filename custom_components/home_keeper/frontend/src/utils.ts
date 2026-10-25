@@ -1,5 +1,15 @@
 import { getLanguage, t, tlist, tn } from './i18n';
-import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
+import {
+  anchorDay,
+  buildSimple,
+  dayList,
+  parseSimple,
+  shownDays,
+  splitMonthBy,
+  weekdayName,
+  type SimpleFreq,
+} from './rrule';
+import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
  *  or materializes itself carries it in `managed_by.integration`, which is how the
@@ -113,7 +123,7 @@ export function safeHref(url: unknown): string {
  * completion `photo` field is caller-supplied via `home_keeper.complete_task`, so it
  * must be validated before it reaches an href/src.
  */
-export function isSafeImageUrl(url: unknown): boolean {
+export function isSafeImageUrl(url: unknown): url is string {
   return typeof url === 'string' && (isHttpUrl(url) || /^\/[^/]/.test(url));
 }
 
@@ -301,6 +311,28 @@ export async function copyText(value: string): Promise<boolean> {
   } finally {
     area.remove();
   }
+}
+
+/**
+ * The completion that a Done added, for its Undo.
+ *
+ * *before* holds the `ts` of each completion the task had when Done was pressed.
+ * Another person can complete the same task in that time, so more than one entry
+ * can be new. The one that Done made is the newest: the task's `last_completed`
+ * when it is new, else the latest new `ts`. Undefined when nothing is new.
+ */
+export function addedCompletion(
+  before: ReadonlySet<string>,
+  done: Pick<Task, 'completions' | 'last_completed'> | null | undefined,
+): Completion | undefined {
+  const fresh = (done?.completions ?? []).filter((c) => !before.has(c.ts));
+  const last = done?.last_completed;
+  const named = last ? fresh.find((c) => c.ts === last) : undefined;
+  if (named) return named;
+  return fresh.reduce<Completion | undefined>(
+    (best, c) => (!best || Date.parse(c.ts) > Date.parse(best.ts) ? c : best),
+    undefined,
+  );
 }
 
 /**
@@ -787,6 +819,59 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
   });
 }
 
+// ── The set due time of floating tasks (#438) ───────────────────────────────
+const HH_MM = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+
+/**
+ * The set due time of *options* as `"HH:MM"`, or `null` in the `completion` mode.
+ *
+ * Mirrors the backend's `options.due_time_of`: a value that is not a time reads as
+ * 08:00, the default.
+ */
+export function setDueTime(
+  options: { due_time_mode?: unknown; due_time?: unknown } | null | undefined,
+): string | null {
+  if (options?.due_time_mode !== 'set_time') return null;
+  const m = HH_MM.exec(String(options.due_time ?? ''));
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return '08:00';
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+/**
+ * *at* moved to *dueTime* on its date in Home Assistant's zone. With *roundUp*, the
+ * first set time at or after *at* — the rule a snooze follows, so the panel shows
+ * the date the backend writes (`recurrence.snap_to_due_time`).
+ */
+export function snapToDueTime(at: Date, dueTime: string | null, roundUp = false): Date {
+  if (!dueTime) return at;
+  const [hh, mm] = dueTime.split(':').map(Number);
+  const [y, mo, d] = zonedParts(at.getTime(), haTimeZone);
+  let snapped = zonedTimeToMs([y, mo, d, hh, mm, 0], haTimeZone);
+  if (roundUp && snapped < at.getTime()) {
+    snapped = zonedTimeToMs([y, mo, d + 1, hh, mm, 0], haTimeZone);
+  }
+  return new Date(snapped);
+}
+
+/**
+ * A due date, without its time of day when that time is the set due time.
+ *
+ * With a set due time every floating task is due at that time, so the time says
+ * nothing and only the date is shown. Any other time (a task that is due now, or a
+ * fixed schedule) keeps it.
+ */
+export function formatDue(
+  value: string | null | undefined,
+  dueTime: string | null,
+  lang?: string,
+): string {
+  const d = value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return dueTime && snapToDueTime(d, dueTime).getTime() === d.getTime()
+    ? formatDate(d, lang)
+    : formatDateTime(d, lang);
+}
+
 /**
  * "today" / "yesterday" / "N days ago" for a past date, counted in calendar days.
  *
@@ -893,14 +978,7 @@ function recurrenceText(task: Task): string {
     const unit = tn(`recurrence.unit.${base}`, n);
     summary = tn('recurrence.floating', n, { unit });
   } else {
-    const freqBase: Record<string, string> = {
-      DAILY: 'day',
-      WEEKLY: 'week',
-      MONTHLY: 'month',
-    };
-    const base = freqBase[task.freq || 'DAILY'] || 'day';
-    const unit = tn(`recurrence.unit.${base}`, n);
-    summary = tn('recurrence.fixed', n, { unit });
+    summary = fixedRuleText(task);
   }
   if (task.active_season) {
     const windows = Array.isArray(task.active_season)
@@ -922,6 +1000,80 @@ function recurrenceText(task: Task): string {
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
+}
+
+/** A schedule date as a short label: "Tue, Oct 6". The year is left out. */
+export function formatOccurrence(value: string | Date, lang?: string): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang || undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: haTimeZone,
+  });
+}
+
+/**
+ * A schedule date with its weekday and time: "Tue, Oct 6, 7:00 AM". The weekday is
+ * the point for a weekly chore, so every list of schedule dates uses this.
+ */
+export function formatOccurrenceTime(value: string | Date, lang?: string): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: haTimeZone,
+  });
+}
+
+/**
+ * Which day of the month a monthly rule uses, in words: "day 13" for `''` (the start
+ * date's day), or "the second Tuesday" for `2TU`. *anchor* is from `anchorDay`.
+ */
+export function monthByText(token: string, anchor: Date | null, lang?: string): string {
+  const parts = splitMonthBy(token);
+  if (!parts) return t('rule.monthDay', { day: anchor ? anchor.getUTCDate() : '' });
+  return t(`rule.nth.${parts[0]}`, { weekday: weekdayName(parts[1], lang, 'long') });
+}
+
+/**
+ * A fixed schedule in words: "every 2 weeks on Tuesday and Friday", "every month on
+ * the first Tuesday", or "custom schedule" for a rule the simple controls cannot say.
+ *
+ * A task without `rrule` is described from its legacy `freq`/`interval`, which is what
+ * an old export or a form state built before this field existed carries.
+ */
+function fixedRuleText(task: Task): string {
+  const rule = task.rrule || buildSimple({
+    freq: (task.freq as SimpleFreq) || 'DAILY',
+    interval: task.interval || 1,
+    byday: [],
+  });
+  const simple = parseSimple(rule);
+  if (!simple) return t('recurrence.custom');
+  // Yearly is a whole phrase of its own: the shared "every {unit}" template cannot
+  // agree with the noun for "year" in every language (Danish needs "hvert år").
+  if (simple.freq === 'YEARLY') return tn('recurrence.yearly', simple.interval);
+  const freqBase: Record<Exclude<SimpleFreq, 'YEARLY'>, string> = {
+    DAILY: 'day',
+    WEEKLY: 'week',
+    MONTHLY: 'month',
+  };
+  const unit = tn(`recurrence.unit.${freqBase[simple.freq]}`, simple.interval);
+  const summary = tn('recurrence.fixed', simple.interval, { unit });
+  if (simple.freq === 'MONTHLY' && simple.monthBy) {
+    const day = monthByText(simple.monthBy, anchorDay(task.anchor), getLanguage());
+    return t('recurrence.fixedMonthly', { summary, day });
+  }
+  if (simple.freq !== 'WEEKLY') return summary;
+  const days = shownDays(rule, anchorDay(task.anchor));
+  if (!days.length) return summary;
+  return t('recurrence.fixedDays', { summary, days: dayList(days, getLanguage()) });
 }
 
 /**
@@ -1210,7 +1362,7 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   // scheduled. It is counting, and that is its whole job.
   if (task.recurrence_type === 'use') return t('due.counting');
   // A completed one-off (do-once, now dormant) reads as "Completed".
-  if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed) {
+  if (isCompletedOneOff(task)) {
     return t('due.completed');
   }
   if (!task.next_due) return t('due.none');
@@ -1311,8 +1463,7 @@ function statusInfo(
   // where `statusBucket` puts it by running its `completed` check ahead of its buy
   // check. The pill runs them in the same order for the same reason: a row filed under
   // Completed must not carry a chip arguing it is still outstanding.
-  const boughtAlready =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const boughtAlready = isCompletedOneOff(task);
   if (isBuyTask(task) && !boughtAlready) return { label: t('chip.lowStock'), cls: 'hk-shopping' };
   if (!isOverdue(task, now)) return { label: dueLabel(task, now, hass), cls: '' };
   const days = task.next_due
@@ -1444,10 +1595,106 @@ export function scanRequired(task: Partial<Task>): boolean {
   return !!task.tag_id && !!task.require_tag_scan;
 }
 
+/**
+ * Whether *task* is a one-off that is done: no next due date, and a completion.
+ * This is the task the Completed group holds.
+ */
+export function isCompletedOneOff(
+  task: Pick<Task, 'recurrence_type' | 'next_due' | 'last_completed'>,
+): boolean {
+  return task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+}
+
 // ── panel routing ────────────────────────────────────────────────────────────
 
-/** The navigable list view; mirrors the panel's two tabs. */
-export type PanelView = 'tasks' | 'appliances' | 'settings';
+/** The navigable view: the panel's own tabs, or a companion tab (`tab`). */
+export type PanelView = 'tasks' | 'appliances' | 'settings' | 'tab';
+
+/**
+ * The first URL segments that a companion tab id can never be: the 3 that the panel
+ * routes itself, then the segments that Home Keeper keeps for pages it can add later,
+ * such as a launcher that holds many tabs. The backend keeps the same list in
+ * `panel_tabs.RESERVED_TAB_IDS`, and `panel-tab-ids-parity.test.js` compares the 2.
+ */
+export const RESERVED_TAB_IDS = [
+  'tasks',
+  'appliances',
+  'settings',
+  'apps',
+  'calendar',
+  'companions',
+  'dashboard',
+  'help',
+  'history',
+  'more',
+  'notifications',
+  'overview',
+  'profiles',
+  'search',
+] as const;
+
+/** A companion tab id, the same pattern as `panel_tabs.TAB_ID_PATTERN`. */
+export const PANEL_TAB_ID_RE = /^[a-z][a-z0-9-]{1,30}$/;
+
+/**
+ * The version of the host object that the panel gives to a companion tab. A tab
+ * that needs a higher version shows a message to update Home Keeper.
+ */
+export const PANEL_HOST_API = 1;
+
+/**
+ * Normalize the path inside a companion tab: `/a/b`, or `''` for the tab root.
+ *
+ * The result can never leave the tab. A `.` or `..` segment is removed, a backslash
+ * counts as a slash, empty segments are removed, and a query or a fragment is cut
+ * off, because the panel route has only a path.
+ */
+export function normalizeTabPath(path: unknown): string {
+  const raw = String(path ?? '')
+    .split(/[?#]/)[0]
+    .replace(/\\/g, '/');
+  const segments = raw.split('/').filter((s) => s && s !== '.' && s !== '..');
+  return segments.length ? `/${segments.join('/')}` : '';
+}
+
+/**
+ * The panel route of a link, or null if the link goes to another place.
+ *
+ * *href* is resolved against *origin*. The result is the part after *prefix*
+ * (`/tasks/t1`, or `''` for the panel root). Another origin, or a path outside the
+ * prefix, gives null, so the browser opens it as usual.
+ */
+export function panelSubPath(href: string, origin: string, prefix: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(href, origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== origin) return null;
+  if (url.pathname === prefix) return '';
+  return url.pathname.startsWith(`${prefix}/`) ? url.pathname.slice(prefix.length) : null;
+}
+
+/**
+ * The companion tabs that the tab bar shows: every tab that is not hidden, sorted by
+ * `order`, then by title, then by id. The backend sends them in this order too, and
+ * the sort here keeps the order also if that changes.
+ */
+export function visiblePanelTabs<T extends { id: string; title: string; order: number }>(
+  tabs: readonly T[],
+  hidden: readonly string[] | null | undefined,
+): T[] {
+  const off = new Set(hidden ?? []);
+  return tabs
+    .filter((tab) => !off.has(tab.id))
+    .sort(
+      (a, b) =>
+        a.order - b.order ||
+        a.title.toLowerCase().localeCompare(b.title.toLowerCase()) ||
+        a.id.localeCompare(b.id),
+    );
+}
 
 /**
  * The sub-tabs an appliance's detail page is divided into. Each is a URL of its own,
@@ -1486,6 +1733,8 @@ export const DEFAULT_TASK_TAB: TaskTab = 'schedule';
  */
 export const SETTINGS_SECTIONS = [
   'general',
+  'duetime',
+  'cost',
   'shopping',
   'problem',
   'skipsnooze',
@@ -1509,6 +1758,10 @@ export interface PanelLocation {
   view: PanelView;
   detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab; part?: string } | null;
   section?: SettingsSection;
+  /** The companion tab id, when `view` is `tab`. */
+  tab?: string;
+  /** The path inside the companion tab (`/a/b`, or `''` for its root). */
+  path?: string;
 }
 
 /**
@@ -1550,6 +1803,20 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
+  // An unknown first segment that has the shape of a companion tab id is kept, so it
+  // can resolve when the tab list loads. The panel goes to the task list if no tab
+  // has the id.
+  const first = parts[0];
+  if (
+    first &&
+    PANEL_TAB_ID_RE.test(first) &&
+    !(RESERVED_TAB_IDS as readonly string[]).includes(first)
+  ) {
+    // Only spaces and slashes come before the first segment, so its first match is it.
+    const raw = String(path);
+    const rest = raw.slice(raw.indexOf(first) + first.length);
+    return { view: 'tab', detail: null, tab: first, path: normalizeTabPath(rest) };
+  }
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
   if (view === 'settings') {
@@ -1605,6 +1872,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
+  if (loc.view === 'tab') return `/${loc.tab ?? ''}${normalizeTabPath(loc.path)}`;
   if (loc.view === 'settings') {
     return loc.section ? `/settings/${loc.section}` : '/settings';
   }

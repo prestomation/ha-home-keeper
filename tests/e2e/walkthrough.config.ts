@@ -53,9 +53,10 @@ export default captureConfig('walkthrough.capture.ts', {
   // outgrow it still pays by shortening the walk, because the note above about the
   // 30-minute job cap has not changed.
   //
-  // Re-measured for #415, which added beat 7d (the Event received trigger, 6 beats
-  // plus a page load of the automation editor): **258s in the dev container**, a 40%
-  // margin against the 360s cap, so the cap stays where it is.
+  // Re-measured for the label text position, whose beat replaces the roll beat (net 0):
+  // **276s in the dev container**, a 30% margin against the 360s cap. That is below
+  // the ~40% that a measurement asks for, so the next PR that adds a beat must first
+  // shorten the walk.
   //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
@@ -75,6 +76,23 @@ export default captureConfig('walkthrough.capture.ts', {
   // own branch, before the note chip merged in: 222s in the dev container. Measured
   // again with both merged: 3.7m (about 222s) for the desktop walk and 40s for the
   // phone one, in the dev container. 222s plus ~40% is ~311s, so 360s still holds.
+  //
+  // The companion panel tab PR added 6 beats to the desktop walk (turn on the Show
+  // switch, open the Library tab, navigate it, turn the switch off). Measured back to
+  // back in the same dev container, each on a fresh container: 4.6m (about 276s)
+  // without the beat and 4.7m (about 282s) with it, so the beat costs about 6-10s. This
+  // container ran the tour about 50s slower than the 222s above with or without the
+  // beat, so the cap stays 360s. A CI run near the cap pays by shortening the walk.
+  //
+  // The view-only panel PR (#444) added 6 beats to the phone walk only (sign in as a
+  // user who is not an admin, the appliance list, an appliance, Settings). Measured:
+  // 55s for the phone walk in the dev container, against 40s before. The desktop walk
+  // is unchanged, so the cap stays 360s.
+  //
+  // The fixed schedule PR (#393) added the "Monthly on" beat and paid for it: 4 of its
+  // own waits went from 2 beats to 1. Measured in the dev container: 4.8m (about 288s)
+  // before that cut and 4.6m (about 276s) after it, the same as before the PR. The
+  // phone walk ran 53s. The cap stays 360s.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is

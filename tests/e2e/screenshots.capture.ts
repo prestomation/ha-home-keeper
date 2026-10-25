@@ -8,17 +8,27 @@
  * text fields live inside `ha-selector-text` (fill the inner input) and dropdowns
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
 import {
   authToken,
+  callService,
   gotoTab,
+  listTasks,
   openPanel,
   openDashboard,
   openPart,
   openTaskTab,
   setTaskLayout,
 } from './tests/helpers';
-import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
+import {
+  FIRMWARE_PRESET,
+  INTRO_KEY,
+  markAllPresetsSeen,
+  setUserData,
+  suggestOnly,
+} from './user-data';
 import {
   centre,
   expandGroup,
@@ -27,7 +37,7 @@ import {
   shotVisible,
   shotWithDrawer,
 } from './shots';
-import { ASSET, PART, TASK } from './fixture-ids';
+import { ASSET, PART, PHOTO, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
 
 /** The name of the throwaway appliance the orphaned-owner shots create. */
@@ -68,14 +78,198 @@ async function withOrphanedAppliance(page: Page, body: () => Promise<void>): Pro
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
+/**
+ * Export a bundle from the Import and export card with the settings on, choose that
+ * file back in, and preview it with the settings. The card then shows the line
+ * after the export, the chosen file, and a preview with 1 row per section.
+ */
+async function previewOwnBundle(page: Page, panel: Locator): Promise<void> {
+  const settings = panel.locator('input[data-transfer-source="settings"]');
+  if (!(await settings.isChecked())) await settings.check();
+  const [zip] = await Promise.all([
+    page.waitForEvent('download'),
+    panel.locator('#transfer-export-bundle').click(),
+  ]);
+  const zipPath = path.join(fs.mkdtempSync('/tmp/hk-bundle-'), zip.suggestedFilename());
+  await zip.saveAs(zipPath);
+  await expect(panel.locator('.hk-transfer-exported')).toContainText('Settings');
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    panel.locator('#transfer-pick').click(),
+  ]);
+  await chooser.setFiles(zipPath);
+  await panel.locator('#transfer-preview').click();
+  await panel.locator('#transfer-settings').check();
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('tr[data-part="settings"]')).toBeVisible();
+  await expect(panel.locator('tr[data-part="pawsistant"]')).toBeVisible();
+  await page.waitForTimeout(700);
+}
 
 
 
 
+
+
+/** The seeded photos of the fridge filter task, as files to pick in a form. */
+const FORM_PHOTOS = ['filter-housing', 'cartridge-label'].map((stem) => {
+  const dir = path.resolve(
+    __dirname,
+    '../integration/ha_config/home_keeper/task_photos',
+    TASK.fridgeFilter,
+  );
+  const file = fs.readdirSync(dir).find((f) => f.endsWith(`__${stem}.jpg`));
+  if (!file) throw new Error(`no seeded photo ${stem}`);
+  return { name: `${stem}.jpg`, mimeType: 'image/jpeg', buffer: fs.readFileSync(path.join(dir, file)) };
+});
+
+/**
+ * Photos in the New task form (#399) at one width: 2 picked photos in the Photos
+ * section under the notes. The shot takes no Create, so the store does not change.
+ */
+async function captureFormPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  await openPanel(page);
+  const section = panel.locator('#hk-task-form .hk-form-photos');
+  await panel.locator('#add-btn').click();
+  await panel
+    .locator('#hk-task-form ha-selector-text')
+    .first()
+    .locator('input, textarea')
+    .fill('Replace the under-sink filter');
+  await section.locator('.hk-staged-add + input[type="file"]').setInputFiles(FORM_PHOTOS);
+  await expect(section.locator('.hk-staged')).toHaveCount(2);
+  for (const img of await section.locator('.hk-staged img').all()) {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await centre(section);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/${phone ? '58l-panel-mobile-task-form-photos' : '58k-panel-task-form-photos'}.png`,
+  });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-task-form')).toHaveCount(0, { timeout: 10_000 });
+}
 
 /** Fill the input of the nth ha-form text selector within a scope. */
+/**
+ * The after photo (#399) at one width: the details entry in the Done menu, the
+ * done one-off in the Completed group, and its page with the before-and-after
+ * pair. "Renew car registration" is that seeded one-off. *phone* picks the file
+ * names; the caller sets the viewport.
+ */
+async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  const name = (n: string, desktop: string, mobile: string): string =>
+    `${OUT}/${n}${phone ? mobile : desktop}.png`;
+  const loaded = async (img: Locator): Promise<void> => {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), {
+        timeout: 15_000,
+      })
+      .toBe(true);
+  };
+
+  await openPanel(page);
+  const split = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+  await centre(split);
+  await split.locator('.hk-split-caret').click();
+  await expect(split.locator('.hk-defer-details')).toBeVisible();
+  // The menu hangs below the row, so bring all of it into view.
+  await split.locator('.hk-defer-menu [role="menuitem"]').last().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58f' : '58e', '-panel-done-menu-details', '-panel-mobile-done-menu-details'),
+  });
+  await page.keyboard.press('Escape');
+  await expect(split.locator('.hk-defer-menu')).toBeHidden();
+
+  const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
+  // The open state is kept per browser, so a run before this one can leave it open.
+  await expandGroup(completed);
+  const after = completed.locator(
+    `.detail-open[data-detail-id="${TASK.carRegistration}"] .hk-row-after img`,
+  );
+  await loaded(after);
+  await centre(after);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(
+      phone ? '58j' : '58i',
+      '-panel-completed-after-photo',
+      '-panel-mobile-completed-row-photo',
+    ),
+  });
+  // The open state is kept per browser, and later shots expect the group closed.
+  if (await completed.evaluate((el: HTMLDetailsElement) => el.open)) {
+    await completed.locator('summary').click();
+  }
+
+  await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
+  const tiles = panel.locator('.hk-head-photos img');
+  await expect(tiles).toHaveCount(2, { timeout: 15_000 });
+  for (const img of await tiles.all()) await loaded(img);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58h' : '58g', '-panel-task-before-after', '-panel-mobile-task-before-after'),
+  });
+}
+
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
+}
+
+/** Choose the start of a PNG file in the Import and export card. It is not text. */
+async function pickBinaryFile(page: Page, panel: Locator): Promise<void> {
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    panel.locator('#transfer-pick').click(),
+  ]);
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
+  await chooser.setFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png });
+  await expect(panel.locator('.hk-transfer-error')).toContainText('not a text file');
+}
+
+/**
+ * Draw the report of an import that failed after its write (`partial: true`). The stub
+ * companion cannot fail on a real import only, so the shot sets the report that the
+ * backend sends. `transfer.test.js` and `test_transfer_companions.py` assert on it.
+ */
+async function showPartialImport(panel: Locator): Promise<void> {
+  await panel.evaluate((el) => {
+    const p = el as unknown as {
+      _transfer: Record<string, unknown>;
+      _render: () => void;
+    };
+    p._transfer.error = '';
+    p._transfer.report = {
+      ok: false,
+      dry_run: false,
+      partial: true,
+      counts: {
+        appliances: { created: 1, updated: 0 },
+        tasks: { created: 2, updated: 0 },
+        completions: 0,
+        skips: 0,
+      },
+      records: [],
+      problems: [
+        {
+          section: 'pawsistant',
+          index: null,
+          path: 'pawsistant',
+          message: 'the companion pawsistant failed: the database is locked',
+          severity: 'error',
+        },
+      ],
+      sections: { pawsistant: { ok: false } },
+    };
+    p._render();
+  });
+  await expect(panel.locator('.hk-transfer-report ha-alert[alert-type="warning"]')).toBeVisible();
 }
 
 /** Pick an option label from an HA ha-select (ha-dropdown) dropdown. */
@@ -271,10 +465,79 @@ async function showPresetSuggestions(
   await expect(panel.locator('.hk-preset-nudge')).toHaveCount(0);
 }
 
-test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
+/**
+ * Make sure that the fridge filter task is due in about 4 weeks, not overdue.
+ *
+ * The seed has fixed dates, and this monthly task becomes overdue 1 month after its
+ * last completion. The shots of its page show the Due today entry, which an overdue
+ * task does not get, so the capture failed on each day after that due date. This
+ * moves the last completion to 2 days ago, through the public service. The history
+ * keeps the same entries.
+ */
+async function keepFridgeFilterDueLater(): Promise<void> {
+  const task = (await listTasks()).find((t) => t.id === TASK.fridgeFilter);
+  if (!task) throw new Error('no seeded fridge filter task');
+  const soon = Date.now() + 7 * 24 * 3600 * 1000;
+  if (task.next_due && new Date(task.next_due).getTime() > soon) return;
+  const completions = (task.completions ?? []) as Array<{ ts: string }>;
+  const latest = completions.reduce((a, b) => (new Date(a.ts) > new Date(b.ts) ? a : b));
+  await callService('home_keeper', 'move_completion', {
+    task_id: TASK.fridgeFilter,
+    old_ts: latest.ts,
+    new_completed_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+  });
+  const moved = (await listTasks()).find((t) => t.id === TASK.fridgeFilter);
+  expect(new Date(moved?.next_due).getTime()).toBeGreaterThan(soon);
+}
+
+/**
+ * The capture is 1 walk through every documented surface, so it is cut into serial
+ * tests that share 1 page. Each test has its own time limit, and a failure names the
+ * part where it occurred. A test starts on the page that the test before it left, so
+ * the order of the tests is important.
+ */
+test.describe.configure({ mode: 'serial' });
+
+let page: Page;
+let panel: Locator;
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  // The `page` fixture is per test, so make the shared page from the same settings
+  // that the fixture uses.
+  const use = testInfo.project.use;
+  const context = await browser.newContext({
+    baseURL: use.baseURL,
+    storageState: use.storageState,
+    viewport: use.viewport,
+    userAgent: use.userAgent,
+    deviceScaleFactor: use.deviceScaleFactor,
+    isMobile: use.isMobile,
+    hasTouch: use.hasTouch,
+    locale: use.locale ?? 'en-US',
+    serviceWorkers: use.serviceWorkers,
+  });
+  page = await context.newPage();
+  panel = page.locator('home-keeper-panel').first();
+  await keepFridgeFilterDueLater();
+});
+
+test.afterAll(async () => {
+  if (!page) return;
+
+  // The task layout is stored per user on the server, so it outlives this capture
+  // and would greet the next run — and the e2e suite — in whatever the last shot
+  // left. The steps above each put it back themselves; this is the backstop for a
+  // run that died between one of them and its reset.
+  await setTaskLayout(page, 'rows');
+  await page.context().close();
+});
+
+test('capture the task list and the task page', async () => {
+  // Step 0 shows the first-run intro, so start with it not dismissed: an earlier run
+  // on the same container dismisses it.
+  await setUserData(authToken(), INTRO_KEY, false);
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
-  const panel = page.locator('home-keeper-panel').first();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.waitForTimeout(1200); // let the HA sidebar/layout settle (avoid ghosting)
   // Home Assistant raises a "Home Assistant has started!" toast on a cold boot, and
@@ -313,6 +576,17 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // buy reminder in the store — taken here it only ever captured "No tasks match this
   // filter", which is a picture of nothing.)
 
+  // 58b. The cover thumbnail on a task row (#399), next to rows that have none.
+  const coverRow = panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`);
+  await expect(coverRow).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await expect
+    .poll(() => coverRow.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+  await centre(coverRow);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58b-panel-task-photo-row.png` });
+
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.
@@ -324,6 +598,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await noteField.waitFor({ state: 'visible', timeout: 15_000 });
   await noteField.fill('Replaced cartridge; rinsed housing');
   await panel.locator('ha-dialog[open] ha-selector-number input').first().fill('42.50');
+  // The dialog loads Home Assistant's picture upload, then draws the photo field.
+  await expect(panel.locator('ha-dialog[open] ha-picture-upload')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/11-panel-completion-dialog.png`, fullPage: true });
   // Dismiss via Escape (closes ha-dialog) so the capture records no extra completion.
@@ -340,6 +616,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 58. Task photos (#399): the cover beside the name and the strip first in the
+  // Schedule tab. Wait for the signed thumbnails, or the shot shows empty boxes.
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await expect(panel.locator(`[data-photo-tile="${PHOTO.filterHousing}"] .hk-photo-badge`)).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58-panel-task-photos.png` });
+
+  // 58e/58g/58i. After photos (#399), desktop.
+  await captureAfterPhotos(page, panel, false);
+  // 58k. Photos in the New task form (#399), desktop.
+  await captureFormPhotos(page, panel, false);
+  await openPanel(page);
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
 
   // 7b. The Notes tab. The note is Markdown (issue #163). Assert it actually rendered
   // — `ha-markdown` is one of HA's lazily-loaded elements, so a regression here
@@ -502,7 +800,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
+});
 
+test('capture managed and sensor tasks, layouts and the task form', async () => {
   // 1c. Managed-task detail page — a task owned by another integration
   // (Pawsistant). Shows the "Managed by Pawsistant" chip, the completion prompt,
   // and deletion guidance in place of a Delete button.
@@ -1140,7 +1440,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
+});
 
+test('capture the appliances, parts and stock', async () => {
   // 5. Appliances tab — the asset list with the seeded virtual device.
   await panel.locator('#tab-appliances').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
@@ -1748,6 +2050,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
   await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
   await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+});
+
+test('capture Settings and the usage surfaces', async () => {
+  // 72. The spend totals above the task list (#460), with All time open. The fixture
+  // costs are months old, so the 30 and 60 day totals are 0 and All time holds them.
+  await openPanel(page);
+  const spend = panel.locator('.hk-spend');
+  await expect(spend).toBeVisible();
+  await spend.locator('[data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await panel.locator('.hk-spend').screenshot({ path: `${OUT}/72-panel-spend.png` });
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
 
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
@@ -1790,6 +2106,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel
     .locator('#hk-settings-skipsnooze')
     .screenshot({ path: `${OUT}/45c-panel-settings-skipsnooze.png` });
+
+  // 45f. The Due time card with a set time chosen (#438). The choice autosaves and
+  // moves the stored floating dates, so it is put back at once: the shots below show
+  // the default.
+  await setDueTimeMode(panel, 'At a set time');
+  await panel.locator('#hk-settings-duetime').screenshot({
+    path: `${OUT}/45f-panel-settings-duetime.png`,
+  });
+  await setDueTimeMode(panel, 'At the time of completion');
+
+  // 72b. The Cost tracking card (#460): the spend periods and the panel switch.
+  await panel.locator('#hk-settings-cost').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await panel
+    .locator('#hk-settings-cost')
+    .screenshot({ path: `${OUT}/72b-panel-settings-cost.png` });
 
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
@@ -1983,27 +2315,38 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
-  // 60. Settings → Import and export — the whole surface at once: the Export button
-  // that saves everything to one file, the box a document is pasted into, and a
-  // preview of what importing it would change. The preview is the shot's point: it
-  // is what stands between a generated file and the store, so it has to show its
-  // verdict and its counts rather than an empty box.
+  // 60f. Settings → Import and export on a fresh load, with the box still empty. A
+  // fresh page has loaded no other Home Assistant page. A lazy Home Assistant element
+  // stays an empty box with no size there, so this shot shows that the native box
+  // has its label, its size and its helper line before anything else loads.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
-  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
-    (el as HTMLTextAreaElement & { value: string }).value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
-  await panel.locator('#transfer-preview').click();
-  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
-  await page.waitForTimeout(700);
+  await expect(panel.locator('#transfer-text')).toBeVisible();
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60f-panel-transfer-paste.png` });
+
+  // 60. Settings → Import and export — the whole surface at once: the export list
+  // with the companion row (the stub Pawsistant registers `import_export`), the 2
+  // export buttons and the line after an export, then that bundle chosen back in
+  // and its preview. The preview is the shot's point: 1 row per section, the
+  // companion's included, with the notes beside each, and the settings offer that
+  // only a bundle with settings shows.
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await previewOwnBundle(page, panel);
   // The card alone, not the whole Settings page: it sits last, so a full-page shot
   // renders it a thumbnail at the bottom of eight others.
   await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(300);
   await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60-panel-transfer.png` });
+  // Back to the text box for the next shot.
+  await panel.locator('#transfer-clear').click();
+  await expect(panel.locator('#transfer-text')).toHaveCount(1);
 
   // 60c. The refusal for a document too large to import from the panel. Worth its own
   // shot because it is the one refusal the browser decides by itself: Home Assistant
@@ -2024,6 +2367,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel
     .locator('#hk-transfer')
     .screenshot({ path: `${OUT}/60c-panel-transfer-too-large.png` });
+
+  // 60h. A chosen file that is not text and not a bundle. Its bytes stay out of the
+  // box, and the card says what to choose.
+  await pickBinaryFile(page, panel);
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60h-panel-transfer-binary.png` });
+
+  // 60j. A real import that failed after its write: part of the document is in.
+  await showPartialImport(panel);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60j-panel-transfer-partial.png` });
+  await panel.evaluate((el) => {
+    const p = el as unknown as { _transfer: Record<string, unknown>; _render: () => void };
+    p._transfer.report = null;
+    p._render();
+  });
 
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
   // to-do list this profile's tasks are synced onto ("Family chores", the seeded
@@ -2149,7 +2510,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       enabled: true,
     });
   }, { TASK });
+});
 
+test('capture the phone layout', async () => {
   // 50-53. The phone layout, which is different enough from the desktop one that the
   // shots above document none of it: the tabs are along the bottom, Add floats, and
   // Settings opens on an index rather than six expanded sections. Asserted in
@@ -2168,6 +2531,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+
+  // 72c. The spend totals on a phone (#460): 2 totals to a row, and the records of
+  // the open total stacked under them.
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/72c-panel-mobile-spend.png` });
+  await panel.locator('.hk-spend [data-spend="all"]').click();
+  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
 
   // 71d. Tiles on a phone. Two to a row rather than three, which is the layout the
   // picker exists for: a phone list row is a tall stacked block, so the same screen
@@ -2395,6 +2767,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/45e-panel-mobile-settings-shopping.png` });
 
+  // 45g. The Due time section on a phone, with a set time chosen and then put back.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="duetime"]').click();
+  await setDueTimeMode(panel, 'At a set time');
+  await page.screenshot({ path: `${OUT}/45g-panel-mobile-settings-duetime.png` });
+  await setDueTimeMode(panel, 'At the time of completion');
+
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and
   // the Triggers group saying that a trigger sets the moment rather than the contents.
@@ -2427,29 +2807,35 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/22c-panel-mobile-notify-triggers.png` });
 
   // 60b. Import and export on a phone. Below 700px the section opens on its own with
-  // the back bar, and the two action rows wrap so each button keeps a full tap
-  // target rather than being squeezed onto one line beside its neighbour.
+  // the back bar, the export buttons and the tags take their short labels, and each
+  // row of the preview puts its notes on a line below its counts.
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await panel.locator('.hk-index-row[data-section="transfer"]').click();
   await expect(panel.locator('#hk-transfer')).toBeVisible();
-  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
-    (el as HTMLTextAreaElement & { value: string }).value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
-  await panel.locator('#transfer-preview').click();
-  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
-  // Wheel the actions into frame rather than `scrollIntoViewIfNeeded`, which does
+  // The export half first: the list of sources and the 2 buttons.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60e-panel-mobile-transfer-export.png` });
+  await previewOwnBundle(page, panel);
+  // Wheel the table into frame rather than `scrollIntoViewIfNeeded`, which does
   // nothing here: the panel sits inside Home Assistant's own scroller, so the
-  // element is "in view" of a container that is itself scrolled to the top. The two
-  // buttons taking a row of their own is the phone-specific half of this card, and
-  // a shot that cuts them off documents none of it.
+  // element is "in view" of a container that is itself scrolled to the top.
   await page.mouse.move(200, 500);
-  await page.mouse.wheel(0, 300);
+  for (let i = 0; i < 12; i++) {
+    if (await panel.locator('#transfer-import').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom <= window.innerHeight - 80;
+    })) break;
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(150);
+  }
   await expect(panel.locator('#transfer-import')).toBeInViewport();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60b-panel-mobile-transfer.png` });
+  await panel.locator('#transfer-clear').click();
+  await expect(panel.locator('#transfer-text')).toHaveCount(1);
 
   // 60d. The same refusal on a phone. The message is two sentences and names an
   // action id, so this is where it either wraps inside the card or pushes the layout
@@ -2464,6 +2850,39 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 60i and 60k. The binary file refusal and the partial import on a phone.
+  await pickBinaryFile(page, panel);
+  await panel.locator('.hk-transfer-error').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60i-panel-mobile-transfer-binary.png` });
+  await showPartialImport(panel);
+  await panel.locator('.hk-transfer-report').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60k-panel-mobile-transfer-partial.png` });
+  await panel.evaluate((el) => {
+    const p = el as unknown as { _transfer: Record<string, unknown>; _render: () => void };
+    p._transfer.report = null;
+    p._render();
+  });
+
+  // 60g. The empty box on a phone after a fresh load. The fresh load is the point:
+  // the steps above opened other pages first, and those pages can load a lazy Home
+  // Assistant element that the panel does not load.
+  await openPanel(page);
+  await panel.locator('#mtab-settings').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="transfer"]').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await expect(panel.locator('#transfer-text')).toBeVisible();
+  // Wheel the box into frame, for the same reason as in 60b. Stop at 260px, so that
+  // the frame keeps the end of the Save to a file text above the Export button.
+  await page.mouse.move(200, 500);
+  await page.mouse.wheel(0, 260);
+  await expect(panel.locator('#transfer-text')).toBeInViewport();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60g-panel-mobile-transfer-paste.png` });
 
   // 70e. The managed appliance on a phone. The owner chip wraps under the title, the
   // actions row holds Archive alone, and the three part rows stack with their
@@ -2569,11 +2988,42 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
   await setAnodeTag(page, null);
 
-  // The task layout is stored per user on the server, so it outlives this capture
-  // and would greet the next run — and the e2e suite — in whatever the last shot
-  // left. The steps above each put it back themselves; this is the backstop for a
-  // run that died between one of them and its reset.
-  await setTaskLayout(page, 'rows');
+  // 58c/58d. Task photos on a phone (#399): the row thumbnail, then the task page,
+  // where the cover goes full width above the name and the strip scrolls sideways.
+  await openPanel(page);
+  const coverRowPhone = panel.locator(
+    `.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`,
+  );
+  await expect(coverRowPhone).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await centre(coverRowPhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58d-panel-mobile-task-photo-row.png` });
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58c-panel-mobile-task-photos.png`, fullPage: true });
+
+  // 58f/58h/58j. After photos (#399), phone.
+  await captureAfterPhotos(page, panel, true);
+  // 58l. Photos in the New task form (#399), phone.
+  await captureFormPhotos(page, panel, true);
 
   await page.setViewportSize(DESKTOP);
 });
+
+/** Choose a Due time mode on the Settings card and wait for the save to land. */
+async function setDueTimeMode(panel: Locator, label: string): Promise<void> {
+  const card = panel.locator('#hk-settings-duetime');
+  await card.scrollIntoViewIfNeeded();
+  await card.getByText(label, { exact: true }).click();
+  await expect(card.locator('ha-selector-time')).toHaveCount(label === 'At a set time' ? 1 : 0);
+  await expect(card.locator('.hk-save-status.saved')).toBeVisible({ timeout: 30_000 });
+  await panel.page().waitForTimeout(600);
+}

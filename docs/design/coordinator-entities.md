@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 3b3efe7bec33
+source_hash: d6dd18791e35
 ---
 
 # Coordinator and entities
@@ -128,7 +128,8 @@ state with the profile status filter, and the attributes over the scope with sta
 
 `service_device.service_device_info` describes 1 `SERVICE` device for counts, the to-do list
 and the calendar. Home Assistant creates it from `device_info`, and the all-tasks sensor always
-exists, so the device always has an entity.
+exists, so the device always has an entity. The cost sensors are on it too
+([cost-summary](cost-summary.md)).
 
 ## Trade-offs
 

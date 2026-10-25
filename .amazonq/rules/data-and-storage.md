@@ -23,8 +23,20 @@ The store is in [store](../../docs/design/store.md), the task model in
   unlink pops only that key.
 - `task_chips` is set only by the integration that owns the task, and the task form does
   not show it. `card_links` is the user's link from a card task to appliance documents.
+- **A fixed schedule is an RFC 5545 RRULE.** `rrule` holds the body only, with no `RRULE:`
+  prefix and no DTSTART. `anchor` is the DTSTART. Validate a rule only with
+  `recurrence.normalize_rule`, so the service, the import and the panel refuse the same rules.
+- **Store the rule, never the legacy pair.** Services and old exports still accept `freq`
+  and `interval`, and `models.normalize_fields` converts them on the way in. The store
+  converts the stored tasks 1 time on load. No task stores both.
+- **A moved date goes in `moved_occurrences`**, never as EXDATE or RDATE in the rule text.
+  Each entry is `{from, to}`, and `from` is always the date on the rule. Only
+  `move_occurrence` writes the list: `add_task` and `update_task` refuse it, and an import
+  keeps it.
+- **A move is a usage action, as a snooze is.** Do not gate `move_occurrence` to admins.
 - **A glue integration sets a default interval but never locks it.** Leave `sensor` out of
   `managed_by.locked_fields`. Use `completion_blocked` only for a read-only mirror.
+  Only the owner clears it: a glue sends its `managed_by.integration` as `origin`.
 
 ## Sensor tasks
 
@@ -41,7 +53,7 @@ Details are in [sensor-tasks](../../docs/design/sensor-tasks.md).
 - Carried edge state is stamped with `sensor_tasks.condition_fingerprint`. A changed
   condition retires it.
 - **A new recurrence dimension goes in the `sensor` block** with a branch in the pure
-  evaluator, never in `interval`, `unit` or `freq`. Anchor a time dimension to
+  evaluator, never in `interval`, `unit` or `rrule`. Anchor a time dimension to
   `last_completed`, then `created`, never to the meter baseline. A dimension that does not
   need the reading is evaluated also when the entity is unavailable.
 - **A usage meter's `baseline` is the reading on its latest completion.** Correcting that
@@ -131,3 +143,11 @@ Details are in [transfer](../../docs/design/transfer.md).
 - Match records by `id`, then `external_id`, then `name`. An ambiguous match raises.
 - Validate everything before anything is written. An unknown field is a named warning, and a
   newer `format` is an error.
+- **Validate every section before a write, companion sections included.** Dry-run each
+  companion's `import_data` first. Apply only when no section has an error.
+- **Never read a companion section.** Store the companion's export response as is, under
+  its domain. A new Home Keeper section name goes in `transfer.RESERVED_SECTIONS`.
+- **Extract a bundle only through `transfer_bundle.safe_extract`**, into a run folder that a
+  `finally` deletes. Count real bytes, never the sizes in the zip headers.
+- **An import never deletes.** A record, profile or notification that the file does not
+  name stays.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PRESET_SECTIONS,
   changedSections,
+  companionOrigin,
   limitProgress,
   presetFor,
   resetToPreset,
@@ -259,5 +260,135 @@ describe('limitProgress', () => {
     expect(limitProgress('  ', 'h', hours)).toBeNull();
     expect(limitProgress(null, 'h', hours)).toBeNull();
     expect(limitProgress(undefined, 'h', hours)).toBeNull();
+  });
+});
+
+describe('companionOrigin', () => {
+  const PRESET = {
+    id: 'zha_wear_high',
+    icon: 'mdi:air-filter',
+    requires_integration: 'zha',
+    brand: 'Zigbee (ZHA)',
+    shape: 'wear_high',
+    limit_text: 'above 180 days',
+    default_spec: SPEC,
+  };
+  const GENERAL = {
+    id: 'firmware_update_available',
+    icon: 'mdi:update',
+    requires_integration: null,
+    brand: null,
+    shape: null,
+    limit_text: null,
+    default_spec: { ...SPEC, preset_id: 'firmware_update_available' },
+  };
+  const PRESETS = [GENERAL, PRESET];
+
+  it('says the brand, shape, platform, limit and icon of a companion from a preset', () => {
+    expect(companionOrigin(draftOf(), PRESETS)).toEqual({
+      domain: 'zha',
+      brand: 'Zigbee (ZHA)',
+      shape: 'wear_high',
+      platform: 'sensor',
+      limitText: 'above 180 days',
+      icon: 'mdi:air-filter',
+      custom: false,
+    });
+  });
+
+  it('keeps the limit while the trigger only differs by empty members or a hold of 0', () => {
+    const draft = draftOf();
+    draft.trigger = { ...draft.trigger, for_seconds: 0, attribute: '' };
+    expect(companionOrigin(draft, PRESETS).limitText).toBe('above 180 days');
+  });
+
+  it('drops the limit when the user changed the trigger', () => {
+    const draft = draftOf();
+    draft.trigger = { ...draft.trigger, template: '{{ state | float > 100 }}' };
+    const origin = companionOrigin(draft, PRESETS);
+    expect(origin.limitText).toBeNull();
+    // The rest still comes from the preset.
+    expect([origin.brand, origin.shape, origin.custom]).toEqual([
+      'Zigbee (ZHA)',
+      'wear_high',
+      false,
+    ]);
+  });
+
+  it('gives a custom companion the brand of a preset for the same integration', () => {
+    const draft = { ...draftOf(), preset_id: null };
+    expect(companionOrigin(draft, PRESETS)).toEqual({
+      domain: 'zha',
+      brand: 'Zigbee (ZHA)',
+      shape: null,
+      platform: 'sensor',
+      limitText: null,
+      icon: null,
+      custom: true,
+    });
+  });
+
+  it('gives no brand when no preset is for the integration', () => {
+    const draft = draftOf();
+    draft.preset_id = null;
+    draft.selection = { ...draft.selection, target_integration: 'my_custom' };
+    const origin = companionOrigin(draft, PRESETS);
+    expect([origin.domain, origin.brand]).toEqual(['my_custom', null]);
+  });
+
+  it('gives no domain to a companion with no target integration', () => {
+    const draft = draftOf(GENERAL.default_spec);
+    draft.selection = { ...draft.selection, target_integration: '', domain: 'update' };
+    expect(companionOrigin(draft, PRESETS)).toEqual({
+      domain: null,
+      brand: null,
+      shape: null,
+      platform: 'update',
+      limitText: null,
+      icon: 'mdi:update',
+      custom: false,
+    });
+  });
+
+  it('keeps the logo of a preset the catalog no longer has', () => {
+    const draft = { ...draftOf(), preset_id: 'zha_gone' };
+    const origin = companionOrigin(draft, [GENERAL]);
+    expect(origin).toEqual({
+      domain: 'zha',
+      brand: null,
+      shape: null,
+      platform: 'sensor',
+      limitText: null,
+      icon: null,
+      custom: false,
+    });
+  });
+
+  it('copes when the preset list did not load', () => {
+    const origin = companionOrigin(draftOf(), null);
+    expect([origin.domain, origin.brand, origin.limitText, origin.custom]).toEqual([
+      'zha',
+      null,
+      null,
+      false,
+    ]);
+  });
+
+  it('copes with an older backend that sends no brand, shape or limit text', () => {
+    const old = { id: PRESET.id, icon: PRESET.icon, requires_integration: 'zha', default_spec: SPEC };
+    const origin = companionOrigin(draftOf(), [old]);
+    expect([origin.brand, origin.shape, origin.limitText, origin.icon]).toEqual([
+      null,
+      null,
+      null,
+      'mdi:air-filter',
+    ]);
+  });
+
+  it('skips a same-integration preset with no brand when it looks for one', () => {
+    const noBrand = { ...PRESET, id: 'zha_other', brand: null };
+    const draft = { ...draftOf(), preset_id: null };
+    expect(companionOrigin(draft, [noBrand, PRESET]).brand).toBe('Zigbee (ZHA)');
+    expect(companionOrigin(draft, [noBrand]).brand).toBeNull();
   });
 });

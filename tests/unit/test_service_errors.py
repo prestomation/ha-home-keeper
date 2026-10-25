@@ -68,6 +68,11 @@ def test_b02_6_a_missing_document_names_the_document():
     )
 
 
+def test_a_missing_task_photo_names_the_photo():
+    err = _raised(errors.store_errors(task_id="t1", photo_id="p9"), KeyError("p9"))
+    assert _shape(err) == ("home_keeper", "unknown_task_photo", {"photo_id": "p9"})
+
+
 def test_a_missing_part_names_the_appliance_and_the_part():
     err = _raised(
         errors.store_errors(asset_id="a1", part_id="p1", document_id="d1"),

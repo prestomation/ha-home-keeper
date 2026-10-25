@@ -23,11 +23,8 @@ You can react to the events in 3 ways:
    [device links](design/coordinator-entities.md#per-task-entities-and-device-links)).
    For those tasks, automate on the task's entities (`binary_sensor.<task>_overdue`,
    `sensor.<task>_next_due`) or use the event trigger below.
-2. **Event entities (Event received trigger).** Each device with a Home Keeper task or
-   appliance has a **Home Keeper events** entity, and the Home Keeper device has a
-   **Home Keeper Events** entity that gets all events. The event type is the event name
-   without `home_keeper_`. See the
-   [guide](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).
+2. **Event entities.** Each device with a Home Keeper task or appliance has an event entity,
+   and 1 more gets all events. Use the Event received trigger ([guide](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities)).
 3. **Event trigger (any automation).** For global automations ("*any* part low → add to
    1 shopping list"), use a `platform: event` trigger on the event name.
 
@@ -48,14 +45,14 @@ All event names use the pattern `home_keeper_<noun>_<verb>`. Task events share a
 A snooze moves only `next_due`. The recurrence does not change. "Due today" is the
 opposite: `next_due` moves to now, and the recurrence does not change.
 
-A skip advances the schedule. The step depends on the kind of task:
+A skip advances the schedule. A **floating** task starts a new interval from now. A
+**fixed** task moves to the next scheduled occurrence. A **one-off**, **triggered** or
+**sensor** task goes dormant.
 
-* **floating** starts a new interval from now
-* **fixed** moves to the next scheduled occurrence
-* **one-off**, **triggered** and **sensor** tasks go dormant
+A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.
 
-A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the
-new date.
+`move_occurrence` moves 1 date of a fixed task and fires `home_keeper_task_occurrence_moved`
+with `occurrence` (the rule date), `to` and `previous_to`. An undo sets `to` to `occurrence`.
 
 Home Keeper records a skip in a `skips` list, next to the `completions` list. A skip
 never sets `last_completed`, and nothing that uses the completion log counts it.
@@ -87,26 +84,32 @@ Many paths complete a task through the ordinary `home_keeper_task_completed` eve
 To complete a task whose **Require tag scan** toggle blocks every UI surface, an
 automation can pass `origin: home_keeper_tag_scan` to `complete_task`.
 
-**Sensor tasks** use the triggered lifecycle. The watcher fires
-`home_keeper_task_triggered` when a bound entity meets the condition of the task. A
-usage meter that passes its target is one case. A `state` entity that enters its state is another.
-The task then becomes `home_keeper_task_overdue` as any due task does. A user completion
-clears it and resets the baseline of a usage meter. A usage meter with a **time
-backstop** (`also_every` in its `sensor` block) arms on the first half that is due, also while the
-entity is unavailable.
+**Sensor tasks** use the triggered lifecycle. The watcher fires `home_keeper_task_triggered`
+when a bound entity meets the condition of the task. A usage meter that passes its target
+is one case. A `state` entity that enters its state is another. The task then becomes
+`home_keeper_task_overdue` as any due task does. A user completion clears it and resets
+the baseline of a usage meter. A usage meter with a **time backstop** (`also_every` in its
+`sensor` block) arms on the first half that is due, also while the entity is unavailable.
 
-With `clear_on_recover`, the task completes itself. A task that a declarative companion
-with `clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task`
-refuses it, and its device page has no Mark done button. If the task is linked to a
-consumable, the auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock`
-or `home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a
-recovery. It counts as no reading and fires no event. A device that goes off the network never
-completes a task.
+With `clear_on_recover`, the task completes itself. A task that a declarative companion with
+`clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task` refuses it,
+and its device page has no Mark done button. If the task is linked to a consumable, the
+auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock` or
+`home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a recovery. It
+counts as no reading and fires no event. A device that goes off the network never completes
+a task.
 
 The baseline bookkeeping of the watcher (a new meter anchor, a re-anchor after a meter
 reset) fires **no event**, because it is internal state. A baseline that a user moves
 with the `set_task_meter` service fires `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
+
+**Task photos.** A photo change is a task change. When a user adds a photo, removes a
+photo or makes a photo the cover, Home Keeper fires `home_keeper_task_updated` with
+`changed_fields: ["photos"]`. There is no separate photo event.
+
+**New appliance device.** If an appliance gets a new device, each moved task and appliance fires
+an `_updated` event with `device_id`, `source` or `related_device_ids` in `changed_fields`.
 
 **Shopping list.** When *Settings → Shopping list* names a to-do list, each automatic
 "Buy {part}" reminder goes on it. The completion has
@@ -188,10 +191,9 @@ and `home_keeper_asset_deleted` does not fire.
 Home Keeper shows integrations that work with it in **Settings → Companions** (see
 [INTEGRATING.md §9](INTEGRATING.md#9-discovery-and-declarative-companions)).
 As with time-based transitions, Home Keeper records the state at startup with no events.
-An event fires only when a companion *changes* state at run time, as when it
-registers itself or when a user installs a glue. Home Keeper checks the
-state on each coordinator refresh (about 5 minutes). A read (the panel, or
-`list_companions`) fires nothing.
+An event fires only when a companion *changes* state at run time, as when it registers
+itself or when a user installs a glue. Home Keeper checks the state on each coordinator
+refresh (about 5 minutes). A read (the panel, or `list_companions`) fires nothing.
 
 A suggestion names the *glue* in `domain` and the upstream that Home Keeper found in
 `upstream_domain`.
@@ -291,8 +293,8 @@ its `task_id`, because those task events have `device_id: null`.
 - Home Keeper never reads `source`. Use it, and the `origin` on completions, to find your
   own tasks and remove duplicates. See [INTEGRATING.md](INTEGRATING.md).
 - **An import fires 1 event per record, not 1 per completion.** A document that
-  `home_keeper.import_data` reads holds old history, from before the import. A
-  backfilled completion fires no `home_keeper_task_completed`. The record
-  arrives as 1 `home_keeper_task_created` or `home_keeper_task_updated`. An update that
-  only adds history still fires, with `completions` in its `changed_fields`. To mirror
-  completions, read the task history on that event. Do not count completion events.
+  `home_keeper.import_data` reads holds old history, from before the import. A backfilled
+  completion fires no `home_keeper_task_completed`. The record arrives as 1
+  `home_keeper_task_created` or `home_keeper_task_updated`. An update that only adds history
+  still fires, with `completions` in its `changed_fields`. To mirror completions, read the
+  task history on that event. Do not count completion events.

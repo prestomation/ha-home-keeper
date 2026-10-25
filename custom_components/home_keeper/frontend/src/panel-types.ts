@@ -7,6 +7,7 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
+import type { StagedPhoto } from './photo-staging';
 import type {
   Asset,
   Completion,
@@ -53,6 +54,8 @@ export interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Photos picked in the New task form. They upload after Create (#399). */
+  photos?: StagedPhoto[];
 }
 export interface AssetEditState {
   /** Set while Create/Save runs, so a second press is ignored (X12-4). */
@@ -191,6 +194,7 @@ export const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 export const LS_PROFILE = 'home-keeper.profile';
 export const LS_ASSET_VIEW = 'home-keeper.assetView';
 export const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
+export const LS_LABELS = 'home-keeper.labels';
 
 /**
  * The Import and export card's state.
@@ -211,6 +215,19 @@ export interface TransferState {
   error: string;
   /** The name of the picked file, shown so the user can tell which one is loaded. */
   filename: string;
+  /** A chosen file that goes to the upload view as it is: a bundle, or a YAML file
+   *  over the websocket limit. Null when the input is the text box. */
+  file: File | null;
+  /** The previewed bundle has settings, so the card offers to import them. */
+  hasSettings: boolean;
+  /** Import the settings of the bundle too (`include_settings`). */
+  includeSettings: boolean;
+  /** The export rows the user changed, by row key. A row not here has its default. */
+  picked: Record<string, boolean>;
+  /** An export is in flight. */
+  exporting: boolean;
+  /** The line after an export: what the file holds. */
+  exported: string;
 }
 
 /** The one-time "Presets you can use" dialog: the presets it lists, the ones still

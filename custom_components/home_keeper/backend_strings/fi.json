@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Raja: alle {limit}.",
   "declarative_preset.limit.above": "{description} Raja: yli {limit}.",
   "declarative_preset.limit.life": "{description} Raja: alle {limit} jäljellä tai alle 10 %.",
+  "declarative_preset.limit_short.below": "alle {limit}",
+  "declarative_preset.limit_short.above": "yli {limit}",
+  "declarative_preset.limit_short.life": "alle {limit} jäljellä",
   "declarative_preset.unit.hours": "{n} h",
   "declarative_preset.unit.days": "{n} vrk",
   "declarative_task.completion_prompt": "Avattu deklaratiivisella kumppanilla ”{name}”. Home Keeper suorittaa tämän tehtävän automaattisesti, kun ehto poistuu, joten sitä ei voi merkitä valmiiksi käsin."

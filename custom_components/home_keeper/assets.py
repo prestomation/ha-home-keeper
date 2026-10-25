@@ -1824,62 +1824,6 @@ def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
     return [task for task in tasks if task_relates_to_asset(task, asset)]
 
 
-# The fields of a part a non-admin may read: the product-URL chip on the card, and
-# the count, reorder point and unit, which every spares ``number`` entity already
-# shows to any user. A counted wear item also needs its target
-# (``replace_interval``), its noun (``use_noun``) and an imported count
-# (``carried_uses``), so the card can show "17 of 25 wears" to the person who
-# records the uses. Cost, vendor, part number and notes are administration and stay
-# admin-only.
-_CARD_PART_FIELDS = (
-    "id",
-    "name",
-    "url",
-    "stock",
-    "reorder_at",
-    "stock_unit",
-    "replace_interval",
-    "use_noun",
-    "carried_uses",
-)
-
-
-def card_projection(assets: list[dict]) -> list[dict]:
-    """The subset of asset data a **non-admin** caller needs, and nothing more.
-
-    Administration is admin-only (the panel is ``require_admin``), but the dashboard
-    card is a usage surface every household member can see, and it reads appliance
-    data to resolve a task's "show on card" links. Without this, ``get_assets`` hands
-    any logged-in user the replacement costs, serial numbers and warranty dates
-    that ``export_appliance_report`` is admin-gated to protect — making that gate
-    meaningless.
-
-    The card needs exactly three things: an asset's ``documents`` (a card link can
-    point at one), its ``link``-typed ``metadata`` entries (a card link can point at
-    one of those too, and its value is a URL the user chose to publish), and a part's
-    id/name/url, its stock count, reorder point and unit, and the three fields a
-    counted wear item's progress reads (target, noun, carried count). This is a
-    **whitelist**: a field added to the asset record later is private until someone
-    adds it here on purpose.
-    """
-    return [
-        {
-            "id": asset.get("id"),
-            "documents": list(asset.get("documents") or []),
-            "metadata": [
-                entry
-                for entry in (asset.get("metadata") or [])
-                if entry.get("type") == "link"
-            ],
-            "parts": [
-                {field: part.get(field) for field in _CARD_PART_FIELDS}
-                for part in (asset.get("parts") or [])
-            ],
-        }
-        for asset in assets
-    ]
-
-
 def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | None:
     """The asset a deleted *task*'s history should be preserved on, or None.
 
@@ -1887,7 +1831,8 @@ def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | No
     the first appliance that owns or relates to the task's device. Returns None for
     a standalone task — its history is dropped on delete.
     """
-    part_asset = assets_by_id.get(_part_asset_id(task) or "")
+    part_id = _part_asset_id(task)
+    part_asset = assets_by_id.get(part_id) if part_id else None
     if part_asset is not None:
         return part_asset
     device_id = task.get("device_id")

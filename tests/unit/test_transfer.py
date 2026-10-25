@@ -352,6 +352,46 @@ def test_an_appliance_an_integration_owns_is_refused_on_the_way_in():
     assert _only(sourced)["path"] == "appliances[0].source"
 
 
+def test_task_photos_are_counted_and_do_not_travel():
+    task = tr.models.build_task(
+        {"name": "Fix insulation", "interval": 1, "unit": "months"}, now=NOW
+    )
+    photo = {
+        "id": "p1",
+        "name": "Gap",
+        "filename": "gap.jpg",
+        "content_type": "image/jpeg",
+        "size": 10,
+        "created": "",
+    }
+    task["photos"] = [photo, {**photo, "id": "p2"}]
+    bare = tr.models.build_task(
+        {"name": "Sweep", "interval": 1, "unit": "months"}, now=NOW
+    )
+    owned = tr.models.build_task(
+        {
+            "name": "Owned",
+            "interval": 1,
+            "unit": "months",
+            "managed_by": {"integration": "x"},
+        },
+        now=NOW,
+    )
+    owned["photos"] = [photo]
+    document = tr.build_document([task, bare, owned], [], now=NOW)
+    assert document["home_keeper"]["skipped"] == {"task_photos": 2}
+    assert all("photos" not in t for t in document["tasks"])
+
+
+def test_no_task_photos_means_no_skipped_count():
+    task = tr.models.build_task(
+        {"name": "Sweep", "interval": 1, "unit": "months"}, now=NOW
+    )
+    task["photos"] = []
+    document = tr.build_document([task], [], now=NOW)
+    assert "skipped" not in document["home_keeper"]
+
+
 def test_an_uploaded_file_is_counted_rather_than_passed_over_in_silence():
     asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
     asset["documents"] = [

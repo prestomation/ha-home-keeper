@@ -11,6 +11,9 @@ Three kinds, all living on a device page:
   temporal attributes are automatable natively (e.g. "warranty expiring in 30 days
   -> notify") and show in state history. Only metadata dates the user opts into
   tracking (``track``) get a sensor; the rest are display-only.
+* ``HomeKeeperSpendSensor`` — maintenance spend, 1 per cost window plus 1 for all
+  time, and ``HomeKeeperPurchaseSensor`` — the sum of the appliance purchase costs.
+  Both are on the service device (#460).
 """
 
 from __future__ import annotations
@@ -30,10 +33,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from . import notifier, profiles, recurrence, sensor_tasks, task_counts
+from . import cost_summary, notifier, profiles, recurrence, sensor_tasks, task_counts
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    OPTION_COST_WINDOWS,
     OPTION_PROFILES,
     SENSOR_MODE_USAGE,
 )
@@ -52,6 +56,17 @@ _DATE_ICON = "mdi:calendar-clock"
 _ALL_COUNT_UID = f"{DOMAIN}_tasks"
 _PROFILE_COUNT_PREFIX = f"{DOMAIN}_profile_"
 _PROFILE_COUNT_SUFFIX = "_tasks"
+
+
+# Unique ids of the cost sensors (#460). A window sensor is keyed by its days, so a
+# window that the user removes is pruned and one that stays keeps its entity id.
+_SPEND_PREFIX = f"{DOMAIN}_spend_"
+_SPEND_ALL_UID = f"{DOMAIN}_spend_all"
+_PURCHASES_UID = f"{DOMAIN}_purchases"
+
+
+def _spend_window_uid(days: int) -> str:
+    return f"{_SPEND_PREFIX}{days}d"
 
 
 def _profile_count_uid(profile_id: str) -> str:
@@ -76,6 +91,7 @@ async def async_setup_entry(
     coordinator: HomeKeeperCoordinator = entry.runtime_data
 
     count_entities, live_count_uids = _count_entities(coordinator, entry)
+    cost_entities, live_cost_uids = _cost_entities(coordinator, entry)
 
     task_ids = coordinator.device_attached_task_ids()
     live_task_ids = set(task_ids)
@@ -112,6 +128,8 @@ async def async_setup_entry(
             _PROFILE_COUNT_SUFFIX
         ):
             return uid in live_count_uids
+        if uid == _PURCHASES_UID or uid.startswith(_SPEND_PREFIX):
+            return uid in live_cost_uids
         if uid.startswith(task_prefix) and uid.endswith(task_suffix):
             return uid[len(task_prefix) : -len(task_suffix)] in live_task_ids
         if uid.startswith(asset_prefix) and asset_infix in uid:
@@ -123,7 +141,29 @@ async def async_setup_entry(
     task_entities: list[SensorEntity] = [
         HomeKeeperNextDueSensor(coordinator, task_id) for task_id in task_ids
     ]
-    async_add_entities(task_entities + asset_entities + count_entities)
+    async_add_entities(task_entities + asset_entities + count_entities + cost_entities)
+
+
+def _cost_entities(
+    coordinator: HomeKeeperCoordinator, entry: ConfigEntry
+) -> tuple[list[SensorEntity], set[str]]:
+    """The cost sensors to add, and their unique ids.
+
+    1 spend sensor per window in the options, 1 for all time and 1 for the
+    appliance purchases. A change to the windows reloads the entry, which builds
+    the new set and prunes the sensor of a window that is gone.
+    """
+    windows = cost_summary.normalize_windows(
+        current_options(entry).get(OPTION_COST_WINDOWS)
+    )
+    entities: list[SensorEntity] = [
+        HomeKeeperSpendSensor(coordinator, days=days) for days in windows
+    ]
+    entities.append(HomeKeeperSpendSensor(coordinator, days=None))
+    entities.append(HomeKeeperPurchaseSensor(coordinator))
+    live = {_spend_window_uid(days) for days in windows}
+    live.update({_SPEND_ALL_UID, _PURCHASES_UID})
+    return entities, live
 
 
 def _count_entities(
@@ -397,3 +437,101 @@ class HomeKeeperAssetDateSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
             return date.fromisoformat(str(value)[:10])
         except ValueError:
             return None
+
+
+class _CostSensor(CoordinatorEntity[HomeKeeperCoordinator], SensorEntity):
+    """A money total on the service device, in the Home Assistant currency.
+
+    The value is calculated again on each coordinator update. The coordinator clock
+    moves a window forward, so an old completion leaves a window with no write.
+    """
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.MONETARY
+
+    def __init__(self, coordinator: HomeKeeperCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_device_info = service_device_info()
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """The currency set in Home Assistant, or none when it is not set."""
+        return self.hass.config.currency or None
+
+    def _calculate(self) -> None:
+        raise NotImplementedError
+
+    async def async_added_to_hass(self) -> None:
+        """Calculate before the first state write."""
+        await super().async_added_to_hass()
+        self._calculate()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Calculate again on each coordinator update, then write the state."""
+        self._calculate()
+        super()._handle_coordinator_update()
+
+
+class HomeKeeperSpendSensor(_CostSensor):
+    """Maintenance spend in the last *days* days, or in all time when *days* is None.
+
+    The value is the sum of the completion costs (see ``cost_summary``). The
+    attributes are ``count``, and ``first`` (the oldest record) for all time only.
+    """
+
+    _attr_icon = "mdi:cash-multiple"
+
+    def __init__(self, coordinator: HomeKeeperCoordinator, *, days: int | None) -> None:
+        super().__init__(coordinator)
+        self._days = days
+        if days is None:
+            self._attr_unique_id = _SPEND_ALL_UID
+            self._attr_translation_key = "spend_all"
+            # A total that goes up with each cost and down when a task or a cost is
+            # deleted. TOTAL lets Home Assistant keep statistics for it.
+            self._attr_state_class = SensorStateClass.TOTAL
+        else:
+            self._attr_unique_id = _spend_window_uid(days)
+            self._attr_translation_key = "spend_window"
+            self._attr_translation_placeholders = {"days": str(days)}
+            # No state class: a window total goes down as time passes, which is not
+            # a TOTAL, and MONETARY permits no other class.
+
+    def _calculate(self) -> None:
+        records = cost_summary.spend_records(
+            list(self.coordinator.data.values()),
+            self.coordinator.store.list_assets(),
+            tz=dt_util.get_default_time_zone(),
+        )
+        windows = [self._days] if self._days is not None else []
+        summary = cost_summary.spend_summary(
+            records, now=dt_util.now(), windows=windows
+        )
+        if self._days is None:
+            block = summary["all_time"]
+            self._attr_extra_state_attributes = {
+                "count": block["count"],
+                "first": block["first"],
+            }
+        else:
+            block = summary["windows"][0]
+            # No ``since`` here: it moves on each tick, and each change writes a
+            # new state row. ``get_spend`` gives it to the panel.
+            self._attr_extra_state_attributes = {"count": block["count"]}
+        self._attr_native_value = block["total"]
+
+
+class HomeKeeperPurchaseSensor(_CostSensor):
+    """The sum of the appliance purchase costs. The ``count`` attribute is how many
+    appliances have a cost."""
+
+    _attr_icon = "mdi:cash-register"
+    _attr_unique_id = _PURCHASES_UID
+    _attr_translation_key = "purchases_total"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def _calculate(self) -> None:
+        result = cost_summary.purchase_total(self.coordinator.store.list_assets())
+        self._attr_native_value = result["total"]
+        self._attr_extra_state_attributes = {"count": result["count"]}

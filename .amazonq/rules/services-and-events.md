@@ -18,6 +18,9 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   `_register_services`, add a `services.yaml` entry, and add `strings.json` text with
   parity in every `translations/<lang>.json`. A websocket command, if any, calls the same
   `HomeKeeperStore` method. Never give it a second code path.
+- **Record the privilege of each new surface.** Set `admin_only` or `admin_methods` in
+  `api_surface.py`, and give the reason in the PR's Security section
+  ([architecture.md](architecture.md#how-to-decide)).
 - A websocket command is optional. If the service already does what the panel needs, the
   panel can call it through `call_service` with `return_response: true`. Settings,
   Notifications, **Test** (`api.runNotification`) does this on purpose.
@@ -42,10 +45,19 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   quotes what the user typed.
 - Websocket commands take ids only.
 
+## Companion capabilities
+
+- **A `capabilities` token that changes what Home Keeper does is declared** in
+  `api_surface.COMPANION_CAPABILITIES`, with the services it needs. The contract for
+  integrators goes in [INTEGRATING.md](../../docs/INTEGRATING.md).
+- **Call a companion service with the caller's `Context`** and a time limit, so the
+  companion's admin check sees the user, and a slow companion cannot hold the call.
+
 ## Uploads
 
 - **An uploaded file is the 1 mutation that is not a service.** A binary cannot go through
-  a service or the websocket, so it goes through the `HomeAssistantView`s in `manuals.py`.
+  a service or the websocket, so it goes through the `HomeAssistantView`s in `manuals.py`
+  and `transfer_http.py`. The import upload calls the same runner as `import_data`.
   The metadata still goes through the store, so the event fires. Removal is a service.
 - **Stream an upload to disk.** Never read a whole file into memory, and never add a
   `bytes`-returning read or write on this path. Validation works from the header and the
@@ -64,12 +76,15 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   against the payload that ships.
 - **Fire at the `store.py` chokepoint**, not in a handler, so every surface is observed.
   Each path that changes the task or asset map counts, including the reconcile, detach and
-  cascade paths.
+  cascade paths. The 1 exception is the summary pair `home_keeper_data_exported` and
+  `_imported`, which `transfer_runner.py` fires, because an import also calls companions.
 - **Fire a transition once per crossing.** Detect it in pure code
   (`transitions.detect_transitions`, `assets.stock_transition`), fire it from the
   coordinator, and set a silent baseline on startup so a restart replays nothing.
 - Backfilled history from an import fires no completion event.
 - An event needs no new service. It observes a change that a service already makes.
+- A change to in-memory registration that is not store state, such as the panel tab
+  registry, fires no event. Give the reason in its `SURFACE_KINDS` row.
 
 ## The declared surface
 
@@ -88,7 +103,8 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   `triggers_for()`. Never write a second literal list beside a modelled one.
 - **The model holds names and structure only.** Labels and descriptions come from
   `services.yaml` and `strings.json` when the reference is generated. Never put a
-  user-facing sentence in `api_surface.py`. `EventSpec.summary` is the 1 exception.
+  user-facing sentence in `api_surface.py`. `EventSpec.summary` and
+  `CompanionCapabilitySpec.summary` are the 2 exceptions.
 - **The API reference is generated, never written.** `ci/generate_api_docs.py` renders it
   into the gitignored `website/developer/`. A canonical doc links to it by its site URL.
 - `SURFACE_KINDS` also lists the surfaces that Home Keeper does not offer, each with a

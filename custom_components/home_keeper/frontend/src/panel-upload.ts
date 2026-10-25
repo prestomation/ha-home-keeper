@@ -26,6 +26,9 @@ import { setBtnWeight, toast } from './utils';
  *  different list the day one of them was edited alone. */
 export const UPLOAD_ACCEPT = 'application/pdf,image/png,image/jpeg,image/webp,image/gif';
 
+/** What a task photo control accepts: the image half of `UPLOAD_ACCEPT`. */
+export const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
+
 /** Set (or clear) the appliance-form error, plus an optional "Learn more" link. */
 export function setAssetError(p: PanelHost, message?: string, link?: string): void {
   p._assetEdit.error = message;
@@ -61,10 +64,11 @@ export function filePicker(
   p: PanelHost,
   button: HTMLElement,
   onFile: (file: File) => void,
+  accept: string = UPLOAD_ACCEPT,
 ): HTMLInputElement {
   const picker = document.createElement('input');
   picker.type = 'file';
-  picker.accept = UPLOAD_ACCEPT;
+  picker.accept = accept;
   picker.style.display = 'none';
   picker.addEventListener('change', () => {
     const file = picker.files?.[0];
@@ -79,15 +83,17 @@ export function filePicker(
 /**
  * Run an upload with a size pre-check, progress reporting and visible failures.
  *
- * Shared by the appliance-documents and part-file controls so both behave
+ * Shared by the appliance-documents, part-file and task photo controls so they behave
  * identically. Returns the upload's result, or `undefined` if it failed or was
- * cancelled — the caller only grafts its own state on success.
+ * cancelled — the caller only grafts its own state on success. *limit* is the size
+ * the backend takes for this kind of file.
  */
 export async function runUpload<T>(
   p: PanelHost,
   key: string,
   file: File,
   run: (opts: api.UploadOptions) => Promise<T>,
+  limit: number = MAX_DOCUMENT_BYTES,
 ): Promise<T | undefined> {
   // A previous failure is stale the moment a new upload starts.
   p._assetEdit.uploadError = undefined;
@@ -95,7 +101,7 @@ export async function runUpload<T>(
 
   // Refuse an oversized file *here*: uploading 30 MB just to have the backend 413 it
   // wastes minutes, and on a slow link looks like a hang.
-  const tooLarge = uploadSizeError(file);
+  const tooLarge = uploadSizeError(file, limit);
   if (tooLarge) {
     failInline(p, key, tooLarge);
     return undefined;
@@ -151,13 +157,13 @@ export async function runUpload<T>(
   }
 }
 
-/** The pre-check message for a file over the shared ceiling, else undefined. */
-function uploadSizeError(file: File): string | undefined {
-  if (file.size <= MAX_DOCUMENT_BYTES) return undefined;
+/** The pre-check message for a file over *limit*, else undefined. */
+function uploadSizeError(file: File, limit: number): string | undefined {
+  if (file.size <= limit) return undefined;
   return t('doc.uploadTooLargeLocal', {
     name: file.name,
     size: formatBytes(file.size),
-    limit: formatBytes(MAX_DOCUMENT_BYTES),
+    limit: formatBytes(limit),
   });
 }
 

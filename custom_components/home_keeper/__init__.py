@@ -45,23 +45,31 @@ from . import (
     notifier,
     options,
     panel,
+    panel_tabs,
     profiles,
     recurrence,
     sensor_tasks,
     shopping,
     tag_listener,
     transfer,
+    transfer_http,
     websocket_api,
 )
-from .assets import card_projection, has_archived_completion
+from .assets import has_archived_completion
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
+    OPTION_COST_SUMMARY_PANEL,
+    OPTION_COST_WINDOWS,
     OPTION_DISMISSED_COMPANIONS,
+    OPTION_DUE_TIME,
+    OPTION_DUE_TIME_MODE,
+    OPTION_HIDDEN_PANEL_TABS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
@@ -113,7 +121,8 @@ from .store import HomeKeeperStore
 from .task_entities import entity_set_key
 from .todo_list_sync import TodoListSync
 from .transfer_runner import (
-    async_export_document,
+    async_cleanup_runs,
+    async_export,
     async_import_document,
 )
 
@@ -149,6 +158,10 @@ ADD_TASK_SCHEMA = vol.Schema(
         vol.Optional("interval"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
+        # A fixed schedule as an RFC 5545 RRULE body, e.g. "FREQ=WEEKLY;BYDAY=TU,FR".
+        # Takes the place of ``freq``/``interval``, which stay accepted and are
+        # converted to a rule.
+        vol.Optional("rrule"): cv.string,
         vol.Optional("anchor"): cv.string,
         # Due date for a one-off (do-once) task. Optional: defaults to "now" (due
         # today) when omitted. Naive values are interpreted in HA's configured tz.
@@ -209,6 +222,7 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("interval"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
+        vol.Optional("rrule"): cv.string,
         vol.Optional("anchor"): cv.string,
         vol.Optional("due"): cv.string,
         vol.Optional("sensor"): dict,
@@ -288,6 +302,17 @@ SKIP_TASK_SCHEMA = vol.Schema(
 SET_DUE_TODAY_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
+        vol.Optional("origin"): cv.string,
+    }
+)
+# Move one date of a fixed task's schedule. ``occurrence`` is the date on the rule
+# (or where a moved date is now); ``to`` equal to it undoes the move. A usage action
+# like snooze, so it is not admin-gated.
+MOVE_OCCURRENCE_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("occurrence"): cv.datetime,
+        vol.Required("to"): cv.datetime,
         vol.Optional("origin"): cv.string,
     }
 )
@@ -619,6 +644,20 @@ SIGN_PART_FILE_URL_SCHEMA = vol.Schema(
         vol.Required("part_id"): cv.string,
     }
 )
+# Task photos (#399). Upload is HTTP-only, like a document; these need no bytes.
+TASK_PHOTO_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("photo_id"): cv.string,
+    }
+)
+SIGN_TASK_PHOTO_URL_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("photo_id"): cv.string,
+        vol.Optional("thumbnail", default=False): cv.boolean,
+    }
+)
 EXPORT_APPLIANCE_REPORT_SCHEMA = vol.Schema({})
 
 # The portable document, both directions. ``document`` is deliberately a bare dict or
@@ -629,15 +668,29 @@ EXPORT_APPLIANCE_REPORT_SCHEMA = vol.Schema({})
 # there is one YAML parser rather than a second one in the browser.
 #
 # The published JSON Schema is a *separate* declaration, below, for documentation only.
+#
+# ``include`` names Home Keeper sections, ``settings`` and companion domains. The
+# companions are known only at call time, so ``transfer_runner`` checks the names.
+# ``kind: bundle`` writes a zip file to ``<config>/home_keeper_exports/`` and returns
+# its path. ``bundle`` on an import names such a file. ``document`` or ``bundle`` is
+# required, and ``transfer_runner`` reports a bundle that is not there.
 EXPORT_DATA_SCHEMA = vol.Schema(
-    {vol.Optional("include"): vol.All(cv.ensure_list, [vol.In(transfer.SECTIONS)])}
-)
-IMPORT_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("document"): vol.Any(dict, cv.string),
-        vol.Optional("dry_run", default=False): cv.boolean,
-        vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+        vol.Optional("include"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("kind", default="data"): vol.In(("data", "bundle")),
     }
+)
+IMPORT_DATA_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Exclusive("document", "source"): vol.Any(dict, cv.string),
+            vol.Exclusive("bundle", "source"): cv.string,
+            vol.Optional("dry_run", default=False): cv.boolean,
+            vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+            vol.Optional("include_settings", default=False): cv.boolean,
+        }
+    ),
+    cv.has_at_least_one_key("document", "bundle"),
 )
 
 
@@ -714,6 +767,11 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
             _entry_schema(COMPLETION_ENTRY_FIELDS, "completed_at")
         ],
         vol.Optional("skips"): [_entry_schema(SKIP_ENTRY_FIELDS, "skipped_at")],
+        # A fixed task's moved dates. No service takes them: ``move_occurrence`` is the
+        # 1 way to move a date, but a document carries the list so a backup keeps it.
+        vol.Optional("moved_occurrences"): [
+            {vol.Required("from"): cv.string, vol.Required("to"): cv.string}
+        ],
     },
     # An unknown field is a named warning on import, not an error, so the schema has
     # to allow one. Same reasoning as the document below.
@@ -787,6 +845,20 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
+        # Cost tracking (#460): the spend windows in days, and the panel totals.
+        # Duplicates are dropped before the length check, so [30, 30, 60] is 2
+        # windows. ``cost_summary.normalize_windows`` then sorts them.
+        vol.Optional(OPTION_COST_WINDOWS): vol.All(
+            cv.ensure_list,
+            [vol.All(vol.Coerce(int), vol.Range(min=1, max=3650))],
+            lambda days: sorted(set(days)),
+            vol.Length(min=1, max=4),
+        ),
+        vol.Optional(OPTION_COST_SUMMARY_PANEL): cv.boolean,
+        # When a floating task is due: at the completion time, or at 1 set local
+        # time on its date (#438). ``options.normalize_due_time`` reads the time.
+        vol.Optional(OPTION_DUE_TIME_MODE): vol.In(DUE_TIME_MODES),
+        vol.Optional(OPTION_DUE_TIME): vol.All(cv.time, vol.Coerce(str)),
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
             vol.Coerce(int), vol.Range(min=0, max=MAX_ONE_OFF_RETENTION_DAYS)
         ),
@@ -811,6 +883,8 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
+        # The ids of the companion panel tabs that the panel does not show.
+        vol.Optional(OPTION_HIDDEN_PANEL_TABS): vol.All(cv.ensure_list, [cv.string]),
         # Profiles (saved filters, each carrying the to-do list it syncs onto) and
         # notifications (delivery) — the panel saves each whole list; normalization
         # happens in the matching profiles/notifications.normalize_* helper.
@@ -861,6 +935,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     store = HomeKeeperStore(hass)
     await store.load()
+    # Before anything reads a due date. An options change reloads the entry, so a
+    # new set due time moves the stored future floating dates here (#438).
+    await store.async_apply_due_time(
+        options.due_time_of(options.current_options(entry))
+    )
 
     # Warn once for each setup about a stored notify target that the allowlist drops.
     # A read of the options runs on each refresh and does not warn (B16-11).
@@ -909,8 +988,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await panel.async_register_panel(hass)
     await card.async_register_card(hass)
     manuals.async_register_http(hass)
+    transfer_http.async_register_http(hass)
     # Uploads spool to a temp file; a restart mid-upload would otherwise strand it.
     await manuals.async_cleanup_temp_uploads(hass)
+    # The same for the run folders of a bundle export or import.
+    await async_cleanup_runs(hass)
+    # Photo folders of tasks deleted while the files could not go (#399).
+    await manuals.async_sweep_task_photos(hass, store.get_tasks())
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
@@ -1403,6 +1487,25 @@ def _register_services(hass: HomeAssistant) -> None:
         # set is unchanged, so a refresh is enough — no entry reload.
         await coord.async_request_refresh()
 
+    async def handle_move_occurrence(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        # ``cv.datetime`` parses an offset-less string naively; qualify both with HA's
+        # zone, as snooze does, so a stored move is never naive.
+        zone = dt_util.now().tzinfo
+        occurrence = call.data["occurrence"]
+        to = call.data["to"]
+        if occurrence.tzinfo is None:
+            occurrence = occurrence.replace(tzinfo=zone)
+        if to.tzinfo is None:
+            to = to.replace(tzinfo=zone)
+        with _store_errors(task_id=task_id):
+            await coord.store.move_occurrence(
+                task_id, occurrence, to, origin=call.data.get("origin")
+            )
+        # Only next_due and the move list change; a refresh is enough.
+        await coord.async_request_refresh()
+
     async def handle_skip_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
@@ -1544,16 +1647,8 @@ def _register_services(hass: HomeAssistant) -> None:
             )
 
     async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
-        # The service twin of ``ws_get_assets``, and gated the same way: a non-admin
-        # gets the card-link projection, not the costs and serial numbers
-        # ``export_appliance_report`` is admin-only to protect. Without this the
-        # projection on the websocket read would be trivially side-stepped by
-        # calling the service instead.
-        coord = _coordinator()
-        assets = coord.store.list_assets()
-        if not await _caller_is_admin(call):
-            assets = card_projection(assets)
-        return {"assets": assets}
+        # The service twin of ``ws_get_assets``: the full record, to every user.
+        return {"assets": _coordinator().store.list_assets()}
 
     async def handle_adjust_part_stock(call: ServiceCall) -> dict[str, Any]:
         await _verify_admin(call)
@@ -1669,6 +1764,45 @@ def _register_services(hass: HomeAssistant) -> None:
             "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
+    # The task photo services are open, like ``update_task``: a photo is task data.
+    async def handle_remove_task_photo(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        # The task exists, so a KeyError is for the photo (B02-6).
+        with _store_errors(photo_id=call.data["photo_id"]):
+            await coord.store.remove_task_photo(task_id, call.data["photo_id"])
+
+    async def handle_set_task_photo_cover(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        with _store_errors(photo_id=call.data["photo_id"]):
+            await coord.store.set_task_photo_cover(task_id, call.data["photo_id"])
+
+    async def handle_sign_task_photo_url(call: ServiceCall) -> dict[str, Any]:
+        """Mint a short-lived signed URL for a task photo.
+
+        For a notification that shows the photo, or an agent that reads it. Not
+        admin-only, the same as ``sign_document_url``.
+        """
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        signed = await manuals.async_sign_task_photo_url(
+            hass,
+            task_id,
+            call.data["photo_id"],
+            thumb=call.data["thumbnail"],
+            ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
+        )
+        if signed is None:
+            raise service_error("unknown_task_photo", photo_id=call.data["photo_id"])
+        return {
+            "url": f"{_instance_base_url(hass)}{signed}",
+            "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
+        }
+
     async def handle_export_appliance_report(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: the report carries every asset's serial numbers, purchase costs
         # and value totals. Mirrors ``ws_export_appliance_report``'s ``require_admin``.
@@ -1688,14 +1822,18 @@ def _register_services(hass: HomeAssistant) -> None:
         # Admin-only: the document is every task, note, serial number and cost in
         # the store. Mirrors ``ws_export_data``'s ``require_admin``.
         await _verify_admin(call)
-        return await async_export_document(hass, _coordinator(), dict(call.data))
+        return await async_export(
+            hass, _coordinator(), dict(call.data), context=call.context
+        )
 
     async def handle_import_data(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: it writes tasks and appliances wholesale. Mirrors
         # ``ws_import_data``'s ``require_admin``.
         await _verify_admin(call)
         with _store_errors():
-            return await async_import_document(hass, _coordinator(), dict(call.data))
+            return await async_import_document(
+                hass, _coordinator(), dict(call.data), context=call.context
+            )
 
     hass.services.async_register(
         DOMAIN,
@@ -1746,6 +1884,9 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "move_occurrence", handle_move_occurrence, MOVE_OCCURRENCE_SCHEMA
     )
     hass.services.async_register(
         DOMAIN,
@@ -1862,6 +2003,19 @@ def _register_services(hass: HomeAssistant) -> None:
         SIGN_PART_FILE_URL_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
+    hass.services.async_register(
+        DOMAIN, "remove_task_photo", handle_remove_task_photo, TASK_PHOTO_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "set_task_photo_cover", handle_set_task_photo_cover, TASK_PHOTO_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "sign_task_photo_url",
+        handle_sign_task_photo_url,
+        SIGN_TASK_PHOTO_URL_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
 
     async def handle_set_options(call: ServiceCall) -> None:
         # Admin-only: mutating config-entry options is administration, which HA core
@@ -1891,7 +2045,12 @@ def _register_services(hass: HomeAssistant) -> None:
         automation can react to ``home_keeper_companion_connected``). Home Keeper
         stores the descriptor verbatim and never imports the companion. See
         docs/INTEGRATING.md and companions.py.
+
+        Admin-only: a companion with ``import_export`` has its services called with
+        the admin's context during an export or import. An integration registers
+        from its own setup, which has no user, so that call still passes.
         """
+        await _verify_admin(call)
         companions.async_register_companion(hass, dict(call.data))
         return {"ok": True}
 
@@ -2109,6 +2268,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # at a backend that is never coming back.
     panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
+    # The companion tabs live for the Home Assistant run, like the sidebar panel, so
+    # a reload keeps them. With no Home Keeper entry, no panel shows them.
+    panel_tabs.async_clear_panel_tabs(hass)
     discard_edge_state(hass, entry.entry_id)
     async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)

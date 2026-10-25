@@ -253,8 +253,96 @@ def test_an_existing_matching_item_is_adopted_instead_of_duplicated():
     )
     assert plan.add == []
     assert plan.tracked == {
-        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": "theirs"}
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": "theirs",
+            "adopted": True,
+        }
     }
+
+
+# ── an adopted line is the shopper's ─────────────────────────────────────────
+
+
+def _adopted(entity_id=TARGET, summary="Buy Anode rod", uid="theirs"):
+    return {
+        KEY: {
+            "entity_id": entity_id,
+            "summary": summary,
+            "uid": uid,
+            "adopted": True,
+        }
+    }
+
+
+def test_an_adopted_line_keeps_its_text_when_the_reminder_is_renamed():
+    plan = _plan(
+        tracked=_adopted(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task(name="Buy Magnesium rod")}),
+        items=[_item(uid="theirs")],
+    )
+    assert plan.update == [] and plan.remove == [] and plan.add == []
+    assert plan.tracked == _adopted()
+
+
+def test_an_adopted_line_stays_when_the_reminder_goes():
+    plan = _plan(tracked=_adopted(), desired={}, items=[_item(uid="theirs")])
+    assert plan.remove == [] and plan.update == []
+    assert plan.tracked == {}
+
+
+def test_an_adopted_line_is_not_ticked_off_when_the_reminder_completes():
+    plan = _plan(
+        tracked=_adopted(),
+        desired=sh.buy_tasks_by_part({"t1": _completed(_buy_task())}),
+        items=[_item(uid="theirs")],
+    )
+    assert plan.update == [] and plan.remove == [] and plan.add == []
+    assert plan.tracked == {}
+
+
+def test_an_adopted_line_stays_on_the_old_list_when_the_target_moves():
+    plan = _plan(
+        tracked=_adopted(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(uid="theirs")],
+        target=OTHER,
+        entity=TARGET,
+    )
+    assert plan.remove == [] and plan.update == [] and plan.add == []
+    assert plan.tracked == {}
+
+
+def test_an_adopted_line_is_let_go_when_the_mirror_is_switched_off():
+    plan = _plan(
+        tracked=_adopted(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(uid="theirs")],
+        target="",
+        entity=TARGET,
+    )
+    assert plan.remove == [] and plan.update == []
+    assert plan.tracked == {}
+
+
+def test_a_tick_on_an_adopted_line_still_buys_the_part():
+    plan = _plan(
+        tracked=_adopted(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(uid="theirs", status=sh.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [sh.CompleteOp(KEY, "t1")]
+    assert plan.update == [] and plan.remove == [] and plan.add == []
+
+
+def test_an_adopted_line_binds_the_uid_it_resolves_to():
+    plan = _plan(
+        tracked=_adopted(uid=None),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(uid="late")],
+    )
+    assert plan.tracked == _adopted(uid="late")
 
 
 def test_a_ticked_off_lookalike_is_not_adopted():
@@ -674,6 +762,16 @@ def test_needs_pass_is_false_for_a_settled_mirror():
         is False
     )
     assert _needs() is False
+
+
+def test_needs_pass_ignores_the_text_of_an_adopted_line():
+    # Home Keeper never rewrites an adopted line, so a new name is nothing to do.
+    renamed = sh.buy_tasks_by_part({"t1": _buy_task(name="Buy Magnesium rod")})
+    adopted = {KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "adopted": True}}
+    assert _needs(tracked=adopted, desired=renamed) is False
+    assert _needs(tracked=_tracked(), desired=renamed) is True
+    done = sh.buy_tasks_by_part({"t1": _completed(_buy_task())})
+    assert _needs(tracked=adopted, desired=done) is True
 
 
 def test_needs_pass_notices_a_new_reminder():

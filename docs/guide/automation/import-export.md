@@ -6,13 +6,39 @@ in a spreadsheet or an old app.
 
 **Settings → Import and export** has both halves.
 
-- **Export** saves every task and appliance, with the history, as a YAML file.
-- **Import** reads such a file. Paste it, or choose it from disk, then press
-  **Preview**. Preview only reports what would change. **Import** stays off until a
-  preview of that exact text comes back clean.
+**Save to a file** lists the sources of an export, and you clear each source that you
+do not want in the file.
+
+| Source | What it holds | Export |
+| --- | --- | --- |
+| Tasks and appliances | The Home Keeper records, with the history | Data and bundle |
+| A companion | The data of a [companion](#companion-data) that supports import and export | Data and bundle |
+| Files | The manuals, receipts, task photos and companion files | Bundle only |
+| Settings | The profiles, notifications and options | Bundle only. Off by default. |
+
+- **Export data (.yaml)** saves the checked data sources as a YAML file.
+- **Export bundle (.zip)** saves a [bundle](#bundles) with the checked sources and the
+  files.
+
+After an export, the card names the sources that the file holds. If a companion
+export fails, the card names that companion too.
+
+**Read from a file** imports a file.
+
+1. Paste a YAML file into the box, or press **Choose a file**. Choose a bundle, because
+   a bundle cannot be pasted.
+2. Press **Preview**. Preview only reports what would change. The table has 1 row for
+   each section of the file, with the new and the updated records. The Notes column
+   shows the problems of each section.
+3. If the bundle has settings, select **Also import the settings from the bundle**.
+   Then press **Preview** again.
+4. Press **Import**. **Import** stays off until a preview of that exact input comes
+   back clean.
 
 Both halves are also actions, so a script or an automation can call them:
-`home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only.
+`home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only. Each
+export fires `home_keeper_data_exported`, and each applied import fires
+`home_keeper_data_imported`, with a count for each section.
 
 The same card holds the [appliance report](#appliance-report), which answers a
 different question. See below.
@@ -126,15 +152,119 @@ When 2 appliances have the same name, an `appliance` or `parent_asset_id` that
 gives this name is an error. Use the `external_id` or the id of the appliance. An
 export names such an appliance by its id.
 
+#### Companion data
+
+A companion can add its own data to the export. The companion must support import and
+export. Its data goes in a section of its own, with the domain of the companion as the
+key:
+
+```yaml
+home_keeper:
+  format: 1
+tasks: []
+home_keeper_library:
+  format: 1
+  version: 1.2.0
+  data:
+    books:
+      - title: Dune
+```
+
+Home Keeper writes the section as the companion returns it. On import, Home Keeper
+checks every section first, and the companion checks its own section. If 1 section has
+an error, the import writes no record in any section. Home Keeper imports its own
+records first, then each companion.
+
+A clean preview does not stop all failures. If a companion fails while it writes, its
+section gets an error in the report. The Home Keeper records stay written, and the report
+has `partial: true`. The panel then says that part of the document was imported. Fix the
+cause and import the same file again. The import updates the records that are
+already there, so it makes no copies.
+
+The `home_keeper` block names each companion that is not in the file, under
+`skipped.companions`:
+
+| Value | Meaning |
+| --- | --- |
+| `no_import_export` | The companion does not support import and export. |
+| `no_service` | The companion has no `export_data` service. |
+| `failed` | The export of the companion failed. The log has the reason. |
+
+If a file has a section for a companion that is not installed, the import skips that
+section with a warning. To export some companions only, give their domains in
+`include`, such as `include: [tasks, home_keeper_library]`.
+
+The import report has a `sections` key. It holds the report of each companion,
+keyed by its domain. The `problems` list also holds the companion problems, with the
+domain at the start of each path, such as `home_keeper_library.books[0].title`.
+
+#### Bundles
+
+A bundle is a `.zip` file. It holds the YAML file and the data that a YAML file
+cannot hold:
+
+- the uploaded appliance documents and part files;
+- the task photos;
+- the files of each companion;
+- the settings: the profiles, the notifications and the other options.
+
+The YAML file is `home_keeper.yaml` at the root of the zip file. A `files` section in it
+lists each uploaded file and its record. In the panel, press **Export bundle (.zip)** in
+Settings → Import and export. An action writes a bundle with `kind: bundle`:
+
+```yaml
+action: home_keeper.export_data
+data:
+  kind: bundle
+```
+
+The action writes the file to the `home_keeper_exports` folder in your configuration
+folder, as `home-keeper-YYYY-MM-DD.zip`. A second export on the same day replaces that
+file. The response holds the `path` and the `size` of the file.
+
+To import a bundle, choose it in the panel, or give its file name to the action:
+
+```yaml
+action: home_keeper.import_data
+data:
+  bundle: home-keeper-2026-10-11.zip
+  dry_run: true
+```
+
+The import adds a file to a record only if the record does not have it. A bad or a
+missing file gives a warning, and the import continues without it.
+
+#### Settings
+
+An import reads the settings only if you set `include_settings: true`. In the panel,
+select **Also import the settings from the bundle**. Else the preview names each
+settings section that it skips.
+
+- A profile or a notification updates the one with the same id, then the one with the
+  same name. Any other profile or notification is added. The import never deletes a
+  profile or a notification.
+- A notification that names a profile follows that profile. This is also true when the
+  profile matches by name and keeps the id that it has on this install.
+- Home Keeper warns about a notify target or a to-do list that this Home Assistant
+  does not have. Fix them in Settings after the import.
+- A profile filter holds the ids of areas, labels and devices. Home Keeper imports each id
+  and warns about the ids that this Home Assistant does not have. Fix the filter of the
+  profile in Settings after the import.
+- Home Keeper sends only to a mobile app or to a persistent notification. The import
+  leaves out each other notify target and warns about it.
+- An option value of the wrong type, such as text for a list, is left out with a warning.
+
+A YAML export holds the settings only if `include` names `settings`.
+
 #### Import/Export Limitations
 
 The file does not hold every record. What an export leaves out is listed in its own
 `home_keeper` block, and the preview names every field that Home Keeper did not read
 on the way back in.
 
-- **Uploaded manuals and receipts.** A text file has no room for a picture or a
-  PDF, so upload those again after an import. A link to a document is only text,
-  so it stays.
+- **Uploaded manuals, receipts and photos in a YAML file.** A text file has no room
+  for a picture or a PDF. Use a [bundle](#bundles) to keep them. A link to a document
+  is only text, so it stays.
 - **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
   reminder, a buy reminder, a problem-sensor mirror, or a declarative companion task.
   Home Keeper builds these again from the appliance and its parts, which the file does
@@ -147,8 +277,8 @@ on the way back in.
   import.
 - **Appliances that a companion manages**, with their stock counts. The companion
   builds the appliance again after an import. Enter the counts again.
-- **Settings, profiles, notifications and declarative companions.** These stay in the
-  config entry.
+- **Declarative companions.** These stay in Home Keeper.
+- **Records that are not in the file.** An import never deletes a record.
 
 #### How big a file can be
 
@@ -156,12 +286,13 @@ The panel and the service each hold their own limit.
 
 | Path | Limit | Reason |
 | --- | --- | --- |
-| Paste or choose a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. |
-| Call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on that service. |
+| Paste a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. A larger YAML file goes in through **Choose a file**. |
+| Choose a YAML file in the panel, or call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on a YAML document. |
+| Upload or import a bundle | 500 MB | Home Keeper's limit on the files in a bundle, when they are extracted. |
 
-A file between 4 MB and 8 MB must go through `home_keeper.import_data`. A file
-over 8 MB must go in as several files. Each of `tasks` and `appliances` also
-holds at most 2000 records.
+A YAML file over 8 MB must go in as several files. Each of `tasks` and `appliances`
+also holds at most 2000 records. A bundle holds at most 20000 files.
+Home Assistant stops an upload as soon as it passes its limit.
 
 #### Ask an AI agent to write one
 
@@ -205,6 +336,8 @@ is what an import needs to read them back.
 So use the export to move your data, and the report to state what you own and what
 it is worth.
 
-![Settings, Import and export, with a preview of what an import would change](../../images/60-panel-transfer.png)
+![Settings, Import and export, with the sources, a bundle export and the preview of that bundle](../../images/60-panel-transfer.png)
 
-![The same card on a phone, with the Preview and Import buttons on a row of their own](../../images/60b-panel-mobile-transfer.png)
+![The sources and the 2 export buttons on a phone](../../images/60e-panel-mobile-transfer-export.png)
+
+![The preview of a bundle on a phone, with the notes of each section below its counts](../../images/60b-panel-mobile-transfer.png)

@@ -6,7 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.29.0b2]
+## [Unreleased]
+
+### Fixed
+
+- **Glue integration task completion.** A read-only task from a glue integration, such as
+  the Bambu Lab firmware task, completes again when the glue reports that the work is done.
+  A user still cannot complete it by hand.
+
+## [0.33.0b4]
 
 ### Added
 
@@ -14,6 +22,352 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Each device that has a Home Keeper task or appliance now has an event entity, and 1 more
   entity gets all Home Keeper events. In the automation editor, use the Event received
   trigger and select a device, area or label. (Fixes #415)
+
+## [0.33.0b2]
+
+### Added
+
+- **[Maintenance spend totals](https://prestomation.github.io/ha-home-keeper/docs/guide/costs).**
+  Sensors and the panel show your maintenance spend for periods such as 30 days and for
+  all time, plus the total cost of your appliances. Select a total in the panel to see
+  its records, and set your own periods in Settings. (Fixes #460)
+
+## [0.33.0b1]
+
+### Changed
+
+- **Installation from HACS default list.** Search for Home Keeper in HACS to install it.
+  You no longer add it as a custom repository.
+
+### Added
+
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Home Keeper now suggests tasks for the Compit ventilation filter. Ecovacs presets also
+  cover more filters, the mop washing tray, the cleaning solution and the strainer.
+
+### Fixed
+
+- **Admin-only companion registration.** Only an admin can register a companion now. A
+  household member can no longer choose an integration that an admin's export or import
+  then calls.
+- **Your own list items.** If a to-do or shopping list already has an open item with the
+  same name, Home Keeper uses it but never ticks off, renames, removes or rewrites it. A
+  tick on that item still completes the task or buys the part.
+
+## [0.32.0] - 2026-10-16
+
+### Added
+
+- **[View-only panel for household members](https://prestomation.github.io/ha-home-keeper/docs/guide/household-users).**
+  Users who are not admins can now open the Home Keeper panel. They can use their tasks
+  and read all appliance data, parts and manuals. Only an admin can change appliances
+  and settings. (Fixes #444)
+- **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
+  Set a fixed task to repeat on Tuesday and Friday, or on the first Tuesday of each
+  month. For other schedules, type an iCalendar rule. (Fixes #391)
+- **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
+  Move one future date of a fixed task from the Snooze dialog, and keep the other dates
+  as they are. (Fixes #390)
+
+### Changed
+
+- **Month-end dates.** A monthly task on the 29th, 30th or 31st uses the last day of
+  a short month and then goes back to its own day. Before, it stayed on the 28th after
+  February.
+
+## [0.31.0] - 2026-10-13
+
+### Added
+
+- **[QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).**
+  Print QR code labels for your appliances and tasks on a label sheet, or save a PDF or a
+  PNG for a label printer roll. An admin who scans a label opens that page in Home Keeper.
+  (Fixes #428)
+- **[Label text position](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#label-printers).**
+  Print the text of a roll label beside or below the code, so a square label such as
+  24 × 24 mm also shows its name. The panel keeps your choice in this browser.
+- **[App print warning](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#home-assistant-app).**
+  In the Home Assistant app, the QR label dialog warns that Print and Download PNG can
+  fail, and points you to Copy link or a browser.
+- **[Companion data in export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  1 export now holds your tasks and appliances and the data of your companions, such as
+  Home Keeper Library and Pawsistant, and 1 import brings it all back. A new bundle
+  (.zip) export also holds your manuals, receipts, task photos, book covers and settings.
+
+### Changed
+
+- **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
+  HACS blocks the install on older versions.
+- **HTTPS label address.** With no external URL, a QR label uses the HTTPS address of your
+  browser, such as Home Assistant Cloud, before an internal URL without HTTPS. The label
+  dialog shows which address the code uses, and warns if it does not use HTTPS.
+- **Profile filter warnings.** A settings import warns about each area, label and device in
+  a profile filter that this Home Assistant does not have. The profile keeps the ids.
+- **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
+  a form field passes 64 KB, and the panel shows the reason.
+- **One place chip on card rows.** If a task has a device, its card row shows the device
+  chip. Else the row shows the area chip.
+
+### Fixed
+
+- **[Disabled entity tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Home Keeper now removes the declarative companion task of a disabled entity if the
+  task has no history. When you enable the entity again, Home Keeper adds a new task.
+  (Fixes #454)
+- **Skipped start times.** A fixed schedule now refuses a start time that the clock skips
+  for daylight saving time, such as 02:30 on the spring day when 02:00 becomes 03:00.
+  Before, each occurrence of such a task came 1 hour late.
+- **Card device chip link.** On the dashboard card, the device chip on a task is now a
+  link for an admin, as it is in the panel. It opens the appliance page, else the device
+  page. (Fixes #446)
+- **Card on older Home Assistant.** The dashboard card is added to the dashboard resources
+  on Home Assistant before 2026.2.
+- **Paste box.** The text box on Settings → Import and export now shows the first time you
+  open the panel.
+- **Tasks after device change.** When Home Assistant makes a new device for an appliance,
+  the tasks, related devices and device filters on the old device move to the new one,
+  and each moved task fires `home_keeper_task_updated`. An old device that still exists
+  keeps its tasks.
+- **Option values in imports.** An import or a Settings save refuses an option value of
+  the wrong type, such as text for a list, and the import report warns about each one.
+  The report counts only the options that change.
+- **Imported notification profiles.** An imported notification keeps its profile when the
+  profile matches a profile with the same name on this install.
+- **Import report warnings.** The import report says that a notify target other than a
+  mobile app or a persistent notification is not imported. The warning about an unknown
+  appliance of a file has correct grammar.
+- **Partial import message.** If an import stops with an error after it wrote some data,
+  Settings → Import and export says that part of the document was imported. The panel
+  then shows the new data.
+- **Binary file in import.** If you choose a file that is not text or a bundle, Settings →
+  Import and export shows an error and keeps the text box empty.
+
+## [0.31.0b4]
+
+### Added
+
+- **[Label text position](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#label-printers).**
+  Print the text of a roll label beside or below the code, so a square label such as
+  24 × 24 mm also shows its name. The panel keeps your choice in this browser.
+- **[App print warning](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels#home-assistant-app).**
+  In the Home Assistant app, the QR label dialog warns that Print and Download PNG can
+  fail, and points you to Copy link or a browser.
+
+### Changed
+
+- **Home Assistant 2026.1.** Home Keeper now needs Home Assistant 2026.1 or later.
+  HACS blocks the install on older versions.
+- **HTTPS label address.** With no external URL, a QR label uses the HTTPS address of your
+  browser, such as Home Assistant Cloud, before an internal URL without HTTPS. The label
+  dialog shows which address the code uses, and warns if it does not use HTTPS.
+- **Profile filter warnings.** A settings import warns about each area, label and device in
+  a profile filter that this Home Assistant does not have. The profile keeps the ids.
+- **Upload size refusal.** An import upload stops at once when a YAML file passes 8 MB or
+  a form field passes 64 KB, and the panel shows the reason.
+- **One place chip on card rows.** If a task has a device, its card row shows the device
+  chip. Else the row shows the area chip.
+
+### Fixed
+
+- **Card on older Home Assistant.** The dashboard card is added to the dashboard resources
+  on Home Assistant before 2026.2.
+- **Paste box.** The text box on Settings → Import and export now shows the first time you
+  open the panel.
+- **Tasks after device change.** When Home Assistant makes a new device for an appliance,
+  the tasks, related devices and device filters on the old device move to the new one,
+  and each moved task fires `home_keeper_task_updated`. An old device that still exists
+  keeps its tasks.
+- **Option values in imports.** An import or a Settings save refuses an option value of
+  the wrong type, such as text for a list, and the import report warns about each one.
+  The report counts only the options that change.
+- **Imported notification profiles.** An imported notification keeps its profile when the
+  profile matches a profile with the same name on this install.
+- **Import report warnings.** The import report says that a notify target other than a
+  mobile app or a persistent notification is not imported. The warning about an unknown
+  appliance of a file has correct grammar.
+- **Partial import message.** If an import stops with an error after it wrote some data,
+  Settings → Import and export says that part of the document was imported. The panel
+  then shows the new data.
+- **Damaged bundles.** A bundle with an unsupported compression method, a damaged entry or
+  a bad file name gives an import error that names the problem.
+- **Bundle export errors.** If a bundle export fails, the panel shows the reason from Home
+  Assistant.
+- **Binary file in import.** If you choose a file that is not text or a bundle, Settings →
+  Import and export shows an error and keeps the text box empty.
+- **QR label print text.** A printed label and its PDF show only the text rows that fit, as
+  the PNG does, with "…" on the last row when text is left out. Emoji stay whole, and the
+  text follows the Home Assistant language and direction.
+- **QR label preview.** A long word in the label preview wraps inside the label box.
+- **QR label task list.** The task list for QR labels shows the same tasks as the task
+  list, with its status filter and its profile.
+
+## [0.31.0b3]
+
+### Added
+
+- **[Companion data in export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  1 export now holds your tasks and appliances and the data of your companions, such as
+  Home Keeper Library and Pawsistant, and 1 import brings it all back. A new bundle
+  (.zip) export also holds your manuals, receipts, task photos, book covers and settings.
+
+## [0.31.0b2]
+
+### Fixed
+
+- **Card device chip link.** On the dashboard card, the device chip on a task is now a
+  link for an admin, as it is in the panel. It opens the appliance page, else the device
+  page. (Fixes #446)
+
+## [0.31.0b1]
+
+### Added
+
+- **[QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).**
+  Print QR code labels for your appliances and tasks on a label sheet, or save a PDF or a
+  PNG for a label printer roll. An admin who scans a label opens that page in Home Keeper.
+  (Fixes #428)
+
+## [0.30.0] - 2026-10-08
+
+### Added
+
+- **[Set due time](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#due-time).**
+  Make every task that repeats after each completion due at 1 time of day that you
+  choose, such as 08:00, in place of the time it was last done. A morning summary
+  then includes the tasks that are due that day, and overdue triggers fire at that time.
+  (Fixes #438)
+- **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
+  Companion integrations can add their own tab to the panel. To hide a tab, turn off its
+  switch on the companion row in **Settings → Companions**.
+- **[Collapsed card groups](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+  Make a grouped card start with all groups closed, only chosen groups closed, or every
+  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
+- **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
+  Turn off **Show schedule** or **Show completion count** in the card editor to remove
+  that text from each row. (Fixes #432)
+- **[More filter presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
+
+### Fixed
+
+- **New task pages.** A link to a task or an appliance that another surface added after
+  the panel loaded now opens its page. Before, the page showed "This item no longer
+  exists" until a reload.
+
+## [0.30.0b5]
+
+### Added
+
+- **[Set due time](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#due-time).**
+  Make every task that repeats after each completion due at 1 time of day that you
+  choose, such as 08:00, in place of the time it was last done. A morning summary
+  then includes the tasks that are due that day, and overdue triggers fire at that time.
+  (Fixes #438)
+
+## [0.30.0b4]
+
+### Added
+
+- **[Companion panel tabs](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#panel-tabs).**
+  Companion integrations can add their own tab to the panel. To hide a tab, turn off its
+  switch on the companion row in **Settings → Companions**.
+
+### Fixed
+
+- **New task pages.** A link to a task or an appliance that another surface added after
+  the panel loaded now opens its page. Before, the page showed "This item no longer
+  exists" until a reload.
+
+## [0.30.0b3]
+
+### Added
+
+- **[Filter presets for more integrations](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  New integration presets open a task when CoolMasterNet, Fjäråskupan, homee, IntelliClima
+  or Sensibo report that a filter needs care.
+
+## [0.30.0b2]
+
+### Added
+
+- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+  Make a grouped card start with all groups closed, only chosen groups closed, or every
+  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
+
+## [0.30.0b1]
+
+### Added
+
+- **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
+  Turn off **Show schedule** or **Show completion count** in the card editor to remove
+  that text from each row. (Fixes #432)
+
+## [0.29.0] - 2026-10-04
+
+### Added
+
+- **[Task list layouts](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-layouts).**
+  Pick Rows, Tiles or Board in the Layout menu on the Tasks tab. Tap a tile or a board
+  card for its actions, or press and hold to open the task. (Fixes #327) (Thanks @joss94!)
+- **[Undo after Done](https://prestomation.github.io/ha-home-keeper/docs/guide/completions#undo-a-one-tap-done).**
+  A one-tap Done in the panel now shows a message that names the task. Select Undo in
+  the message to remove your completion, also when another person completed the task.
+- **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
+  Attach up to 6 photos to a task to show what needs work and where. Add them when you
+  create the task in the panel or on the dashboard card, as any user who can create
+  tasks. (Fixes #399)
+- **[After photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos#after-photos).**
+  Add a photo when you mark a task done, also on a one-tap task. The task page and the
+  Completed group show it beside the task photo.
+
+### Changed
+
+- **Clearer companion rows.** Each declarative companion on the Companions card now
+  shows the logo of the integration it watches, the kind of duty, the entity platform
+  and the limit. A companion you made yourself has a Custom chip.
+
+### Fixed
+
+- **Undo after snooze.** Undo of a completion now puts back the date that a snoozed or
+  moved task had. Before, the task became overdue at once.
+
+## [0.29.0b4]
+
+### Fixed
+
+- **Undo after snooze.** Undo after Done now puts back the date that a snoozed or moved
+  task had. Before, the task became overdue at once.
+- **Undo on shared tasks.** Undo removes your own completion, also when another person
+  completed the same task at about the same time.
+- **Reliable photo uploads.** A double tap on upload, or a connection that drops while you
+  remove a photo, no longer leaves a photo that does not open. A task that has 6 photos
+  now refuses a new photo before the file uploads.
+- **Very large photos.** A photo that is too large to read now gets a message that says so.
+- **Photo in Done dialog.** The task photo in the Done dialog now opens when you start the
+  dialog from the task list.
+- **Photo form messages.** The message after a failed photo upload counts the photos
+  correctly. On the dashboard card, a photo pick no longer hides the "Name required" message.
+
+## [0.29.0b3]
+
+### Changed
+
+- **Clearer companion rows.** Each declarative companion on the Companions card now
+  shows the logo of the integration it watches, the kind of duty, the entity platform
+  and the limit. A companion you made yourself has a Custom chip.
+
+## [0.29.0b2]
+
+### Added
+
+- **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
+  Attach up to 6 photos to a task to show what needs work and where. Add them when you
+  create the task in the panel or on the dashboard card, as any user who can create
+  tasks. (Fixes #399)
+- **[After photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos#after-photos).**
+  Add a photo when you mark a task done, also on a one-tap task. The task page and the
+  Completed group show it beside the task photo.
 
 ## [0.29.0b1]
 

@@ -21,16 +21,26 @@ from homeassistant.util import dt as dt_util
 from . import (
     appliance_report,
     companions,
+    cost_summary,
     declarative_companion_sync,
     declarative_presets,
     devices,
     manuals,
+    models,
     notifier,
     options,
+    panel_tabs,
+    recurrence,
 )
-from .assets import AssetValidationError, card_projection
+from .assets import AssetValidationError
 from .backend_i18n import resolve_exception
-from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
+from .const import (
+    COMPLETION_ENTRY_FIELDS,
+    OPTION_COST_WINDOWS,
+    OPTION_PROFILES,
+    REC_FIXED,
+    SENSOR_MODE_TEMPLATE,
+)
 from .coordinator import (
     HomeKeeperCoordinator,
     async_delete_orphaned_tasks,
@@ -222,6 +232,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_snooze_task)
     websocket_api.async_register_command(hass, ws_skip_task)
     websocket_api.async_register_command(hass, ws_set_due_today)
+    websocket_api.async_register_command(hass, ws_move_occurrence)
+    websocket_api.async_register_command(hass, ws_upcoming_occurrences)
     websocket_api.async_register_command(hass, ws_update_skip)
     websocket_api.async_register_command(hass, ws_move_skip)
     websocket_api.async_register_command(hass, ws_delete_skip)
@@ -238,12 +250,17 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_remove_part_file)
     websocket_api.async_register_command(hass, ws_sign_part_file_url)
+    websocket_api.async_register_command(hass, ws_remove_task_photo)
+    websocket_api.async_register_command(hass, ws_set_task_photo_cover)
+    websocket_api.async_register_command(hass, ws_sign_task_photo_urls)
     websocket_api.async_register_command(hass, ws_export_appliance_report)
     websocket_api.async_register_command(hass, ws_export_data)
     websocket_api.async_register_command(hass, ws_import_data)
     websocket_api.async_register_command(hass, ws_get_options)
+    websocket_api.async_register_command(hass, ws_get_spend)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
+    websocket_api.async_register_command(hass, ws_get_panel_tabs)
     websocket_api.async_register_command(hass, ws_get_profiles)
     websocket_api.async_register_command(hass, ws_list_declarative_companions)
     websocket_api.async_register_command(hass, ws_add_declarative_companion)
@@ -563,6 +580,116 @@ async def ws_snooze_task(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): "home_keeper/move_occurrence",
+        vol.Required("task_id"): str,
+        vol.Required("occurrence"): str,
+        vol.Required("to"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_move_occurrence(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Move one date of a fixed task's schedule (``home_keeper.move_occurrence``)."""
+    zone = dt_util.now().tzinfo
+    moments = []
+    for key in ("occurrence", "to"):
+        moment = dt_util.parse_datetime(msg[key])
+        if moment is None:
+            _err(hass, connection, msg, "not_allowed", "invalid_task", error=msg[key])
+            return
+        moments.append(moment if moment.tzinfo else moment.replace(tzinfo=zone))
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.move_occurrence(msg["task_id"], *moments)
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/upcoming_occurrences",
+        vol.Optional("task_id"): str,
+        vol.Optional("rrule"): str,
+        vol.Optional("anchor"): str,
+        vol.Optional("active_season"): vol.Any(dict, list, None),
+        vol.Optional("count", default=4): vol.All(int, vol.Range(min=1, max=12)),
+    }
+)
+@websocket_api.async_response
+async def ws_upcoming_occurrences(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """The next dates of a fixed schedule: a stored task's, or a draft's.
+
+    With ``task_id`` it reads the stored task, moves included (the panel's Upcoming
+    block and the card's "A later date" list). With ``rrule`` and ``anchor`` it reads
+    a draft, so the task form previews the dates with the same engine that will
+    compute them. Read-only. A bad draft rule answers ``invalid_rule`` with the
+    message ``models.normalize_rrule`` gives, which the form shows as is.
+    """
+    now = dt_util.now()
+    task: dict[str, Any]
+    if "task_id" in msg:
+        coord = _coordinator(hass)
+        if coord is None:
+            _not_loaded(hass, connection, msg)
+            return
+        stored = coord.data.get(msg["task_id"])
+        if stored is None:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "task_not_found",
+                task_id=msg["task_id"],
+            )
+            return
+        task = stored
+    else:
+        try:
+            task = {
+                "recurrence_type": REC_FIXED,
+                "rrule": models.normalize_rrule(msg.get("rrule") or ""),
+                "anchor": _draft_anchor(msg.get("anchor"), now),
+                "active_season": models.normalize_active_season(msg["active_season"])
+                if msg.get("active_season")
+                else None,
+            }
+        except TaskValidationError as err:
+            _err(hass, connection, msg, "invalid_rule", "invalid_task", error=str(err))
+            return
+    if task.get("recurrence_type") != REC_FIXED:
+        connection.send_result(msg["id"], {"occurrences": []})
+        return
+    rows = recurrence.upcoming_occurrences(task, now=now, count=msg["count"])
+    connection.send_result(msg["id"], {"occurrences": rows})
+
+
+def _draft_anchor(value: str | None, now: Any) -> str:
+    """A draft's anchor as an aware ISO string; a naive one is read in HA's zone."""
+    moment = dt_util.parse_datetime(value) if value else None
+    if moment is None:
+        raise TaskValidationError(f"invalid anchor datetime: {value!r}")
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=now.tzinfo)
+    return str(moment.replace(microsecond=0).isoformat())
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): "home_keeper/skip_task",
         vol.Required("task_id"): str,
         vol.Optional("metadata"): dict,
@@ -740,17 +867,13 @@ async def ws_get_assets(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    """Return the appliances — in full for an admin, projected for anyone else.
+    """Return the appliances in full, to every user.
 
-    Not ``require_admin``: the dashboard card is a usage surface open to every
-    household member and it reads appliance data to resolve a task's card links. So
-    a non-admin gets :func:`assets.card_projection` — the link-rendering subset —
-    rather than the costs and serial numbers ``export_appliance_report`` is gated on.
+    Not ``require_admin``: the panel shows the appliances to every user as a read
+    view, and the dashboard card reads them to resolve a task's card links. The
+    writes to an appliance are admin-only.
     """
-    assets = coord.store.list_assets()
-    if not connection.user.is_admin:
-        assets = card_projection(assets)
-    connection.send_result(msg["id"], {"assets": assets})
+    connection.send_result(msg["id"], {"assets": coord.store.list_assets()})
 
 
 @websocket_api.websocket_command(
@@ -1123,6 +1246,116 @@ async def ws_sign_part_file_url(
     connection.send_result(msg["id"], {"url": signed})
 
 
+async def _task_photo_op(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    op: Any,
+) -> None:
+    """Run a photo store call and send back the task, or a not-found error."""
+    try:
+        task = await op(msg["task_id"], msg["photo_id"])
+    except KeyError as err:
+        if err.args and err.args[0] == msg["task_id"]:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "task_not_found",
+                task_id=msg["task_id"],
+            )
+        else:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "unknown_task_photo",
+                photo_id=msg["photo_id"],
+            )
+        return
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/remove_task_photo",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_remove_task_photo(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.remove_task_photo)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_task_photo_cover",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_set_task_photo_cover(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.set_task_photo_cover)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/sign_task_photo_urls",
+        vol.Required("photos"): vol.All(
+            [
+                {
+                    vol.Required("task_id"): str,
+                    vol.Required("photo_id"): str,
+                    vol.Optional("thumb", default=False): bool,
+                }
+            ],
+            vol.Length(max=500),
+        ),
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_sign_task_photo_urls(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Sign many task photo URLs at once (the list signs every visible cover).
+
+    A photo that is gone gets ``url: null`` rather than failing the whole batch: the
+    list may still show a row that was removed a moment ago.
+    """
+    urls = [
+        {
+            "task_id": ref["task_id"],
+            "photo_id": ref["photo_id"],
+            "thumb": ref["thumb"],
+            "url": await manuals.async_sign_task_photo_url(
+                hass, ref["task_id"], ref["photo_id"], thumb=ref["thumb"]
+            ),
+        }
+        for ref in msg["photos"]
+    ]
+    connection.send_result(msg["id"], {"urls": urls})
+
+
 @websocket_api.websocket_command(
     {vol.Required("type"): "home_keeper/export_appliance_report"}
 )
@@ -1137,8 +1370,8 @@ async def ws_export_appliance_report(
 ) -> None:
     """Return the appliance report plus a ready-to-save CSV.
 
-    Admin-only: the report exposes every asset's serial numbers, purchase costs and
-    value totals, which a non-admin household member shouldn't be able to exfiltrate.
+    Admin-only: the report puts every serial number, cost and value total in 1 file
+    to save. Each appliance record is open through ``get_assets`` (SECURITY.md).
     """
     report = appliance_report.build_report(
         coord.store.list_assets(),
@@ -1149,7 +1382,15 @@ async def ws_export_appliance_report(
     connection.send_result(msg["id"], {"report": report, "csv": csv})
 
 
-@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_data"})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/export_data",
+        # Home Keeper sections, ``settings`` and companion domains, as for the
+        # service. A bundle is binary, so the panel downloads it over HTTP
+        # (``transfer_http.HomeKeeperBundleExportView``), and this command has no kind.
+        vol.Optional("include"): [str],
+    }
+)
 @websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
@@ -1165,7 +1406,10 @@ async def ws_export_data(
     store, which a non-admin household member should not be able to walk off with.
     """
     connection.send_result(
-        msg["id"], await async_export_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_export_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 
@@ -1174,9 +1418,11 @@ async def ws_export_data(
         vol.Required("type"): "home_keeper/import_data",
         # A mapping, or the whole file as text. Kept identical to
         # ``IMPORT_DATA_SCHEMA``: a gate the service twin does not share is not a gate.
-        vol.Required("document"): vol.Any(dict, str),
+        vol.Exclusive("document", "source"): vol.Any(dict, str),
+        vol.Exclusive("bundle", "source"): str,
         vol.Optional("dry_run", default=False): bool,
         vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+        vol.Optional("include_settings", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -1197,8 +1443,20 @@ async def ws_import_data(
     Admin-only: it writes tasks and appliances wholesale. Mirrors
     ``handle_import_data``'s ``_verify_admin``.
     """
+    if "document" not in msg and "bundle" not in msg:
+        _err(
+            hass,
+            connection,
+            msg,
+            websocket_api.ERR_INVALID_FORMAT,
+            "import_needs_document",
+        )
+        return
     connection.send_result(
-        msg["id"], await async_import_document(hass, coord, dict(msg))
+        msg["id"],
+        await async_import_document(
+            hass, coord, dict(msg), context=connection.context(msg)
+        ),
     )
 
 
@@ -1224,6 +1482,39 @@ async def ws_get_options(
             "options": options.current_options(coord.entry),
             "notify_targets": notifier.available_targets(hass),
             "own_todo_entities": own_todo_entity_ids(hass),
+        },
+    )
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_spend"})
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_get_spend(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Return the spend totals and their records for the panel (#460).
+
+    Open to all users, as the cost sensors are: it gives the same numbers. The
+    windows come from the ``cost_windows`` option. ``records`` is every completion
+    with a cost, newest first, so the panel can list the records of each total.
+    """
+    assets = coord.store.list_assets()
+    records = cost_summary.spend_records(
+        coord.store.list_tasks(), assets, tz=dt_util.get_default_time_zone()
+    )
+    windows = cost_summary.normalize_windows(
+        options.current_options(coord.entry).get(OPTION_COST_WINDOWS)
+    )
+    summary = cost_summary.spend_summary(records, now=dt_util.now(), windows=windows)
+    connection.send_result(
+        msg["id"],
+        {
+            **summary,
+            "purchases": cost_summary.purchase_total(assets),
+            "records": records,
         },
     )
 
@@ -1273,6 +1564,33 @@ async def ws_get_companions(
     """
     connection.send_result(
         msg["id"], {"companions": companions.async_list_companions(hass)}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/get_panel_tabs",
+        vol.Optional("language"): vol.All(str, vol.Length(max=35)),
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_get_panel_tabs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the companion tabs for the panel's tab bar and Settings → Companions.
+
+    Admin-only: only the panel reads it, and a tab is code that runs in the panel.
+    The title of each tab is in *language*, the language of the panel, else in the
+    Home Assistant language, else in English. The registry is on ``hass``, so the
+    command needs no loaded entry. Every tab is in the reply. The panel leaves out
+    the tabs that the ``hidden_panel_tabs`` option names.
+    """
+    language = msg.get("language") or hass.config.language
+    connection.send_result(
+        msg["id"], {"tabs": panel_tabs.async_list_panel_tabs(hass, language)}
     )
 
 
@@ -1499,6 +1817,13 @@ async def ws_list_declarative_presets(
                 # The one limit the trigger compares with, or ``None``. The preview
                 # draws each reading against it.
                 "limit": preset.get("limit"),
+                # The integration preset's brand name, shape and limit as a short
+                # phrase. A companion row shows them; a general preset has none.
+                "brand": preset.get("brand"),
+                "shape": preset.get("shape"),
+                "limit_text": declarative_presets.limit_text(
+                    preset, lang, resolve_string
+                ),
                 # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(
@@ -1535,9 +1860,10 @@ async def ws_preview_declarative_companion(
     general-purpose template oracle, and ``__init__._verify_template_binding`` gates
     the same power on ``add_task`` for exactly that reason — ``device_attr``,
     ``area_id`` and ``integration_entities`` reach things a non-admin cannot otherwise
-    enumerate. The panel is ``require_admin`` already, so no user loses a surface; this
-    closes the websocket that walked around it. The name and notes templates were
-    rendered here before the trigger was, so part of this is older than that mode.
+    enumerate. The panel shows the companion dialog only to an admin, so no user loses
+    a surface; this closes the websocket that walked around it. The name and notes
+    templates were rendered here before the trigger was, so part of this is older than
+    that mode.
 
     ``api_surface.py`` carries the matching ``admin_only=True`` and
     ``tests/unit/test_api_surface.py`` fails if the two drift apart.
@@ -1595,7 +1921,7 @@ async def ws_list_entity_keys(
     Home Assistant shows a ``translation_key`` on no screen, so the dialog offers the
     keys it finds in the entity registry: each with a count and one example entity.
     Admin-only like the preview it sits beside: it names every entity of the
-    integration, and the panel that calls it is ``require_admin``.
+    integration, and the panel shows the dialog that calls it only to an admin.
     """
     coord = _coordinator(hass)
     if coord is None:

@@ -32,7 +32,13 @@ const task = (over = {}) => ({
   ...over,
 });
 
-const verbs = (over = {}) => ({ snooze: false, skip: false, dueToday: false, ...over });
+const verbs = (over = {}) => ({
+  snooze: false,
+  skip: false,
+  dueToday: false,
+  details: false,
+  ...over,
+});
 
 describe('parseTaskLayout', () => {
   it('keeps every layout it offers', () => {
@@ -184,6 +190,12 @@ describe('sheetActions', () => {
     const all = sheetActions(verbs({ snooze: true, skip: true, dueToday: true }), plain);
     expect(ids(all)).toEqual(['done', 'snooze', 'skip', 'dueToday', 'open']);
     expect(all.every((a) => a.blocked === false)).toBe(true);
+  });
+
+  it('puts the details row right under Done, and never blocks it (#399)', () => {
+    const all = sheetActions(verbs({ snooze: true, details: true }), plain);
+    expect(ids(all)).toEqual(['done', 'details', 'snooze', 'open']);
+    expect(all.find((a) => a.id === 'details').blocked).toBe(false);
   });
 
   it('drops each verb its switch turns off, and only that one', () => {

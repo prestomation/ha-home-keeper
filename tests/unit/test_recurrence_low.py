@@ -147,11 +147,7 @@ def test_b07_9_the_clamp_walks_on_to_an_in_season_occurrence():
     # 2026-12-11 is the first grid date after Dec 1, but it is out of season.
     assert r.in_season(due, task["active_season"])
     assert due == r.next_in_season_occurrence(
-        dt(2026, 1, 9, 9),
-        "WEEKLY",
-        2,
-        task["active_season"],
-        after=dt(2026, 12, 1) - timedelta(seconds=1),
+        task, task["active_season"], after=dt(2026, 12, 1) - timedelta(seconds=1)
     )
     assert due.date() == datetime(2027, 12, 10).date()
 
@@ -171,13 +167,7 @@ def test_b07_9_a_grid_that_never_meets_the_season_keeps_the_old_answer():
         "active_season": {"start": "03-01", "end": "03-31"},
     }
     assert (
-        r.next_in_season_occurrence(
-            dt(2026, 1, 15, 9),
-            "MONTHLY",
-            12,
-            task["active_season"],
-            after=dt(2026, 2, 1),
-        )
+        r.next_in_season_occurrence(task, task["active_season"], after=dt(2026, 2, 1))
         is None
     )
     due = r.compute_next_due(task, now=dt(2026, 2, 1))
@@ -187,7 +177,23 @@ def test_b07_9_a_grid_that_never_meets_the_season_keeps_the_old_answer():
 
 def test_b07_9_the_walk_returns_the_first_in_season_occurrence():
     season = {"start": "06-01", "end": "06-30"}
-    found = r.next_in_season_occurrence(
-        dt(2026, 1, 1, 9), "DAILY", 1, season, after=dt(2026, 6, 10, 12)
-    )
+    task = {"anchor": dt(2026, 1, 1, 9).isoformat(), "freq": "DAILY", "interval": 1}
+    found = r.next_in_season_occurrence(task, season, after=dt(2026, 6, 10, 12))
     assert found == dt(2026, 6, 11, 9)
+
+
+def test_b07_8_a_date_just_after_a_moved_date_is_still_on_the_schedule():
+    # Daily at 07:00. Wednesday's date moves to 05:00 on Thursday, 2 hours before
+    # Thursday's own date. The probe at 04:00 finds the move first, and must walk on.
+    task = {
+        "recurrence_type": "fixed",
+        "rrule": "FREQ=DAILY",
+        "anchor": dt(2026, 6, 1, 7).isoformat(),
+        "moved_occurrences": [
+            {"from": dt(2026, 6, 3, 7).isoformat(), "to": dt(2026, 6, 4, 5).isoformat()}
+        ],
+    }
+    assert r.is_task_occurrence(task, dt(2026, 6, 4, 7))
+    assert r.is_task_occurrence(task, dt(2026, 6, 4, 5))
+    assert not r.is_task_occurrence(task, dt(2026, 6, 3, 7))
+    assert not r.is_task_occurrence(task, dt(2026, 6, 4, 6))

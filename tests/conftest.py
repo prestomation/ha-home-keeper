@@ -40,6 +40,11 @@ _PURE_MODULES = (
     "models",
     "assets",
     "documents",
+    # Imports ``documents`` and ``models``, so it comes after both.
+    "task_photos",
+    # Pure but for Pillow, which requirements-test.txt names. Not on the mutation
+    # allowlist: the thumbnail is Pillow's work, not a rule of ours.
+    "photo_thumbs",
     "events",
     "transitions",
     "reconcile",
@@ -53,6 +58,8 @@ _PURE_MODULES = (
     "sensor_tasks",
     "appliance_report",
     "companions_catalog",
+    # The companion panel tab contract. It imports only ``const`` at run time.
+    "panel_tabs",
     "profiles",
     # ``task_counts`` imports ``profiles`` and ``recurrence``, so it comes after both:
     # a module first pulled in by a sibling and then re-executed here would leave two
@@ -66,6 +73,9 @@ _PURE_MODULES = (
     # ``recurrence`` and ``resolve``, so it must come after all four — a module first
     # pulled in by a sibling and then re-executed here would leave two copies loaded.
     "transfer",
+    # ``transfer_bundle`` (the zip file, the files and the settings of a bundle)
+    # imports ``transfer``, ``documents`` and ``task_photos``, so it comes after them.
+    "transfer_bundle",
     # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
     # two device-registry shapes it reconciles are testable here with plain fakes.
     "device_compat",

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etiquetes excloses",
           "one_off_retention_days": "Retenció de tasques úniques (dies)",
           "shopping_list_entity": "Llista de la compra",
-          "shopping_line_style": "Text a la llista de la compra"
+          "shopping_line_style": "Text a la llista de la compra",
+          "due_time_mode": "Hora de venciment",
+          "due_time": "Hora de venciment fixa"
         },
         "data_description": {
           "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
           "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho.",
-          "shopping_line_style": "Com apareix un recordatori de compra a la llista de la compra. «Només producte» mostra el nom del recanvi sense el verb, per exemple «Suavitzant» en lloc de «Comprar suavitzant»."
+          "shopping_line_style": "Com apareix un recordatori de compra a la llista de la compra. «Només producte» mostra el nom del recanvi sense el verb, per exemple «Suavitzant» en lloc de «Comprar suavitzant».",
+          "due_time_mode": "Quan venç una tasca que es repeteix després de cada realització. Amb una hora fixa, la tasca venç a aquesta hora en la data de venciment. Un ajornament també acaba a aquesta hora.",
+          "due_time": "L'hora local a la qual vencen aquestes tasques. Només s'usa amb una hora fixa."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Freqüència",
           "description": "Per a tasques fixes: DAILY, WEEKLY o MONTHLY."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
         },
         "anchor": {
           "name": "Àncora",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Freqüència",
           "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
         },
         "anchor": {
           "name": "Àncora",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Origen",
           "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_due_today_set, perquè una integració col·laboradora pugui reconèixer i ignorar l'avançament que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Mou una data",
+      "description": "Mou una data de la programació d'una tasca fixa a una data i hora noves. Les altres dates no canvien. Per desfer un moviment, torna la data a la seva hora original.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'identificador de la tasca. També funciona el nom. El panell mostra l'identificador."
+        },
+        "occurrence": {
+          "name": "Data",
+          "description": "La data i hora de la programació que cal moure."
+        },
+        "to": {
+          "name": "Data nova",
+          "description": "La data i hora noves. Han de ser en el futur."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de format lliure que es retorna a l'esdeveniment home_keeper_task_occurrence_moved perquè una integració col·laboradora pugui reconèixer i ignorar el canvi que ha provocat (prevenció de bucles). Home Keeper no l'interpreta mai."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Inclou",
-          "description": "Quines seccions s'exporten. Totes dues per defecte."
+          "description": "Quines seccions s'exporten: aparells, tasques, configuració o el domini d'un complement. Totes per defecte."
+        },
+        "kind": {
+          "name": "Tipus",
+          "description": "\"data\" retorna el document YAML. \"bundle\" escriu un fitxer zip amb els fitxers pujats i la configuració a la carpeta home_keeper_exports i en retorna el camí."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Document",
           "description": "El document que es llegirà, amb la forma que retorna export_data. Doneu-lo com a mapa o com tot el fitxer en una cadena."
         },
+        "bundle": {
+          "name": "Paquet",
+          "description": "El nom d'un fitxer de paquet de la carpeta home_keeper_exports. Fes-lo servir en lloc del document."
+        },
         "dry_run": {
           "name": "Només vista prèvia",
           "description": "Comprova el document i informa de què canviaria, sense escriure res."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Coincidència",
           "description": "Com es busca el registre a què es refereix. \"auto\" cerca per id, després external_id i després el nom. \"none\" crea cada registre."
+        },
+        "include_settings": {
+          "name": "Inclou la configuració",
+          "description": "Importa també els perfils, les notificacions i les opcions del document."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Text a la llista de la compra",
           "description": "Com apareix un recordatori de compra a la llista de la compra. with_verb (per defecte) mostra el nom del recordatori, per exemple «Comprar suavitzant». product_only mostra només el nom del recanvi."
         },
+        "due_time_mode": {
+          "name": "Hora de venciment",
+          "description": "Quan venç una tasca que es repeteix després de cada realització. completion (per defecte) manté l'hora de l'última realització, ajornament o omissió. set_time la fa vèncer a due_time en la data de venciment."
+        },
+        "due_time": {
+          "name": "Hora de venciment fixa",
+          "description": "L'hora local (HH:MM) per a set_time. El valor per defecte és 08:00."
+        },
         "dismissed_companions": {
           "name": "Companys descartats",
           "description": "Dominis d'integracions de connexió a amagar de la llista «Suggerits» a Configuració → Companys. Descartar només silencia un suggeriment; un aparellament connectat es mostra sempre."
+        },
+        "hidden_panel_tabs": {
+          "name": "Pestanyes ocultes del panell",
+          "description": "Els identificadors de les pestanyes de companions que el panell no mostra."
+        },
+        "cost_windows": {
+          "name": "Períodes de despesa (dies)",
+          "description": "Els períodes dels totals de despesa de manteniment, en dies. D'1 a 4 nombres entre 1 i 3650. Cada període té un sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Mostra la despesa al panell",
+          "description": "Mostra els totals de despesa sobre la llista de tasques al panell."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Treu la foto de la tasca",
+      "description": "Treu una foto d'una tasca i n'elimina el fitxer. Afegeix fotos des del tauler, perquè una crida de servei no pot portar un fitxer.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Estableix la portada de la tasca",
+      "description": "Converteix una foto en la portada de la seva tasca. La portada és la primera foto. Apareix a la llista de tasques, a la pàgina de la tasca i al diàleg de completat.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signa l'URL d'una foto de tasca",
+      "description": "Genera un URL de curta durada (sense capçalera d'autenticació) que dona els bytes d'una foto de tasca, per exemple per mostrar la foto en una notificació.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'ID de la tasca que té la foto. El nom també funciona. El tauler mostra l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "L'ID de la foto. El servei list_tasks el dona a les fotos de la tasca."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Signa l'URL de la còpia petita, de 256 píxels com a màxim al costat llarg."
+        }
+      }
+    },
     "update_skip": {
       "name": "Actualitza l'omissió",
       "description": "Modifica el detall d'una omissió registrada, identificada per la seva marca de temps. L'omissió conserva la data i la planificació no es toca.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Amb verb",
         "product_only": "Només producte"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Hora de realització",
+        "set_time": "Hora fixa"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Tasques de {profile}"
+      },
+      "spend_window": {
+        "name": "Despesa de manteniment {days} dies"
+      },
+      "spend_all": {
+        "name": "Despesa de manteniment total"
+      },
+      "purchases_total": {
+        "name": "Total de compres d'aparells"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Tasca marcada per a avui",
               "task_skip_updated": "Omissió actualitzada",
               "task_skip_removed": "Omissió eliminada",
+              "task_occurrence_moved": "Ocurrència de tasca moguda",
               "task_overdue": "La tasca ha quedat endarrerida",
               "task_due_soon": "La tasca venç aviat",
               "part_low_stock": "Peça de recanvi amb estoc baix",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Tasca marcada per a avui",
               "task_skip_updated": "Omissió actualitzada",
               "task_skip_removed": "Omissió eliminada",
+              "task_occurrence_moved": "Ocurrència de tasca moguda",
               "task_overdue": "La tasca ha quedat endarrerida",
               "task_due_soon": "La tasca venç aviat",
               "part_low_stock": "Peça de recanvi amb estoc baix",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Company suggerit",
               "declarative_companion_added": "Companion declaratiu afegit",
               "declarative_companion_updated": "Companion declaratiu actualitzat",
-              "declarative_companion_removed": "Companion declaratiu eliminat"
+              "declarative_companion_removed": "Companion declaratiu eliminat",
+              "data_exported": "Dades exportades",
+              "data_imported": "Dades importades"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Document desconegut: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Foto desconeguda: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Només una tasca vinculada a un sensor d'ús té un comptador."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "El fitxer supera el límit de {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Un camp del formulari de la pujada supera el límit de {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "S'esperava una pujada multipart."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no pot suprimir aquests perfils: {profiles}. Aquestes notificacions els utilitzen: {notifications}. Canvia o suprimeix cada notificació i torna a desar."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper no pot exportar aquestes seccions: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Només un usuari administrador pot exportar o importar les dades de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "El fitxer no és un fitxer zip ni text UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un document o un paquet per importar."
     }
   }
 }

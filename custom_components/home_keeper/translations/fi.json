@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
           "one_off_retention_days": "Kertaluonteisten säilytys (päivää)",
           "shopping_list_entity": "Ostoslista",
-          "shopping_line_style": "Teksti ostoslistalla"
+          "shopping_line_style": "Teksti ostoslistalla",
+          "due_time_mode": "Erääntymisaika",
+          "due_time": "Kiinteä erääntymisaika"
         },
         "data_description": {
           "sync_problem_sensors": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
           "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
           "shopping_list_entity": "Synkronoi automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi synkronoinnin pois käytöstä.",
-          "shopping_line_style": "Miten ostomuistutus näkyy ostoslistalla. ”Vain tuote” näyttää varaosan nimen ilman verbiä, esimerkiksi ”Huuhteluaine” eikä ”Osta huuhteluaine”."
+          "shopping_line_style": "Miten ostomuistutus näkyy ostoslistalla. ”Vain tuote” näyttää varaosan nimen ilman verbiä, esimerkiksi ”Huuhteluaine” eikä ”Osta huuhteluaine”.",
+          "due_time_mode": "Milloin jokaisen suorituksen jälkeen toistuva tehtävä erääntyy. Kiinteällä ajalla tehtävä erääntyy tuohon aikaan eräpäivänään. Myös lykkäys päättyy tuohon aikaan.",
+          "due_time": "Paikallinen kellonaika, jolloin nämä tehtävät erääntyvät. Käytetään vain kiinteän ajan kanssa."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Tiheys",
           "description": "Kiinteille tehtäville: DAILY, WEEKLY tai MONTHLY."
+        },
+        "rrule": {
+          "name": "Sääntö",
+          "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
         },
         "anchor": {
           "name": "Ankkuri",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Tiheys",
           "description": "DAILY, WEEKLY tai MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Sääntö",
+          "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
         },
         "anchor": {
           "name": "Ankkuri",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Alkuperä",
           "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_due_today_set-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa aikaistamisen (silmukan esto). Home Keeper ei tulkitse sitä."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Siirrä yksi päivä",
+      "description": "Siirtää kiinteän tehtävän aikataulun yhden päivän uuteen päivään ja kellonaikaan. Muut päivät eivät muutu. Kumoa siirto siirtämällä päivä takaisin alkuperäiseen aikaansa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Tehtävän tunnus. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "occurrence": {
+          "name": "Päivä",
+          "description": "Aikataulun päivä ja kellonaika, joka siirretään."
+        },
+        "to": {
+          "name": "Uusi päivä",
+          "description": "Uusi päivä ja kellonaika. Sen on oltava tulevaisuudessa."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka palautetaan home_keeper_task_occurrence_moved-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa itse aiheuttamansa muutoksen (silmukoiden esto). Home Keeper ei koskaan tulkitse sitä."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Ota mukaan",
-          "description": "Mitkä osat viedään. Oletuksena molemmat."
+          "description": "Mitkä osat viedään: laitteet, tehtävät, asetukset tai kumppanin toimialue. Oletuksena kaikki."
+        },
+        "kind": {
+          "name": "Laji",
+          "description": "\"data\" palauttaa YAML-asiakirjan. \"bundle\" kirjoittaa zip-tiedoston, jossa on ladatut tiedostot ja asetukset, kansioon home_keeper_exports ja palauttaa sen polun."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Asiakirja",
           "description": "Luettava asiakirja siinä muodossa, jonka export_data palauttaa. Anna se kuvauksena tai koko tiedostona yhtenä merkkijonona."
         },
+        "bundle": {
+          "name": "Paketti",
+          "description": "Pakettitiedoston nimi kansiossa home_keeper_exports. Käytä sitä asiakirjan sijaan."
+        },
         "dry_run": {
           "name": "Vain esikatselu",
           "description": "Tarkistaa asiakirjan ja kertoo, mikä muuttuisi, kirjoittamatta mitään."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Vastaavuus",
           "description": "Miten tarkoitettu tietue haetaan. \"auto\" hakee tunnuksella, sitten external_id-arvolla, sitten nimellä. \"none\" luo jokaisen tietueen."
+        },
+        "include_settings": {
+          "name": "Sisällytä asetukset",
+          "description": "Tuo myös asiakirjan profiilit, ilmoitukset ja asetukset."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Teksti ostoslistalla",
           "description": "Miten ostomuistutus näkyy ostoslistalla. with_verb (oletus) näyttää muistutuksen nimen, esimerkiksi ”Osta huuhteluaine”. product_only näyttää vain varaosan nimen."
         },
+        "due_time_mode": {
+          "name": "Erääntymisaika",
+          "description": "Milloin jokaisen suorituksen jälkeen toistuva tehtävä erääntyy. completion (oletus) säilyttää viimeisen suorituksen, lykkäyksen tai ohituksen kellonajan. set_time asettaa erääntymisen eräpäivän kellonaikaan due_time."
+        },
+        "due_time": {
+          "name": "Kiinteä erääntymisaika",
+          "description": "Paikallinen kellonaika (HH:MM) asetukselle set_time. Oletus on 08:00."
+        },
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",
           "description": "Glue-integraatiodomeenit, jotka piilotetaan kohdan Asetukset → Kumppanit \"Ehdotetut\"-luettelosta. Hylkääminen vain vaimentaa ehdotuksen; yhdistetty pariliitos näytetään aina."
+        },
+        "hidden_panel_tabs": {
+          "name": "Piilotetut paneelin välilehdet",
+          "description": "Niiden kumppanivälilehtien tunnisteet, joita paneeli ei näytä."
+        },
+        "cost_windows": {
+          "name": "Kulujaksot (päivää)",
+          "description": "Huoltokulujen summien jaksot päivinä. 1–4 lukua väliltä 1–3650. Jokainen jakso saa anturin."
+        },
+        "cost_summary_panel": {
+          "name": "Näytä kulut paneelissa",
+          "description": "Näyttää kulujen summat tehtäväluettelon yläpuolella paneelissa."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Poista tehtävän valokuva",
+      "description": "Poistaa valokuvan tehtävästä ja sen tiedoston. Lisää valokuvat paneelissa, koska palvelukutsu ei voi kuljettaa tiedostoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Aseta tehtävän kansikuva",
+      "description": "Tekee valokuvasta tehtävänsä kansikuvan. Kansikuva on ensimmäinen valokuva. Se näkyy tehtäväluettelossa, tehtäväsivulla ja valmis-ikkunassa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Allekirjoita tehtävän valokuvan URL",
+      "description": "Luo lyhytikäisen URL-osoitteen (ei todennusotsaketta), joka antaa tehtävän valokuvan tavut, esimerkiksi valokuvan näyttämiseen ilmoituksessa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        },
+        "thumbnail": {
+          "name": "Pikkukuva",
+          "description": "Allekirjoita pienen kopion URL, enintään 256 pikseliä pitkältä sivulta."
+        }
+      }
+    },
     "update_skip": {
       "name": "Päivitä ohitus",
       "description": "Muokkaa kirjatun ohituksen tietoja, jotka tunnistetaan aikaleimasta. Ohitus säilyttää päivämääränsä eikä aikatauluun kosketa.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Verbin kanssa",
         "product_only": "Vain tuote"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Suorituksen aika",
+        "set_time": "Kiinteä aika"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Profiilin {profile} tehtävät"
+      },
+      "spend_window": {
+        "name": "Huoltokulut {days} päivää"
+      },
+      "spend_all": {
+        "name": "Huoltokulut yhteensä"
+      },
+      "purchases_total": {
+        "name": "Laiteostot yhteensä"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Tehtävä asetettu tälle päivälle",
               "task_skip_updated": "Ohitus päivitetty",
               "task_skip_removed": "Ohitus poistettu",
+              "task_occurrence_moved": "Tehtävän esiintymä siirretty",
               "task_overdue": "Tehtävä erääntyi",
               "task_due_soon": "Tehtävä erääntyy pian",
               "part_low_stock": "Varaosan varasto vähissä",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Tehtävä asetettu tälle päivälle",
               "task_skip_updated": "Ohitus päivitetty",
               "task_skip_removed": "Ohitus poistettu",
+              "task_occurrence_moved": "Tehtävän esiintymä siirretty",
               "task_overdue": "Tehtävä erääntyi",
               "task_due_soon": "Tehtävä erääntyy pian",
               "part_low_stock": "Varaosan varasto vähissä",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Kumppania ehdotettu",
               "declarative_companion_added": "Deklaratiivinen kumppani lisätty",
               "declarative_companion_updated": "Deklaratiivinen kumppani päivitetty",
-              "declarative_companion_removed": "Deklaratiivinen kumppani poistettu"
+              "declarative_companion_removed": "Deklaratiivinen kumppani poistettu",
+              "data_exported": "Tiedot viety",
+              "data_imported": "Tiedot tuotu"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Tuntematon asiakirja: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Tuntematon valokuva: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Vain käyttöanturiin sidotulla tehtävällä on mittari."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Tiedosto ylittää {mb} Mt:n rajan."
+    },
+    "upload_field_too_large": {
+      "message": "Latauksen lomakekenttä ylittää {kb} kt:n rajan."
     },
     "expected_multipart_upload": {
       "message": "Odotettiin moniosaista (multipart) lähetystä."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper ei voi poistaa näitä profiileja: {profiles}. Nämä ilmoitukset käyttävät niitä: {notifications}. Muuta tai poista jokainen ilmoitus ja tallenna sitten uudelleen."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper ei voi viedä näitä osia: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Vain järjestelmänvalvoja voi viedä tai tuoda Home Keeperin tietoja."
+    },
+    "import_not_text": {
+      "message": "Tiedosto ei ole zip-tiedosto eikä UTF-8-tekstiä."
+    },
+    "import_needs_document": {
+      "message": "Anna tuotava asiakirja tai paketti."
     }
   }
 }

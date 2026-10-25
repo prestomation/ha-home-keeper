@@ -1,6 +1,13 @@
+import {
+  emptyLabelDialog,
+  renderLabelDialog,
+  wireLabelButton,
+  type LabelDialogState,
+} from './panel-labels';
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './documents';
+import { TaskPhotoUrlCache, coverOriginalRefs, coverRefs, detailRefs } from './task-photos';
 import {
   buildTaskPayload,
   consumableLinkToken,
@@ -9,8 +16,16 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import { setLanguage, t } from './i18n';
+import { setLanguage, t, tn } from './i18n';
 import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES, importFitsWebsocket } from './limits';
+import {
+  exportInclude,
+  exportSources,
+  exportedSources,
+  isBundleFile,
+  missingCompanions,
+  reportHasSettings,
+} from './transfer-view';
 import {
   createPreview,
   ensureMarkdown,
@@ -37,6 +52,7 @@ import type { PanelHost } from './panel-host';
 import { REQUIRED_COMPONENTS } from './panel-icons';
 import { assetsList, renderActionSheet, tasksList, wireLists } from './panel-lists';
 import {
+  exportedLine,
   settingsBackbar,
   settingsIndex,
   settingsRail,
@@ -46,6 +62,20 @@ import {
 } from './panel-settings';
 import { STYLES } from './panel-styles';
 import { renderTaskForm } from './panel-task-form';
+import {
+  bottomTabs as companionBottomTabs,
+  currentTab,
+  feedTabsHass,
+  feedTabsNarrow,
+  mountTab,
+  newTabRuntime,
+  routeOpenTab,
+  tabArea,
+  topTabs as companionTopTabs,
+  wireTabBars,
+  type PanelTabRuntime,
+} from './panel-tabs';
+import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
@@ -82,12 +112,15 @@ import type {
   HomeKeeperOptions,
   ManagedBy,
   PanelInfo,
+  PanelTabInfo,
   PortableDocument,
   Profile,
+  SpendSummary,
   Task,
 } from './types';
 import {
   toast,
+  addedCompletion,
   guardWrite,
   type WriteGuard,
   btnAttrs,
@@ -110,6 +143,7 @@ import {
   RELOAD_RETRY_MS,
   setTimeZone,
   hkStateSignal,
+  visiblePanelTabs,
 } from './utils';
 
 
@@ -151,6 +185,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       | null
       | undefined;
     if (mb) mb.narrow = value;
+    feedTabsNarrow(this, value);
   }
   get narrow(): boolean {
     return this._narrow;
@@ -178,6 +213,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onSnooze: (task) => openSnooze(this, task),
     onSkip: (task) => openSkip(this, task),
     onDueToday: (task) => void setDueToday(this, task),
+    onDetails: (task) => openCompletionDialog(this, task),
   });
   _confirmDelete: {
     open: boolean;
@@ -214,7 +250,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _uploadShowTimer?: ReturnType<typeof setTimeout>;
   // One-shot: the upload-error key to scroll to on the next render.
   _scrollToError?: string;
-  _view: 'tasks' | 'appliances' | 'settings' = 'tasks';
+  _view: PanelView = 'tasks';
+  // Every companion tab that a companion registered (loaded with the rest), the tab
+  // that the URL names with the path inside it (null on the panel's own views), and
+  // the elements and load states of the tabs, kept while the panel lives.
+  _panelTabs: PanelTabInfo[] = [];
+  _panelTab: { id: string; path: string } | null = null;
+  _tabRuntime: PanelTabRuntime = newTabRuntime();
   // Integration options for the Settings tab (loaded lazily with the rest).
   _options: HomeKeeperOptions | null = null;
   // Available mobile_app_* notify services (for the Notifications profile editor).
@@ -233,6 +275,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // keeps the writes in order.
   _presetNudge: PresetNudgeState | null = null;
   _presetDialog: PresetDialogState = { open: false, ids: [], selected: [], busy: false };
+  _labelDialog: LabelDialogState = emptyLabelDialog();
   _presetNudgeSaving: Promise<void> = Promise.resolve();
   _installedIntegrations: string[] | null = null;
   _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
@@ -242,6 +285,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     busy: false,
     error: '',
     filename: '',
+    file: null,
+    hasSettings: false,
+    includeSettings: false,
+    picked: {},
+    exporting: false,
+    exported: '',
   };
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
@@ -281,6 +330,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
   _signedFiles = new SignedUrlCache();
+  _signedPhotos = new TaskPhotoUrlCache();
   // Pending re-sign of the on-screen files' URLs before they expire; see `_armResign`.
   private _resignTimer: ReturnType<typeof setTimeout> | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -291,6 +341,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Whether the current user has dismissed the first-run intro banner — loaded from
   // HA's per-user frontend data store in `_reload` (see `_introCard`).
   _introDismissed = false;
+  // The spend totals and the total whose records are open (see `panel-spend.ts`).
+  _spend: SpendSummary | null = null;
+  _spendOpen = '';
   // Which layout this user reads the task list in — same per-user store as
   // `_introDismissed`, but read and written rather than write-once (see
   // `_setTaskLayout`).
@@ -305,6 +358,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // reload — so without coalescing they can pass the check and run two concurrent full
   // loads. Callers await the same promise, so none no-ops and all see a completed render.
   private _refreshing: Promise<void> | null = null;
+  _detailLookup: string | null = null;
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
@@ -344,6 +398,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._hass = hass;
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
+    feedTabsHass(this, hass);
     if (first && !this._loaded) void this._refresh();
     else this._liveRefresh(hass);
   }
@@ -386,6 +441,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._hass;
   }
 
+  /** True if the user is not an admin. The panel is then view only (#444). An
+   *  unknown user counts as admin, so the admin view does not change. The backend
+   *  stays the authority: every write is admin-only there. */
+  _readOnly(): boolean {
+    return this._hass?.user?.is_admin === false;
+  }
+
   /**
    * HA sets `route = { prefix, path }` on the panel element for every in-panel
    * URL change, including browser Back/Forward. We treat it as the single source
@@ -400,7 +462,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Adopt a parsed location into view/detail state, rendering only on change. */
   private _applyLocation(loc: PanelLocation): void {
     const section = loc.section ?? null;
+    const tabLoc = loc.view === 'tab' && loc.tab ? { id: loc.tab, path: loc.path ?? '' } : null;
+    // A move inside the open companion tab gives its element the new path. The panel
+    // around it stays as it is, so the tab keeps its own state.
+    if (tabLoc && this._view === 'tab' && this._panelTab?.id === tabLoc.id) {
+      if (this._panelTab.path !== tabLoc.path) {
+        this._panelTab = tabLoc;
+        routeOpenTab(this);
+      }
+      return;
+    }
+    // After the load, a tab id that no shown tab has goes to the task list.
+    if (tabLoc && this._loaded && !this._tabShown(tabLoc.id)) {
+      this._navigate({ view: 'tasks', detail: null }, true);
+      this._applyLocation({ view: 'tasks', detail: null });
+      return;
+    }
     const changed =
+      tabLoc?.id !== this._panelTab?.id ||
       loc.view !== this._view ||
       loc.detail?.kind !== this._detail?.kind ||
       loc.detail?.id !== this._detail?.id ||
@@ -426,9 +505,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._view = loc.view;
     this._detail = loc.detail;
     this._settingsSection = section;
+    this._panelTab = tabLoc;
     if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
-    this._edit = { open: false, task: null };
+    this._setEdit({ open: false, task: null });
     // An upload belongs to the draft it started in. Closing the draft cancels it, so
     // its result cannot land in a different draft (X12-8).
     this._abortUpload();
@@ -441,16 +521,47 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._pendingEdit = null;
     }
     if (this._pendingAssetEdit) {
-      this._assetEdit = { ...this._pendingAssetEdit, open: true };
+      // A view-only user gets the page under the form, not the form.
+      if (!this._readOnly()) this._assetEdit = { ...this._pendingAssetEdit, open: true };
       this._pendingAssetEdit = null;
     }
     // Arriving at the task list is the other moment the suggestion dialog may open.
     if (loc.view === 'tasks' && !loc.detail) this._offerPresets();
+    this._lookUpDetail(loc.detail);
     this._render();
+  }
+
+  /**
+   * Load once more when the URL names a task or an appliance that the loaded lists do
+   * not have. Another surface can have added it after the last load, for example a
+   * companion tab that opens the task it just made. The page shows a spinner during
+   * the load, and the gone alert only if the item is still missing after it.
+   */
+  private _lookUpDetail(detail: PanelLocation['detail']): void {
+    if (!detail || !this._loaded) return;
+    const list: { id: string }[] = detail.kind === 'task' ? this._tasks : this._assets;
+    if (list.some((x) => x.id === detail.id)) return;
+    const key = `${detail.kind}:${detail.id}`;
+    if (this._detailLookup === key) return;
+    this._detailLookup = key;
+    void this._refresh().finally(() => {
+      if (this._detailLookup !== key) return;
+      this._detailLookup = null;
+      this._render();
+    });
+  }
+
+  /** Whether the tab bar shows the companion tab *id*. */
+  private _tabShown(id: string): boolean {
+    return visiblePanelTabs(this._panelTabs, this._options?.hidden_panel_tabs).some(
+      (tab) => tab.id === id,
+    );
   }
 
   /** Open the preset suggestion dialog when the page and the state allow it. */
   private _offerPresets(): void {
+    // The preset add is admin-only, so a view-only user does not get the dialog.
+    if (this._readOnly()) return;
     if (!this._loaded || this._loadError) return;
     if (this._editingOpen()) return;
     if (this._confirmDelete.open) return;
@@ -927,6 +1038,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         tags,
         presets,
         presetNudge,
+        panelTabs,
+        spend,
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
@@ -954,6 +1067,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           ? Promise.resolve(null)
           : this._soft(api.listDeclarativePresets(this._hass), null),
         this._soft(api.getPresetNudge(this._hass), null),
+        // The companion tabs. A failed read shows the panel with no companion tab.
+        // The command is admin-only, so a non-admin does not ask: Home Assistant
+        // logs each refused call as an error.
+        this._readOnly()
+          ? Promise.resolve([] as PanelTabInfo[])
+          : this._soft(api.getPanelTabs(this._hass), [] as PanelTabInfo[]),
+        // The spend totals. A failed read hides the strip.
+        this._soft(api.getSpend(this._hass), null),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -963,8 +1084,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
+      this._panelTabs = panelTabs ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
+      this._spend = spend;
       if (!this._taskLayoutPicked) this._taskLayout = taskLayout;
       this._tags = tags;
       if (presets) this._declarativePresets = presets;
@@ -1020,6 +1143,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         // The suggestion dialog opens on the first load only, never after an action's
         // refresh: a modal must not land in the middle of what the user is doing.
         if (!wasLoaded && this._loaded) this._offerPresets();
+        // The URL can name a companion tab that is not registered, or that the load
+        // left out. Then the panel goes to the task list.
+        if (this._loaded && this._panelTab && !this._tabShown(this._panelTab.id)) {
+          this._navigate({ view: 'tasks', detail: null }, true);
+          this._applyLocation({ view: 'tasks', detail: null });
+        }
         this._render();
       } finally {
         this._refreshing = null;
@@ -1033,7 +1162,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // ── task form lifecycle ─────────────────────────────────────────────────────
   _openCreate(): void {
     this._rememberDrawerOpener();
-    this._edit = {
+    this._setEdit({
       open: true,
       task: {
         recurrence_type: 'floating',
@@ -1041,7 +1170,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         unit: 'months',
         consumable_link: '',
       } as Partial<Task>,
-    };
+    });
     this._render();
   }
   _openEdit(task: Task): void {
@@ -1061,7 +1190,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // pending edit, because `_applyLocation` clears ephemeral forms on the way — see
     // `_pendingEdit`, which re-opens it once the location has settled.
     if (this._view === 'tasks' && this._editsThisPage('task', task.id)) {
-      this._edit = { open: true, task: seeded };
+      this._setEdit({ open: true, task: seeded });
       this._render();
     } else {
       this._pendingEdit = seeded;
@@ -1082,7 +1211,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    */
   _openDuplicate(task: Task): void {
     this._rememberDrawerOpener();
-    this._edit = { open: true, task: duplicateTaskSeed(task) };
+    this._setEdit({ open: true, task: duplicateTaskSeed(task) });
     this._render();
   }
 
@@ -1099,8 +1228,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._detail.kind === kind && !!id && this._detail.id === id;
   }
   _closeForm(): void {
-    this._edit = { open: false, task: null };
+    this._setEdit({ open: false, task: null });
     this._render();
+  }
+
+  /**
+   * Replace the task form's draft. Every path that drops a draft comes here, so the
+   * preview URLs of its picked photos are always released, also when a navigation
+   * or a new form replaces it instead of Cancel.
+   */
+  private _setEdit(next: EditState): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
+    this._edit = next;
   }
 
   async _submitForm(button?: Element | null): Promise<void> {
@@ -1132,6 +1271,32 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (desired !== consumableLinkToken(saved)) {
         const [assetId, partId] = desired ? desired.split(':') : ['', ''];
         await api.setTaskConsumable(this._hass, saved.id, assetId || null, partId || null);
+      }
+      // Photos picked in the New task form upload now that the task has an id. A
+      // failed photo does not undo the task: the form closes, and the task page opens
+      // so the user can add the photo again there.
+      const draft = this._edit;
+      const staged = draft.photos ?? [];
+      if (staged.length) {
+        const hass = this._hass;
+        const { failed } = await uploadStaged(staged, (photoId, file) =>
+          api.uploadTaskPhoto(hass, saved.id, photoId, file),
+        );
+        // A navigation during the upload replaced the draft. Leave the form that is
+        // open now alone, and release this draft's previews here.
+        if (this._edit !== draft) {
+          releaseStaged(staged, (url) => URL.revokeObjectURL(url));
+          if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
+          await this._refresh();
+          return;
+        }
+        if (failed.length) {
+          this._closeForm();
+          toast(this, tn('photos.uploadPartial', failed.length));
+          await this._refresh();
+          this._openDetail('task', saved.id);
+          return;
+        }
       }
       this._closeForm();
       await this._refresh();
@@ -1292,12 +1457,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       async () => {
         const hass = this._hass;
         if (!hass) return;
-        const before = new Set((task.completions ?? []).map((c) => c.ts));
+        // The action sheet keeps the task it opened with, so read the log of the
+        // task as the panel has it now.
+        const current = this._tasks.find((x) => x.id === task.id) ?? task;
+        const before = new Set((current.completions ?? []).map((c) => c.ts));
         try {
           const done = await api.completeTask(hass, task.id);
           // Say which task is done, and offer Undo. In Tiles and Board the task moves to
           // another section, so without this the only sign of the tap is a reflow.
-          const added = done?.completions?.find((c) => !before.has(c.ts));
+          const added = addedCompletion(before, done);
           if (added) {
             toast(this, t('done.toast', { name: task.name }), {
               text: t('btn.undo'),
@@ -1480,13 +1648,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   // ── asset form lifecycle ────────────────────────────────────────────────────
+  // Every appliance write is admin-only on the backend. The guards below keep a
+  // view-only user out of a form or a call that can only fail.
   _openCreateAsset(): void {
+    if (this._readOnly()) return;
     this._rememberDrawerOpener();
     this._abortUpload();
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
   _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void {
+    if (this._readOnly()) return;
     this._rememberDrawerOpener();
     // Opens beside the page it was pressed on — the appliance's own page keeps its
     // parts, documents and history in view while the form is up. See `_openEdit` for
@@ -1533,7 +1705,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _submitAssetForm(button?: Element | null): Promise<void> {
-    if (!this._hass || !this._assetEdit.asset) return;
+    if (!this._hass || !this._assetEdit.asset || this._readOnly()) return;
     // A second press while the first save runs must not create a second appliance.
     await guardWrite(this._assetEdit, () => this._saveAssetForm(), button);
   }
@@ -1573,7 +1745,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _deleteAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.deleteAsset(this._hass, asset.id);
     } catch (err) {
@@ -1586,7 +1758,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Hide an appliance from the default list without deleting its data;
    *  reversible via {@link _restoreAsset}. */
   async _archiveAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.archiveAsset(this._hass, asset.id);
       await this._refresh();
@@ -1597,7 +1769,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   async _restoreAsset(asset: Asset): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._readOnly()) return;
     try {
       await api.restoreAsset(this._hass, asset.id);
       await this._refresh();
@@ -1632,7 +1804,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
-   * Save every task and appliance as one YAML file.
+   * Save the checked sources as one YAML file.
    *
    * The same document `_runImport` reads, so this file is also the worked example of
    * the format — which is what makes "show an assistant your export and ask for
@@ -1640,14 +1812,62 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * JSON Schema, so an editor checks it as you edit it.
    */
   async _exportData(): Promise<void> {
-    if (!this._hass) return;
+    if (!this._hass || this._transfer.exporting) return;
+    const sources = exportSources(this._companions);
+    const include = exportInclude(sources, this._transfer.picked, 'yaml');
+    if (!include) return;
+    this._transfer.exporting = true;
+    this._transfer.exported = '';
+    this._render();
     try {
-      const { yaml } = await api.exportData(this._hass);
+      const result = await api.exportData(this._hass, include);
       const stamp = new Date().toISOString().slice(0, 10);
-      this._downloadFile(`home-keeper-${stamp}.yaml`, yaml, 'application/yaml');
+      this._downloadFile(`home-keeper-${stamp}.yaml`, result.yaml, 'application/yaml');
+      const doc = (result.document ?? {}) as unknown as Record<string, unknown>;
+      this._transfer.exported = exportedLine(
+        exportedSources(sources, include, doc),
+        missingCompanions(sources, include, doc),
+      );
     } catch (err) {
       console.error('home-keeper: data export failed', err);
       toast(this, t('error.exportFailed'));
+    } finally {
+      this._transfer.exporting = false;
+      this._render();
+    }
+  }
+
+  /**
+   * Save the checked sources as a bundle: the data, the uploaded files, and the
+   * settings if that row is checked. The bundle comes over HTTP, because it is
+   * binary and can be larger than a websocket message.
+   */
+  async _exportBundle(): Promise<void> {
+    if (!this._hass || this._transfer.exporting) return;
+    const sources = exportSources(this._companions);
+    const include = exportInclude(sources, this._transfer.picked, 'bundle');
+    if (!include) return;
+    this._transfer.exporting = true;
+    this._transfer.exported = '';
+    this._render();
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const { blob, filename } = await api.exportBundle(
+        this._hass,
+        include,
+        `home-keeper-${stamp}.zip`,
+      );
+      this._downloadBlob(filename, blob);
+      this._transfer.exported = exportedLine(exportedSources(sources, include, null), []);
+    } catch (err) {
+      console.error('home-keeper: bundle export failed', err);
+      // The export view answers a refusal with a message in the user's language.
+      // Show it, as the import does. Any other failure gets the generic text.
+      const failure = err as { serverMessage?: boolean; message?: string } | null;
+      toast(this, failure?.serverMessage ? String(failure.message) : t('error.exportFailed'));
+    } finally {
+      this._transfer.exporting = false;
+      this._render();
     }
   }
 
@@ -1659,7 +1879,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Apply the document the preview approved. */
   async _runImport(): Promise<void> {
     await this._transferCall(false);
-    if (this._transfer.report?.ok && !this._transfer.report.dry_run) {
+    const report = this._transfer.report;
+    // A partial import also wrote data, so it also needs the new lists.
+    if (report && !report.dry_run && (report.ok || report.partial === true)) {
       // An import rewrites tasks and appliances wholesale, so re-read rather than
       // patching: the panel's copy of both lists is now the stale one. `_reload` is
       // the right door because the import triggers a config-entry reload on its way
@@ -1673,43 +1895,55 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /**
    * Preview and import are one call with `dryRun` flipped, so the preview cannot
    * describe anything but what the import will actually do.
+   *
+   * A chosen bundle, or a YAML file over the websocket limit, goes to the upload view
+   * (`_transfer.file`). The text box goes over the websocket.
    */
   private async _transferCall(dryRun: boolean): Promise<void> {
     if (!this._hass || this._transfer.busy) return;
-    this._transfer.error = '';
+    const state = this._transfer;
+    state.error = '';
     // Refuse an oversized document here rather than sending it. Home Assistant does
     // not raise on a frame past aiohttp's 4 MiB default — it closes the connection
     // ("Decompressed message exceeds size limit"), so the panel loses its link to
     // Home Assistant and the only thing left to show is a generic failure. Pressing
-    // the button again drops the connection again. The backend's own 8 MiB ceiling
-    // and its "split the migration" message sit on the far side of a socket the
-    // document cannot cross, so this is the one place a useful answer can be given.
-    if (!importFitsWebsocket(this._transfer.text)) {
-      this._transfer.report = null;
-      this._transfer.error = t('transfer.tooLarge', {
+    // the button again drops the connection again. A larger file goes in through the
+    // file picker, which sends it to the upload view.
+    if (!state.file && !importFitsWebsocket(state.text)) {
+      state.report = null;
+      state.error = t('transfer.tooLarge', {
         mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
-        // The service's ceiling, which is the larger one the message points at.
+        // The upload's ceiling, which is the larger one the message points at.
         max: MAX_IMPORT_BYTES / (1024 * 1024),
       });
       this._render();
       return;
     }
-    this._transfer.busy = true;
+    state.busy = true;
     this._render();
+    const opts = { dryRun, includeSettings: state.hasSettings && state.includeSettings };
     try {
       // The pasted text goes over as text. The backend reads it, so there is one
       // parser rather than a second one here that could accept a slightly different
       // dialect — and a syntax error comes back as an ordinary problem row naming the
       // line and column, which a parse in the browser could not have told us.
-      this._transfer.report = await api.importData(this._hass, this._transfer.text, {
-        dryRun,
-      });
+      state.report = state.file
+        ? await api.importUpload(this._hass, state.file, opts)
+        : await api.importData(this._hass, state.text, opts);
+      // Only a bundle offers its settings. Once a preview shows settings, the offer
+      // stays for this file, also while the box is off and the report has no counts.
+      if (state.file && isBundleFile(state.file) && reportHasSettings(state.report)) {
+        state.hasSettings = true;
+      }
     } catch (err) {
       console.error('home-keeper: import failed', err);
-      this._transfer.report = null;
-      this._transfer.error = t('error.actionFailed');
+      state.report = null;
+      // The upload view answers a refusal (too large, not a bundle) with a message in
+      // the user's language. Show it. Any other failure gets the generic text.
+      const failure = err as { serverMessage?: boolean; message?: string } | null;
+      state.error = failure?.serverMessage ? String(failure.message) : t('error.actionFailed');
     } finally {
-      this._transfer.busy = false;
+      state.busy = false;
       this._render();
     }
   }
@@ -1733,7 +1967,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Trigger a client-side file download (no server round-trip for the blob). */
   private _downloadFile(filename: string, contents: string, mime: string): void {
-    const blob = new Blob([contents], { type: `${mime};charset=utf-8` });
+    this._downloadBlob(filename, new Blob([contents], { type: `${mime};charset=utf-8` }));
+  }
+
+  /** Save *blob* as *filename* through a temporary object URL. */
+  private _downloadBlob(filename: string, blob: Blob): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1790,6 +2028,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._completion.open ||
         this._moveCompletion.open ||
         this._presetDialog.open ||
+        // The label dialog has a number field and a checklist (see _labelDialog).
+        this._labelDialog.open ||
         // The skip note and the declarative dialog have text fields too. A render
         // while one is open drops focus to `<body>` mid-word (F10-4).
         this._snooze.open ||
@@ -1891,6 +2131,26 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           <ha-button id="back-btn" ${btnAttrs('tertiary')}>‹ ${escapeHTML(t('btn.back'))}</ha-button>
         </div>
         ${detailView(this)}`;
+    } else if (this._view === 'tab' && currentTab(this)) {
+      // A companion tab: the tab bar, and the area that `mountTab` fills in `_hydrate`.
+      inner = `
+        ${this._tabs()}
+        ${tabArea()}`;
+    } else if (this._view === 'tab') {
+      // The tab list has not loaded, or the redirect to the task list is on its way.
+      inner = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    } else if (this._view === 'settings' && this._readOnly()) {
+      // Every setting is admin-only, so a view-only user gets 1 card that says so in
+      // place of the sections. `wireSettings` builds nothing without the hosts.
+      inner = `
+        ${this._tabs()}
+        <ha-card class="hk-form-card hk-admin-only"><div class="hk-form-inner">
+          <div class="hk-form-title"><ha-icon icon="mdi:lock" class="hk-admin-only-ic"></ha-icon>${escapeHTML(
+            t('settings.adminOnly.title'),
+          )}</div>
+          <div class="hk-settings-intro">${escapeHTML(t('settings.adminOnly.body'))}</div>
+          <div class="hk-settings-intro">${escapeHTML(t('settings.adminOnly.ask'))}</div>
+        </div></ha-card>`;
     } else if (this._view === 'settings') {
       // Three things, all rendered at every width, with CSS choosing between them: an
       // anchor rail naming every section and what it is set to, a section index for a
@@ -2161,6 +2421,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <ha-tab-group>
         <ha-tab-group-tab id="tab-tasks" panel="tasks" ${v === 'tasks' ? 'active' : ''}>${escapeHTML(t('tab.tasks'))}</ha-tab-group-tab>
         <ha-tab-group-tab id="tab-appliances" panel="appliances" ${v === 'appliances' ? 'active' : ''}>${escapeHTML(t('tab.appliances'))}</ha-tab-group-tab>
+        ${companionTopTabs(this)}
         <ha-tab-group-tab id="tab-settings" panel="settings" ${v === 'settings' ? 'active' : ''}>${escapeHTML(t('tab.settings'))}</ha-tab-group-tab>
       </ha-tab-group>`;
   }
@@ -2184,6 +2445,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <nav class="hk-bottombar" aria-label="${escapeHTML(t('app.title'))}">
         ${tab('tasks', 'mtab-tasks', t('tab.tasks'))}
         ${tab('appliances', 'mtab-appliances', t('tab.appliances'))}
+        ${companionBottomTabs(this)}
         ${tab('settings', 'mtab-settings', t('tab.settings'))}
       </nav>`;
   }
@@ -2191,7 +2453,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Appliance notes — always present (even when empty) so the Edit affordance is
    *  discoverable, matching the task detail page. */
   _assetNotesSection(asset: Asset): string {
-    return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', true);
+    // An appliance note is an appliance write, which is admin-only.
+    return this._notesSection({ kind: 'asset', id: asset.id }, asset.notes || '', !this._readOnly());
   }
 
   // ── hydration: build/configure live HA components ───────────────────────────
@@ -2218,6 +2481,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (dialogHost && this._actionSheet.open) renderActionSheet(this, dialogHost);
     if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     if (dialogHost && this._presetDialog.open) renderPresetDialog(this, dialogHost);
+    if (dialogHost && this._labelDialog.open) renderLabelDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
@@ -2256,6 +2520,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         }
       }),
     );
+    // The companion tabs in both tab bars, and the open companion tab's element.
+    wireTabBars(this, root);
+    mountTab(this, root);
 
     // A detail page's own controls: back, its action buttons, device chips and
     // completion-delete buttons. A task detail is a page of its own and stops here
@@ -2285,6 +2552,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // intro dismiss and the "+n" chip unfold). Both wire disjoint selectors, none of
     // which the settings forms below emit, so the two passes sit together here.
     wireControls(this, root);
+    wireLabelButton(this, root);
     wireLists(this, root);
 
     // The Settings tab: its four hosts built into, the card the URL names marked,
@@ -2318,12 +2586,28 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ...assetFileRefs(detailAsset ?? {}),
       ...assetFileRefs(this._assetEdit.asset ?? {}),
     ];
+    // Task photos (#399): every cover thumbnail, for the list rows and the completion
+    // dialog, plus every photo of the open task. The completion dialog also links its
+    // cover to the original, and it can open from a list, where no task page signs it.
+    const detailTask =
+      this._detail?.kind === 'task'
+        ? this._tasks.find((task) => task.id === this._detail?.id)
+        : undefined;
+    const logging = this._completion.open && this._completion.ts == null;
+    const photoRefs = [
+      ...coverRefs(this._tasks),
+      ...(detailTask ? detailRefs(detailTask) : []),
+      ...(logging ? coverOriginalRefs(this._completion.task) : []),
+    ];
     // A screen with no uploaded files still calls through, so the cache drops the URLs
     // of whatever was on the previous one.
-    await this._signedFiles.ensure(hass, refs);
+    await Promise.all([
+      this._signedFiles.ensure(hass, refs),
+      this._signedPhotos.ensure(hass, photoRefs),
+    ]);
     this._applySignedHrefs();
     // A sign in flight at unmount must not arm the timer again (F01-6).
-    this._armResign(this.isConnected && refs.length > 0);
+    this._armResign(this.isConnected && refs.length + photoRefs.length > 0);
   }
 
   /**
@@ -2353,9 +2637,21 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const root = this.shadowRoot;
     if (!root) return;
     root.querySelectorAll<HTMLAnchorElement>('a[data-sign]').forEach((el) => {
-      const url = this._signedFiles.getByKey(el.dataset.sign || '');
+      const url = this._signedUrl(el.dataset.sign || '');
       if (url && el.getAttribute('href') !== url) el.setAttribute('href', url);
     });
+    // A task photo's <img> waits for its URL the same way an anchor does.
+    root.querySelectorAll<HTMLImageElement>('img[data-sign]').forEach((el) => {
+      const url = this._signedUrl(el.dataset.sign || '');
+      if (url && el.getAttribute('src') !== url) el.setAttribute('src', url);
+    });
+  }
+
+  /** The signed URL for a `data-sign` key, from whichever cache owns that kind. */
+  _signedUrl(key: string): string | undefined {
+    return key.startsWith('task-photo:')
+      ? this._signedPhotos.getByKey(key)
+      : this._signedFiles.getByKey(key);
   }
 
   /**

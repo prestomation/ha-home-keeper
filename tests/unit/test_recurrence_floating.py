@@ -358,3 +358,58 @@ def test_b15_7_latest_completion_keeps_the_first_of_a_tie() -> None:
     first = {"ts": "2026-03-01T10:00:00+00:00", "n": 1}
     second = {"ts": "2026-03-01T11:00:00+01:00", "n": 2}
     assert r.latest_completion([first, second]) is first
+
+
+def _done_once(next_due):
+    """A monthly task last done Aug 1, with *next_due* as its due date now."""
+    aug1 = la(2026, 8, 1, 9)
+    task = _monthly(
+        last_completed=aug1.isoformat(),
+        next_due=next_due.isoformat(),
+        completions=[{"ts": aug1.isoformat()}],
+    )
+    return task
+
+
+def test_undo_after_a_snooze_puts_the_snoozed_date_back():
+    # Due Sep 1, snoozed to Sep 4, then Done and Undo on Sep 2. The task is due
+    # Sep 4 again, not overdue since Sep 1.
+    task = _done_once(la(2026, 9, 4, 9))
+    sep2 = la(2026, 9, 2, 12)
+    r.apply_completion(task, sep2, now=sep2)
+    assert task["completions"][-1][r.PRIOR_DUE] == la(2026, 9, 4, 9).isoformat()
+    r.remove_completion(task, sep2.isoformat(), now=sep2)
+    assert task["next_due"] == la(2026, 9, 4, 9).isoformat()
+    assert task["last_completed"] == la(2026, 8, 1, 9).isoformat()
+
+
+def test_a_due_date_that_the_log_gives_records_no_prior_due():
+    task = _done_once(la(2026, 9, 1, 9))
+    sep2 = la(2026, 9, 2, 12)
+    r.apply_completion(task, sep2, now=sep2)
+    assert r.PRIOR_DUE not in task["completions"][-1]
+    r.remove_completion(task, sep2.isoformat(), now=sep2)
+    assert task["next_due"] == la(2026, 9, 1, 9).isoformat()
+
+
+def test_undo_of_an_older_row_keeps_the_due_date_after_a_snooze():
+    # Only the latest completion puts its prior due back.
+    task = _done_once(la(2026, 9, 4, 9))
+    sep2, sep3 = la(2026, 9, 2, 12), la(2026, 9, 3, 12)
+    r.apply_completion(task, sep2, now=sep2)
+    r.apply_completion(task, sep3, now=sep3)
+    due = task["next_due"]
+    r.remove_completion(task, sep2.isoformat(), now=sep3)
+    assert task["next_due"] == due
+
+
+def test_a_one_off_or_triggered_completion_records_no_prior_due():
+    for rec_type in ("one-off", "triggered"):
+        task = {
+            "recurrence_type": rec_type,
+            "due": la(2026, 9, 1).isoformat(),
+            "next_due": la(2026, 9, 1).isoformat(),
+            "completions": [],
+        }
+        r.apply_completion(task, la(2026, 9, 2), now=la(2026, 9, 2))
+        assert r.PRIOR_DUE not in task["completions"][-1]

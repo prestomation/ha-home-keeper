@@ -14,6 +14,8 @@ Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
   shows the new due date before it is applied. The recurrence does not change, so
   a task snoozed from the 29th to the 6th is due again on the 29th of the next
   month.
+  On a task with a fixed schedule, the dialog also lists the later dates, and you can
+  move one of them. See [Move one date](fixed-schedules.md#move-one-date).
 - **Skip** advances the schedule by 1 occurrence. With a skip, a floating task
   starts a new interval from the current date, and a fixed task moves to its next
   scheduled date.
@@ -48,6 +50,10 @@ to **Usual length** to use the usual lengths again.
 
 The `snooze_hours` field of `home_keeper.add_task` and `home_keeper.update_task`
 sets the same length in hours. Send an empty value to clear it.
+
+When **Settings → Due time** is a set time, a snooze of a task that repeats after each
+completion ends at the set time. Home Keeper moves the end to the first set time at
+or after the snooze length. See [Due time](../views/settings.md#due-time).
 
 Home Keeper records a skip in the task history, in a list separate from the
 completions. A skip is never counted as a completion, so the completion tally and

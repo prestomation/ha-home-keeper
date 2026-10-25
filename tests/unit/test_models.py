@@ -1,6 +1,7 @@
 """Unit tests for task construction / validation / updates."""
 
 from datetime import UTC, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import hk_models as m
 import pytest
@@ -133,6 +134,80 @@ def test_build_fixed_task_normalizes_naive_anchor():
     assert (anchor.hour, anchor.minute) == (8, 0)
     # next_due must be computable (no crash) and be a parseable aware datetime.
     assert datetime.fromisoformat(task["next_due"]).tzinfo is not None
+
+
+def _fixed_fields(anchor: str) -> dict:
+    return {
+        "name": "Medicine",
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor,
+    }
+
+
+def test_naive_anchor_in_a_daylight_saving_gap_is_refused():
+    # 02:30 does not exist in New York on 2024-03-10: the clock goes from 02:00 to
+    # 03:00. Stored as 02:30-05:00, it is 03:30 EDT, and every later occurrence would
+    # read 03:30. The refusal keeps the schedule at the time that the user typed.
+    zone = ZoneInfo("America/New_York")
+    with raises_exactly(
+        m.TaskValidationError,
+        "anchor 2024-03-10T02:30 does not exist in America/New_York, because the clock "
+        "skips it for daylight saving time. Pick a different time.",
+    ):
+        m.normalize_fields(_fixed_fields("2024-03-10T02:30"), tz=zone)
+
+
+@pytest.mark.parametrize(
+    "anchor",
+    [
+        "2024-03-10T01:59",  # the last minute before the gap
+        "2024-03-10T03:00",  # the first minute after the gap
+        "2024-03-11T02:30",  # the same time on the next day
+        "2024-11-03T01:30",  # the repeated hour in autumn exists 2 times
+    ],
+)
+def test_naive_anchor_next_to_a_daylight_saving_gap_is_kept(anchor):
+    zone = ZoneInfo("America/New_York")
+    fields = m.normalize_fields(_fixed_fields(anchor), tz=zone)
+    stored = datetime.fromisoformat(fields["anchor"])
+    assert stored.replace(tzinfo=None) == datetime.fromisoformat(anchor)
+
+
+def test_anchor_with_an_offset_in_a_daylight_saving_gap_is_kept():
+    # An explicit offset names 1 instant, so there is nothing to refuse.
+    zone = ZoneInfo("America/New_York")
+    fields = m.normalize_fields(_fixed_fields("2024-03-10T02:30-05:00"), tz=zone)
+    assert fields["anchor"] == "2024-03-10T02:30:00-05:00"
+
+
+def test_wall_time_exists():
+    zone = ZoneInfo("America/New_York")
+    assert m._wall_time_exists(datetime(2024, 3, 10, 1, 59, tzinfo=zone))
+    assert not m._wall_time_exists(datetime(2024, 3, 10, 2, 0, tzinfo=zone))
+    assert not m._wall_time_exists(datetime(2024, 3, 10, 2, 59, tzinfo=zone))
+    assert m._wall_time_exists(datetime(2024, 3, 10, 3, 0, tzinfo=zone))
+    assert m._wall_time_exists(datetime(2024, 11, 3, 1, 30, tzinfo=zone))
+    assert m._wall_time_exists(datetime(2024, 3, 10, 2, 30, tzinfo=TZ))
+
+
+@pytest.mark.parametrize(
+    ("zone", "wall", "exists"),
+    [
+        # Lord Howe Island moves its clock 30 minutes: 02:00 becomes 02:30.
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 1, 59), True),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 0), False),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 29), False),
+        ("Australia/Lord_Howe", datetime(2024, 10, 6, 2, 30), True),
+        # Santiago skips the hour after midnight: 00:00 becomes 01:00.
+        ("America/Santiago", datetime(2024, 9, 8, 0, 0), False),
+        ("America/Santiago", datetime(2024, 9, 8, 0, 30), False),
+        ("America/Santiago", datetime(2024, 9, 8, 1, 0), True),
+    ],
+)
+def test_wall_time_exists_in_other_gaps(zone, wall, exists):
+    assert m._wall_time_exists(wall.replace(tzinfo=ZoneInfo(zone))) is exists
 
 
 def test_build_task_rejects_missing_name():
@@ -1818,7 +1893,10 @@ def test_an_anchor_and_freq_still_build_a_fixed_task():
         now=NOW,
     )
     assert task["recurrence_type"] == "fixed"
-    assert task["freq"] == "MONTHLY"
+    # The legacy pair is converted to a rule; only the rule is stored.
+    assert task["rrule"] == "FREQ=MONTHLY;INTERVAL=1"
+    assert "freq" not in task
+    assert "interval" not in task
     assert task["anchor"] == datetime(2026, 7, 1, 9, tzinfo=TZ).isoformat()
 
 
@@ -1986,7 +2064,7 @@ def test_a_rename_leaves_a_floating_schedule_where_it_was():
     )
 
 
-def test_a_fixed_task_keeps_its_freq_and_anchor_across_a_rename():
+def test_a_fixed_task_keeps_its_rule_and_anchor_across_a_rename():
     task = m.build_task(
         {
             "name": "Fixed",
@@ -1998,7 +2076,7 @@ def test_a_fixed_task_keeps_its_freq_and_anchor_across_a_rename():
         now=NOW,
     )
     renamed = m.merge_update(task, {"name": "Renamed"}, now=NOW)
-    assert renamed["freq"] == "MONTHLY"
+    assert renamed["rrule"] == "FREQ=MONTHLY;INTERVAL=1"
     assert renamed["anchor"] == task["anchor"]
 
 

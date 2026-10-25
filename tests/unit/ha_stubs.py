@@ -107,6 +107,10 @@ def _install_components(ha: types.ModuleType) -> None:
                 self.uid = uid
                 self.description = description
 
+            @property
+            def start_datetime_local(self):
+                return self.start
+
         comp_cal.CalendarEntity = CalendarEntity
         comp_cal.CalendarEvent = CalendarEvent
     components.calendar = comp_cal
@@ -222,6 +226,15 @@ def _install_core() -> None:
                     name, (), {"__class_getitem__": classmethod(lambda cls, item: cls)}
                 ),
             )
+    if not hasattr(core, "Context"):
+
+        class Context:
+            def __init__(self, user_id=None, parent_id=None, id=None) -> None:
+                self.user_id = user_id
+                self.parent_id = parent_id
+                self.id = id
+
+        core.Context = Context
     if not hasattr(core, "CALLBACK_TYPE"):
         core.CALLBACK_TYPE = object
     if not hasattr(core, "callback"):
@@ -253,6 +266,14 @@ def _install_exceptions() -> None:
             pass
 
         exceptions.ServiceValidationError = ServiceValidationError
+    if not hasattr(exceptions, "Unauthorized"):
+
+        class Unauthorized(exceptions.HomeAssistantError):
+            def __init__(self, context=None, **kwargs) -> None:
+                super().__init__()
+                self.context = context
+
+        exceptions.Unauthorized = Unauthorized
 
 
 def _install_helpers() -> None:
@@ -263,6 +284,11 @@ def _install_helpers() -> None:
     if not hasattr(area_registry, "async_get"):
         area_registry.async_get = lambda hass: None
     helpers.area_registry = area_registry
+
+    label_registry = _mod("homeassistant.helpers.label_registry")
+    if not hasattr(label_registry, "async_get"):
+        label_registry.async_get = lambda hass: None
+    helpers.label_registry = label_registry
 
     device_registry = _mod("homeassistant.helpers.device_registry")
     if not hasattr(device_registry, "DeviceInfo"):
@@ -376,6 +402,12 @@ def _install_util() -> None:
         dt.now = now
     if not hasattr(dt, "DEFAULT_TIME_ZONE"):
         dt.DEFAULT_TIME_ZONE = UTC
+    if not hasattr(dt, "get_default_time_zone"):
+
+        def get_default_time_zone():
+            return dt.DEFAULT_TIME_ZONE
+
+        dt.get_default_time_zone = get_default_time_zone
     if not hasattr(dt, "as_local"):
 
         def as_local(value):

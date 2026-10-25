@@ -113,6 +113,27 @@ def test_event_type_is_the_bus_name_without_the_domain() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("key", "scope"), [("device_events", "device"), ("home_keeper_events", "global")]
+)
+def test_every_mirrored_event_type_has_a_label_in_every_language(
+    key: str, scope: str
+) -> None:
+    """A new fired event with a payload needs a label, or the editor shows a raw key."""
+    import json
+
+    want = set(api_surface.event_entity_events(scope))
+    files = [
+        _COMPONENT_DIR / "strings.json",
+        *_COMPONENT_DIR.glob("translations/*.json"),
+    ]
+    assert len(files) == 17
+    for path in files:
+        entity = json.loads(path.read_text(encoding="utf-8"))["entity"]["event"][key]
+        have = set(entity["state_attributes"]["event_type"]["state"])
+        assert have == want, (path.name, sorted(want ^ have))
+
+
 def test_global_entity_mirrors_every_fired_event_with_a_payload() -> None:
     expected = {
         spec.name

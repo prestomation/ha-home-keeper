@@ -30,7 +30,17 @@ export type PartAction =
   | 'sharpen'
   | 'rotate'
   | 'inspect';
-export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+/** One moved date of a fixed schedule (`moved_occurrences`). */
+export interface MovedOccurrence {
+  from: string;
+  to: string;
+}
+/** One row of `home_keeper/upcoming_occurrences`: a date, and where it moved from. */
+export interface UpcomingOccurrence {
+  start: string;
+  moved_from: string | null;
+}
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
  *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
@@ -149,7 +159,16 @@ export interface Task {
   // Absent on triggered tasks (no schedule). Present for floating/fixed.
   interval?: number;
   unit?: Unit;
+  /** Legacy fixed-schedule fields. The store converts them to `rrule` on load, so a
+   *  stored task no longer carries them; the form still derives them from the rule
+   *  to drive its Repeats and Every controls. */
   freq?: Freq;
+  /** A fixed task's schedule: an RFC 5545 RRULE body, e.g. `FREQ=WEEKLY;BYDAY=TU,FR`.
+   *  The day buttons and the Repeats/Every controls read and write it; see rrule.ts. */
+  rrule?: string;
+  /** Single dates of a fixed schedule moved off the rule. `from` is the date on the
+   *  rule, `to` where it is now. */
+  moved_occurrences?: MovedOccurrence[];
   anchor?: string;
   // The chosen due date for a one-off task (absent on other kinds).
   due?: string;
@@ -223,6 +242,20 @@ export interface Task {
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
+  // Uploaded photos (#399), at most 6. The first is the cover. Upload-only: the
+  // task form never sends this field, and the backend ignores it if it does.
+  photos?: TaskPhoto[];
+}
+
+/** A photo on a task. The bytes are served through a short-lived signed URL (see
+ *  `api.signTaskPhotoUrls`), the original or a small JPEG thumbnail. */
+export interface TaskPhoto {
+  id: string;
+  name: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  created?: string;
 }
 
 export interface HassDevice {
@@ -270,10 +303,22 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
+  // Home Assistant's own translations. The panel reads only an integration's title
+  // with it (`component.<domain>.title`), and gets `''` for a key it has not loaded.
+  localize?: (key: string) => string;
   // The instance's configured currency, used to format a completion's cost, and its
   // language, which the backend formats the shopping-list lines in.
   // `time_zone` is the zone the panel reads and writes times in (see `setTimeZone`).
-  config?: { currency?: string; language?: string; time_zone?: string };
+  config?: {
+    currency?: string;
+    language?: string;
+    time_zone?: string;
+    // The addresses HA is set to be reached at, and its country. A QR label prints
+    // the external URL first, and the country picks the first label sheet.
+    external_url?: string | null;
+    internal_url?: string | null;
+    country?: string | null;
+  };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //
@@ -287,9 +332,13 @@ export interface Hass {
     accessToken?: string;
     expired?: boolean;
     refreshAccessToken?: () => Promise<void>;
+    // The bridge to a Home Assistant companion app. Home Assistant sets it only in
+    // the iOS and the Android app (`qr-labels.isCompanionApp`).
+    external?: unknown;
   };
-  // The signed-in user. The card reads `is_admin`: Home Assistant refuses a
-  // non-admin subscription to a custom event and logs an error for each refusal.
+  // The signed-in user. The panel reads `is_admin` for its view-only mode. The card
+  // reads it because Home Assistant refuses a non-admin subscription to a custom
+  // event and logs an error for each refusal.
   user?: { is_admin?: boolean };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
@@ -614,6 +663,10 @@ export interface HomeKeeperOptions {
   allow_snooze: boolean;
   allow_skip: boolean;
   allow_due_today: boolean;
+  // When a floating task is due: at the clock time of its completion, or at
+  // `due_time` (local "HH:MM") on its due date (#438). Absent reads as 'completion'.
+  due_time_mode?: 'completion' | 'set_time';
+  due_time?: string;
   problem_sensor_exclude_entities: string[];
   problem_sensor_exclude_devices: string[];
   problem_sensor_exclude_areas: string[];
@@ -627,10 +680,51 @@ export interface HomeKeeperOptions {
   shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
+  // The ids of the companion panel tabs that the tab bar leaves out.
+  hidden_panel_tabs?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications
   // that consume them.
   profiles: Profile[];
   notifications: Notification[];
+  // Cost tracking (#460): the spend windows in days, and whether the task list shows
+  // the totals. Absent reads as [30, 60] and true.
+  cost_windows?: number[];
+  cost_summary_panel?: boolean;
+}
+
+/** 1 completion with a cost, as `home_keeper/get_spend` sends it. */
+export interface SpendRecord {
+  ts: string;
+  cost: number;
+  who?: string | null;
+  task_id: string;
+  task_name: string;
+  /** The appliance that keeps the history of a deleted task, else null. */
+  asset_id: string | null;
+  archived: boolean;
+}
+
+/** The spend totals for the panel (#460). See the backend `cost_summary.py`. */
+export interface SpendSummary {
+  windows: { days: number; total: number; count: number; since: string }[];
+  all_time: { total: number; count: number; first: string | null };
+  purchases: { total: number; count: number };
+  records: SpendRecord[];
+}
+
+/**
+ * A tab that a companion integration adds to the panel, as `home_keeper/get_panel_tabs`
+ * sends it. The title is in the language of the panel. See the backend `panel_tabs.py`.
+ */
+export interface PanelTabInfo {
+  id: string;
+  companion: string;
+  title: string;
+  icon: string;
+  module_url: string;
+  element: string;
+  host_api: number;
+  order: number;
 }
 
 /**
@@ -735,6 +829,13 @@ export interface DeclarativeCompanionPreset {
   // The one limit an integration preset's trigger compares with, or `null`. The
   // preview draws each reading against it. Older backends omit it.
   limit?: PresetLimit | null;
+  // An integration preset's brand name (`Roborock`), its shape (`life_low`, a key of
+  // SHAPES in `declarative_presets.py`) and its limit as a short localized phrase
+  // (`less than 24 hours left`). A companion row shows them. A general preset sends
+  // `null`, and older backends omit them.
+  brand?: string | null;
+  shape?: string | null;
+  limit_text?: string | null;
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
 }
 
@@ -820,13 +921,20 @@ export interface ImportRecord {
 export interface ImportReport {
   ok: boolean;
   dry_run: boolean;
+  /** True when a real import failed after it wrote data. The data stays. */
+  partial?: boolean;
   counts: {
     completions: number;
     skips: number;
-    [section: string]: number | { created: number; updated: number };
+    // A section's `{created, updated}`, the files' `{created, unchanged}`, or the
+    // settings, which hold 1 count object per settings section.
+    [section: string]: number | { created: number; updated: number } | Record<string, unknown>;
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+  /** The report of each companion section, keyed by its domain, as the companion
+   *  returned it. Each companion owns the shape of its `counts`. */
+  sections?: Record<string, { counts?: unknown; [key: string]: unknown }>;
 }
 
 /** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */

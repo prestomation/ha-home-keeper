@@ -16,3 +16,7 @@ homeassistant
 Babel
 # The stub kind: PyYAML ships none, and transfer.py imports yaml in _yaml_pair().
 types-PyYAML
+# A runtime requirement in manifest.json that ships no types: recurrence.py expands
+# fixed schedules with dateutil.rrule.
+python-dateutil
+types-python-dateutil

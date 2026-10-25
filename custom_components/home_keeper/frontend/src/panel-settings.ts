@@ -24,7 +24,11 @@ import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { profileHasAnyTask } from './card-filter';
 import {
+  coerceCost,
   companionOptions,
+  costSchema,
+  costWindows,
+  dueTimeSchema,
   generalSchema,
   notificationDeliverySchema,
   notificationProfileSchema,
@@ -47,7 +51,19 @@ import {
   type HaFormElement,
 } from './forms';
 import { t, tlist, tn } from './i18n';
-import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES } from './limits';
+import {
+  type ExportSource,
+  type ReportRow,
+  decodeText,
+  exportInclude,
+  exportSources,
+  fileLimitMb,
+  fileRoute,
+  isPicked,
+  otherProblems,
+  reportRows,
+  reportVerdict,
+} from './transfer-view';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import { indentGroup } from './panel-indent';
@@ -62,9 +78,11 @@ import {
 import type {
   Companion,
   HomeKeeperOptions,
+  ImportProblem,
   ImportReport,
   Notification,
   NotifyRunOptions,
+  PanelTabInfo,
   Profile,
   ProfileSync,
 } from './types';
@@ -74,6 +92,7 @@ import {
   navigateTo,
   notifyRowChip,
   setBtnWeight,
+  setDueTime,
   toast,
   writeQueue,
   type QueuedWrite,
@@ -129,6 +148,18 @@ export function settingsSectionList(p: PanelHost): {
     p._declarativeCompanions.length;
   const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
     { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
+    {
+      key: 'duetime',
+      card: 'hk-settings-duetime',
+      label: t('settings.duetime_heading'),
+      mark: dot(setDueTime(opts) ? 'on' : 'off'),
+    },
+    {
+      key: 'cost',
+      card: 'hk-settings-cost',
+      label: t('settings.cost_heading'),
+      mark: dot(opts?.cost_summary_panel === false ? 'off' : 'on'),
+    },
     {
       key: 'shopping',
       card: 'hk-settings-shopping',
@@ -271,9 +302,10 @@ export function settingsBackbar(p: PanelHost): string {
 }
 
 /** Render the Settings tab — `ha-form` mirrors of the options flow that autosave
- *  each change (the backend reloads + re-runs the problem sync). Three cards: a
+ *  each change (the backend reloads + re-runs the problem sync). The cards: a
  *  **General** card for settings (like one-off retention) that aren't tied to any
- *  single feature, the **Shopping list** mirror, and problem-sensor sync. The two
+ *  single feature, the **Due time** of floating tasks, the **Shopping list** mirror,
+ *  problem-sensor sync, and the deferral switches. The two
  *  feature cards each carry a paragraph, because both do something to the user's
  *  data they should read about before switching it on. */
 function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
@@ -307,6 +339,21 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       // A number box sends a value on each keystroke, and each save reloads the entry
       // and can delete completed one-offs. Typing "30" must not first save "3".
       { commitOnLeave: true },
+    ),
+  );
+  // Due time — when a floating task is due (#438).
+  host.appendChild(dueTimeCard(p, opts));
+  // Cost tracking — the spend windows and the totals above the task list (#460).
+  host.appendChild(
+    settingsCard(
+      p,
+      'hk-settings-cost',
+      'settings.cost_heading',
+      'settings.cost_help',
+      costSchema(),
+      // The select holds strings; the option holds numbers.
+      { ...opts, cost_windows: costWindows(opts).map(String) } as unknown as HomeKeeperOptions,
+      { coerce: coerceCost },
     ),
   );
   // Shopping list — where auto-buy reminders are mirrored, and how they read there.
@@ -504,6 +551,13 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
     const days = Number(opts.one_off_retention_days) || 0;
     return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');
   }
+  if (id === 'hk-settings-duetime') {
+    const due = setDueTime(opts);
+    return due ? t('settings.duetime_on', { time: due }) : t('settings.duetime_off');
+  }
+  if (id === 'hk-settings-cost') {
+    return t('settings.cost_summary', { days: costWindows(opts).join(', ') });
+  }
   if (id === 'hk-settings-shopping') {
     const entity = String(opts.shopping_list_entity ?? '');
     if (!entity) return t('settings.shopping_off');
@@ -539,6 +593,51 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
 /** A to-do entity's name as Home Assistant shows it, or its id. */
 function listName(p: PanelHost, entity: string): string {
   return String(p._hass?.states?.[entity]?.attributes?.friendly_name || entity);
+}
+
+/**
+ * The Due time card: the mode, and the time of day once the mode is a set time.
+ *
+ * Like the Shopping list card, a change cannot re-render the card, so the change
+ * handler shows or hides the time field and updates the summary in place. The card
+ * saves only its 2 keys. A time selector sends "HH:MM:SS", and the backend keeps
+ * "HH:MM".
+ */
+function dueTimeCard(p: PanelHost, opts: HomeKeeperOptions): HTMLElement {
+  let form: HaFormElement | null = null;
+  let card: HTMLElement | null = null;
+  const own = (value: Partial<HomeKeeperOptions>): Partial<HomeKeeperOptions> => ({
+    due_time_mode: value.due_time_mode === 'set_time' ? 'set_time' : 'completion',
+    due_time: String(value.due_time || '08:00').slice(0, 5),
+  });
+  const refresh = (value: Partial<HomeKeeperOptions>): void => {
+    if (form) {
+      form.schema = dueTimeSchema(value.due_time_mode);
+      form.data = own(value);
+    }
+    const summary = card?.querySelector('.hk-settings-value');
+    if (summary) {
+      summary.textContent = settingsSummary(p, 'hk-settings-duetime', value as HomeKeeperOptions);
+    }
+  };
+  card = settingsCard(
+    p,
+    'hk-settings-duetime',
+    'settings.duetime_heading',
+    'settings.duetime_help',
+    dueTimeSchema(opts.due_time_mode),
+    opts,
+    {
+      coerce: (raw) => {
+        const value = own(raw as Partial<HomeKeeperOptions>);
+        refresh(value);
+        return value;
+      },
+    },
+  );
+  form = card.querySelector('ha-form') as HaFormElement | null;
+  if (form) form.data = own(opts);
+  return card;
 }
 
 /**
@@ -1843,7 +1942,11 @@ function deleteNotification(p: PanelHost, id: string): Promise<void> {
  *  installed but its glue isn't) offer an install link and can be dismissed. */
 function renderCompanions(p: PanelHost, host: HTMLElement): void {
   const all = p._companions ?? [];
-  const connected = all.filter((c) => c.status === 'connected');
+  const tabs = p._panelTabs ?? [];
+  const connected = [
+    ...all.filter((c) => c.status === 'connected'),
+    ...tabOwnersWithoutRow(all, tabs),
+  ];
   const suggested = all.filter((c) => c.status === 'suggested');
 
   const card = document.createElement('ha-card');
@@ -1865,13 +1968,13 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
   if (connected.length) {
     sections.push(
       `<div class="hk-companion-group">${escapeHTML(t('companions.connected'))}</div>`,
-      ...connected.map((c) => companionRow(c)),
+      ...connected.map((c) => companionRow(c, tabsOf(tabs, c.domain))),
     );
   }
   if (suggested.length) {
     sections.push(
       `<div class="hk-companion-group">${escapeHTML(t('companions.suggested'))}</div>`,
-      ...suggested.map((c) => companionRow(c)),
+      ...suggested.map((c) => companionRow(c, tabsOf(tabs, c.domain))),
     );
   }
   // Declarative companions close the card: Home Keeper runs them itself, so they
@@ -1882,29 +1985,92 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
   card.appendChild(inner);
   host.appendChild(card);
   wireCompanions(p, inner);
+  wireTabSwitches(p, inner, tabs);
   wireDeclarativeSection(p, inner);
 }
 
-/** One companion row's HTML (icon, name + status chip, description, actions). Takes
- *  no `PanelHost`: a row is a pure function of the companion it describes. */
-function companionRow(c: Companion): string {
+/** The panel tabs that the companion *domain* owns. */
+function tabsOf(tabs: PanelTabInfo[], domain: string): PanelTabInfo[] {
+  return tabs.filter((tab) => tab.companion === domain);
+}
+
+/**
+ * A connected row for each companion that owns a tab but did not call
+ * `register_companion`, so each tab has a row with its switch.
+ */
+function tabOwnersWithoutRow(all: Companion[], tabs: PanelTabInfo[]): Companion[] {
+  const known = new Set(all.map((c) => c.domain));
+  const rows: Companion[] = [];
+  for (const tab of tabs) {
+    if (known.has(tab.companion)) continue;
+    known.add(tab.companion);
+    rows.push({ domain: tab.companion, name: tab.companion, icon: tab.icon, status: 'connected' });
+  }
+  return rows;
+}
+
+/**
+ * Build the "Show <title> tab" switch of each panel tab into its row. A switch is an
+ * `ha-form` with 1 boolean field, named by the tab id.
+ */
+function wireTabSwitches(p: PanelHost, root: HTMLElement, tabs: PanelTabInfo[]): void {
+  root.querySelectorAll<HTMLElement>('.hk-comp-tab-switch').forEach((slot) => {
+    const tab = tabs.find((x) => x.id === slot.dataset.panelTabId);
+    if (!tab) return;
+    const hidden = p._options?.hidden_panel_tabs ?? [];
+    const form = p._makeForm(
+      [{ name: tab.id, selector: { boolean: {} } }],
+      { [tab.id]: !hidden.includes(tab.id) },
+      (value) => {
+        if (tab.id in value) void setTabShown(p, tab.id, Boolean(value[tab.id]));
+      },
+      { computeLabel: () => t('companions.showTab', { title: tab.title }) },
+    );
+    slot.appendChild(form);
+  });
+}
+
+/** Show or hide a panel tab: write the `hidden_panel_tabs` option, then draw again. */
+async function setTabShown(p: PanelHost, id: string, shown: boolean): Promise<void> {
+  if (!p._hass) return;
+  const current = p._options?.hidden_panel_tabs ?? [];
+  const hidden_panel_tabs = shown
+    ? current.filter((x) => x !== id)
+    : [...current.filter((x) => x !== id), id];
+  try {
+    await queuedSetOptions(p, p._hass, { hidden_panel_tabs });
+    await p._refresh();
+  } catch (err) {
+    toast(p, String((err as { message?: string })?.message || err));
+    await p._refresh();
+  }
+}
+
+/** One companion row's HTML (icon, name + status chip, description, actions, and a
+ *  switch for each panel tab it owns). Takes no `PanelHost`: a row is a pure function
+ *  of the companion it describes. */
+function companionRow(c: Companion, tabs: PanelTabInfo[] = []): string {
   const icon = escapeHTML(c.icon || 'mdi:puzzle');
   const chipLabel = c.status === 'connected' ? t('companions.chip.connected') : t('companions.chip.suggested');
   const chipClass = c.status === 'connected' ? 'hk-comp-connected' : 'hk-comp-suggested';
-  const actions: string[] =
-    c.status === 'connected'
-      ? [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`,
-        ]
-      : [
-          `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
-          `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
-        ];
+  // The main button (Configure or Install) is always last, so it sits at the right
+  // edge of every row and the main buttons line up down the list.
+  const actions: string[] = [];
+  if (c.status !== 'connected') {
+    actions.push(
+      `<ha-button ${btnAttrs('tertiary')} class="hk-comp-dismiss" data-domain="${escapeHTML(c.domain)}">${escapeHTML(t('companions.dismiss'))}</ha-button>`,
+    );
+  }
   if (c.docs_url) {
     actions.push(
       `<ha-button ${btnAttrs('tertiary')} class="hk-comp-docs" data-url="${escapeHTML(c.docs_url)}">${escapeHTML(t('companions.docs'))}</ha-button>`,
     );
   }
+  actions.push(
+    c.status === 'connected'
+      ? `<ha-button ${btnAttrs('secondary')} class="hk-comp-configure" data-domain="${escapeHTML(c.configure_domain || c.domain)}">${escapeHTML(t('companions.configure'))}</ha-button>`
+      : `<ha-button ${btnAttrs('secondary')} class="hk-comp-install" data-url="${escapeHTML(c.install_url || '')}">${escapeHTML(t('companions.install'))}</ha-button>`,
+  );
   const desc = c.description
     ? `<div class="hk-companion-desc">${escapeHTML(c.description)}</div>`
     : '';
@@ -1915,8 +2081,19 @@ function companionRow(c: Companion): string {
           <div class="hk-companion-name">
             ${escapeHTML(c.name)}
             <ha-assist-chip class="${chipClass}" label="${escapeHTML(chipLabel)}"></ha-assist-chip>
+            ${
+              tabs.length
+                ? `<ha-assist-chip class="hk-comp-tab" label="${escapeHTML(t('companions.chip.panelTab'))}"></ha-assist-chip>`
+                : ''
+            }
           </div>
           ${desc}
+          ${tabs
+            .map(
+              (tab) =>
+                `<div class="hk-comp-tab-switch" data-panel-tab-id="${escapeHTML(tab.id)}"></div>`,
+            )
+            .join('')}
         </div>
         <div class="hk-companion-actions">${actions.join('')}</div>
       </div>`;
@@ -1946,15 +2123,73 @@ function wireCompanions(p: PanelHost, root: HTMLElement): void {
   );
 }
 
+/** The label of an export row: a Home Keeper name, or the companion name. */
+function sourceLabel(source: ExportSource): string {
+  if (source.kind === 'companion') return source.name;
+  if (source.kind === 'home_keeper') return t('transfer.source.hk');
+  return t(`transfer.source.${source.kind}`);
+}
+
+/** The line after an export: the rows the file holds, and the companions it lacks. */
+export function exportedLine(held: ExportSource[], missing: ExportSource[]): string {
+  const line = t('transfer.exported', { parts: tlist(held.map(sourceLabel)) });
+  if (!missing.length) return line;
+  return `${line} ${t('transfer.exportMissing', { parts: tlist(missing.map(sourceLabel)) })}`;
+}
+
+/** The "Bundle only" tag. A phone shows the short text: only CSS picks it. */
+function bundleTag(): string {
+  return [
+    `<span class="hk-transfer-tag">`,
+    `<span class="hk-wide-text">${escapeHTML(t('transfer.bundleOnly'))}</span>`,
+    `<span class="hk-narrow-text">${escapeHTML(t('transfer.bundleShort'))}</span>`,
+    `</span>`,
+  ].join('');
+}
+
+/** A button label with a long text and a short one for a phone. */
+function twoWidthLabel(wide: string, narrow: string): string {
+  return (
+    `<span class="hk-wide-text">${escapeHTML(t(wide))}</span>` +
+    `<span class="hk-narrow-text">${escapeHTML(t(narrow))}</span>`
+  );
+}
+
+/** 1 checkbox row of the export list. */
+function sourceRow(source: ExportSource, picked: Record<string, boolean>, busy: boolean): string {
+  const help =
+    source.kind === 'companion'
+      ? t('transfer.source.companionHelp')
+      : source.kind === 'home_keeper'
+        ? t('transfer.source.hkHelp')
+        : t(`transfer.source.${source.kind}Help`);
+  const on = isPicked(source, picked);
+  return [
+    `<label class="hk-transfer-check">`,
+    `<input type="checkbox" data-transfer-source="${escapeHTML(source.key)}"`,
+    `${on ? ' checked' : ''}${source.fixed || busy ? ' disabled' : ''}>`,
+    `<span class="hk-transfer-check-text">`,
+    `<span class="hk-transfer-check-name">${escapeHTML(sourceLabel(source))}`,
+    source.bundleOnly ? bundleTag() : '',
+    `</span>`,
+    `<span class="hk-transfer-check-sub">${escapeHTML(help)}</span>`,
+    `</span></label>`,
+  ].join('');
+}
+
 /**
- * Settings -> Import and export: save everything to one file, read one back, and
- * export the appliance report.
+ * Settings -> Import and export: save the checked sources to a file, read a file
+ * back, and export the appliance report.
+ *
+ * The export lists Home Keeper, each companion that joins the export, the files and
+ * the settings. "Export data" saves a YAML file of the checked data rows. "Export
+ * bundle" saves a zip file with the files too, and the settings if that row is on.
  *
  * The import half is deliberately two steps. An import writes tasks and appliances
  * wholesale, and the file is often one somebody generated rather than typed, so the
  * panel will not apply a document it has not first shown the consequences of:
  * Preview runs the same call with `dry_run` set, and Import stays disabled until a
- * preview of *exactly this text* came back clean.
+ * preview of *exactly this input* came back clean.
  */
 function renderTransfer(p: PanelHost, host: HTMLElement): void {
   const card = document.createElement('ha-card');
@@ -1965,7 +2200,8 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
   const state = p._transfer;
   const busy = state.busy;
-  // A *preview* of this exact text is what licenses Import, so the report has to be
+  const hasInput = !!state.file || !!state.text.trim();
+  // A *preview* of this exact input is what licenses Import, so the report has to be
   // a dry run as well as clean. A finished import leaves a clean report behind too,
   // and treating that as permission left Import live afterwards: a second press
   // silently ran the whole document again. That is harmless for a document keyed by
@@ -1973,7 +2209,12 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
   // same name creates both on the first press and then cannot tell them apart on the
   // second, so the reward for pressing a lit button twice was an ambiguity error
   // about records the first press had just made.
-  const ready = !!state.report?.ok && !!state.report?.dry_run && !!state.text.trim();
+  const ready = !!state.report?.ok && !!state.report?.dry_run && hasInput;
+
+  const sources = exportSources(p._companions ?? []);
+  const exporting = state.exporting;
+  const yamlInclude = exportInclude(sources, state.picked, 'yaml');
+  const bundleInclude = exportInclude(sources, state.picked, 'bundle');
 
   inner.innerHTML = [
     `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
@@ -1984,9 +2225,22 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.exportHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.exportHelp'))}</div>`,
+    `<div class="hk-transfer-checks">`,
+    ...sources.map((source) => sourceRow(source, state.picked, exporting)),
+    `</div>`,
     `<div class="hk-transfer-actions">`,
-    `<ha-button id="transfer-export" ${btnAttrs('secondary')}>`,
-    `${escapeHTML(t('btn.exportData'))}</ha-button></div>`,
+    `<ha-button id="transfer-export" ${btnAttrs('secondary')}`,
+    `${exporting || !yamlInclude ? ' disabled' : ''}>`,
+    `${twoWidthLabel('btn.exportYaml', 'btn.exportYamlShort')}</ha-button>`,
+    `<ha-button id="transfer-export-bundle" ${btnAttrs('secondary')}`,
+    `${exporting || !bundleInclude ? ' disabled' : ''}>`,
+    `${twoWidthLabel('btn.exportBundle', 'btn.exportBundleShort')}</ha-button>`,
+    `</div>`,
+    exporting
+      ? `<div class="hk-transfer-exported">${escapeHTML(t('transfer.working'))}</div>`
+      : state.exported
+        ? `<div class="hk-transfer-exported" role="status">${escapeHTML(state.exported)}</div>`
+        : '',
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.importHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.importHelp'))}</div>`,
@@ -1996,20 +2250,42 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
     state.filename
       ? `<span class="hk-transfer-file">${escapeHTML(state.filename)}</span>`
       : '',
+    state.file
+      ? `<ha-button id="transfer-clear" ${btnAttrs('tertiary')}${busy ? ' disabled' : ''}>` +
+        `${escapeHTML(t('btn.clearFile'))}</ha-button>`
+      : '',
     `</div>`,
-    `<ha-textarea id="transfer-text" rows="6" autogrow`,
-    ` label="${escapeHTML(t('transfer.documentLabel'))}"`,
-    ` helper="${escapeHTML(t('transfer.documentHelp'))}"`,
-    `${busy ? ' disabled' : ''}></ha-textarea>`,
+    // A chosen bundle or a large file goes to the backend as it is, so there is no
+    // text to show. The box comes back when the file is cleared. The box is a native
+    // textarea: HA loads `ha-textarea` lazily and nothing on this panel loads it, so on
+    // a fresh load an `ha-textarea` did not show until another HA page loaded it.
+    state.file
+      ? ''
+      : [
+          `<label class="hk-transfer-label" for="transfer-text">`,
+          `${escapeHTML(t('transfer.documentLabel'))}</label>`,
+          `<textarea id="transfer-text" class="hk-note-input" rows="6"`,
+          ` aria-describedby="transfer-text-help"${busy ? ' disabled' : ''}></textarea>`,
+          `<div class="hk-transfer-helper" id="transfer-text-help">`,
+          `${escapeHTML(t('transfer.documentHelp'))}</div>`,
+        ].join(''),
     state.error
       ? `<ha-alert class="hk-transfer-error" alert-type="error">${escapeHTML(
           state.error,
         )}</ha-alert>`
       : '',
-    reportBlock(state.report),
+    reportBlock(state.report, p._companions ?? []),
+    state.hasSettings
+      ? [
+          `<label class="hk-transfer-optin">`,
+          `<input type="checkbox" id="transfer-settings"`,
+          `${state.includeSettings ? ' checked' : ''}${busy ? ' disabled' : ''}>`,
+          `<span>${escapeHTML(t('transfer.includeSettings'))}</span></label>`,
+        ].join('')
+      : '',
     `<div class="hk-transfer-actions">`,
     `<ha-button id="transfer-preview" ${btnAttrs('secondary')}`,
-    `${busy || !state.text.trim() ? ' disabled' : ''}>`,
+    `${busy || !hasInput ? ' disabled' : ''}>`,
     `${escapeHTML(t(busy ? 'transfer.working' : 'btn.preview'))}</ha-button>`,
     `<ha-button id="transfer-import" ${btnAttrs('primary')}`,
     `${busy || !ready ? ' disabled' : ''}>`,
@@ -2034,64 +2310,86 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
   wireTransfer(p, inner);
 }
 
-/** The preview's verdict: what would change, and everything wrong with the file. */
-function reportBlock(report: ImportReport | null): string {
-  if (!report) return '';
-  const sections = ['appliances', 'tasks'] as const;
-  const lines = sections
-    .map((section) => {
-      const counts = report.counts[section];
-      if (!counts || typeof counts === 'number') return '';
-      if (!counts.created && !counts.updated) return '';
-      return `<li>${escapeHTML(
-        t(`transfer.count_${section}`, { created: counts.created, updated: counts.updated }),
-      )}</li>`;
-    })
-    .filter(Boolean);
-  if (report.counts.completions) {
-    lines.push(
-      `<li>${escapeHTML(
-        t('transfer.count_history', { n: report.counts.completions }),
-      )}</li>`,
-    );
-  }
-  // Errors first: they are why nothing happened. Warnings say what was ignored,
-  // which matters even on a clean import — a field nobody reads is data that did
-  // not arrive, and saying so is the difference between a migration and a guess.
-  const problems = [...report.problems].sort((a, b) =>
-    a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1,
+/** The label of a row of the preview table. */
+function reportRowLabel(row: ReportRow): string {
+  if (row.kind === 'companion') return row.name;
+  if (row.kind === 'section') return t(`transfer.part.${row.key}`);
+  return t(`transfer.source.${row.kind}`);
+}
+
+/** 1 problem as a list item: its path, then its message. */
+function problemItem(problem: ImportProblem): string {
+  return (
+    `<li class="${problem.severity}"><code>${escapeHTML(problem.path)}</code> ` +
+    `${escapeHTML(problem.message)}</li>`
   );
+}
+
+/** The notes of a row: the counts that do not fit a column, then its problems. */
+function rowNotes(row: ReportRow): string {
+  const facts: string[] = [];
+  if (row.history) facts.push(t('transfer.count_history', { n: row.history }));
+  if (row.unchanged) facts.push(t('transfer.unchanged', { n: row.unchanged }));
+  return [
+    ...facts.map((fact) => `<div class="hk-transfer-fact">${escapeHTML(fact)}</div>`),
+    row.problems.length
+      ? `<ul class="hk-transfer-problems">${row.problems.map(problemItem).join('')}</ul>`
+      : '',
+  ].join('');
+}
+
+/**
+ * The preview's verdict: 1 table row per part of the document, with what would
+ * change and the problems of that part. A problem that no part holds is listed
+ * below the table.
+ *
+ * Below 700px the Notes cell of each row moves below its counts. Only CSS does it.
+ */
+function reportBlock(report: ImportReport | null, companions: Companion[]): string {
+  if (!report) return '';
+  const rows = reportRows(report, companions);
+  const other = otherProblems(report, rows);
+  const verdict = reportVerdict(report);
+  const body = rows
+    .map(
+      (row) =>
+        `<tr data-part="${escapeHTML(row.key)}">` +
+        `<th scope="row">${escapeHTML(reportRowLabel(row))}</th>` +
+        `<td class="hk-num">${row.created}</td>` +
+        `<td class="hk-num">${row.kind === 'files' ? '' : row.updated}</td>` +
+        `<td class="hk-transfer-notes">${rowNotes(row)}</td></tr>`,
+    )
+    .join('');
   return [
     `<div class="hk-transfer-report">`,
-    `<ha-alert alert-type="${report.ok ? 'success' : 'error'}">`,
-    escapeHTML(
-      t(
-        report.ok
-          ? report.dry_run
-            ? 'transfer.previewOk'
-            : 'transfer.importOk'
-          : 'transfer.previewFailed',
-      ),
-    ),
+    `<ha-alert alert-type="${verdict.type}">`,
+    escapeHTML(t(verdict.key)),
     `</ha-alert>`,
-    lines.length ? `<ul class="hk-transfer-counts">${lines.join('')}</ul>` : '',
-    problems.length
-      ? `<ul class="hk-transfer-problems">${problems
-          .map(
-            (problem) =>
-              `<li class="${problem.severity}"><code>${escapeHTML(
-                problem.path,
-              )}</code> ${escapeHTML(problem.message)}</li>`,
-          )
-          .join('')}</ul>`
+    `<div class="hk-transfer-table"><table class="hk-transfer-counts">`,
+    `<thead><tr><th scope="col">${escapeHTML(t('transfer.col.part'))}</th>`,
+    `<th scope="col" class="hk-num">${escapeHTML(t('transfer.col.new'))}</th>`,
+    `<th scope="col" class="hk-num">${twoWidthLabel('transfer.col.updated', 'transfer.col.updatedShort')}</th>`,
+    `<th scope="col" class="hk-transfer-notes">${escapeHTML(t('transfer.col.notes'))}</th>`,
+    `</tr></thead><tbody>${body}</tbody></table></div>`,
+    other.length
+      ? `<ul class="hk-transfer-problems hk-transfer-other">${other.map(problemItem).join('')}</ul>`
       : '',
     `</div>`,
   ].join('');
 }
 
+/** Drop the preview: it described an input that is gone. */
+function dropReport(p: PanelHost): void {
+  p._transfer.report = null;
+  p._transfer.error = '';
+}
+
 function wireTransfer(p: PanelHost, root: HTMLElement): void {
   root.querySelector('#transfer-export')?.addEventListener('click', () => {
     void p._exportData();
+  });
+  root.querySelector('#transfer-export-bundle')?.addEventListener('click', () => {
+    void p._exportBundle();
   });
   root.querySelector('#transfer-report')?.addEventListener('click', () => {
     void p._exportApplianceReport();
@@ -2102,6 +2400,28 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
   root.querySelector('#transfer-import')?.addEventListener('click', () => {
     void p._runImport();
   });
+  root.querySelectorAll<HTMLInputElement>('input[data-transfer-source]').forEach((box) => {
+    box.addEventListener('change', () => {
+      p._transfer.picked = { ...p._transfer.picked, [box.dataset.transferSource ?? '']: box.checked };
+      p._transfer.exported = '';
+      p._render();
+    });
+  });
+  root.querySelector<HTMLInputElement>('#transfer-settings')?.addEventListener('change', (e) => {
+    // The preview was of an import with the other setting, so it stops being an
+    // answer. The offer stays: it belongs to the file, not to the report.
+    p._transfer.includeSettings = (e.target as HTMLInputElement).checked;
+    dropReport(p);
+    p._render();
+  });
+  root.querySelector('#transfer-clear')?.addEventListener('click', () => {
+    p._transfer.file = null;
+    p._transfer.filename = '';
+    p._transfer.hasSettings = false;
+    p._transfer.includeSettings = false;
+    dropReport(p);
+    p._render();
+  });
 
   const text = root.querySelector<HTMLTextAreaElement>('#transfer-text');
   if (text) {
@@ -2111,8 +2431,7 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       // The report described the *previous* text, so it stops being an answer the
       // moment a character changes. Dropping it here is what stops Import applying a
       // document on the strength of a preview of something else.
-      p._transfer.report = null;
-      p._transfer.error = '';
+      dropReport(p);
       p._transfer.filename = '';
       // Toggle the buttons in place rather than re-rendering: a render would rebuild
       // the textarea and take the caret with it, mid-paste.
@@ -2126,44 +2445,62 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       // document too large stayed on screen while the reader pasted a smaller one,
       // still saying the file was too big.
       root.querySelector('.hk-transfer-error')?.remove();
+      root.querySelector('.hk-transfer-file')?.remove();
     });
   }
 
-  // A file is read in the browser and pasted into the same box the user could have
-  // typed into, so there is one input to the import and no upload endpoint to guard.
+  // A small text file is read in the browser and put into the same box the user
+  // could have typed into. A bundle, or a text file over the websocket limit, goes to
+  // the upload view as it is (`transfer-view.fileRoute`).
   const picker = document.createElement('input');
   picker.type = 'file';
   // Extensions carry the weight: plenty of systems report a .yaml file as
   // application/octet-stream. .json stays because YAML is a superset of JSON, so
   // an export written before the format was YAML still reads.
-  picker.accept = '.yaml,.yml,.json,application/yaml,application/json';
+  picker.accept = '.yaml,.yml,.json,.zip,application/yaml,application/json,application/zip';
   picker.style.display = 'none';
   picker.addEventListener('change', () => {
     const file = picker.files?.[0];
     picker.value = '';
     if (!file) return;
-    p._transfer.report = null;
+    const state = p._transfer;
+    dropReport(p);
+    state.hasSettings = false;
+    state.includeSettings = false;
     // Check the size before the read. A file over the limit can never be sent, and
     // reading a large one into the text box can stop the tab (F03-4).
-    if (file.size > MAX_IMPORT_WS_BYTES) {
-      p._transfer.error = t('transfer.tooLarge', {
-        mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
-        max: MAX_IMPORT_BYTES / (1024 * 1024),
-      });
+    const route = fileRoute(file);
+    if (route === 'too_large') {
+      state.error = t('transfer.fileTooLarge', { mb: fileLimitMb(file) });
       p._render();
       return;
     }
-    file.text().then(
-      (contents) => {
-        p._transfer.text = contents;
-        p._transfer.filename = file.name;
-        p._transfer.error = '';
+    if (route === 'upload') {
+      state.file = file;
+      state.filename = file.name;
+      state.text = '';
+      p._render();
+      return;
+    }
+    file.arrayBuffer().then(
+      (buffer) => {
+        const contents = decodeText(new Uint8Array(buffer));
+        if (contents === null) {
+          // A binary file that is not a bundle. Its bytes do not go into the box.
+          state.error = t('transfer.notText');
+          p._render();
+          return;
+        }
+        state.file = null;
+        state.text = contents;
+        state.filename = file.name;
+        state.error = '';
         p._render();
       },
       // A read can fail (the file moved, or the browser refused it). Say so, rather
       // than leave the card as it was with no message (F03-4).
       (err: unknown) => {
-        p._transfer.error = t('transfer.readFailed', {
+        state.error = t('transfer.readFailed', {
           error: String((err as { message?: string })?.message || err),
         });
         p._render();

@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "排除的标签",
           "one_off_retention_days": "一次性任务保留天数",
           "shopping_list_entity": "购物清单",
-          "shopping_line_style": "购物清单上的文字"
+          "shopping_line_style": "购物清单上的文字",
+          "due_time_mode": "到期时间",
+          "due_time": "固定到期时间"
         },
         "data_description": {
           "sync_problem_sensors": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
           "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。",
           "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。",
-          "shopping_line_style": "购买提醒在购物清单上的显示方式。“仅产品”只显示备件名称，不带动词，例如显示“柔顺剂”而不是“购买 柔顺剂”。"
+          "shopping_line_style": "购买提醒在购物清单上的显示方式。“仅产品”只显示备件名称，不带动词，例如显示“柔顺剂”而不是“购买 柔顺剂”。",
+          "due_time_mode": "每次完成后重复的任务何时到期。设为固定时间时，任务在到期日的该时间到期。推迟也在该时间结束。",
+          "due_time": "这些任务到期的本地时间。仅在固定时间模式下使用。"
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "频率",
           "description": "对于固定任务：DAILY、WEEKLY 或 MONTHLY。"
+        },
+        "rrule": {
+          "name": "规则",
+          "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
         },
         "anchor": {
           "name": "锚点",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "频率",
           "description": "DAILY、WEEKLY 或 MONTHLY（fixed）。"
+        },
+        "rrule": {
+          "name": "规则",
+          "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
         },
         "anchor": {
           "name": "锚点",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "发起方",
           "description": "可选的自由文本标记，会在 home_keeper_task_due_today_set 事件中回显，以便贡献集成能够识别并忽略由其自身触发的提前操作（防止循环）。Home Keeper 不会解释它。"
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "移动一个日期",
+      "description": "将固定任务计划中的一个日期移到新的日期和时间。其他日期不变。要撤销移动，请把该日期移回原来的时间。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "任务的 id。名称同样可用。面板中会显示 id。"
+        },
+        "occurrence": {
+          "name": "日期",
+          "description": "计划中要移动的日期和时间。"
+        },
+        "to": {
+          "name": "新日期",
+          "description": "新的日期和时间。必须在将来。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_occurrence_moved 事件中回显，以便贡献集成能够识别并忽略由其自身触发的更改（防止循环）。Home Keeper 不会解释它。"
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "包含",
-          "description": "导出哪些部分。默认两者都导出。"
+          "description": "导出哪些部分：设备、任务、设置或某个配套集成的域。默认全部导出。"
+        },
+        "kind": {
+          "name": "类型",
+          "description": "\"data\" 返回 YAML 文档。\"bundle\" 将包含已上传文件和设置的 zip 文件写入 home_keeper_exports 文件夹，并返回其路径。"
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "文档",
           "description": "要读取的文档，格式与 export_data 返回的一致。可以传入映射，也可以把整个文件作为一个字符串传入。"
         },
+        "bundle": {
+          "name": "数据包",
+          "description": "home_keeper_exports 文件夹中数据包文件的名称。用它代替文档。"
+        },
         "dry_run": {
           "name": "仅预览",
           "description": "检查文档并报告会有哪些改动，但不写入任何内容。"
@@ -698,6 +740,10 @@
         "match": {
           "name": "匹配",
           "description": "如何找到所指的记录。\"auto\" 依次按 id、external_id、名称查找。\"none\" 则每条记录都新建。"
+        },
+        "include_settings": {
+          "name": "包含设置",
+          "description": "同时导入文档中的配置文件、通知和选项。"
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "购物清单上的文字",
           "description": "购买提醒在购物清单上的显示方式。with_verb（默认）显示提醒名称，例如“购买 柔顺剂”。product_only 只显示备件名称。"
         },
+        "due_time_mode": {
+          "name": "到期时间",
+          "description": "每次完成后重复的任务何时到期。completion（默认）保留上次完成、推迟或跳过的时间。set_time 使任务在到期日的 due_time 到期。"
+        },
+        "due_time": {
+          "name": "固定到期时间",
+          "description": "set_time 使用的本地时间（HH:MM）。默认值为 08:00。"
+        },
         "dismissed_companions": {
           "name": "已忽略的搭档",
           "description": "要从 设置 → 搭档 的“建议”列表中隐藏的粘合集成域。忽略仅会静默某个建议；已连接的配对始终会显示。"
+        },
+        "hidden_panel_tabs": {
+          "name": "隐藏的面板标签页",
+          "description": "面板不显示的伴侣标签页的 ID。"
+        },
+        "cost_windows": {
+          "name": "支出时段（天）",
+          "description": "维护支出总计的时段，以天为单位。1 到 4 个数字，范围 1 到 3650。每个时段有一个传感器。"
+        },
+        "cost_summary_panel": {
+          "name": "在面板中显示支出",
+          "description": "在面板的任务列表上方显示支出总计。"
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "移除任务照片",
+      "description": "从任务中移除一张照片并删除其文件。请在面板中添加照片，因为服务调用无法携带文件。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "设置任务封面照片",
+      "description": "将一张照片设为其任务的封面。封面是第一张照片，会显示在任务列表、任务页面和完成对话框中。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "签署任务照片 URL",
+      "description": "生成一个短期有效的 URL（无需身份验证标头），用于获取任务照片的字节数据，例如在通知中显示照片。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        },
+        "thumbnail": {
+          "name": "缩略图",
+          "description": "签署小副本的 URL，长边最多 256 像素。"
+        }
+      }
+    },
     "update_skip": {
       "name": "更新跳过记录",
       "description": "按时间戳修改已记录跳过的详情。跳过保留原有日期，计划安排不受影响。",
@@ -1011,6 +1123,12 @@
         "with_verb": "带动词",
         "product_only": "仅产品"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "完成时间",
+        "set_time": "固定时间"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "{profile} 任务"
+      },
+      "spend_window": {
+        "name": "维护支出 {days} 天"
+      },
+      "spend_all": {
+        "name": "维护支出总计"
+      },
+      "purchases_total": {
+        "name": "电器购买总计"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "任务已设为今天到期",
               "task_skip_updated": "跳过记录已更新",
               "task_skip_removed": "跳过记录已删除",
+              "task_occurrence_moved": "任务时间已移动",
               "task_overdue": "任务已逾期",
               "task_due_soon": "任务即将到期",
               "part_low_stock": "备件库存不足",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "任务已设为今天到期",
               "task_skip_updated": "跳过记录已更新",
               "task_skip_removed": "跳过记录已删除",
+              "task_occurrence_moved": "任务时间已移动",
               "task_overdue": "任务已逾期",
               "task_due_soon": "任务即将到期",
               "part_low_stock": "备件库存不足",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "搭档已推荐",
               "declarative_companion_added": "声明式搭档已添加",
               "declarative_companion_updated": "声明式搭档已更新",
-              "declarative_companion_removed": "声明式搭档已删除"
+              "declarative_companion_removed": "声明式搭档已删除",
+              "data_exported": "数据已导出",
+              "data_imported": "数据已导入"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "未知文档：{document_id}"
     },
+    "unknown_task_photo": {
+      "message": "未知照片：{photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "只有绑定了用量传感器的任务才有计量。"
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "文件超过 {mb} MB 的限制。"
+    },
+    "upload_field_too_large": {
+      "message": "上传的表单字段超过 {kb} KB 的限制。"
     },
     "expected_multipart_upload": {
       "message": "需要 multipart 上传。"
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper 无法删除这些配置文件：{profiles}。以下通知正在使用它们：{notifications}。请更改或删除每条通知，然后重新保存。"
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper 无法导出这些部分：{sections}。"
+    },
+    "unauthorized_transfer": {
+      "message": "只有管理员可以导出或导入 Home Keeper 数据。"
+    },
+    "import_not_text": {
+      "message": "该文件既不是 zip 文件，也不是 UTF-8 文本。"
+    },
+    "import_needs_document": {
+      "message": "请提供要导入的文档或数据包。"
     }
   }
 }

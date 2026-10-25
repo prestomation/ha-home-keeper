@@ -11,17 +11,16 @@ registries and the store, for two things only the runner can get wrong:
 * **B03-3.** PyYAML is pure Python here, so reading or writing a large document
   takes seconds. The runner must do that work in the executor, off the event loop.
 
-The module is loaded under the synthetic ``hk`` package, the same way
-``notifier_harness`` loads ``notifier.py``. Its two HA-importing siblings
-(``devices``, ``coordinator``) are faked only while it loads, so the fakes do not
-leak into the suites that load the real ones.
+The module is loaded under the synthetic ``hk`` package by ``transfer_harness``.
+Its HA-importing siblings (``devices``, ``coordinator``, ``companions``) are faked
+only while it loads, so the fakes do not leak into the suites that load the real
+ones.
 """
 
 from __future__ import annotations
 
 import asyncio
-import importlib.util
-import sys
+import tempfile
 import threading
 import types
 from collections import UserDict
@@ -31,7 +30,7 @@ from typing import Any
 
 import hk_transfer as tr
 import pytest
-from ha_stubs import install_ha_stubs
+from transfer_harness import FakeHass, load_runner
 
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
@@ -40,50 +39,7 @@ TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
 
 
-def _load_runner() -> types.ModuleType:
-    install_ha_stubs()
-    fake_devices = types.ModuleType("hk.devices")
-    fake_devices.area_names = lambda hass: {}
-
-    async def _reconcile(hass, entry, store):  # pragma: no cover - dry runs only
-        return None
-
-    fake_devices.async_reconcile_assets = _reconcile
-    fake_coordinator = types.ModuleType("hk.coordinator")
-    fake_coordinator.HomeKeeperCoordinator = object
-    saved = {name: sys.modules.get(name) for name in ("hk.devices", "hk.coordinator")}
-    sys.modules["hk.devices"] = fake_devices
-    sys.modules["hk.coordinator"] = fake_coordinator
-    # ``from . import devices`` reads the attribute on the package first. Another
-    # suite that loaded the real ``hk.devices`` leaves it there, so set it too.
-    package = sys.modules["hk"]
-    saved_attr = getattr(package, "devices", None)
-    package.devices = fake_devices
-    try:
-        spec = importlib.util.spec_from_file_location(
-            "hk.transfer_runner", str(_COMPONENT_DIR / "transfer_runner.py")
-        )
-        assert spec and spec.loader
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    finally:
-        for name, previous in saved.items():
-            if previous is None:
-                sys.modules.pop(name, None)
-            else:
-                sys.modules[name] = previous
-        if saved_attr is None:
-            del package.devices
-        else:
-            package.devices = saved_attr
-    module.dt_util = types.SimpleNamespace(now=lambda: NOW)
-    module.ar = types.SimpleNamespace(
-        async_get=lambda hass: types.SimpleNamespace(async_list_areas=lambda: [])
-    )
-    return module
-
-
-runner = _load_runner()
+runner = load_runner()
 
 
 class _Device:
@@ -132,9 +88,9 @@ class _Store:
         return list(self._assets.values())
 
 
-class _Hass:
-    async def async_add_executor_job(self, func, *args):
-        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
+class _Hass(FakeHass):
+    def __init__(self) -> None:
+        super().__init__(Path(tempfile.mkdtemp()))
 
 
 def _coord(store: _Store | None = None) -> Any:
@@ -267,11 +223,7 @@ class _WritingStore(_Store):
 
 
 class _ReloadingHass(_Hass):
-    def __init__(self) -> None:
-        async def _reload(entry_id):
-            return True
-
-        self.config_entries = types.SimpleNamespace(async_reload=_reload)
+    """A hass whose config entries reload (``FakeHass`` counts the reloads)."""
 
 
 def test_x03_6_a_completion_during_provisioning_is_not_overwritten(monkeypatch):

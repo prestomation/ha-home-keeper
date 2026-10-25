@@ -13,7 +13,7 @@ dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "requests>=2.34.2"]
 # ``custom_components/`` and ignores this packaging metadata.
 #   pip install "home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main"
 [build-system]
-requires = ["setuptools>=84.0.0"]
+requires = ["setuptools>=84.2.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -68,7 +68,17 @@ source_paths = ["custom_components/home_keeper"]
 # ``update_task`` (B02-5), so ``docs`` is listed too, as its directory.
 # ``test_ci_release_publish_gate.py`` reads ``.github/workflows/release.yml`` to run
 # the release workflow's publish decision (X06-2), so that directory is listed too.
-also_copy = ["ci", "CHANGELOG.md", "website/scripts", "docs", ".github/workflows"]
+# ``test_oldest_ha.py`` reads ``hacs.json`` and ``README.md`` to check the oldest
+# supported Home Assistant, so both files are listed too.
+also_copy = [
+    "ci",
+    "CHANGELOG.md",
+    "website/scripts",
+    "docs",
+    ".github/workflows",
+    "hacs.json",
+    "README.md",
+]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
@@ -93,8 +103,13 @@ only_mutate = [
     "custom_components/home_keeper/task_counts.py",
     "custom_components/home_keeper/problem_tasks.py",
     "custom_components/home_keeper/appliance_report.py",
+    # Spend and purchase totals (#460). Pure, and driven by test_cost_summary.py.
+    "custom_components/home_keeper/cost_summary.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
+    # Task photos (#399): the list rules and the on-disk paths. Pure, and driven by
+    # tests/unit/test_task_photos.py.
+    "custom_components/home_keeper/task_photos.py",
     "custom_components/home_keeper/events.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
@@ -105,9 +120,15 @@ only_mutate = [
     # chronological history fold. Pure, and covered by the three tests/unit/test_transfer*
     # files — the round-trip one is what keeps a newly added field travelling.
     "custom_components/home_keeper/transfer.py",
+    # The bundle: safe zip extraction, the files section and the settings sections.
+    # Pure, and covered by tests/unit/test_transfer_bundle.py.
+    "custom_components/home_keeper/transfer_bundle.py",
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",
+    # The companion panel tab contract: validation, titles and the registry. Imports
+    # Home Assistant only under ``TYPE_CHECKING``; driven by tests/unit/test_panel_tabs.py.
+    "custom_components/home_keeper/panel_tabs.py",
     # Declarative-companion logic: spec normalization, selection/expansion,
     # and the reconcile diff. Pure and covered by tests/unit/test_declarative_companions.py.
     # The HA-bound reconciler that wires it up (``declarative_companion_sync.py``) is

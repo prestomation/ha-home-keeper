@@ -69,6 +69,119 @@
         "time.filter_cycle_start"
       ],
       "reason": "not a duty: the filter cycle is a pump schedule, not a filter change"
+    },
+    "core:centriconnect": {
+      "keys": [
+        "sensor.tank_remaining_volume"
+      ],
+      "reason": "a tank volume, not a duty"
+    },
+    "core:compit": {
+      "keys": [
+        "binary_sensor.ventilation_filter_dirty"
+      ],
+      "reason": "added"
+    },
+    "core:coolmaster": {
+      "keys": [
+        "binary_sensor.clean_filter",
+        "button.reset_filter"
+      ],
+      "reason": "added"
+    },
+    "core:ecoforest": {
+      "keys": [
+        "sensor.working_hours"
+      ],
+      "reason": "a runtime counter, no reset duty"
+    },
+    "core:fjaraskupan": {
+      "keys": [
+        "binary_sensor.carbon_filter",
+        "binary_sensor.grease_filter"
+      ],
+      "reason": "added"
+    },
+    "core:flow_it": {
+      "keys": [
+        "binary_sensor.service",
+        "sensor.g4_filter_status",
+        "sensor.hepa_filter_status"
+      ],
+      "reason": "filter status is an enum, no clear limit"
+    },
+    "core:guntamatic": {
+      "keys": [
+        "sensor.service_date"
+      ],
+      "reason": "a service date, not a duty"
+    },
+    "core:helty": {
+      "keys": [
+        "button.reset_filter"
+      ],
+      "reason": "only a reset button, not a duty reading"
+    },
+    "core:homee": {
+      "keys": [
+        "binary_sensor.replace_filter",
+        "sensor.operating_hours"
+      ],
+      "reason": "added"
+    },
+    "core:intelliclima": {
+      "keys": [
+        "binary_sensor.filter_cleaning"
+      ],
+      "reason": "added"
+    },
+    "core:intellifire": {
+      "keys": [
+        "binary_sensor.maintenance_error"
+      ],
+      "reason": "an error flag, not a duty"
+    },
+    "core:neopool": {
+      "keys": [
+        "sensor.cell_runtime_part",
+        "sensor.cell_runtime_pol_changes",
+        "sensor.cell_runtime_pola",
+        "sensor.cell_runtime_polb",
+        "sensor.cell_runtime_total",
+        "sensor.filtvalve_remaining"
+      ],
+      "reason": "runtime counters and settings, not a duty"
+    },
+    "core:sensibo": {
+      "keys": [
+        "binary_sensor.filter_clean",
+        "button.reset_filter",
+        "sensor.filter_last_reset"
+      ],
+      "reason": "added"
+    },
+    "core:smarty": {
+      "keys": [
+        "button.reset_filters_timer",
+        "sensor.filter_days_left"
+      ],
+      "reason": "days-left sensor in days; unit not safe for life_low hours, left for later"
+    },
+    "core:tami4": {
+      "keys": [
+        "sensor.filter_installed",
+        "sensor.filter_litters_passed",
+        "sensor.filter_upcoming_replacement",
+        "sensor.uv_upcoming_replacement"
+      ],
+      "reason": "water counters and replacement dates, no clear limit"
+    },
+    "core:vallox": {
+      "keys": [
+        "date.filter_change_date",
+        "sensor.remaining_time_for_filter"
+      ],
+      "reason": "remaining time unit is not hours-safe; left for later"
     }
   }
 }

@@ -11,15 +11,19 @@
 
 import { haDateTimeToIso, isoToHaDateTime, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
-import type { Task } from './types';
+import type { Task, UpcomingOccurrence } from './types';
 import type { BtnWeight, SnoozePresetId } from './utils';
 import {
   DEFAULT_SNOOZE_PRESET,
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  formatOccurrenceTime,
+  formatDue,
   isOverdue,
+  scanRequired,
   resolveSnoozePreset,
+  snapToDueTime,
   snoozePresetForHours,
   taskSnoozeHours,
 } from './utils';
@@ -29,6 +33,8 @@ export interface DeferVerbs {
   snooze: boolean;
   skip: boolean;
   dueToday: boolean;
+  /** Open the completion dialog on a one-tap task, for a photo or a note (#399). */
+  details: boolean;
 }
 
 /**
@@ -48,6 +54,11 @@ export interface DeferVerbs {
  *   button says. #312 asked for this on a task that was explicitly not overdue,
  *   and `notifications.py` keeps the verb off notifications for the same reason.
  *
+ * The details entry is not a deferral, but it rides the same caret (#399). It is
+ * offered only on a one-tap task: a task that asks for details already opens the
+ * dialog from Done, so the entry would repeat it. A blocked or tag-locked task
+ * cannot be completed from the panel at all, and a dormant one has no Done.
+ *
  * Hiding rather than disabling: a control that explains why it is dead earns its
  * place when the action is the page's whole point, but these are already tucked
  * behind a caret, and a menu of dead entries is just noise.
@@ -66,6 +77,8 @@ export function deferVerbs(
     snooze: allowSnooze && !dormant,
     skip: allowSkip && !blocked && !dormant,
     dueToday: allowDueToday && !dormant && !isOverdue(task, now),
+    details:
+      (task.completion_detail ?? 'none') === 'none' && !blocked && !dormant && !scanRequired(task),
   };
 }
 
@@ -77,6 +90,14 @@ export function deferMenuItems(verbs: DeferVerbs): string {
     `<span class="hk-defer-text">${escapeHTML(label)}` +
     `<span class="hk-defer-sub">${escapeHTML(sub)}</span></span></button>`;
   return (
+    (verbs.details
+      ? item(
+          'hk-defer-details',
+          'mdi:camera-outline',
+          t('defer.details'),
+          t('defer.detailsHint'),
+        )
+      : '') +
     (verbs.snooze
       ? item('hk-defer-snooze', 'mdi:clock-outline', t('btn.snooze'), t('defer.snoozeHint'))
       : '') +
@@ -107,7 +128,9 @@ export function deferSplit(
   verbs: DeferVerbs,
   weight: BtnWeight = 'primary',
 ): string {
-  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday)) return doneBtn;
+  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday && !verbs.details)) {
+    return doneBtn;
+  }
   // The caret is an ha-button carrying *Done's own weight*, which is the only way the
   // two halves are guaranteed to paint the same. Home Assistant fills a button from
   // its appearance, and the weights differ by surface — the task page's Done is solid
@@ -160,7 +183,19 @@ export interface SnoozeState {
   task: Task | null;
   preset: SnoozePresetId;
   customAt?: string;
+  /** The set due time ("HH:MM") of a floating task, or null (#438). A snooze then
+   *  lands on the first set time at or after its target, as the backend writes it,
+   *  and the custom choice is a date. */
+  dueTime?: string | null;
   error?: string;
+  /** A fixed task's next schedule dates. `undefined` until they are asked for. */
+  occurrences?: UpcomingOccurrence[];
+  /**
+   * The later date being moved, and where to (an `ha-form` date-time value). Absent
+   * means the due date itself is picked, and the dialog is a plain snooze.
+   */
+  picked?: UpcomingOccurrence;
+  moveTo?: string;
 }
 
 export interface SkipState {
@@ -189,13 +224,28 @@ export const emptySkipState = (): SkipState => ({ open: false, task: null, data:
  * date that length gives from *now* already filled in. A task with no length of its
  * own opens on the usual preset.
  */
-export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState {
+export function snoozeStateFor(
+  task: Task,
+  now: Date = new Date(),
+  setDueTime: string | null = null,
+): SnoozeState {
+  // Only a floating task snaps. A fixed task keeps the time of its schedule.
+  const dueTime = task.recurrence_type === 'floating' ? setDueTime : null;
+  const snap = dueTime ? { dueTime } : {};
   const hours = taskSnoozeHours(task);
-  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET, ...snap };
   const preset = snoozePresetForHours(hours);
-  if (preset) return { open: true, task, preset };
+  if (preset) return { open: true, task, preset, ...snap };
   const at = new Date(snoozeFrom(task, now).getTime() + hours * 3_600_000);
-  return { open: true, task, preset: 'custom', customAt: isoToHaDateTime(at.toISOString()) };
+  const customAt = isoToHaDateTime(at.toISOString());
+  // With a set due time the custom choice is a date only.
+  return {
+    open: true,
+    task,
+    preset: 'custom',
+    customAt: dueTime ? customAt?.slice(0, 10) : customAt,
+    ...snap,
+  };
 }
 
 /**
@@ -210,13 +260,88 @@ export function snoozeFrom(task: Task | null | undefined, now: Date = new Date()
   return Number.isNaN(due) ? now : new Date(Math.max(due, now.getTime()));
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 /** The typed custom date, or `null` when there is none or it will not parse. */
 function customDate(s: SnoozeState): Date | null {
   if (!s.customAt) return null;
-  const iso = haDateTimeToIso(s.customAt);
+  // A date picker sends "YYYY-MM-DD": its day starts at midnight in HA's zone.
+  const value = DATE_ONLY.test(s.customAt) ? `${s.customAt} 00:00:00` : s.customAt;
+  const iso = haDateTimeToIso(value);
   if (!iso) return null;
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** How many schedule dates the snooze dialog of a fixed task asks for. */
+export const LATER_DATES = 6;
+
+/**
+ * Whether the snooze dialog lists later dates to move. Only a fixed schedule has
+ * them: a floating task's next date does not exist until this one is done.
+ */
+export function offersLaterDates(task: Task | null | undefined): boolean {
+  return task?.recurrence_type === 'fixed';
+}
+
+/** The date on the rule a row stands for: where a moved date came from. */
+export function occurrenceOrigin(row: UpcomingOccurrence): string {
+  return row.moved_from ?? row.start;
+}
+
+/**
+ * A starting value for the new date: one day after the row, same time. The day is
+ * added on the wall clock of Home Assistant's zone, so the time stays the same across
+ * a clock change and in a browser in another zone.
+ */
+export function defaultMoveTo(start: string): string {
+  const shown = isoToHaDateTime(start);
+  if (!shown) return '';
+  const [date, time] = shown.split(' ');
+  const [y, mo, d] = date.split('-').map(Number);
+  return `${new Date(Date.UTC(y, mo - 1, d + 1)).toISOString().slice(0, 10)} ${time}`;
+}
+
+/**
+ * Pick *row* to move, seeding its new date, or pick the due date itself (no *row*)
+ * for a plain snooze. A date that already moved starts on its own date again, so Move
+ * puts it back: that is how a move is undone.
+ */
+export function pickOccurrence(s: SnoozeState, row?: UpcomingOccurrence): void {
+  s.picked = row;
+  if (!row) s.moveTo = undefined;
+  else if (row.moved_from) s.moveTo = isoToHaDateTime(row.moved_from);
+  else s.moveTo = defaultMoveTo(row.start);
+  s.error = undefined;
+}
+
+/**
+ * The schedule dates after the task's due date: the ones a move is for. The due date
+ * itself is the first choice of the dialog, and a snooze moves it.
+ */
+export function laterRows(s: SnoozeState): UpcomingOccurrence[] {
+  const due = s.task?.next_due ? new Date(s.task.next_due).getTime() : -Infinity;
+  return (s.occurrences ?? []).filter((row) => new Date(row.start).getTime() > due);
+}
+
+/** The instant the picked date moves to, or `null` when nothing usable is set. */
+export function moveTarget(s: SnoozeState): Date | null {
+  if (!s.picked || !s.moveTo) return null;
+  const iso = haDateTimeToIso(s.moveTo);
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** The line under "A later date": what moves where, or what to do next. */
+export function moveHintText(s: SnoozeState, lang?: string): string {
+  if (!s.picked) return t('defer.movePick');
+  const to = moveTarget(s);
+  if (!to) return t('defer.snoozePickDate');
+  return t('defer.moveResolves', {
+    from: formatOccurrenceTime(s.picked.start, lang),
+    to: formatOccurrenceTime(to, lang),
+  });
 }
 
 /**
@@ -226,16 +351,23 @@ function customDate(s: SnoozeState): Date | null {
  */
 export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
   const from = snoozeFrom(s.task, now);
-  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, from);
+  const dueTime = s.dueTime ?? null;
+  if (s.preset !== 'custom') {
+    const at = resolveSnoozePreset(s.preset, from);
+    return at && snapToDueTime(at, dueTime, true);
+  }
   const at = customDate(s);
-  return at && at.getTime() > from.getTime() ? at : null;
+  const snapped = at && snapToDueTime(at, dueTime, true);
+  return snapped && snapped.getTime() > from.getTime() ? snapped : null;
 }
 
 /** The line stating where the current choice lands, or a prompt if unset. */
 export function snoozeHintText(s: SnoozeState, lang?: string, now: Date = new Date()): string {
   const until = snoozeTarget(s, now);
   if (until) {
-    return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+    return t('defer.snoozeResolves', {
+      date: formatDue(until.toISOString(), s.dueTime ?? null, lang),
+    });
   }
   // A typed date that is too early gets its own line, so the user knows why the
   // Snooze button does nothing (F10-2).

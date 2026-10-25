@@ -254,7 +254,7 @@ describe('the one-time dialog', () => {
 
   it('does not open on a task page', async () => {
     const { hass } = makeHass();
-    const { panel } = await mount(hass, '/task/t1');
+    const { panel } = await mount(hass, '/tasks/t1');
     expect(dialog(panel)).toBeNull();
   });
 

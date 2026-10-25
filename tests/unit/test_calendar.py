@@ -285,14 +285,14 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     stops.
     """
     steps = 0
-    real_step = cal.recurrence.step_fixed
+    real_next = cal.recurrence.next_task_occurrence
 
     def counted(*args, **kwargs):
         nonlocal steps
         steps += 1
-        return real_step(*args, **kwargs)
+        return real_next(*args, **kwargs)
 
-    monkeypatch.setattr(cal.recurrence, "step_fixed", counted)
+    monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
     monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
     monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
 
@@ -304,8 +304,8 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    # One step per bounded iteration.
-    assert steps == 5
+    # The first search, then one step per bounded iteration.
+    assert steps == 6
 
 
 def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
@@ -445,22 +445,24 @@ def test_b11_7_collect_events_drops_a_fixed_occurrence_that_ends_at_the_window_s
 
 
 def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
-    """The walk searches the grid from the anchor once, then steps.
+    """Each step of the walk searches from the last occurrence, not from the start.
 
-    Every 12 months from Jan 31 never reaches a short month, so a search from the
-    anchor walks the whole grid each time. One search per step made the walk
-    quadratic.
+    A search from the same point on each step would find the same date again and
+    never move. Every 12 months from Jan 31 never meets an April to September season.
     """
-    searches = 0
-    real_next = cal.recurrence.next_fixed_occurrence
+    afters: list[datetime] = []
+    found: list[datetime] = []
+    real_next = cal.recurrence.next_task_occurrence
 
-    def counted(*args, **kwargs):
-        nonlocal searches
-        searches += 1
-        return real_next(*args, **kwargs)
+    def counted(task, *, after):
+        afters.append(after)
+        found.append(real_next(task, after=after))
+        return found[-1]
 
-    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
-    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
+    monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 4)
+    now = _dt(2026, 6, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
 
     task = _fixed_task(
         _dt(2026, 1, 31, 9),
@@ -470,11 +472,11 @@ def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    assert searches == 1
+    assert afters == [now - cal.EVENT_DURATION, *found[:-1]]
 
 
 def test_b11_8_season_walk_lands_on_the_grid(monkeypatch):
-    """Steps follow the clamped grid: Jan 31, Feb 28, Mar 28, Apr 28."""
+    """A day-31 schedule uses the last day of a short month: Feb 28, Mar 31, Apr 30."""
     monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 1, 31, 12))
 
     task = _fixed_task(
@@ -486,7 +488,7 @@ def test_b11_8_season_walk_lands_on_the_grid(monkeypatch):
     event = _entity({"t_fixed": task}).event
 
     assert event is not None
-    assert event.start == _dt(2026, 4, 28, 9)
+    assert event.start == _dt(2026, 4, 30, 9)
 
 
 def test_b11_5_armed_sensor_and_triggered_tasks_stay_off_the_calendar(monkeypatch):
@@ -517,3 +519,124 @@ def test_x13_4_the_entity_has_a_translated_name_on_the_service_device() -> None:
     strings = json.loads((component / "home_keeper" / "strings.json").read_text())
     platform = "calendar"
     assert strings["entity"][platform]["upcoming_tasks"]["name"] == "Upcoming tasks"
+
+
+# --- RRULE events and moved dates -------------------------------------------
+
+from zoneinfo import ZoneInfo  # noqa: E402
+
+import pytest  # noqa: E402
+
+
+def _rule_task(**over) -> dict:
+    task = {
+        "id": "t_bins",
+        "name": "Take trash out",
+        "recurrence_type": "fixed",
+        "rrule": "FREQ=WEEKLY;BYDAY=TU,FR",
+        "anchor": _dt(2026, 9, 29, 7).isoformat(),
+        "moved_occurrences": [],
+        "next_due": _dt(2026, 10, 2, 7).isoformat(),
+        "enabled": True,
+    }
+    task.update(over)
+    return task
+
+
+@pytest.fixture
+def local_tz(monkeypatch):
+    """Make HA's local zone the suite's fixed offset, and fix the clock.
+
+    The calendar follows ``next_due`` from now on (B11-2). A test that needs another
+    time patches ``now`` again.
+    """
+    monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(TZ))
+    monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: TZ)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
+
+
+def test_a_rule_task_shows_each_day_of_its_rule(local_tz):
+    entity = _entity({"t_bins": _rule_task()})
+    events = entity._collect_events(_dt(2026, 10, 1), _dt(2026, 10, 7))
+    assert [e.start for e in events] == [_dt(2026, 10, 2, 7), _dt(2026, 10, 6, 7)]
+    assert events[0].uid == f"t_bins_{_dt(2026, 10, 2, 7).isoformat()}"
+
+
+def test_a_moved_date_shows_on_its_new_day(local_tz):
+    task = _rule_task(
+        moved_occurrences=[
+            {
+                "from": _dt(2026, 10, 9, 7).isoformat(),
+                "to": _dt(2026, 10, 10, 7).isoformat(),
+            }
+        ]
+    )
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 10, 8), _dt(2026, 10, 12)
+    )
+    assert [e.start for e in events] == [_dt(2026, 10, 10, 7)]
+
+
+def test_a_snoozed_fixed_task_shows_its_snoozed_date(local_tz, monkeypatch):
+    now = _dt(2026, 10, 1, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 10, 3, 18)
+    task = _rule_task(next_due=snoozed.isoformat())
+    entity = _entity({"t_bins": task})
+    events = entity._collect_events(_dt(2026, 9, 28), _dt(2026, 10, 8))
+    # Tue 29 is before now and stays; Fri 2 is dealt with by the snooze; Tue 6 stays.
+    assert [e.start for e in events] == [
+        _dt(2026, 9, 29, 7),
+        snoozed,
+        _dt(2026, 10, 6, 7),
+    ]
+    assert entity.event.start == snoozed
+
+
+def test_a_passed_snooze_does_not_hide_the_schedule(local_tz, monkeypatch):
+    now = _dt(2026, 10, 5, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _rule_task(next_due=_dt(2026, 10, 3, 18).isoformat())
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 10, 5), _dt(2026, 10, 8)
+    )
+    assert [e.start for e in events] == [_dt(2026, 10, 6, 7)]
+
+
+def test_the_next_event_is_the_next_rule_date(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
+    task = _rule_task(next_due=None)
+    assert _entity({"t_bins": task}).event.start == _dt(2026, 10, 2, 7)
+
+
+def test_a_rule_with_no_dates_leaves_the_calendar_quiet(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
+    task = _rule_task(rrule="FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", next_due=None)
+    entity = _entity({"t_bins": task})
+    assert entity.event is None
+    assert entity._collect_events(_dt(2026, 10, 1), _dt(2027, 10, 1)) == []
+
+
+def test_the_calendar_is_read_only():
+    assert not getattr(_entity({}), "_attr_supported_features", 0)
+
+
+def test_a_summer_anchor_is_not_a_snooze_in_winter(monkeypatch):
+    # The anchor is stored at a summer offset and next_due at a winter one. Judged
+    # at their own offsets the two are an hour apart, and the task read as snoozed:
+    # the date showed twice.
+    la = ZoneInfo("America/Los_Angeles")
+    monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: la)
+    monkeypatch.setattr(
+        cal.dt_util, "now", lambda: datetime(2026, 11, 20, 12, tzinfo=la)
+    )
+    monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(la))
+    task = _rule_task(
+        rrule="FREQ=WEEKLY;BYDAY=TU",
+        anchor="2026-07-07T10:00:00-07:00",
+        next_due="2026-11-24T10:00:00-08:00",
+    )
+    events = _entity({"t_bins": task})._collect_events(
+        datetime(2026, 11, 23, tzinfo=la), datetime(2026, 11, 26, tzinfo=la)
+    )
+    assert len(events) == 1

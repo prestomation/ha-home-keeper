@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: e0528da99ed4
+source_hash: 2a1bf3f42911
 ---
 
 # Store
@@ -64,9 +64,9 @@ section is therefore additive and needs no version bump. Declarative specs go th
 dropped with a warning, because one lost spec is better than a failed startup.
 
 Then load runs idempotent shims: `assets.migrate_legacy_part_numbers`,
-`assets.migrate_documents_from_manual_url`, `_clean_relationship_links` and
-`reconcile.adopt_part_tags`. It saves once, only if a shim changed data. A new optional
-field needs no shim, because readers use `.get()` with a default.
+`assets.migrate_documents_from_manual_url`, `_clean_relationship_links`,
+`models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`. It saves once, only
+if a shim changed data. A new optional field needs no shim: readers use `.get()`.
 
 ### The mutation shape
 
@@ -79,43 +79,45 @@ Events fire after the save, so a listener that reads the store back sees saved s
 `_changed_fields` ignores history and schedule keys, so a reschedule is not an edit, and
 an update with no changed field fires no event.
 
-Guards that every surface must meet live here: reserved `source` namespaces in
-`add_task`, part-owned names and tags, `_check_deletable`, and the completion origin
-gates such as `_reject_scan_required`. Some writes fire no event, because they record
-internal state: the 2 sync bookkeeping setters (which also skip an unchanged save),
-`set_sensor_baseline` with `silent=True`, and the derived edits of a part reconcile.
+Guards that every surface must meet live here: reserved `source` namespaces in `add_task`,
+part-owned names and tags, `_check_deletable`, and the completion origin gates.
+`_reject_completion_blocked` accepts a system origin, or `managed_by.integration` if it is not
+`home_keeper`. Some writes fire no event, because they record internal state: the 2 sync
+bookkeeping setters (which also skip an unchanged save), `set_sensor_baseline` with `silent=True`,
+and part reconcile edits.
 
 ### Responsibilities
 
-- **Tasks:** add, update, delete, trigger, snooze, due today, skip, meter baseline. A
-  delete calls `_archive_task_history` to keep history on a linked appliance.
+- **Tasks:** add, update, delete, trigger, snooze, due today, skip, `move_occurrence` and
+  meter baseline. A delete calls `_archive_task_history` to keep history on a linked
+  appliance. The set due time from `async_apply_due_time` goes to each recurrence call,
+  and a floating snooze rounds up to it ([recurrence](recurrence.md)).
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
-- **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and
-  documents and part files through `_mutate_asset`.
+- **Appliances:** CRUD, archive, ownership, stock (`_emit_stock_event`), files (`_mutate_asset`).
+- **Task photos:** add, remove and set the cover through `_mutate_task_photos`. `_save`
+  removes the photo folder of each task that it dropped ([task-photos](task-photos.md)).
 - **Reconcilers:** `reconcile_part_tasks`, `reconcile_buy_tasks`, `settle_use_tasks`,
   `reconcile_problem_sensor_tasks` and `reconcile_declarative_companion_tasks` call a
   pure pass, save once, and fire the lifecycle events the pass implies.
 - **Declarative specs:** add, update and delete, then dispatch
   `SIGNAL_DECLARATIVE_SPECS_CHANGED` so the companion sync runs without a reload.
-- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids`,
-  `async_merge_split_duplicates` and `detach_tasks_from_device`.
+- **Device repair:** `async_repoint_device_ids`, `async_repoint_asset_device_ids` (1
+  updated event per moved record), `async_merge_split_duplicates`, `detach_tasks_from_device`.
 - **Import:** `async_import_records` writes a validated plan under stated ids with one
   save. It fires one created or updated event per record, not one per completion.
 
 ### Saves
 
-Every mutation awaits `Store.async_save`; the store never uses `async_delay_save`. A
-bulk path saves once for the batch: `delete_tasks` (the one-off purge), each reconciler
-pass, `delete_orphaned_tasks` and `async_import_records`. The `Store` write lock keeps
-2 close saves in order.
+Every mutation awaits `Store.async_save`, never `async_delay_save`. A bulk path saves once:
+`delete_tasks`, each reconciler pass, `delete_orphaned_tasks`, `async_import_records`.
+The `Store` write lock keeps 2 close saves in order.
 
 ### Unload, reload and concurrency
 
 `async_unload_entry` calls `store.close`. After that, `_save` raises
-`StoreClosedError`. A reload builds a new `HomeKeeperStore` that reads the file again,
-so a pass that still holds the old store fails at its save. It cannot write its old
-snapshot over the new file.
+`models.StoreClosedError`. A reload builds a new `HomeKeeperStore`, so a pass that still
+holds the old store fails at its save and cannot write its old snapshot over the new file.
 
 All methods run on the event loop, and the store holds no lock. Most methods change the
 dicts before their first `await`, so 2 calls do not interleave inside a change. Each
@@ -134,8 +136,7 @@ return values and the tasks that bulk deletes return tell the caller which one t
   sections consistent. Each change costs a full write.
 - **Immediate save** over `async_delay_save`: a delayed write still pending at unload
   writes old data over the reloaded file, and the return-means-durable rule breaks.
-- **Load shims** over version bumps: an older file always loads, with no migrate
-  function to keep for each version.
+- **Load shims** over version bumps: an older file always loads, with no migrate function.
 - **A closed flag that raises** over a lock or a generation check: one boolean stops
   every stale pass, and the failure is loud.
 - **Caller-driven refresh** over a store that refreshes: only the caller knows if the
@@ -146,3 +147,4 @@ return values and the tasks that bulk deletes return tell the caller which one t
 - The storage key `home_keeper`, version 1, and the 6 top-level section names. A
   downgrade reads this file, so a rename or a version bump breaks older releases.
 - The event payloads the store fires: see [EVENTS.md](../EVENTS.md).
+- Who can complete or skip a `completion_blocked` task: the owner origin rule above.

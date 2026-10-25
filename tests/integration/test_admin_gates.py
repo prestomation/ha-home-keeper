@@ -12,6 +12,7 @@ then drives both surfaces — REST service calls and the websocket API — with 
 tokens, asserting the admin succeeds where the non-admin is refused.
 """
 
+import base64
 import importlib.util
 import sys
 import uuid
@@ -94,7 +95,7 @@ def non_admin(non_admin_token):
 
 @pytest.fixture(scope="session")
 def priced_asset(ha):
-    """An appliance carrying every field the projection is meant to withhold."""
+    """An appliance with a cost, a serial number, part vendors and metadata."""
     name = f"Gate probe {uuid.uuid4().hex[:8]}"
     call_service(
         ha,
@@ -225,6 +226,7 @@ _ADMIN_ONLY_CALLS: dict[str, dict] = {
     "export_data": {},
     "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
     "set_options": {"sync_problem_sensors": True},
+    "register_companion": {"domain": "pawsistant", "name": "Should not exist"},
     "add_declarative_companion": {"name": "Should not exist"},
     "update_declarative_companion": {"id": "x"},
     "delete_declarative_companion": {"id": "x"},
@@ -624,7 +626,7 @@ def test_saving_a_companion_with_no_template_still_fails(ha):
     assert "sensor.template is required" in str(msg["error"]), msg
 
 
-# ── the non-admin asset projection ──────────────────────────────────────────
+# ── every user reads the full asset record ─────────────────────────────────
 
 
 def _assets_over_ws(token):
@@ -633,60 +635,41 @@ def _assets_over_ws(token):
     return msg["result"]["assets"]
 
 
-def test_get_assets_withholds_costs_and_serials_from_a_non_admin(
-    non_admin_token, priced_asset
-):
-    projected = next(
-        a for a in _assets_over_ws(non_admin_token) if a["id"] == priced_asset["id"]
-    )
-    assert "cost" not in projected
-    assert "serial_number" not in projected
-    assert "cost" not in projected["parts"][0]
-    assert "vendor" not in projected["parts"][0]
-    assert [m["label"] for m in projected["metadata"]] == ["Product page"]
-
-
-def test_get_assets_still_carries_what_the_card_renders(non_admin_token, priced_asset):
-    # The card resolves card links against documents, link metadata and part URLs; if
-    # the projection took those too, every non-admin's dashboard would lose its chips.
-    projected = next(
-        a for a in _assets_over_ws(non_admin_token) if a["id"] == priced_asset["id"]
-    )
-    assert projected["parts"][0]["url"] == "https://ex.com/filter"
-    assert projected["metadata"][0]["value"] == "https://ex.com/p"
-
-
-def test_get_assets_shows_stock_to_a_non_admin(non_admin_token, priced_asset):
-    # Stock is not administration: a dashboard card shows "3 left" to everyone in the
-    # household, and the spares number entity already does.
-    part = next(
-        a for a in _assets_over_ws(non_admin_token) if a["id"] == priced_asset["id"]
-    )["parts"][0]
-    assert (part["stock"], part["reorder_at"], part["stock_unit"]) == (3, 1, "")
-
-
-def test_get_assets_is_unabridged_for_an_admin(ha, priced_asset):
+def test_get_assets_gives_a_non_admin_the_full_record(non_admin_token, priced_asset):
+    # The panel shows the appliances to every user as a read view, so the read
+    # carries costs, serial numbers, part vendors and all metadata.
     full = next(
-        a for a in _assets_over_ws(_owner_token(ha)) if a["id"] == priced_asset["id"]
+        a for a in _assets_over_ws(non_admin_token) if a["id"] == priced_asset["id"]
     )
     assert full["cost"] == 2499.0
     assert full["serial_number"] == "SN-SECRET-1"
+    assert "vendor" in full["parts"][0]
+    assert full["parts"][0]["url"] == "https://ex.com/filter"
+    assert (full["parts"][0]["stock"], full["parts"][0]["reorder_at"]) == (3, 1)
+    assert "Product page" in [m["label"] for m in full["metadata"]]
+    assert len(full["metadata"]) > 1
 
 
-def test_list_assets_service_projects_for_a_non_admin(non_admin, priced_asset):
-    # The service twin of get_assets: projecting only the websocket read would leave
-    # `call_service` as an open door to the same data.
+def test_get_assets_is_the_same_for_an_admin(ha, non_admin_token, priced_asset):
+    def pick(token):
+        return next(a for a in _assets_over_ws(token) if a["id"] == priced_asset["id"])
+
+    assert pick(_owner_token(ha)) == pick(non_admin_token)
+
+
+def test_list_assets_service_gives_a_non_admin_the_full_record(non_admin, priced_asset):
+    # The service twin of get_assets returns the same record.
     r = _call(non_admin, "list_assets", {}, return_response=True)
     assert r.status_code == 200
     payload = r.json()
     assets = payload.get("service_response", payload)["assets"]
-    projected = next(a for a in assets if a["id"] == priced_asset["id"])
-    assert "cost" not in projected and "serial_number" not in projected
+    full = next(a for a in assets if a["id"] == priced_asset["id"])
+    assert full["cost"] == 2499.0
+    assert full["serial_number"] == "SN-SECRET-1"
 
 
 def test_asset_mutation_commands_refuse_a_non_admin(non_admin_token, priced_asset):
-    # Each of these echoes the full asset back in its result, so leaving them open
-    # would hand a non-admin the very fields the projection withholds.
+    # An appliance write is admin-only, although every user can read the record.
     msg = ws_send(
         non_admin_token,
         {
@@ -751,29 +734,80 @@ def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
     assert "SN-SECRET-1" not in r.text
 
 
+# A 1x1 PNG that decodes. The upload makes a thumbnail, so it refuses PNG_BYTES above,
+# which has the right magic bytes but no readable image.
+PHOTO_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def _photo_upload(token, task_id, photo_id):
+    return requests.post(
+        f"{HA_URL}/api/home_keeper/task_photo/{task_id}/{photo_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("probe.png", PHOTO_PNG, "image/png")},
+        timeout=30,
+    )
+
+
+def test_a_non_admin_can_add_and_change_task_photos(ha, non_admin, non_admin_token):
+    # #399: a photo is task data, so it is open like add_task and update_task. A user
+    # who is not an admin adds photos from the dashboard card.
+    name = f"Photo usage probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "floating", "interval": 7, "unit": "days"},
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    try:
+        for photo_id in (first, second):
+            r = _photo_upload(non_admin_token, task["id"], photo_id)
+            assert r.status_code == 200, f"a non-admin could not upload: {r.text}"
+        data = {"task_id": task["id"], "photo_id": second}
+        r = _call(non_admin, "set_task_photo_cover", data)
+        assert r.status_code == 200, f"a non-admin could not set the cover: {r.text}"
+        r = _call(
+            non_admin, "remove_task_photo", {"task_id": task["id"], "photo_id": first}
+        )
+        assert r.status_code == 200, f"a non-admin could not remove a photo: {r.text}"
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert [p["id"] for p in after["photos"]] == [second]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
 def test_the_device_registry_does_not_carry_the_serial_number(
     non_admin_token, priced_asset
 ):
-    # X01-5: any signed-in user can list the device registry, so the serial number
-    # stays in the admin-only appliance record.
+    # X01-5: the serial number stays in the appliance record. It does not go to the
+    # device registry, where other integrations and cards can read it.
     msg = ws_send(non_admin_token, {"type": "config/device_registry/list"})
     assert msg.get("success"), msg
     assert "SN-SECRET-1" not in str(msg["result"])
 
 
-# ── the panel is admin-only ─────────────────────────────────────────────────
+# ── the panel is open to every user ─────────────────────────────────────────
 
 
-def test_panel_is_hidden_from_a_non_admin(ha, non_admin_token):
-    admin_panels = ws_send(_owner_token(ha), {"type": "get_panels"})
-    assert admin_panels.get("success")
-    assert "home-keeper" in admin_panels["result"], "the panel should exist for admins"
-
-    panels = ws_send(non_admin_token, {"type": "get_panels"})
-    assert panels.get("success")
-    assert "home-keeper" not in panels["result"], (
-        "administration is admin-only — the panel must not be offered to a non-admin"
-    )
+def test_panel_is_open_to_a_non_admin(ha, non_admin_token):
+    # A non-admin uses the tasks and reads the appliances in the panel. The writes
+    # behind its admin controls stay admin-only (the refusal tests above).
+    for token in (_owner_token(ha), non_admin_token):
+        panels = ws_send(token, {"type": "get_panels"})
+        assert panels.get("success")
+        assert "home-keeper" in panels["result"]
+        assert panels["result"]["home-keeper"]["require_admin"] is False
 
 
 def test_the_key_list_refuses_a_non_admin(non_admin_token):
@@ -786,4 +820,11 @@ def test_the_key_list_refuses_a_non_admin(non_admin_token):
         },
     )
     assert not msg.get("success"), "a non-admin read the entity keys"
+    assert msg["error"]["code"] == "unauthorized", msg
+
+
+def test_the_panel_tab_list_refuses_a_non_admin(non_admin_token):
+    # A tab is code that runs in the admin panel, and only the panel reads the list.
+    msg = ws_send(non_admin_token, {"type": "home_keeper/get_panel_tabs"})
+    assert not msg.get("success"), "a non-admin read the panel tabs"
     assert msg["error"]["code"] == "unauthorized", msg

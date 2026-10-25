@@ -1,6 +1,16 @@
 import { companionKeys } from './card-filter';
-import { t, tn } from './i18n';
+import { getLanguage, t, tn } from './i18n';
 import { MAX_ONE_OFF_RETENTION_DAYS } from './limits';
+import {
+  SIMPLE_FREQS,
+  anchorDay,
+  buildSimple,
+  monthlyChoices,
+  parseSimple,
+  resetToSimple,
+  withSimpleChange,
+  type SimpleFreq,
+} from './rrule';
 import {
   COMPANION_KEY_DECLARATIVE_PREFIX,
   COMPANION_KEY_PROBLEM_SENSORS,
@@ -9,6 +19,7 @@ import {
   formatQuantity,
   getTimeZone,
   intervalText,
+  monthByText,
   normalizeIcon,
   recurrenceSummary,
   round1,
@@ -68,6 +79,13 @@ export interface FormField {
   selector?: Selector;
   type?: string;
   schema?: FormField[];
+  /** Shown but not editable (`ha-form` greys it out). */
+  disabled?: boolean;
+  /** An `expandable` group's heading, and whether it starts open. */
+  title?: string;
+  expanded?: boolean;
+  /** An `expandable` group whose fields sit at the top level of the form's data. */
+  flatten?: boolean;
 }
 
 export const selText = (multiline = false): Selector => ({
@@ -92,6 +110,7 @@ export const selNumber = (min = 0, step?: number | 'any', max?: number): Selecto
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });
+export const selTime = (): Selector => ({ time: { no_second: true } });
 export const selDevice = (multiple = false): Selector => ({
   device: multiple ? { multiple: true } : {},
 });
@@ -487,6 +506,7 @@ export function taskSchemaSections(
   consumables: { value: string; label: string }[] = [],
   links: { value: string; label: string }[] = [],
   tags: { value: string; label: string }[] = [],
+  opts: { readOnly?: boolean } = {},
 ): TaskSchemaSection[] {
   const locked = new Set<string>((task as Task).managed_by?.locked_fields ?? []);
 
@@ -555,21 +575,47 @@ export function taskSchemaSections(
   // that compute one from a calendar offer it.
   const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
+  // A fixed task's rule, and whether the plain controls can show it. When they
+  // cannot ("the first Tuesday of each month"), Repeats and Every are greyed out and
+  // the rule text is the only way to change it; see rrule.ts.
+  const fixedRule = isFixed ? taskRule(task) : '';
+  const fixedSimple = isFixed ? parseSimple(fixedRule) : null;
+  const ruleIsSimple = !isFixed || fixedSimple !== null;
+  // "Monthly on": the start date's day, or its weekday in the month, as a calendar
+  // app offers it. It needs a start date to name the choices.
+  const anchorDate = isFixed ? anchorDay(task.anchor) : null;
+  const monthByField: FormField[] =
+    fixedSimple?.freq === 'MONTHLY' && anchorDate
+      ? [
+          {
+            name: 'month_by',
+            selector: selSelect(
+              monthlyChoices(anchorDate, fixedSimple.monthBy).map((value) => ({
+                value: value || MONTH_BY_DAY,
+                label: monthByText(value, anchorDate, getLanguage()),
+              })),
+            ),
+          },
+        ]
+      : [];
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
     : isFixed
     ? [
-        ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-        ...(!locked.has('freq')
+        ...(!locked.has('rrule')
           ? [
+              { name: 'interval', selector: selNumber(1), disabled: !ruleIsSimple },
               {
                 name: 'freq',
+                disabled: !ruleIsSimple,
                 selector: selSelect([
                   { value: 'DAILY', label: t('opt.freq.daily') },
                   { value: 'WEEKLY', label: t('opt.freq.weekly') },
                   { value: 'MONTHLY', label: t('opt.freq.monthly') },
+                  { value: 'YEARLY', label: t('opt.freq.yearly') },
                 ]),
               },
+              ...monthByField,
             ]
           : []),
       ]
@@ -605,8 +651,11 @@ export function taskSchemaSections(
             { value: 'availability', label: t('opt.sensor_mode.availability') },
             // Last, like the declarative companion dialog's own list: the four above
             // each answer one plain question, and a user who wants one of those must
-            // not have to read past Jinja to find it.
-            { value: 'template', label: t('opt.sensor_mode.template') },
+            // not have to read past Jinja to find it. A template binding is
+            // admin-only, so a view-only user gets it only on a task that has one.
+            ...(opts.readOnly && sensorMode !== 'template'
+              ? []
+              : [{ value: 'template', label: t('opt.sensor_mode.template') }]),
           ]),
         },
         // Availability watches for the entity to go away, so it has no condition of
@@ -757,26 +806,49 @@ export function taskSchemaSections(
       : []),
   ];
 
+  // A fixed task's start, its rule text and "Last completed". A section of its own
+  // so the panel can put the day buttons between Repeats/Every and these; `ha-form`
+  // offers no slot between its own rows.
+  const ruleSection: FormField[] = [
+    ...(isFixed && !locked.has('anchor')
+      ? [{ name: 'anchor', selector: selDateTime() } as FormField]
+      : []),
+    // The rule text, behind a disclosure: most people never open it, and it is open
+    // from the start when the rule is one only the text can show.
+    ...(isFixed && !locked.has('rrule')
+      ? [
+          {
+            name: 'rule_advanced',
+            type: 'expandable',
+            flatten: true,
+            title: t('rule.advanced'),
+            expanded: !ruleIsSimple,
+            schema: [{ name: 'rrule', selector: selText() }],
+          } as FormField,
+        ]
+      : []),
+  ];
+
+  // "Last completed" seeds the first history entry. For a scheduled task that
+  // places the first due date; for a *sensor* task it anchors the time backstop
+  // (`sensor.also_every`), so "every 10,000 mi or 12 months" starts its calendar
+  // half where the meter half starts rather than restarting today. `build_task`
+  // has always handled the sensor case (recording history without arming) — only
+  // this predicate hid the field.
+  const lastCompleted: FormField[] =
+    !task.id && !isOneOff && !locked.has('last_completed')
+      ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
+      : [];
+
   // Everything the recurrence choice reveals. Rendered indented behind a rule, so
   // "these exist because of the answer above" is visible rather than inferred.
   const cadenceSection: FormField[] = [
     ...(cadence ? [cadence] : []),
     ...sensorFields,
-    ...(isFixed && !locked.has('anchor')
-      ? [{ name: 'anchor', selector: selDateTime() } as FormField]
-      : []),
     ...(isOneOff && !locked.has('due')
       ? [{ name: 'due', selector: selDateTime() } as FormField]
       : []),
-    // "Last completed" seeds the first history entry. For a scheduled task that
-    // places the first due date; for a *sensor* task it anchors the time backstop
-    // (`sensor.also_every`), so "every 10,000 mi or 12 months" starts its calendar
-    // half where the meter half starts rather than restarting today. `build_task`
-    // has always handled the sensor case (recording history without arming) — only
-    // this predicate hid the field.
-    ...(!task.id && !isOneOff && !locked.has('last_completed')
-      ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
-      : []),
+    ...(isFixed ? [] : lastCompleted),
   ];
 
   // Where the task hangs off the house: a device, a room, a sticker, a consumable.
@@ -858,6 +930,9 @@ export function taskSchemaSections(
     { key: 'basics', fields: basics },
     { key: 'schedule', fields: schedule },
     { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...(isFixed
+      ? [{ key: 'rule', fields: [...ruleSection, ...lastCompleted], dependent: true }]
+      : []),
     ...seasons,
     { key: 'placement', fields: placement },
     { key: 'completion', fields: completion },
@@ -934,6 +1009,110 @@ export function taskFormIsEmpty(
   return taskSchemaSections(task, consumables, links, tags).every((s) => !s.fields.length);
 }
 
+/**
+ * A fixed task's rule. A task loaded from the store has `rrule`; a form state or an
+ * old record may carry only the legacy `freq`/`interval`, which mean the plain rule.
+ */
+export function taskRule(task: Partial<Task>): string {
+  if (task.rrule) return task.rrule;
+  return buildSimple({
+    freq: (SIMPLE_FREQS as readonly string[]).includes(task.freq ?? '')
+      ? (task.freq as SimpleFreq)
+      : 'DAILY',
+    interval: Math.max(1, Number(task.interval) || 1),
+    byday: [],
+  });
+}
+
+/**
+ * The rule a form state describes. The panel keeps `rrule` in step with Repeats and
+ * Every as they change (see panel-rule.ts), but the card's single `ha-form` has no
+ * such hook: there a changed Repeats or Every only updates `freq`/`interval`. So a
+ * simple rule takes them from the form; a custom rule is the text as typed.
+ */
+export function formRule(task: Partial<Task>): string {
+  const rule = taskRule(task);
+  const simple = parseSimple(rule);
+  if (!simple) return rule;
+  const freq = (SIMPLE_FREQS as readonly string[]).includes(task.freq ?? '')
+    ? task.freq
+    : simple.freq;
+  const interval = Math.max(1, Number(task.interval) || simple.interval);
+  const monthBy = monthByOf(task) ?? simple.monthBy ?? '';
+  if (freq === simple.freq && interval === simple.interval && monthBy === (simple.monthBy ?? '')) {
+    return rule;
+  }
+  return withSimpleChange(rule, { freq, interval, monthBy });
+}
+
+/** The form's "Monthly on" value for the day of the month, which `ha-select` needs. */
+export const MONTH_BY_DAY = 'DAY';
+
+/** The form's "Monthly on" choice as a rule `BYDAY` (`''` for the day), or `undefined`. */
+export function monthByOf(task: Partial<Task>): string | undefined {
+  const value = (task as Record<string, unknown>).month_by;
+  if (value == null) return undefined;
+  return value === MONTH_BY_DAY ? '' : String(value);
+}
+
+/** The form fields a fixed rule sets: Repeats, Every and "Monthly on". */
+export function ruleFormFields(rule: string): Record<string, unknown> {
+  const simple = parseSimple(rule);
+  return simple
+    ? { freq: simple.freq, interval: simple.interval, month_by: simple.monthBy || MONTH_BY_DAY }
+    : {};
+}
+
+/**
+ * Keep a fixed task's rule and its Repeats/Every in step after one form change, for
+ * a form that reports all its fields at once (the card's single `ha-form`).
+ *
+ * Whichever side the user touched wins: a changed rule text sets Repeats and Every
+ * from it, and a changed Repeats or Every rewrites a simple rule. The panel does the
+ * same through `panel-rule.ts`, one section at a time.
+ */
+export function reconcileRuleEdit(
+  prev: Partial<Task>,
+  next: Partial<Task>,
+): Partial<Task> {
+  if (next.recurrence_type !== 'fixed') return next;
+  const prevRule = taskRule(prev);
+  if (next.rrule != null && next.rrule !== '' && next.rrule !== prevRule) {
+    return { ...next, ...ruleFormFields(next.rrule) } as Partial<Task>;
+  }
+  const rule = withSimpleChange(prevRule, {
+    freq: next.freq,
+    interval: next.interval,
+    monthBy: monthByOf(next),
+  });
+  return { ...next, rrule: rule, ...ruleFormFields(rule) } as Partial<Task>;
+}
+
+/**
+ * `interval`, `freq` and `rrule` for the form.
+ *
+ * For a fixed task the Repeats and Every controls are *read from the rule*, so a
+ * rule typed into the text box shows up in them. A custom rule leaves them at what
+ * it would reset to, greyed out. Other kinds keep their own `interval`.
+ */
+function fixedFormFields(task: Partial<Task>): Record<string, unknown> {
+  if (task.recurrence_type !== 'fixed') {
+    return {
+      interval: task.interval ?? 1,
+      freq: task.freq ?? 'DAILY',
+      rrule: task.rrule ?? '',
+    };
+  }
+  const rule = taskRule(task);
+  const simple = parseSimple(rule) ?? parseSimple(resetToSimple(rule));
+  return {
+    interval: simple?.interval ?? 1,
+    freq: simple?.freq ?? 'WEEKLY',
+    month_by: simple?.monthBy || MONTH_BY_DAY,
+    rrule: rule,
+  };
+}
+
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
 export function taskFormData(task: Partial<Task>): Record<string, unknown> {
   // The edit state spreads flat `sensor_*` fields onto the task as the user edits;
@@ -944,11 +1123,8 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     name: task.name ?? '',
     notes: task.notes ?? '',
     recurrence_type: task.recurrence_type ?? 'floating',
-    interval: task.interval ?? 1,
+    ...fixedFormFields(task),
     unit: task.unit ?? 'months',
-    freq: task.freq ?? 'DAILY',
-    // A fixed task needs a first occurrence. A new task defaults it to now, as a new
-    // one-off defaults its due date, so Create does not fail on a blank box (F02-8).
     anchor: isoToHaDateTime(task.anchor) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     // A new one-off defaults its due date to now; an existing one shows its stored due.
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
@@ -1055,6 +1231,12 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     // No device, a cleared picker and a blank string all mean "unattached", so they all
     // have to land on the same value here.
     d.device_id || null,
+    // A fixed task shows "Monthly on" only for a monthly rule, and names its choices
+    // from the start date, so both change the fields.
+    d.recurrence_type === 'fixed' ? d.freq : null,
+    d.recurrence_type === 'fixed' && d.freq === 'MONTHLY'
+      ? anchorDay((task as Partial<Task>).anchor)?.toISOString() ?? null
+      : null,
   ]);
 }
 
@@ -1105,6 +1287,9 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     interval: task.interval,
     unit: task.unit,
     freq: task.freq,
+    // The rule is the schedule. Moved dates are this task's own history of the city
+    // moving a pickup, so the copy starts without them.
+    rrule: task.rrule,
     anchor: task.anchor,
     // A one-off's `due` *is* its rule, so it rides along. `taskFormData` would
     // otherwise default an id-less task to now and quietly move the deadline.
@@ -1286,7 +1471,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // one-off) so the backend never rejects the update for a missing due.
       payload.due = haDateTimeToIso(task.due) || new Date().toISOString();
     } else {
-      payload.freq = task.freq || 'DAILY';
+      // A fixed task sends its rule, which already holds the interval; the legacy
+      // pair would only be a second, possibly stale, copy of it.
+      delete payload.interval;
+      payload.rrule = formRule(task);
       // The backend requires an anchor. A blank box falls back to now, as a blank
       // one-off due date does above (F02-8).
       payload.anchor = haDateTimeToIso(task.anchor) ?? (task.anchor || new Date().toISOString());
@@ -1689,6 +1877,89 @@ export function generalSchema(): FormField[] {
       selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
     },
   ];
+}
+
+/** The spend windows a new install has, in days (the backend `DEFAULT_WINDOWS`). */
+export const DEFAULT_COST_WINDOWS = [30, 60];
+/** How many windows a user can set, and the longest one (the backend limits). */
+export const MAX_COST_WINDOWS = 4;
+export const MAX_COST_WINDOW_DAYS = 3650;
+/** The windows the picker offers. The user can type any other number of days. */
+const COST_WINDOW_CHOICES = [7, 14, 30, 60, 90, 180, 365];
+
+/**
+ * Clean a list of spend windows the same way the backend does: whole days in
+ * `1..MAX_COST_WINDOW_DAYS`, no duplicates, sorted, at most `MAX_COST_WINDOWS`. A list
+ * with no good item gives the defaults.
+ */
+export function normalizeCostWindows(value: unknown): number[] {
+  if (!Array.isArray(value)) return [...DEFAULT_COST_WINDOWS];
+  const days = new Set<number>();
+  for (const item of value) {
+    const n = Math.trunc(Number(item));
+    if (Number.isFinite(n) && n >= 1 && n <= MAX_COST_WINDOW_DAYS) days.add(n);
+  }
+  const sorted = [...days].sort((a, b) => a - b).slice(0, MAX_COST_WINDOWS);
+  return sorted.length ? sorted : [...DEFAULT_COST_WINDOWS];
+}
+
+/** The spend windows of an options object. */
+export function costWindows(options: { cost_windows?: unknown } | null | undefined): number[] {
+  return normalizeCostWindows(options?.cost_windows);
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Cost tracking** card (#460): the
+ * spend windows, and whether the task list shows the totals. The windows picker holds
+ * strings and accepts a typed number of days.
+ */
+export function costSchema(): FormField[] {
+  return [
+    {
+      name: 'cost_windows',
+      selector: {
+        select: {
+          mode: 'dropdown',
+          multiple: true,
+          custom_value: true,
+          sort: false,
+          options: COST_WINDOW_CHOICES.map((d) => ({ value: String(d), label: String(d) })),
+        },
+      },
+    },
+    { name: 'cost_summary_panel', selector: selBool() },
+  ];
+}
+
+/** The Cost tracking card's form data, cleaned to the stored shape before a save. */
+export function coerceCost(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    cost_windows: normalizeCostWindows(raw.cost_windows),
+    cost_summary_panel: boolOr(raw.cost_summary_panel, true),
+  };
+}
+
+/**
+ * The `ha-form` schema for the Settings tab's **Due time** card (#438): when a
+ * floating task is due, and the time of day, which shows only for a set time.
+ */
+export function dueTimeSchema(mode?: string): FormField[] {
+  const fields: FormField[] = [
+    {
+      name: 'due_time_mode',
+      selector: selSelect(
+        [
+          { value: 'completion', label: t('settings.due_time_mode_completion') },
+          { value: 'set_time', label: t('settings.due_time_mode_set_time') },
+        ],
+        false,
+        'list',
+      ),
+    },
+  ];
+  // Required, so the field has no clear button: an empty time has no meaning here.
+  if (mode === 'set_time') fields.push({ name: 'due_time', required: true, selector: selTime() });
+  return fields;
 }
 
 /**

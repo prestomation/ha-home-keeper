@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Excluded labels",
           "one_off_retention_days": "One-off retention (days)",
           "shopping_list_entity": "Shopping list",
-          "shopping_line_style": "Shopping list line text"
+          "shopping_line_style": "Shopping list line text",
+          "due_time_mode": "Due time",
+          "due_time": "Set due time"
         },
         "data_description": {
           "sync_problem_sensors": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Reminders for one offer Snooze in place of Mark done.",
           "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever.",
           "shopping_list_entity": "Sync auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off.",
-          "shopping_line_style": "How a buy reminder reads on the shopping list. Product only shows the part name without the verb, such as \"Fabric softener\" in place of \"Buy fabric softener\"."
+          "shopping_line_style": "How a buy reminder reads on the shopping list. Product only shows the part name without the verb, such as \"Fabric softener\" in place of \"Buy fabric softener\".",
+          "due_time_mode": "When a task that repeats after each completion is due. With a set time, the task is due at that time on its due date. A snooze also ends at that time.",
+          "due_time": "The local time of day that these tasks are due. Used only when the due time is a set time."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Frequency",
           "description": "For fixed tasks: DAILY, WEEKLY, or MONTHLY."
+        },
+        "rrule": {
+          "name": "Rule",
+          "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
         },
         "anchor": {
           "name": "Anchor",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Frequency",
           "description": "DAILY, WEEKLY, or MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Rule",
+          "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
         },
         "anchor": {
           "name": "Anchor",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Origin",
           "description": "Optional free-form marker echoed back in the home_keeper_task_due_today_set event so a contributing integration can recognise and ignore the change it triggered (loop prevention), and Home Keeper never interprets it."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Move one date",
+      "description": "Move one date of a fixed task's schedule to a new date and time, and keep the other dates as they are. To undo a move, move the date back to its original time.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task. Its name works too. The panel shows the id."
+        },
+        "occurrence": {
+          "name": "Date",
+          "description": "The date and time on the schedule to move."
+        },
+        "to": {
+          "name": "New date",
+          "description": "The new date and time. It must be in the future."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_occurrence_moved event so a contributing integration can recognise and ignore the change it triggered (loop prevention), and Home Keeper never interprets it."
         }
       }
     },
@@ -757,6 +791,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Remove task photo",
+      "description": "Remove a photo from a task and delete its file. Add photos in the panel. A service call cannot send a file.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Set task photo cover",
+      "description": "Make a photo the cover of its task. The cover is the first photo. It shows on the task list, the task page and the completion dialog.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Sign task photo URL",
+      "description": "Mint a short-lived URL (no auth header needed) that gives the bytes of a task photo. Use it to show the photo in a notification.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task that has the photo. Its name works too. The panel shows the id."
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "The id of the photo. The list_tasks service gives it in the photos of the task."
+        },
+        "thumbnail": {
+          "name": "Thumbnail",
+          "description": "Sign the URL of the small copy, at most 256 pixels on its long side."
+        }
+      }
+    },
     "export_appliance_report": {
       "name": "Export appliance report",
       "description": "Return the appliance report as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
@@ -767,7 +847,11 @@
       "fields": {
         "include": {
           "name": "Include",
-          "description": "Which sections to export. Both by default."
+          "description": "Which sections to export: appliances, tasks, settings or a companion domain. All by default."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "\"data\" returns the YAML document. \"bundle\" writes a zip file with the uploaded files and the settings to the home_keeper_exports folder, and returns its path."
         }
       }
     },
@@ -779,6 +863,10 @@
           "name": "Document",
           "description": "The document to read, in the shape export_data returns. Give it as a mapping, or as the whole file in one string."
         },
+        "bundle": {
+          "name": "Bundle",
+          "description": "The name of a bundle file in the home_keeper_exports folder. Use it in place of the document."
+        },
         "dry_run": {
           "name": "Preview only",
           "description": "Check the document and report what would change, without writing anything."
@@ -786,6 +874,10 @@
         "match": {
           "name": "Match",
           "description": "How to find the record a document record refers to. \"auto\" matches on id, then external_id, then name. \"none\" creates every record."
+        },
+        "include_settings": {
+          "name": "Include settings",
+          "description": "Also import the profiles, the notifications and the options of the document."
         }
       }
     },
@@ -820,9 +912,29 @@
           "name": "Shopping list line text",
           "description": "How a buy reminder reads on the shopping list. with_verb (the default) shows the reminder name, such as \"Buy fabric softener\". product_only shows only the part name."
         },
+        "due_time_mode": {
+          "name": "Due time",
+          "description": "When a task that repeats after each completion is due. completion (the default) keeps the time of the last completion, snooze or skip. set_time makes it due at due_time on its due date."
+        },
+        "due_time": {
+          "name": "Set due time",
+          "description": "The local time of day (HH:MM) for set_time. The default is 08:00."
+        },
         "dismissed_companions": {
           "name": "Dismissed companions",
           "description": "Glue integration domains to hide from the Settings → Companions \"Suggested\" list. Dismissing only silences a suggestion. A connected pairing is always shown."
+        },
+        "hidden_panel_tabs": {
+          "name": "Hidden panel tabs",
+          "description": "The IDs of the companion tabs that the panel does not show."
+        },
+        "cost_windows": {
+          "name": "Spend windows (days)",
+          "description": "The windows for the maintenance spend totals, in days. 1 to 4 numbers from 1 to 3650. Each window gets a sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Show spend in the panel",
+          "description": "Show the spend totals above the task list in the panel."
         }
       }
     },
@@ -1011,6 +1123,12 @@
         "with_verb": "With verb",
         "product_only": "Product only"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Time of completion",
+        "set_time": "Set time"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "{profile} tasks"
+      },
+      "spend_window": {
+        "name": "Maintenance spend {days} days"
+      },
+      "spend_all": {
+        "name": "Maintenance spend all time"
+      },
+      "purchases_total": {
+        "name": "Appliance purchases total"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Task set due today",
               "task_skip_updated": "Skip updated",
               "task_skip_removed": "Skip removed",
+              "task_occurrence_moved": "Task occurrence moved",
               "task_overdue": "Task became overdue",
               "task_due_soon": "Task due soon",
               "part_low_stock": "Spare part low on stock",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Task set due today",
               "task_skip_updated": "Skip updated",
               "task_skip_removed": "Skip removed",
+              "task_occurrence_moved": "Task occurrence moved",
               "task_overdue": "Task became overdue",
               "task_due_soon": "Task due soon",
               "part_low_stock": "Spare part low on stock",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Companion suggested",
               "declarative_companion_added": "Declarative companion added",
               "declarative_companion_updated": "Declarative companion updated",
-              "declarative_companion_removed": "Declarative companion deleted"
+              "declarative_companion_removed": "Declarative companion deleted",
+              "data_exported": "Data exported",
+              "data_imported": "Data imported"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Unknown document: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Unknown photo: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Only a task with a usage sensor binding has a meter."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "File exceeds the {mb} MB limit."
+    },
+    "upload_field_too_large": {
+      "message": "A form field of the upload is larger than the {kb} KB limit."
     },
     "expected_multipart_upload": {
       "message": "Expected a multipart upload."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper cannot delete these profiles: {profiles}. These notifications use them: {notifications}. Change or delete each notification, and then save again."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper cannot export these sections: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Only an admin user can export or import Home Keeper data."
+    },
+    "import_not_text": {
+      "message": "The file is not a zip file or UTF-8 text."
+    },
+    "import_needs_document": {
+      "message": "Give a document or a bundle to import."
     }
   }
 }

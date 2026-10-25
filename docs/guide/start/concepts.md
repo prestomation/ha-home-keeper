@@ -10,7 +10,8 @@ A task has a name, notes, an optional attached device, and a recurrence:
   An example is medicine every day at 8am. A completion moves the task to the next
   occurrence on the schedule. The dates that follow do not move, and they keep the same
   time of day when the clocks change. The calendar shows the task on its next due
-  date, so a snooze or an early completion also moves the calendar event.
+  date, so a snooze or an early completion also moves the calendar event. For more,
+  read [Fixed schedules](../tasks/fixed-schedules.md).
 - One-off, shown as **Just once** in the form, runs one time. See
   [One-off tasks](../tasks/one-off-tasks.md) below.
 - Triggered is monitored and condition-driven, with no schedule. See below.
@@ -22,10 +23,10 @@ An appliance, also called an asset, is the physical thing a task is about,
 such as a fridge, furnace, or water heater. See
 [Appliances & virtual devices](../appliances/appliances.md).
 
-The panel is admin-only. This includes appliances and settings and profiles and
-notifications and the appliance report. The to-do list, the calendar, the
-device-page buttons, and the dashboard card are available to every user. See
-[the security model](../../SECURITY.md) for what a non-admin user can read.
+Any user can open the panel. A user who is not an admin can use the tasks and read the
+appliances, but only an admin can change appliances, settings, profiles and
+notifications. The to-do list, the calendar, the device-page buttons, and the dashboard
+card are available to every user. See [Household users](household-users.md).
 
 #### Active season
 

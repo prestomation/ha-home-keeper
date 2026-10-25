@@ -5,10 +5,14 @@ Home Assistant options flow and saves each change immediately. The same options 
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
 
-The tab has 7 sections:
+The tab has 10 sections:
 
 - **General** sets how long completed one-off tasks are kept. This number saves
   when you leave the box or press Enter.
+- **Due time** sets when a task that repeats after each completion is due. See
+  [Due time](#due-time).
+- **Cost tracking** sets the periods of the spend totals, and if the panel shows them.
+  See [Cost totals](./costs.md).
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](../appliances/appliances.md#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See
@@ -17,12 +21,55 @@ The tab has 7 sections:
   [Notifications](./notifications.md).
 - **Problem sensor sync** has the sync switch and the exclusions for entities and
   devices and areas and labels. The exclusions apply only when the sync is on.
+- **Snooze, skip and due today** turns each of these actions on or off. See
+  [Snooze, skip and due today](../tasks/snooze-and-skip.md).
 - **Companions** lists the integrations that work with Home Keeper.
 - **Import and export** saves your data to a file and reads a file back. It also
   holds the [appliance report](../automation/import-export.md#appliance-report).
   See [Import and export](../automation/import-export.md).
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](../../images/17-panel-settings.png)
+
+#### Due time
+
+A task that repeats after each completion is due 1 interval after its last completion.
+By default it is also due at the time of day of that completion. If you mark the
+furnace filter done at 22:42, the next one is due at 22:42 three months later.
+
+For most household tasks only the day is important. Select **At a set time** and
+set a time of day, such as 08:00. Each of these tasks is then due at that time on
+its due date:
+
+- A morning summary from an automation that sends `home_keeper.notify` with the
+  `overdue` status includes every task that is due that day.
+- The overdue triggers and events fire at the set time, not late at night.
+- A snooze ends at the set time. A snooze of 1 hour at 22:00 ends at 08:00 the next
+  day. The custom snooze choice is a date.
+- The task page shows only the date of a task that is due at the set time.
+
+The setting has these limits:
+
+- It changes only tasks that repeat after each completion. A fixed schedule keeps the
+  time of its start date. A one-off task keeps its due time.
+- A task that is due now stays due now. This is a new task that was never done, or a
+  task that you moved with **Due today**.
+- When you save the setting, each task that is due later moves to the set time on the
+  same date. A task that was due later today can become overdue at once.
+- When you select **At the time of completion** again, the tasks keep the set time
+  until their next completion.
+
+You can also set it with the `home_keeper.set_options` service:
+
+```yaml
+action: home_keeper.set_options
+data:
+  due_time_mode: set_time
+  due_time: "08:00"
+```
+
+![The Due time settings card, with At a set time selected and the time 08:00](../../images/45f-panel-settings-duetime.png)
+
+![The Due time settings section on a phone](../../images/45g-panel-mobile-settings-duetime.png)
 
 #### Companions
 
@@ -43,6 +90,36 @@ To add a companion or a [glue integration](../../GLUE_INTEGRATIONS.md) to the ca
 [open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](../../images/21-panel-companions.png)
+
+##### Panel tabs
+
+Home Keeper supports companion integrations that add a tab to the panel. An example is
+Home Keeper Library, which tracks books. The tab shows between **Appliances** and
+**Settings**. Only an admin sees the tab.
+
+![The panel with a companion tab named Library open, between Appliances and Settings](../../images/79-panel-companion-tab.png)
+
+The row of a companion that owns a tab has a **Panel tab** chip and a **Show** switch with
+the name of the tab. To hide the tab:
+
+1. Open **Settings → Companions** in the panel.
+2. Find the row of the companion that owns the tab.
+3. Turn off the **Show** switch of the tab.
+
+The tab is removed from the tab bar. The companion and its data stay. To show the tab
+again, turn the switch on. The `hidden_panel_tabs` field of `home_keeper.set_options` holds
+the IDs of the hidden tabs.
+
+![A companion row with the Connected and Panel tab chips and the Show Library tab switch](../../images/79b-panel-companion-tab-settings.png)
+
+On a phone, the tab is in the bottom tab bar.
+
+![The companion tab on a phone, with Library in the bottom tab bar](../../images/79c-panel-mobile-companion-tab.png)
+
+A tab can show a message in place of its content:
+
+- A message to update Home Keeper, if the tab needs a newer version.
+- An error with a **Retry** button, if the tab does not load.
 
 ##### Declarative companions (config-driven, no separate integration)
 
@@ -141,16 +218,37 @@ A declarative companion you switch off keeps the tasks it made. The tasks stop u
 you switch it on again. Their history stays with them. Delete the declarative
 companion to remove its tasks.
 
-A disabled entity also keeps its task. The task stops while the entity is
-disabled. This also applies when you disable the device or the integration of the
-entity. When you enable the entity again, the same task starts again with its
-history.
+When you disable an entity, Home Keeper stops its task. This also applies when you
+disable the device or the integration of the entity. What happens next depends on the
+history of the task:
+
+- **Task with history.** The task stays. When you enable the entity again, the same
+  task starts again with its history.
+- **Task with no history.** Home Keeper removes the task. When you enable the entity
+  again, Home Keeper adds a new task.
+
+A task has history if it has 1 or more of these:
+
+- A completion or a skip.
+- A photo.
+- A note that you wrote.
 
 Each declarative companion gets a row under **Settings → Companions** with an Edit
 button and a Delete button. On a phone the row stacks, and the buttons take a line of
 their own.
 
-![A declarative companion row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+The row shows where the companion comes from:
+
+- **Logo.** The logo of the integration that the companion watches. If Home Assistant
+  has no logo for it, the row shows a generic logo or the preset icon.
+- **Badge.** A small icon on the logo shows what the companion looks for, such as
+  supplies that run low or parts near the end of their life. Hold the pointer on it to
+  see its name.
+- **Line under the name.** The integration, the entity platform, the limit and the
+  number of tasks. The limit shows only while the trigger is the same as in the preset.
+- **Custom chip.** You made the companion yourself, and no preset made it.
+
+![Declarative companion rows in Settings, Companions. Each row has the integration logo with a badge, the name and its chips, and a line with the integration, platform, limit and task count. Edit and Delete are at the right](../../images/21h-panel-declarative-row-actions.png)
 
 ![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
 
@@ -238,7 +336,7 @@ These integrations have presets:
 
 | Type of device | Integrations |
 |---|---|
-| Air and ventilation | Actron Air, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
+| Air and ventilation | Actron Air, CoolMasterNet, Compit, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Fjäråskupan, Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), homee, IKEA Trådfri (STARKVIND), IntelliClima, Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Sensibo, Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
 | Cars | Bosch eBike (Smart System & eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda) |
 | Garden and pool | Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision |
 | Heating and water | AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare |

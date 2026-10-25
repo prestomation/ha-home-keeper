@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
           "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)",
           "shopping_list_entity": "Einkaufsliste",
-          "shopping_line_style": "Text auf der Einkaufsliste"
+          "shopping_line_style": "Text auf der Einkaufsliste",
+          "due_time_mode": "Fälligkeitszeit",
+          "due_time": "Feste Fälligkeitszeit"
         },
         "data_description": {
           "sync_problem_sensors": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
           "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
           "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten.",
-          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“."
+          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“.",
+          "due_time_mode": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. Mit einer festen Uhrzeit ist die Aufgabe an ihrem Fälligkeitstag zu dieser Uhrzeit fällig. Auch ein Aufschub endet zu dieser Uhrzeit.",
+          "due_time": "Die lokale Uhrzeit, zu der diese Aufgaben fällig sind. Gilt nur bei einer festen Uhrzeit."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Häufigkeit",
           "description": "Für fixed-Aufgaben: DAILY, WEEKLY oder MONTHLY."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
         },
         "anchor": {
           "name": "Anker",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Häufigkeit",
           "description": "DAILY, WEEKLY oder MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
         },
         "anchor": {
           "name": "Anker",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Ursprung",
           "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_due_today_set zurückgegeben wird, damit eine beitragende Integration das von ihr ausgelöste Vorziehen erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Einen Termin verschieben",
+      "description": "Verschiebt einen Termin im Zeitplan einer festen Aufgabe auf ein neues Datum und eine neue Uhrzeit. Die anderen Termine ändern sich nicht. Um eine Verschiebung rückgängig zu machen, verschiebe den Termin auf seine ursprüngliche Zeit.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "occurrence": {
+          "name": "Termin",
+          "description": "Datum und Uhrzeit im Zeitplan, die verschoben werden sollen."
+        },
+        "to": {
+          "name": "Neuer Termin",
+          "description": "Das neue Datum und die neue Uhrzeit. Sie müssen in der Zukunft liegen."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_occurrence_moved zurückgegeben wird, damit eine beitragende Integration die von ihr ausgelöste Änderung erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nie aus."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Einschließen",
-          "description": "Welche Abschnitte exportiert werden. Standardmäßig beide."
+          "description": "Welche Abschnitte exportiert werden: Geräte, Aufgaben, Einstellungen oder die Domain einer Begleit-Integration. Standardmäßig alle."
+        },
+        "kind": {
+          "name": "Art",
+          "description": "\"data\" gibt das YAML-Dokument zurück. \"bundle\" schreibt eine ZIP-Datei mit den hochgeladenen Dateien und den Einstellungen in den Ordner home_keeper_exports und gibt ihren Pfad zurück."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Dokument",
           "description": "Das zu lesende Dokument, in der Form, die export_data zurückgibt. Übergeben Sie es als Zuordnung oder als ganze Datei in einer Zeichenkette."
         },
+        "bundle": {
+          "name": "Paket",
+          "description": "Der Name einer Paketdatei im Ordner home_keeper_exports. Anstelle des Dokuments verwenden."
+        },
         "dry_run": {
           "name": "Nur Vorschau",
           "description": "Prüft das Dokument und meldet, was sich ändern würde, ohne etwas zu schreiben."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Zuordnung",
           "description": "Wie der gemeinte Datensatz gefunden wird. \"auto\" sucht über die ID, dann external_id, dann den Namen. \"none\" legt jeden Datensatz neu an."
+        },
+        "include_settings": {
+          "name": "Einstellungen einschließen",
+          "description": "Importiert auch die Profile, die Benachrichtigungen und die Optionen des Dokuments."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Text auf der Einkaufsliste",
           "description": "So erscheint eine Kauferinnerung auf der Einkaufsliste. with_verb (Standard) zeigt den Namen der Erinnerung, zum Beispiel „Weichspüler kaufen“. product_only zeigt nur den Namen des Teils."
         },
+        "due_time_mode": {
+          "name": "Fälligkeitszeit",
+          "description": "Wann eine Aufgabe fällig ist, die nach jeder Erledigung wiederkehrt. completion (Standard) behält die Uhrzeit der letzten Erledigung, des Aufschubs oder des Überspringens. set_time macht sie an ihrem Fälligkeitstag um due_time fällig."
+        },
+        "due_time": {
+          "name": "Feste Fälligkeitszeit",
+          "description": "Die lokale Uhrzeit (HH:MM) für set_time. Standard ist 08:00."
+        },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",
           "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
+        },
+        "hidden_panel_tabs": {
+          "name": "Ausgeblendete Panel-Tabs",
+          "description": "Die IDs der Companion-Tabs, die das Panel nicht anzeigt."
+        },
+        "cost_windows": {
+          "name": "Kostenzeiträume (Tage)",
+          "description": "Die Zeiträume für die Wartungskosten in Tagen. 1 bis 4 Zahlen von 1 bis 3650. Jeder Zeitraum erhält einen Sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Kosten im Panel anzeigen",
+          "description": "Zeigt die Kostensummen über der Aufgabenliste im Panel."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Aufgabenfoto entfernen",
+      "description": "Entfernt ein Foto von einer Aufgabe und löscht seine Datei. Fotos werden im Panel hinzugefügt, da ein Dienstaufruf keine Datei übertragen kann.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Titelfoto der Aufgabe festlegen",
+      "description": "Macht ein Foto zum Titelfoto seiner Aufgabe. Das Titelfoto ist das erste Foto. Es erscheint in der Aufgabenliste, auf der Aufgabenseite und im Erledigt-Dialog.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Aufgabenfoto-URL signieren",
+      "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die die Bytes eines Aufgabenfotos abrufbar sind, z. B. um das Foto in einer Benachrichtigung zu zeigen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        },
+        "thumbnail": {
+          "name": "Vorschaubild",
+          "description": "Signiert die URL der kleinen Kopie mit höchstens 256 Pixeln an der langen Seite."
+        }
+      }
+    },
     "update_skip": {
       "name": "Überspringen aktualisieren",
       "description": "Ändert die Angaben eines protokollierten Überspringens, bestimmt durch seinen Zeitstempel. Das Datum bleibt erhalten und der Zeitplan unberührt.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Mit Verb",
         "product_only": "Nur Produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Zeit der Erledigung",
+        "set_time": "Feste Uhrzeit"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Aufgaben in {profile}"
+      },
+      "spend_window": {
+        "name": "Wartungskosten {days} Tage"
+      },
+      "spend_all": {
+        "name": "Wartungskosten gesamt"
+      },
+      "purchases_total": {
+        "name": "Gerätekäufe gesamt"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Aufgabe auf heute gesetzt",
               "task_skip_updated": "Überspringen aktualisiert",
               "task_skip_removed": "Überspringen entfernt",
+              "task_occurrence_moved": "Aufgabentermin verschoben",
               "task_overdue": "Aufgabe wurde überfällig",
               "task_due_soon": "Aufgabe bald fällig",
               "part_low_stock": "Ersatzteil mit niedrigem Bestand",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Aufgabe auf heute gesetzt",
               "task_skip_updated": "Überspringen aktualisiert",
               "task_skip_removed": "Überspringen entfernt",
+              "task_occurrence_moved": "Aufgabentermin verschoben",
               "task_overdue": "Aufgabe wurde überfällig",
               "task_due_soon": "Aufgabe bald fällig",
               "part_low_stock": "Ersatzteil mit niedrigem Bestand",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Companion vorgeschlagen",
               "declarative_companion_added": "Deklarativer Companion hinzugefügt",
               "declarative_companion_updated": "Deklarativer Companion aktualisiert",
-              "declarative_companion_removed": "Deklarativer Companion gelöscht"
+              "declarative_companion_removed": "Deklarativer Companion gelöscht",
+              "data_exported": "Daten exportiert",
+              "data_imported": "Daten importiert"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Unbekanntes Dokument: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Unbekanntes Foto: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Nur eine Aufgabe mit einer Verbrauchssensor-Bindung hat einen Zähler."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Datei überschreitet das Limit von {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Ein Formularfeld des Uploads überschreitet das Limit von {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "Es wurde ein Multipart-Upload erwartet."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kann diese Profile nicht löschen: {profiles}. Diese Benachrichtigungen verwenden sie: {notifications}. Ändere oder lösche jede Benachrichtigung und speichere dann erneut."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kann diese Abschnitte nicht exportieren: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Nur ein Administrator kann Home-Keeper-Daten exportieren oder importieren."
+    },
+    "import_not_text": {
+      "message": "Die Datei ist weder eine ZIP-Datei noch UTF-8-Text."
+    },
+    "import_needs_document": {
+      "message": "Gib ein Dokument oder ein Paket zum Importieren an."
     }
   }
 }

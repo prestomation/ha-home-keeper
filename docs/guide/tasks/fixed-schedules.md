@@ -1,0 +1,103 @@
+# Fixed schedules
+
+Use a fixed schedule for a task on calendar dates, such as "every Tuesday and Friday
+at 07:00" or "the first Tuesday of each month". Completing the task moves it to the
+next date of the schedule, while the later dates stay on their own days and keep
+their time of day when the clocks change.
+
+Select **Repeats on a fixed schedule** on the task form to make one.
+
+## Days of the week
+
+Set **Frequency** to weekly, then press the days the task is due. The start date
+gives the time of day and the first week. To set up trash that goes out on Tuesday
+and Friday mornings:
+
+1. Set **Every** to 1 and **Frequency** to weekly.
+2. Press **Tue** and **Fri**.
+3. Set **First date** to the next Tuesday at 07:00. Its time is the time of day of
+   every date.
+
+The box under the form shows the rule in words and the next 4 dates, so you can check
+the schedule before you save it.
+
+<img src="docs/images/71-panel-fixed-weekdays.png" alt="The task form with Frequency set to weekly and the Tuesday and Friday buttons pressed" width="820">
+
+Daily and yearly schedules need no days.
+
+## Days of the month
+
+Set **Frequency** to monthly, then pick **Monthly on**. The choices come from the
+first date, as in a calendar app. For a first date on Tuesday, October 13:
+
+- **day 13**: the 13th of each month.
+- **the second Tuesday**: the second Tuesday of each month.
+- **the last Tuesday**: shows when the first date is in the last 7 days of its month.
+
+For "the first Tuesday of each month", set **First date** to a first Tuesday, then
+pick **the first Tuesday**. A task on the 29th, 30th or 31st uses the last day of a
+shorter month, then goes back to its own day.
+
+<img src="docs/images/75-panel-fixed-monthly.png" alt="The task form with Frequency set to monthly and Monthly on set to a weekday of the month" width="820">
+
+## Custom rules
+
+Open **Custom rule (RRULE)** to see the schedule as iCalendar text. The controls
+above it and the text are the same schedule: press a day and the text changes, type
+a rule and the controls change.
+
+Type a rule for a schedule the controls cannot show. Some examples:
+
+| Schedule | Rule |
+| --- | --- |
+| Every 2 weeks on Monday and Thursday | `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH` |
+| The 1st and the 15th of each month | `FREQ=MONTHLY;BYMONTHDAY=1,15` |
+| Each year on the first Sunday of April | `FREQ=YEARLY;BYMONTH=4;BYDAY=1SU` |
+
+When the controls cannot show the rule, the form grays them out and shows **Reset to
+simple**, which goes back to a plain rule with the same frequency. The task then
+shows "Custom schedule".
+
+<img src="docs/images/72-panel-fixed-custom-rule.png" alt="The task form with a custom rule for the 1st and the 15th of each month, the day buttons grayed out and a Reset to simple button" width="820">
+
+A rule cannot end, so `COUNT` and `UNTIL` are not allowed. A rule that is due more
+than once a day is not allowed either.
+
+A task on the first Tuesday stays on the first Tuesday. When you snooze it or do it
+early, the date after it is still the first Tuesday of the next month.
+
+## Move one date
+
+Sometimes one date of the schedule changes, such as when the city moves a trash day
+for a holiday. You can move that one date and keep the other dates as they are.
+
+On the dashboard card or in the panel, select **Snooze**. For a fixed schedule, the
+dialog lists the dates:
+
+- The first date is the due date, marked **Next date**. Keep it selected to snooze
+  the task as usual.
+- Below it, under **A later date**, are the next dates of the schedule. Select one,
+  set its new date and time, and select **Move**. Only that date moves.
+
+A moved date shows **Moved** and the date it came from. To put it back, select it:
+the new date starts on its own date, so **Move** undoes the move. The Home Assistant
+calendar shows each moved date on its new day.
+
+<img src="docs/images/74-panel-snooze-later-date.png" alt="The Snooze dialog of a trash task, with the due date first and a later date selected to move" width="820">
+
+A move goes away by itself after its date has passed. **Snooze** in **Settings**
+also turns off the moves in the dialog.
+
+An automation moves a date with the `home_keeper.move_occurrence` service. Give the
+date on the schedule as `occurrence` and the new date as `to`. To undo a move, set
+`to` to the same time as `occurrence`.
+
+```yaml
+action: home_keeper.move_occurrence
+data:
+  task_id: Take trash out
+  occurrence: "2026-10-09T07:00:00"
+  to: "2026-10-10T07:00:00"
+```
+
+Each move fires a `home_keeper_task_occurrence_moved` event.

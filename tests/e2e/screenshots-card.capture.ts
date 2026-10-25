@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openCardDashboard } from './tests/helpers';
 import { TASK } from './fixture-ids';
@@ -10,6 +12,24 @@ import { PHONE } from './viewports';
  * Kept out of the *.spec.ts suite so it doesn't run as a normal test.
  */
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
+
+/** Pick the seeded filter housing photo in a card's New task form (#399), and wait
+ *  for its preview. */
+async function pickFormPhoto(form: Locator): Promise<void> {
+  const dir = path.resolve(__dirname, '../integration/ha_config/home_keeper/task_photos', TASK.fridgeFilter);
+  const file = fs.readdirSync(dir).find((f) => f.endsWith('__filter-housing.jpg'));
+  if (!file) throw new Error('no seeded filter housing photo');
+  await form.locator('.hk-form-photos input[type="file"]').setInputFiles({
+    name: 'filter-housing.jpg',
+    mimeType: 'image/jpeg',
+    buffer: fs.readFileSync(path.join(dir, file)),
+  });
+  const preview = form.locator('.hk-form-photos .hk-staged img');
+  await expect(preview).toHaveCount(1);
+  await expect
+    .poll(() => preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+}
 
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
@@ -103,6 +123,40 @@ async function shotDialog(page: Page, dialog: Locator, path: string): Promise<vo
   });
 }
 
+/**
+ * Put 2 of the top rows in a room, or take them out again (`room` false). The anode
+ * rod has a device, so its row still shows only the device chip. The door battery has
+ * no device, so its row shows the area chip. The card shows 1 chip for the place.
+ * An area change leaves the to-do item as it was, so the card gets no update. Open the
+ * dashboard again to read the tasks again.
+ */
+async function placeTopRows(page: Page, room: boolean): Promise<void> {
+  await page.evaluate(
+    async ({ IDS, room }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      let areaId = '';
+      if (room) {
+        // HA's onboarding seeds a handful of areas; reuse one (see step 42 of
+        // screenshots.capture.ts).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const areas: any[] = await hass.callWS({ type: 'config/area_registry/list' });
+        const area =
+          areas.find((a) => a.area_id === 'living_room') ??
+          areas[0] ??
+          (await hass.callWS({ type: 'config/area_registry/create', name: 'Living Room' }));
+        areaId = area.area_id;
+      }
+      for (const id of [IDS.TASK.anode, IDS.TASK.doorBattery]) {
+        await hass.callService('home_keeper', 'update_task', { task_id: id, area_id: areaId });
+      }
+    },
+    { IDS: { TASK }, room },
+  );
+  await openCardDashboard(page);
+}
+
 test('capture Home Keeper card screenshots', async ({ page }) => {
   // Tall viewport so even the second (grouped) card sits above the fold and its
   // clip stays inside the rendered image. The default card carries the water-filter
@@ -163,6 +217,23 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(grouped.locator('details.hk-group').first()).toBeVisible();
   await shotCard(page, grouped, `${OUT}/card-grouped.png`);
 
+  // 3a. The same grouped card with the groups started closed (#435). Compare with
+  // card-grouped.png: the headers and the counts stay, the rows wait behind a tap.
+  type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+  const groupedConfig = {
+    type: 'custom:home-keeper-card',
+    title: 'By status',
+    group_by: 'status',
+    show_notes: true,
+  };
+  await grouped.evaluate(
+    (el: ConfigurableCard, c) => el.setConfig({ ...c, collapsed: true }),
+    groupedConfig,
+  );
+  await expect(grouped.locator('details.hk-group[open]')).toHaveCount(0);
+  await shotCard(page, grouped, `${OUT}/card-groups-collapsed.png`);
+  await grouped.evaluate((el: ConfigurableCard, c) => el.setConfig(c), groupedConfig);
+
   // 3b. The label-filtered "Dog" card — only tasks carrying the `dog` label, with
   // each row's label chips shown (exercises labels filter + show_labels).
   const labelCard = page.locator('home-keeper-card').nth(2);
@@ -178,6 +249,21 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await shotCard(page, card, `${OUT}/card-add-form.png`);
 
+  // 4b. Photos in the card's New task form (#399), and the cover on a task row. The
+  // shot takes no Create, so the store does not change.
+  await pickFormPhoto(form);
+  const coverImg = card.locator(`.hk-row a.hk-cover img`).first();
+  await expect(coverImg).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await expect
+    .poll(() => coverImg.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+  await page.waitForTimeout(400);
+  await shotCard(page, card, `${OUT}/card-add-form-photos.png`);
+  await form.locator('ha-button', { hasText: 'Cancel' }).click();
+  await expect(card.locator('.hk-form')).toHaveCount(0);
+  await card.locator('#hk-add').click();
+  await expect(form.locator('ha-form').first()).toBeVisible();
+
   // 5. The card's default title fallback (#150 follow-up: was hardcoded English,
   // S.defaultTitle, now t('tab.tasks')) plus the no-tasks-match-filter message.
   // Reconfigure the label-filtered card in place (setConfig, no dashboard YAML
@@ -185,7 +271,6 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // empty-state string this PR fixed, t('card.empty') for zero tasks total rather
   // than zero filter matches, needs every seeded task gone — not reachable here
   // without destructively wiping the shared e2e fixture data.)
-  type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
   await labelCard.evaluate((el: ConfigurableCard) =>
     el.setConfig({ type: 'custom:home-keeper-card', labels: ['no-such-label-xyz'] }),
   );
@@ -260,6 +345,33 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
 
+  // 6b. The device chip on a row is a link (#446). The water-filter row's chip names
+  // its appliance device and opens the appliance page, the same as the panel's chip.
+  // A row shows 1 chip for the place: the anode rod is in a room and has a device, so
+  // it shows only the device chip. The door battery has no device and shows its area.
+  await placeTopRows(page, true);
+  const roomChip = card.locator('.hk-row ha-assist-chip[label="Living Room"]');
+  await expect(roomChip).toHaveCount(1);
+  await expect(card.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, card, `${OUT}/card-device-chip.png`, 3);
+  await placeTopRows(page, false);
+  await expect(roomChip).toHaveCount(0);
+
+  // 7a. Rows with the schedule and the completion count turned off (#432). Compare
+  // with card-note-chip.png, which shows the same 3 rows with the defaults.
+  const compact = {
+    type: 'custom:home-keeper-card',
+    title: 'Home maintenance',
+    show_schedule: false,
+    show_history_count: false,
+  };
+  await card.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);
+  await expect(card.locator('.hk-meta')).toHaveCount(0);
+  await shotCardTop(page, card, `${OUT}/card-row-compact.png`, 3);
+  await card.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+
   // 7b. The phone layout is a different arrangement, not a narrower one — the row
   // wraps its chips and actions — so the note chip and its dialog get their own
   // shot at phone width too. Last in the file, since it changes the viewport.
@@ -276,6 +388,38 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await mobileNoteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
 
+  // 7b1. The device chip link and the area chip from step 6b at phone width (#446).
+  await placeTopRows(page, true);
+  const mobileRoomChip = mobileCard.locator('.hk-row ha-assist-chip[label="Living Room"]');
+  await expect(mobileRoomChip).toHaveCount(1);
+  await expect(mobileCard.locator('.hk-device-chip').first()).toBeVisible();
+  await shotCardTop(page, mobileCard, `${OUT}/card-device-chip-mobile.png`, 3);
+  await placeTopRows(page, false);
+  await expect(mobileRoomChip).toHaveCount(0);
+
+  // 7b2. The compact rows from step 7a at phone width (#432).
+  await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);
+  await expect(mobileCard.locator('.hk-meta')).toHaveCount(0);
+  await shotCardTop(page, mobileCard, `${OUT}/card-row-compact-mobile.png`, 3);
+  await mobileCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+
+  // 7b3. The groups started closed (#435), at phone width: the same options as step 3a.
+  const mobileGrouped = {
+    type: 'custom:home-keeper-card',
+    title: 'By status',
+    group_by: 'status',
+    collapsed: true,
+  };
+  await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), mobileGrouped);
+  await expect(mobileCard.locator('details.hk-group').first()).toBeVisible();
+  await expect(mobileCard.locator('details.hk-group[open]')).toHaveCount(0);
+  await shotCard(page, mobileCard, `${OUT}/card-groups-collapsed-mobile.png`);
+  await mobileCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+
   // 7c. The create form at phone width. Create is disabled while an add runs, so a
   // second tap cannot make a duplicate task (F05-3); the form itself looks the same.
   await mobileCard.locator('#hk-add').click();
@@ -286,6 +430,10 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // The form is taller than a phone screen, so shoot the form element itself: the
   // element shot scrolls and stitches, and it ends at Create and Cancel.
   await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form.png` });
+  // 7d. The same form with a photo picked (#399).
+  await pickFormPhoto(mobileForm);
+  await page.waitForTimeout(400);
+  await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form-photos.png` });
 
   // The deleted-profile warning on a phone (F05-4).
   await mobileForm.locator('ha-button', { hasText: 'Cancel' }).click();

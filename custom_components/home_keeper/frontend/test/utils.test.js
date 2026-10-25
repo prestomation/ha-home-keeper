@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
+  addedCompletion,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
   DEFAULT_TASK_TAB,
@@ -67,6 +68,7 @@ import {
   tasksForAsset,
   toast,
   usageIntervalStats,
+  isCompletedOneOff,
 } from '../src/utils.ts';
 import { setLanguage } from '../src/i18n';
 
@@ -1310,7 +1312,9 @@ describe('parseRoute', () => {
     expect(parseRoute('/tasks/a%20b').detail.id).toBe('a b');
   });
   it('defaults empty/unknown paths to the tasks list', () => {
-    for (const p of ['', '/', undefined, null, '/bogus']) {
+    // A first segment that cannot be a companion tab id also falls back. One that can
+    // is kept as a tab location (see panel-tab-routes.test.js).
+    for (const p of ['', '/', undefined, null, '/Bogus', '/b', '/1bogus', '/bo_gus']) {
       expect(parseRoute(p)).toEqual({ view: 'tasks', detail: null });
     }
   });
@@ -2385,5 +2389,48 @@ describe('hkStateSignal (X12-7)', () => {
     ).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
     // A missing or bad stamp counts the entity but moves no stamp.
     expect(hkStateSignal({ 'todo.home_keeper_tasks': {} })).toBe('1:0');
+  });
+});
+
+describe('isCompletedOneOff', () => {
+  const done = { recurrence_type: 'one-off', next_due: null, last_completed: '2026-06-16T14:30:00Z' };
+
+  it('holds for a one-off with a completion and no next due date', () => {
+    expect(isCompletedOneOff(done)).toBe(true);
+  });
+
+  it('fails when any of the 3 conditions fails', () => {
+    expect(isCompletedOneOff({ ...done, recurrence_type: 'floating' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, next_due: '2026-11-01T10:00:00Z' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: null })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: '' })).toBe(false);
+  });
+});
+
+describe('addedCompletion', () => {
+  const c = (ts) => ({ ts });
+  it('is the one new completion', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a'), c('2026-01-02T00:00:00Z')] })).toEqual(
+      c('2026-01-02T00:00:00Z'),
+    );
+  });
+  it('is the new last_completed when more than one is new', () => {
+    const done = {
+      completions: [c('2026-01-03T00:00:00Z'), c('2026-01-02T00:00:00Z')],
+      last_completed: '2026-01-02T00:00:00Z',
+    };
+    expect(addedCompletion(new Set(), done)).toEqual(c('2026-01-02T00:00:00Z'));
+  });
+  it('is the newest new one when last_completed is not new', () => {
+    const done = {
+      completions: [c('old'), c('2026-01-02T00:00:00Z'), c('2026-01-03T00:00:00Z'), c('2026-01-01T00:00:00Z')],
+      last_completed: 'old',
+    };
+    expect(addedCompletion(new Set(['old']), done)).toEqual(c('2026-01-03T00:00:00Z'));
+  });
+  it('is undefined when nothing is new', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a')] })).toBeUndefined();
+    expect(addedCompletion(new Set(), null)).toBeUndefined();
+    expect(addedCompletion(new Set(), {})).toBeUndefined();
   });
 });

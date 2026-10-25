@@ -14,7 +14,9 @@ lists all of them with their fields.
   by `hours` without completing the task. `skip_task` advances the task to its
   next occurrence without completing it. `set_due_today` moves the due date to
   today instead, independent of the periodic schedule, also without completing
-  it. `set_task_consumable` links a task to an
+  it. `move_occurrence` moves one date of a fixed schedule and leaves the other
+  dates alone. See [Fixed schedules](../tasks/fixed-schedules.md#move-one-date).
+  `set_task_consumable` links a task to an
   appliance consumable, so a completion draws down its stock. Omit the ids to
   unlink. `list_tasks` returns a response. `delete_orphaned_tasks` deletes each task
   whose managing integration is not loaded. It is admin-only.

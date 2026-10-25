@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Etiquetas excluidas",
           "one_off_retention_days": "Conservación de tareas únicas (días)",
           "shopping_list_entity": "Lista de la compra",
-          "shopping_line_style": "Texto en la lista de la compra"
+          "shopping_line_style": "Texto en la lista de la compra",
+          "due_time_mode": "Hora de vencimiento",
+          "due_time": "Hora de vencimiento fija"
         },
         "data_description": {
           "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
           "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
           "shopping_list_entity": "Sincroniza los recordatorios de compra automática con esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo.",
-          "shopping_line_style": "Cómo aparece un recordatorio de compra en la lista de la compra. «Solo producto» muestra el nombre del repuesto sin el verbo, por ejemplo «Suavizante» en lugar de «Comprar suavizante»."
+          "shopping_line_style": "Cómo aparece un recordatorio de compra en la lista de la compra. «Solo producto» muestra el nombre del repuesto sin el verbo, por ejemplo «Suavizante» en lugar de «Comprar suavizante».",
+          "due_time_mode": "Cuándo vence una tarea que se repite tras cada realización. Con una hora fija, la tarea vence a esa hora en su fecha de vencimiento. Un aplazamiento también termina a esa hora.",
+          "due_time": "La hora local a la que vencen estas tareas. Solo se usa con una hora fija."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Frecuencia",
           "description": "Para tareas fixed: DAILY, WEEKLY o MONTHLY."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Para tareas fijas: una RRULE de iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Úsala en lugar de freq e interval. No se permiten COUNT ni UNTIL."
         },
         "anchor": {
           "name": "Ancla",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Frecuencia",
           "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Para tareas fijas: una RRULE de iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Úsala en lugar de freq e interval. No se permiten COUNT ni UNTIL."
         },
         "anchor": {
           "name": "Ancla",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Origen",
           "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_due_today_set, para que una integración contribuyente pueda reconocer e ignorar el adelanto que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Mover una fecha",
+      "description": "Mueve una fecha del calendario de una tarea fija a una nueva fecha y hora. Las demás fechas no cambian. Para deshacer un cambio, mueve la fecha de vuelta a su hora original.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea. También sirve su nombre. El panel muestra el id."
+        },
+        "occurrence": {
+          "name": "Fecha",
+          "description": "La fecha y hora del calendario que se va a mover."
+        },
+        "to": {
+          "name": "Nueva fecha",
+          "description": "La nueva fecha y hora. Debe estar en el futuro."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de formato libre que se devuelve en el evento home_keeper_task_occurrence_moved para que una integración colaboradora pueda reconocer e ignorar el cambio que provocó (prevención de bucles). Home Keeper nunca lo interpreta."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Incluir",
-          "description": "Qué secciones se exportan. Ambas de forma predeterminada."
+          "description": "Qué secciones se exportan: electrodomésticos, tareas, ajustes o el dominio de un complemento. Todas de forma predeterminada."
+        },
+        "kind": {
+          "name": "Tipo",
+          "description": "\"data\" devuelve el documento YAML. \"bundle\" escribe un archivo zip con los archivos subidos y los ajustes en la carpeta home_keeper_exports y devuelve su ruta."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Documento",
           "description": "El documento que se va a leer, con la forma que devuelve export_data. Indíquelo como asignación o como el archivo entero en una cadena."
         },
+        "bundle": {
+          "name": "Paquete",
+          "description": "El nombre de un archivo de paquete en la carpeta home_keeper_exports. Úsalo en lugar del documento."
+        },
         "dry_run": {
           "name": "Solo vista previa",
           "description": "Comprueba el documento e informa de qué cambiaría, sin escribir nada."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Coincidencia",
           "description": "Cómo se busca el registro al que se refiere. \"auto\" busca por id, luego external_id y luego el nombre. \"none\" crea cada registro."
+        },
+        "include_settings": {
+          "name": "Incluir ajustes",
+          "description": "Importa también los perfiles, las notificaciones y las opciones del documento."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Texto en la lista de la compra",
           "description": "Cómo aparece un recordatorio de compra en la lista de la compra. with_verb (predeterminado) muestra el nombre del recordatorio, por ejemplo «Comprar suavizante». product_only muestra solo el nombre del repuesto."
         },
+        "due_time_mode": {
+          "name": "Hora de vencimiento",
+          "description": "Cuándo vence una tarea que se repite tras cada realización. completion (predeterminado) mantiene la hora de la última realización, aplazamiento u omisión. set_time hace que venza a due_time en su fecha de vencimiento."
+        },
+        "due_time": {
+          "name": "Hora de vencimiento fija",
+          "description": "La hora local (HH:MM) para set_time. El valor predeterminado es 08:00."
+        },
         "dismissed_companions": {
           "name": "Companions descartados",
           "description": "Dominios de integración de enlace que ocultar de la lista «Sugerido» de Ajustes → Companions. Descartar solo silencia una sugerencia; un emparejamiento conectado siempre se muestra."
+        },
+        "hidden_panel_tabs": {
+          "name": "Pestañas ocultas del panel",
+          "description": "Los ID de las pestañas de companions que el panel no muestra."
+        },
+        "cost_windows": {
+          "name": "Periodos de gasto (días)",
+          "description": "Los periodos de los totales de gasto de mantenimiento, en días. De 1 a 4 números entre 1 y 3650. Cada periodo tiene un sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Mostrar el gasto en el panel",
+          "description": "Muestra los totales de gasto sobre la lista de tareas en el panel."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Quitar foto de tarea",
+      "description": "Quita una foto de una tarea y elimina su archivo. Añade fotos desde el panel, porque una llamada de servicio no puede llevar un archivo.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Establecer portada de la tarea",
+      "description": "Convierte una foto en la portada de su tarea. La portada es la primera foto. Aparece en la lista de tareas, en la página de la tarea y en el diálogo de completado.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Firmar URL de foto de tarea",
+      "description": "Genera una URL de corta duración (sin cabecera de autenticación) que da los bytes de una foto de tarea, por ejemplo para mostrar la foto en una notificación.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Firma la URL de la copia pequeña, de 256 píxeles como máximo en su lado largo."
+        }
+      }
+    },
     "update_skip": {
       "name": "Actualizar omisión",
       "description": "Modifica el detalle de una omisión registrada, identificada por su marca de tiempo. La omisión conserva su fecha y la planificación no se toca.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Con verbo",
         "product_only": "Solo producto"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Hora de realización",
+        "set_time": "Hora fija"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Tareas de {profile}"
+      },
+      "spend_window": {
+        "name": "Gasto de mantenimiento {days} días"
+      },
+      "spend_all": {
+        "name": "Gasto de mantenimiento total"
+      },
+      "purchases_total": {
+        "name": "Total de compras de aparatos"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Tarea marcada para hoy",
               "task_skip_updated": "Omisión actualizada",
               "task_skip_removed": "Omisión eliminada",
+              "task_occurrence_moved": "Ocurrencia de tarea movida",
               "task_overdue": "Tarea vencida",
               "task_due_soon": "Tarea próxima a vencer",
               "part_low_stock": "Pieza de repuesto con stock bajo",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Tarea marcada para hoy",
               "task_skip_updated": "Omisión actualizada",
               "task_skip_removed": "Omisión eliminada",
+              "task_occurrence_moved": "Ocurrencia de tarea movida",
               "task_overdue": "Tarea vencida",
               "task_due_soon": "Tarea próxima a vencer",
               "part_low_stock": "Pieza de repuesto con stock bajo",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Companion sugerido",
               "declarative_companion_added": "Companion declarativo añadido",
               "declarative_companion_updated": "Companion declarativo actualizado",
-              "declarative_companion_removed": "Companion declarativo eliminado"
+              "declarative_companion_removed": "Companion declarativo eliminado",
+              "data_exported": "Datos exportados",
+              "data_imported": "Datos importados"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Documento desconocido: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Foto desconocida: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Solo una tarea vinculada a un sensor de uso tiene un contador."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "El archivo supera el límite de {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Un campo del formulario de la subida supera el límite de {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "Se esperaba una carga multipart."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no puede eliminar estos perfiles: {profiles}. Estas notificaciones los usan: {notifications}. Cambia o elimina cada notificación y vuelve a guardar."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper no puede exportar estas secciones: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Solo un usuario administrador puede exportar o importar los datos de Home Keeper."
+    },
+    "import_not_text": {
+      "message": "El archivo no es un archivo zip ni texto UTF-8."
+    },
+    "import_needs_document": {
+      "message": "Indica un documento o un paquete para importar."
     }
   }
 }

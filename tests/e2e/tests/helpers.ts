@@ -375,6 +375,8 @@ export async function openSettingsSection(
   panel: Locator,
   section:
     | 'general'
+    | 'duetime'
+    | 'cost'
     | 'shopping'
     | 'problem'
     | 'profiles'

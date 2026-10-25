@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: b7cd2fb3d0e8
+source_hash: 55b08370a40f
 ---
 
 # Appliances and parts
@@ -51,7 +51,6 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
   `assets.would_create_cycle` rejects a loop. `related_device_ids` is panel-only.
 - `managed_by` and `source` are create-only. An update with `managed_by: null` hands the
   appliance back to the user. `task_history` keeps completions of deleted tasks.
-- `assets.card_projection` is the allowlist of fields a non-admin dashboard card reads.
 
 ### Virtual and existing devices
 
@@ -63,7 +62,10 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
   number stays off the device, because any signed-in user can list devices.
 - **Existing.** `devices._reconcile_existing` refreshes an `identifiers`/`connections`
   snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the device that the
-  owner made again, and `store.async_repoint_device_ids` moves the tasks.
+  owner made again.
+- **Move.** If an appliance has a new device and its old id is gone from the registry,
+  `devices._async_repoint_device_ids` moves the tasks, the related devices and the options
+  to the new id. The store fires an updated event for each task and appliance that moves.
 - **Prune.** An `asset_` device with no appliance is removed. A delete removes the virtual
   device, detaches its tasks, drops derived and buy tasks, and unlinks manual links.
 

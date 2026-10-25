@@ -1130,6 +1130,49 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     return panel.shadowRoot.querySelector('.hk-defer-menu');
   };
 
+  it('opens the completion dialog from the details entry on a one-tap task (#399)', async () => {
+    const { hass, calls } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-details').click();
+    expect(menu.hidden).toBe(true);
+    expect(panel._completion.open).toBe(true);
+    expect(panel._completion.task.id).toBe('t1');
+    // A one-tap task asks for nothing, and nothing is logged until the dialog says so.
+    expect(panel._completion.required).toEqual([]);
+    expect(calls['home_keeper/complete_task']).toBeUndefined();
+  });
+
+  it('links the dialog cover to the original when the dialog opens from the list (#399)', async () => {
+    const photo = { id: 'p1', name: 'gap.jpg', filename: 'gap.jpg', content_type: 'image/jpeg', size: 1 };
+    const { hass } = withOptions([{ ...dueTask, photos: [photo] }]);
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) =>
+      msg.type === 'home_keeper/sign_task_photo_urls'
+        ? Promise.resolve({
+            urls: msg.photos.map((ref) => ({ ...ref, url: `/p/${ref.photo_id}/${ref.thumb ? 't' : 'f'}` })),
+          })
+        : inner(msg);
+    const panel = await mountPanel(hass, '/tasks');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-details').click();
+    const link = await waitFor(() =>
+      panel.shadowRoot.querySelector('.hk-completion-cover-link[href]'),
+    );
+    expect(link?.getAttribute('href')).toBe('/p/p1/f');
+  });
+
+  it('leaves the details entry off a task that asks for details (#399)', async () => {
+    const { hass } = withOptions([{ ...dueTask, completion_detail: 'optional' }]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-details')).toBeNull();
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+  });
+
   it('offers both verbs on an ordinary due task', async () => {
     const { hass } = withOptions([dueTask]);
     const panel = await mountPanel(hass, '/tasks/t1');
@@ -1261,7 +1304,9 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
   });
 
   it('shows no caret when every switch is off', async () => {
-    const { hass } = withOptions([dueTask], {
+    // A task that asks for details: a one-tap task keeps the caret for the details
+    // entry (#399), which no deferral switch governs.
+    const { hass } = withOptions([{ ...dueTask, completion_detail: 'optional' }], {
       allow_snooze: false,
       allow_skip: false,
       allow_due_today: false,
@@ -1998,7 +2043,8 @@ describe('Task layouts', () => {
     // it later rather than bringing it forward.
     panel.shadowRoot.querySelector('.hk-tile[data-id="t1"]').click();
     await waitFor(() => sheetRows(panel).length);
-    expect(sheetRows(panel)).toEqual(['done', 'snooze', 'skip', 'open']);
+    // A one-tap task also offers the details entry, right under Done (#399).
+    expect(sheetRows(panel)).toEqual(['done', 'details', 'snooze', 'skip', 'open']);
     panel._actionSheet = { open: false, task: null };
     panel._render();
 
@@ -2204,6 +2250,35 @@ describe('Task layouts', () => {
     const undo = sent.find((m) => m.type === 'home_keeper/delete_completion');
     expect(undo).toMatchObject({ task_id: 't2', ts: '2026-09-24T07:00:00+00:00' });
     expect(sent.filter((m) => m.type === 'home_keeper/complete_task')).toHaveLength(1);
+  });
+
+  it('Undo removes your completion, not one another person made meanwhile', async () => {
+    // The sheet opened on the task before another person completed it. Done then
+    // returns 2 completions that the sheet's copy does not have.
+    const { panel, hass } = await mountAt('tiles');
+    const inner = hass.callWS.bind(hass);
+    const sent = [];
+    hass.callWS = (msg) => {
+      sent.push(msg);
+      if (msg.type === 'home_keeper/complete_task') {
+        return Promise.resolve({
+          task: {
+            ...TASKS[1],
+            completions: [{ ts: '2026-09-24T06:00:00+00:00' }, { ts: '2026-09-24T07:00:00+00:00' }],
+            last_completed: '2026-09-24T07:00:00+00:00',
+          },
+        });
+      }
+      return inner(msg);
+    };
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail));
+    await waitFor(() => tiles(panel).length === 3);
+    await panel._complete(TASKS[1]);
+    toasts[0].action.action();
+    await waitFor(() => sent.some((m) => m.type === 'home_keeper/delete_completion'));
+    const undo = sent.find((m) => m.type === 'home_keeper/delete_completion');
+    expect(undo).toMatchObject({ task_id: 't2', ts: '2026-09-24T07:00:00+00:00' });
   });
 
   it('shows no Undo when the backend returns no new completion', async () => {

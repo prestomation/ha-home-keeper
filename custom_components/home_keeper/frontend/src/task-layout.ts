@@ -15,7 +15,7 @@ import { DAY_MS, statusBucket } from './card-filter';
 import type { DeferVerbs } from './defer';
 import { t } from './i18n';
 import type { Task } from './types';
-import { isBuyTask, isMonitoredDormant, isOverdue, scanRequired } from './utils';
+import { isBuyTask, isCompletedOneOff, isMonitoredDormant, isOverdue, scanRequired } from './utils';
 
 /** The layouts the Tasks tab offers, in the order the Layout menu lists them. */
 export const TASK_LAYOUTS = ['rows', 'tiles', 'board'] as const;
@@ -125,14 +125,13 @@ export interface SheetFlags {
 export function sheetFlags(task: Task): SheetFlags {
   return {
     dormant: isMonitoredDormant(task),
-    completedOneOff:
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed,
+    completedOneOff: isCompletedOneOff(task),
     blocked: Boolean(task.managed_by?.completion_blocked) || scanRequired(task),
   };
 }
 
 /** Which action a sheet row performs. */
-export type SheetActionId = 'done' | 'snooze' | 'skip' | 'dueToday' | 'open';
+export type SheetActionId = 'done' | 'details' | 'snooze' | 'skip' | 'dueToday' | 'open';
 
 /** One row of the action sheet. */
 export interface SheetAction {
@@ -142,7 +141,8 @@ export interface SheetAction {
 }
 
 /**
- * The sheet's rows, in order: Done, Snooze, Skip, Due today, Open task.
+ * The sheet's rows, in order: Done, Done with photo or note, Snooze, Skip, Due
+ * today, Open task.
  *
  * Done leads because it is what most taps are for, and Open task is always last
  * because it is the way out of the sheet rather than an action on the task. A
@@ -155,6 +155,7 @@ export function sheetActions(verbs: DeferVerbs, flags: SheetFlags): SheetAction[
   if (!flags.dormant && !flags.completedOneOff) {
     actions.push({ id: 'done', blocked: flags.blocked });
   }
+  if (verbs.details) actions.push({ id: 'details', blocked: false });
   if (verbs.snooze) actions.push({ id: 'snooze', blocked: false });
   if (verbs.skip) actions.push({ id: 'skip', blocked: false });
   if (verbs.dueToday) actions.push({ id: 'dueToday', blocked: false });

@@ -6,6 +6,8 @@
  * imports and its class.
  */
 
+import { LATER_DATES_STYLES } from './defer-dialogs';
+
 /** How many descriptive chips a list row shows beside the task name before the rest
  *  collapse into a "+n". Two keeps the title line readable at any width; the hidden
  *  chips stay in the DOM (and on the task's detail page) rather than being dropped.
@@ -401,6 +403,14 @@ export const STYLES = `
      shrinking until "Remove orphaned tasks" wrapped onto three lines. The label
      can't be shortened (it is translated in 17 locales), so stop the shrink. */
   .hk-orphan-banner ha-button { min-width: max-content; flex: none; }
+  /* The view-only banner above the appliance list (#444). The phone rules show the
+     short text in place of the long one. */
+  .hk-view-only-banner { display: block; margin-bottom: 16px; }
+  .hk-view-only-short { display: none; }
+  /* The card that replaces the Settings sections for a user who is not an admin. */
+  .hk-admin-only { max-width: 640px; }
+  .hk-admin-only .hk-settings-intro:last-child { margin-bottom: 0; }
+  .hk-admin-only-ic { color: var(--hk-ink-2); --mdc-icon-size: 22px; }
   /* First-run orientation banner above the task list (dismissible, persisted). */
   .hk-intro {
     border: 1px solid var(--divider-color);
@@ -412,6 +422,57 @@ export const STYLES = `
   .hk-intro-body { color: var(--secondary-text-color); font-size: 0.9rem; margin: 8px 0; }
   .hk-intro ul { margin: 8px 0 12px; padding-inline-start: 20px; }
   .hk-intro li { color: var(--secondary-text-color); font-size: 0.9rem; margin: 4px 0; line-height: 1.4; }
+  /* Spend totals above the task list (#460). 1 toggle button per total; they wrap,
+     so a phone shows 2 or 3 to a row. The open total lists its records below. */
+  .hk-spend {
+    border: 1px solid var(--divider-color);
+    border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+    background: var(--card-background-color);
+  }
+  .hk-spend-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+  .hk-spend-heading { font-weight: 500; }
+  .hk-spend-help { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-spend-totals {
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .hk-spend-total {
+    font: inherit; color: inherit; text-align: start; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; min-height: 44px;
+    padding: 10px 12px; border-radius: 10px;
+    border: 2px solid var(--divider-color);
+    background: var(--card-background-color);
+  }
+  .hk-spend-total:hover { border-color: var(--primary-color); }
+  .hk-spend-total.open { border-color: var(--primary-color); background: var(--secondary-background-color); }
+  .hk-spend-total:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .hk-spend-label, .hk-spend-count { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-spend-value { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hk-spend-records { margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 8px; }
+  .hk-spend-records-head { font-weight: 500; margin-bottom: 4px; }
+  .hk-spend-list { list-style: none; margin: 0; padding: 0; }
+  .hk-spend-row {
+    display: grid; align-items: baseline; gap: 2px 12px; padding: 8px 0;
+    grid-template-columns: 7.5em minmax(0, 1fr) auto auto;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-spend-row:last-child { border-bottom: none; }
+  .hk-spend-date, .hk-spend-who { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-spend-task { color: var(--primary-color); overflow-wrap: anywhere; }
+  .hk-spend-tag {
+    grid-column: 2; font-size: 0.75rem; color: var(--secondary-text-color);
+  }
+  .hk-spend-cost { text-align: end; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .hk-spend-empty { color: var(--secondary-text-color); font-size: 0.9rem; padding: 8px 0; }
+  @media (max-width: 700px) {
+    .hk-spend-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hk-spend-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .hk-spend-date { grid-column: 1; grid-row: 2; }
+    .hk-spend-task { grid-column: 1; grid-row: 1; }
+    .hk-spend-cost { grid-column: 2; grid-row: 1; }
+    .hk-spend-who { grid-column: 2; grid-row: 2; text-align: end; }
+    .hk-spend-tag { grid-column: 1; grid-row: 3; }
+  }
   /* Preset suggestions above the task list: the same card as the intro, with one
      tile per preset. Two tiles side by side where they fit, one per row on a phone. */
   .hk-preset-nudge {
@@ -625,11 +686,10 @@ export const STYLES = `
   }
   .hk-companion-ic { color: var(--state-icon-color, var(--primary-text-color)); flex: 0 0 auto; }
   .hk-companion-body { flex: 1 1 auto; min-width: 0; }
-  /* The name, its status chip and the preset badge take as many lines as they need.
-     An ha-assist-chip does not become smaller than its label, and a preset badge reads
-     "Preset: " plus the preset id, so on one line it left the box and covered the
-     buttons beside it. This holds at every width: the Settings column is also narrow
-     below 1000px. */
+  /* The name and its status chips take as many lines as they need. An ha-assist-chip
+     does not become smaller than its label, so on one line a long name pushed it out of
+     the box and over the buttons beside it. This holds at every width: the Settings
+     column is also narrow below 1000px. */
   .hk-companion-name {
     display: flex; align-items: center; gap: 8px; font-weight: 500;
     flex-wrap: wrap; row-gap: 4px; overflow-wrap: anywhere;
@@ -637,7 +697,10 @@ export const STYLES = `
   .hk-companion-desc {
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
-  .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  .hk-companion-actions {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto;
+    flex-wrap: wrap;
+  }
   /* Import and export section (Settings tab). */
   .hk-transfer-group {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -653,7 +716,11 @@ export const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
   }
-  #hk-transfer ha-textarea { display: block; width: 100%; margin-top: 12px; }
+  .hk-transfer-label { display: block; margin-top: 12px; font-size: 0.9rem; }
+  #hk-transfer #transfer-text { display: block; margin-top: 4px; }
+  .hk-transfer-helper {
+    margin-top: 4px; color: var(--secondary-text-color); font-size: 0.8rem;
+  }
   .hk-transfer-report { margin-top: 12px; }
   .hk-transfer-counts, .hk-transfer-problems {
     margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.5;
@@ -666,6 +733,67 @@ export const STYLES = `
   .hk-transfer-problems code {
     font-size: 0.85em; background: var(--secondary-background-color);
     padding: 1px 4px; border-radius: 4px;
+  }
+  /* The export list: 1 checkbox row per source. The whole row is the label, so the
+     tap target is the row, not the box. */
+  .hk-transfer-checks { display: grid; gap: 2px; }
+  .hk-transfer-check {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px;
+    align-items: start; padding: 6px 0; min-height: var(--hk-tap); box-sizing: border-box;
+    cursor: pointer;
+  }
+  .hk-transfer-check input {
+    width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--hk-accent);
+  }
+  .hk-transfer-check input:disabled { cursor: default; }
+  .hk-transfer-check-text { display: grid; gap: 2px; min-width: 0; }
+  .hk-transfer-check-name { font-weight: 500; overflow-wrap: anywhere; }
+  .hk-transfer-check-sub { color: var(--hk-ink-2); font-size: 0.85rem; line-height: 1.4; }
+  .hk-transfer-tag {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px;
+    background: var(--hk-line-soft); color: var(--hk-ink-2);
+    font-size: 0.75rem; font-weight: 400; vertical-align: 1px;
+  }
+  .hk-transfer-exported { margin-top: 8px; color: var(--hk-ink-2); font-size: 0.9rem; }
+  /* The preview table. It scrolls inside its box, so a long part name cannot push
+     the page sideways. */
+  .hk-transfer-table { overflow-x: auto; margin-top: 8px; }
+  table.hk-transfer-counts {
+    width: 100%; border-collapse: collapse; font-size: 0.9rem;
+    font-variant-numeric: tabular-nums; margin: 0; padding: 0;
+  }
+  .hk-transfer-counts th, .hk-transfer-counts td {
+    text-align: left; padding: 6px; border-bottom: 1px solid var(--hk-line);
+    vertical-align: top;
+  }
+  .hk-transfer-counts thead th { color: var(--hk-ink-2); font-weight: 500; font-size: 0.8rem; }
+  .hk-transfer-counts tbody th { font-weight: 400; }
+  .hk-transfer-counts .hk-num { text-align: right; white-space: nowrap; width: 1%; }
+  .hk-transfer-notes .hk-transfer-problems { padding-left: 16px; margin: 0; }
+  .hk-transfer-fact { color: var(--hk-ink-2); }
+  .hk-transfer-optin {
+    display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .hk-transfer-optin input {
+    flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--hk-accent);
+  }
+  /* Text with a long form and a short form. Below 700px the short text shows. */
+  .hk-narrow-text { display: none; }
+  @media (max-width: 700px) {
+    .hk-wide-text { display: none; }
+    .hk-narrow-text { display: inline; }
+    /* A phone has no room for a Notes column: each row becomes a grid, and its
+       notes take a line of their own below the counts. */
+    .hk-transfer-counts thead th.hk-transfer-notes { display: none; }
+    .hk-transfer-counts tr {
+      display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px;
+      border-bottom: 1px solid var(--hk-line);
+    }
+    .hk-transfer-counts th, .hk-transfer-counts td { display: block; border-bottom: 0; }
+    .hk-transfer-counts .hk-num { width: auto; }
+    .hk-transfer-counts td.hk-transfer-notes { grid-column: 1 / -1; padding-top: 0; }
+    .hk-transfer-counts td.hk-transfer-notes:empty { display: none; }
   }
   /* Individual collapsible profile/notification items. */
   .hk-item-card {
@@ -781,6 +909,24 @@ export const STYLES = `
     --md-assist-chip-outline-color: transparent;
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
+  }
+  /* A companion that owns a panel tab: the accent pair, like the other info chips. */
+  ha-assist-chip.hk-comp-tab {
+    --ha-assist-chip-container-color: var(--hk-accent-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-accent-soft);
+    --md-assist-chip-label-text-color: var(--hk-accent-ink);
+    --ha-assist-chip-label-text-color: var(--hk-accent-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
+  /* The switch sits next to its label, not at the far edge of the text column. */
+  .hk-comp-tab-switch { margin-top: 4px; width: fit-content; max-width: 100%; }
+  /* A companion tab: its element fills the content column. */
+  .hk-tab-host { display: block; min-height: 120px; }
+  .hk-tab-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hk-bottomtab-label {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hk-section {
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
@@ -1050,6 +1196,37 @@ export const STYLES = `
   .hk-form-summary-detail {
     display: block; margin-top: 6px;
     color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
+  }
+  /* The next few dates of a fixed schedule, under the rule headline. */
+  .hk-form-summary-next {
+    display: block; margin-top: 6px;
+    color: var(--secondary-text-color); font-size: 0.85rem; line-height: 1.4;
+  }
+  .hk-form-summary-next.hk-form-summary-error { color: var(--hk-danger-ink); }
+  /* The day buttons of a weekly fixed schedule. Round and a full tap target each, so
+     7 fit a phone row: 7 × 44 px plus the gaps is under the narrowest 320 px form. */
+  .hk-rule-days { margin: 4px 0 12px; }
+  .hk-rule-days-label {
+    font-size: 0.8rem; color: var(--hk-ink-2); margin-bottom: 6px;
+  }
+  .hk-rule-day-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hk-day-btn {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 600;
+    min-width: var(--hk-tap); height: var(--hk-tap); padding: 0 6px;
+    border-radius: var(--hk-r-pill); border: 1px solid var(--hk-line);
+    background: var(--hk-surface); color: var(--hk-ink); cursor: pointer;
+  }
+  .hk-day-btn:hover { background: var(--hk-page); }
+  .hk-day-btn[aria-pressed="true"] {
+    background: var(--hk-accent); border-color: var(--hk-accent); color: var(--hk-accent-fg);
+  }
+  .hk-day-btn:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
+  /* A rule the buttons cannot show: they stay visible, so the user sees what they
+     would edit, but read as unavailable. */
+  .hk-day-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+  .hk-rule-note {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+    margin-top: 8px; font-size: 0.85rem; color: var(--hk-ink-2);
   }
   .hk-loading { display: flex; justify-content: center; padding: 48px 0; }
   .ver { color: var(--secondary-text-color); font-size: 0.7rem; text-align: right; margin-top: 16px; }
@@ -1623,6 +1800,7 @@ export const STYLES = `
     font-size: 13px; color: var(--secondary-text-color);
     padding: 4px 2px 0; line-height: 1.4;
   }
+  ${LATER_DATES_STYLES}
   .hk-detail-row {
     display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
     border-bottom: 1px solid var(--divider-color);
@@ -1831,6 +2009,72 @@ export const STYLES = `
      reason the task cannot be completed here. */
   .hk-sheet-row.hk-sheet-blocked { color: var(--hk-ink-2); }
   .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
+  /* Task photos (#399). Every image is the 256px thumbnail; a tap opens the original.
+     An image waiting for its signed URL shows the tinted box, not a broken icon. */
+  .hk-head-with-cover { display: flex; gap: 16px; align-items: flex-start; }
+  .hk-head-main { flex: 1; min-width: 0; }
+  .hk-task-cover {
+    flex: none; display: block; width: 168px; aspect-ratio: 4 / 3; border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  .hk-task-cover-img, .hk-photo-img, .hk-row-cover, .hk-completion-cover-img {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .hk-photos-card .hk-detail-inner { padding-block: 12px; }
+  .hk-photo-hint { margin: 0 0 10px; color: var(--secondary-text-color); }
+  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  /* A tile is the photo with its buttons in a row under it, not on it: on a 96px
+     photo, two buttons on top hide most of what the photo is for. */
+  .hk-photo { position: relative; width: 96px; display: flex; flex-direction: column; gap: 2px; }
+  .hk-photo-link {
+    display: block; width: 96px; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  .hk-photo-badge {
+    position: absolute; left: 4px; top: 4px; padding: 1px 6px; border-radius: 4px;
+    font-size: 0.7rem; color: #fff; background: rgba(0, 0, 0, 0.6); pointer-events: none;
+  }
+  .hk-photo-actions { display: flex; justify-content: center; gap: 4px; }
+  .hk-photo-actions ha-icon-button {
+    --mdc-icon-button-size: 36px; --ha-icon-button-size: 36px; --mdc-icon-size: 20px;
+    color: var(--secondary-text-color);
+  }
+  .hk-photo-add {
+    width: 96px; height: 96px; align-self: flex-start; display: grid; place-content: center; justify-items: center;
+    gap: 4px; border: 1.5px dashed var(--divider-color); border-radius: 8px; background: none;
+    color: var(--secondary-text-color); font: inherit; font-size: 0.8rem; cursor: pointer;
+  }
+  .hk-photo-add:hover, .hk-photo-add:focus-visible { border-color: var(--primary-color); color: var(--primary-color); }
+  .hk-photo-add[disabled] { cursor: default; opacity: 0.6; }
+  .hk-photo-upload-status:not(:empty) { margin-top: 10px; }
+  .hk-staged-help { margin: 10px 0 0; }
+  .hk-form-photos-head .hk-section-count { margin-inline-start: 6px; }
+  .hk-grow-with-cover { display: flex; gap: 10px; align-items: center; }
+  .hk-grow-text { flex: 1; min-width: 0; }
+  .hk-row-cover {
+    flex: none; width: 40px; height: 40px; border-radius: 6px;
+    border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  /* The cover and the last completion photo, side by side, each with its label. */
+  .hk-head-photos { flex: none; display: flex; gap: 8px; }
+  .hk-head-photo { position: relative; }
+  .hk-head-photos .hk-task-cover { width: 140px; }
+  /* A done one-off row shows its completion photo, marked with a check. */
+  .hk-row-after { position: relative; flex: none; display: block; width: 40px; height: 40px; }
+  .hk-row-after .hk-row-cover { width: 40px; height: 40px; box-sizing: border-box; border-radius: 6px; }
+  .hk-row-after-check {
+    position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px;
+    display: grid; place-content: center; border-radius: 50%;
+    background: var(--success-color, #2e7d32); color: #fff;
+    border: 2px solid var(--card-background-color); --mdc-icon-size: 12px;
+  }
+  .hk-completion-cover {
+    display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 8px;
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink); font-size: 0.85rem;
+  }
+  .hk-completion-cover-link {
+    flex: none; display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden;
+  }
 
   /* ── Phone-width tab bar ───────────────────────────────────────────────────
      Hidden by default and swapped in for ha-tab-group below the phone breakpoint,
@@ -1914,6 +2158,24 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* 7 day buttons share the row evenly, so none wraps onto a line of its own. */
+    .hk-rule-day-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .hk-day-btn { min-width: 0; padding: 0; }
+    .hk-view-only-long { display: none; }
+    .hk-view-only-short { display: inline; }
+    /* A phone has no room beside the name, so the task cover goes full width above
+       it (#399), and the photo strip scrolls sideways rather than wrapping. */
+    .hk-head-with-cover { flex-direction: column; gap: 12px; }
+    .hk-task-cover { width: 100%; aspect-ratio: 16 / 9; }
+    .hk-head-photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .hk-head-photo:only-child { grid-column: 1 / -1; }
+    .hk-head-photos .hk-task-cover { width: 100%; aspect-ratio: 4 / 3; }
+    .hk-photo-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+    .hk-photo, .hk-photo-add { flex: none; }
+    /* Two full-size tap targets (2 x --hk-tap) still fit across a 96px tile. */
+    .hk-photo-actions ha-icon-button {
+      --mdc-icon-button-size: var(--hk-tap); --ha-icon-button-size: var(--hk-tap);
+    }
     /* The tree toggle keeps its 24px look, but a transparent ring takes the tap
        target to --hk-tap (X11-4). */
     .hk-chevron::before {
@@ -2196,10 +2458,29 @@ export const STYLES = `
   .hk-companion-group-decl { margin-top: 20px; }
   .hk-decl-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
   .hk-decl-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }
-  .hk-decl-matches { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
-  ha-assist-chip.hk-decl-preset-chip {
-    --ha-assist-chip-container-color: var(--secondary-background-color);
-    --ha-assist-chip-filled-container-color: var(--secondary-background-color);
+  /* A declarative companion row: the integration logo on a soft tile, with a badge in
+     the corner for the kind of duty, and 1 meta line under the name. */
+  .hk-decl-tile {
+    position: relative; width: 40px; height: 40px; border-radius: var(--hk-r-row);
+    background: var(--hk-page); display: grid; place-items: center;
+  }
+  .hk-decl-logo { width: 28px; height: 28px; object-fit: contain; --mdc-icon-size: 24px; }
+  .hk-decl-shape {
+    position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px;
+    border-radius: var(--hk-r-pill); background: var(--hk-surface);
+    border: 1px solid var(--hk-line); display: grid; place-items: center;
+    color: var(--hk-ink-2); --mdc-icon-size: 13px;
+  }
+  .hk-decl-meta {
+    display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 2px; margin-top: 2px;
+    color: var(--hk-ink-2); font-size: 0.85rem;
+  }
+  /* The dot goes after a part, so a line that wraps ends with it and never starts with it. */
+  .hk-decl-meta > span:not(:last-child)::after { content: "·"; margin-left: 6px; }
+  .hk-decl-custom {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+    border: 1px dashed var(--hk-line); border-radius: var(--hk-r-btn);
+    color: var(--hk-ink-2); font-size: 0.8rem; font-weight: 400;
   }
   .hk-decl-preset-list { display: grid; gap: 10px; min-width: min(420px, 80vw); }
   .hk-decl-preset-card {
@@ -2265,6 +2546,61 @@ export const STYLES = `
   .hk-preset-pick-name { font-weight: 500; }
   .hk-preset-pick-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-preset-pick-count { color: var(--hk-accent-ink); font-size: 0.85rem; font-weight: 500; }
+  /* The QR label dialog (panel-labels.ts). The code keeps its own white ground in
+     a dark theme: a phone reads dark on light only. No min-width, for the reason
+     given at .hk-decl-dialog-body below. */
+  .hk-label-body { display: flex; flex-direction: column; gap: 14px; width: 100%; box-sizing: border-box; }
+  .hk-label-body [hidden] { display: none !important; }
+  .hk-label-preview {
+    display: flex; align-items: center; gap: 14px; padding: 12px;
+    border: 1px dashed var(--hk-line); border-radius: var(--hk-r-card);
+  }
+  .hk-label-qr { flex: none; width: 120px; height: 120px; }
+  .hk-label-qr svg { display: block; width: 100%; height: 100%; }
+  .hk-label-text {
+    min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--hk-ink-2);
+    overflow-wrap: anywhere;
+  }
+  .hk-label-text .hk-label-l1 { color: var(--hk-ink); font-weight: 500; font-size: 1.05rem; }
+  /* The preview follows the layout of the print (qr-labels.labelFitMode). */
+  .hk-label-preview[data-fit="below"] { flex-direction: column; text-align: center; }
+  .hk-label-preview[data-fit="code"] { justify-content: center; }
+  .hk-label-preview[data-fit="code"] .hk-label-text { display: none; }
+  .hk-label-field { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; color: var(--hk-ink-2); }
+  .hk-label-field input, .hk-label-field select {
+    min-height: var(--hk-tap); box-sizing: border-box; padding: 0 10px; font: inherit; font-size: 16px;
+    color: var(--hk-ink); background: var(--hk-surface);
+    border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+  }
+  .hk-label-link-row { display: flex; gap: 8px; align-items: center; }
+  .hk-label-link { flex: 1 1 auto; min-width: 0; font-family: var(--code-font-family, monospace); }
+  .hk-label-list-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .hk-label-list-head .hk-eyebrow { flex: 1 1 auto; }
+  .hk-label-list {
+    display: grid; gap: 6px; max-height: 260px; overflow-y: auto; padding: 2px;
+  }
+  .hk-label-pick, .hk-label-check {
+    display: flex; align-items: center; gap: 12px; min-height: var(--hk-tap); cursor: pointer;
+    box-sizing: border-box;
+  }
+  .hk-label-pick {
+    padding: 0 12px; border: 1px solid var(--hk-line); border-radius: var(--hk-r-row);
+  }
+  .hk-label-pick:has(input:checked) { border-color: var(--hk-accent-line); background: var(--hk-accent-soft); }
+  .hk-label-pick input, .hk-label-check input {
+    flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--hk-accent);
+  }
+  .hk-label-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .hk-label-lines {
+    border: 0; margin: 0; padding: 0; display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px;
+  }
+  .hk-label-lines legend { padding: 0; margin-bottom: 4px; }
+  .hk-label-hint { margin: 0; font-size: 0.85rem; color: var(--hk-ink-2); }
+  /* A phone dialog is too narrow for the sheet name beside the skip field. */
+  @media (max-width: 700px) {
+    .hk-label-grid { grid-template-columns: minmax(0, 1fr); }
+  }
   /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
      so a body wider than that dialog's content box does not widen the dialog — it
      overruns it. A 560px floor put every row 28px past the right padding edge, and

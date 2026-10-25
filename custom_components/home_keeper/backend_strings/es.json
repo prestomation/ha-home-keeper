@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Límite: por debajo de {limit}.",
   "declarative_preset.limit.above": "{description} Límite: por encima de {limit}.",
   "declarative_preset.limit.life": "{description} Límite: menos de {limit} restantes, o menos del 10 %.",
+  "declarative_preset.limit_short.below": "por debajo de {limit}",
+  "declarative_preset.limit_short.above": "por encima de {limit}",
+  "declarative_preset.limit_short.life": "menos de {limit} restantes",
   "declarative_preset.unit.hours": "{n} horas",
   "declarative_preset.unit.days": "{n} días",
   "declarative_task.completion_prompt": "Abierta por el companion declarativo «{name}». Home Keeper completa esta tarea automáticamente cuando la condición desaparece, así que no se puede completar a mano."

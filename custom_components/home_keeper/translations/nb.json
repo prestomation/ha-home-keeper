@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Ekskluderte etiketter",
           "one_off_retention_days": "Oppbevaring av engangsoppgaver (dager)",
           "shopping_list_entity": "Handleliste",
-          "shopping_line_style": "Tekst på handlelisten"
+          "shopping_line_style": "Tekst på handlelisten",
+          "due_time_mode": "Forfallstid",
+          "due_time": "Fast forfallstid"
         },
         "data_description": {
           "sync_problem_sensors": "En synkronisert oppgave lukkes først når kildeintegrasjonen løser problemet, ikke når du trykker Ferdig. Påminnelser for den tilbyr Utsett i stedet for Ferdig.",
           "one_off_retention_days": "Slett automatisk en fullført engangsoppgave så mange dager etter at den er fullført. 0 beholder fullførte engangsoppgaver for alltid.",
           "shopping_list_entity": "Synkroniserer automatiske kjøpspåminnelser til denne oppgavelisten. Å krysse av et element der fullfører påminnelsen i Home Keeper og fyller på reservedelen. La feltet stå tomt for å slå av synkroniseringen.",
-          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner»."
+          "shopping_line_style": "Slik vises en kjøpspåminnelse på handlelisten. «Bare produkt» viser navnet på delen uten verb, for eksempel «Tøymykner» i stedet for «Kjøp tøymykner».",
+          "due_time_mode": "Når en oppgave som gjentas etter hver utførelse, forfaller. Med et fast klokkeslett forfaller oppgaven på det klokkeslettet på forfallsdatoen. En utsettelse slutter også på det klokkeslettet.",
+          "due_time": "Det lokale klokkeslettet da disse oppgavene forfaller. Brukes bare med et fast klokkeslett."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Frekvens",
           "description": "For fixed-oppgaver: DAILY, WEEKLY eller MONTHLY."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "For faste oppgaver: en iCalendar-RRULE, for eksempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Bruk den i stedet for freq og interval. COUNT og UNTIL er ikke tillatt."
         },
         "anchor": {
           "name": "Anker",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Frekvens",
           "description": "DAILY, WEEKLY eller MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "For faste oppgaver: en iCalendar-RRULE, for eksempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Bruk den i stedet for freq og interval. COUNT og UNTIL er ikke tillatt."
         },
         "anchor": {
           "name": "Anker",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Opprinnelse",
           "description": "Valgfri fritekstmarkør som gjengis i home_keeper_task_due_today_set-hendelsen, slik at en bidragende integrasjon kan gjenkjenne og ignorere fremskyndingen den utløste (løkkeforebygging). Home Keeper tolker den ikke."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Flytt én dato",
+      "description": "Flytter én dato i en fast oppgaves tidsplan til en ny dato og et nytt klokkeslett. De andre datoene endres ikke. Flytt datoen tilbake til det opprinnelige klokkeslettet for å angre flyttingen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "Oppgavens ID. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "occurrence": {
+          "name": "Dato",
+          "description": "Datoen og klokkeslettet i tidsplanen som skal flyttes."
+        },
+        "to": {
+          "name": "Ny dato",
+          "description": "Den nye datoen og klokkeslettet. Må være i fremtiden."
+        },
+        "origin": {
+          "name": "Opprinnelse",
+          "description": "Valgfri fritekstmarkør som returneres i hendelsen home_keeper_task_occurrence_moved, slik at en bidragende integrasjon kan gjenkjenne og ignorere endringen den selv utløste (forebygging av løkker). Home Keeper tolker den aldri."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Ta med",
-          "description": "Hvilke deler som eksporteres. Begge som standard."
+          "description": "Hvilke deler som eksporteres: apparater, oppgaver, innstillinger eller domenet til en følgesvenn. Alle som standard."
+        },
+        "kind": {
+          "name": "Slag",
+          "description": "\"data\" returnerer YAML-dokumentet. \"bundle\" skriver en zip-fil med de opplastede filene og innstillingene til mappen home_keeper_exports og returnerer banen."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Dokument",
           "description": "Dokumentet som leses, i formen export_data gir. Oppgi det som et oppslag eller som hele fila i én streng."
         },
+        "bundle": {
+          "name": "Pakke",
+          "description": "Navnet på en pakkefil i mappen home_keeper_exports. Bruk den i stedet for dokumentet."
+        },
         "dry_run": {
           "name": "Bare forhåndsvisning",
           "description": "Sjekker dokumentet og melder hva som ville endret seg, uten å skrive noe."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Treff",
           "description": "Hvordan oppføringen det gjelder finnes. \"auto\" søker på id, så external_id, så navnet. \"none\" oppretter hver oppføring."
+        },
+        "include_settings": {
+          "name": "Ta med innstillinger",
+          "description": "Importer også profilene, varslene og alternativene i dokumentet."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Tekst på handlelisten",
           "description": "Slik vises en kjøpspåminnelse på handlelisten. with_verb (standard) viser navnet på påminnelsen, for eksempel «Kjøp tøymykner». product_only viser bare navnet på delen."
         },
+        "due_time_mode": {
+          "name": "Forfallstid",
+          "description": "Når en oppgave som gjentas etter hver utførelse, forfaller. completion (standard) beholder klokkeslettet for siste utførelse, utsettelse eller hopp. set_time gjør at den forfaller kl. due_time på forfallsdatoen."
+        },
+        "due_time": {
+          "name": "Fast forfallstid",
+          "description": "Det lokale klokkeslettet (TT:MM) for set_time. Standard er 08:00."
+        },
         "dismissed_companions": {
           "name": "Avviste følgesvenner",
           "description": "Glue-integrasjonsdomener som skal skjules fra \"Foreslått\"-listen under Innstillinger → Følgesvenner. Avvisning demper kun et forslag; en tilkoblet paring vises alltid."
+        },
+        "hidden_panel_tabs": {
+          "name": "Skjulte panelfaner",
+          "description": "ID-ene til følgefanene som panelet ikke viser."
+        },
+        "cost_windows": {
+          "name": "Kostnadsperioder (dager)",
+          "description": "Periodene for vedlikeholdskostnadene i dager. 1 til 4 tall fra 1 til 3650. Hver periode får en sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Vis kostnader i panelet",
+          "description": "Viser kostnadssummene over oppgavelisten i panelet."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Fjern oppgavebilde",
+      "description": "Fjerner et bilde fra en oppgave og sletter filen. Legg til bilder i panelet, fordi et tjenestekall ikke kan bære en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Angi forsidebilde for oppgaven",
+      "description": "Gjør et bilde til forsidebildet for oppgaven. Forsidebildet er det første bildet. Det vises i oppgavelisten, på oppgavesiden og i fullført-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer URL til oppgavebilde",
+      "description": "Lager en kortvarig URL (ingen auth-header trengs) som gir bytene til et oppgavebilde, for eksempel for å vise bildet i et varsel.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        },
+        "thumbnail": {
+          "name": "Miniatyrbilde",
+          "description": "Signer URL-en til den lille kopien, maks 256 piksler på den lange siden."
+        }
+      }
+    },
     "update_skip": {
       "name": "Oppdater overhopping",
       "description": "Endrer detaljene i en loggført overhopping, identifisert ved tidsstempelet. Overhoppingen beholder datoen sin, og planen røres ikke.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Med verb",
         "product_only": "Bare produkt"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tidspunkt for utførelse",
+        "set_time": "Fast klokkeslett"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Oppgaver i {profile}"
+      },
+      "spend_window": {
+        "name": "Vedlikeholdskostnad {days} dager"
+      },
+      "spend_all": {
+        "name": "Vedlikeholdskostnad totalt"
+      },
+      "purchases_total": {
+        "name": "Kjøp av apparater totalt"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Oppgave satt til i dag",
               "task_skip_updated": "Overhopping oppdatert",
               "task_skip_removed": "Overhopping fjernet",
+              "task_occurrence_moved": "Oppgaveforekomst flyttet",
               "task_overdue": "Oppgave ble forfalt",
               "task_due_soon": "Oppgave forfaller snart",
               "part_low_stock": "Lavt lager av reservedel",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Oppgave satt til i dag",
               "task_skip_updated": "Overhopping oppdatert",
               "task_skip_removed": "Overhopping fjernet",
+              "task_occurrence_moved": "Oppgaveforekomst flyttet",
               "task_overdue": "Oppgave ble forfalt",
               "task_due_soon": "Oppgave forfaller snart",
               "part_low_stock": "Lavt lager av reservedel",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Følgesvenn foreslått",
               "declarative_companion_added": "Deklarativ companion lagt til",
               "declarative_companion_updated": "Deklarativ companion oppdatert",
-              "declarative_companion_removed": "Deklarativ companion slettet"
+              "declarative_companion_removed": "Deklarativ companion slettet",
+              "data_exported": "Data eksportert",
+              "data_imported": "Data importert"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Ukjent dokument: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Ukjent bilde: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Bare en oppgave med en forbrukssensor har en måler."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Filen overskrider grensen på {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Et skjemafelt i opplastingen er større enn grensen på {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "Forventet en multipart-opplasting."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan ikke slette disse profilene: {profiles}. Disse varslene bruker dem: {notifications}. Endre eller slett hvert varsel, og lagre deretter på nytt."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan ikke eksportere disse delene: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Bare en administrator kan eksportere eller importere Home Keeper-data."
+    },
+    "import_not_text": {
+      "message": "Filen er verken en zip-fil eller UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Oppgi et dokument eller en pakke som skal importeres."
     }
   }
 }

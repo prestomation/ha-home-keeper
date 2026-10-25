@@ -56,7 +56,14 @@ import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
 import { groupPresets, presetTaskNames } from './preset-picker';
-import { changedSections, limitProgress, presetFor, resetToPreset } from './preset-summary';
+import { wireBrandImage } from './panel-chips';
+import {
+  changedSections,
+  companionOrigin,
+  limitProgress,
+  presetFor,
+  resetToPreset,
+} from './preset-summary';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
@@ -66,7 +73,14 @@ import type {
   PresetLimit,
   Task,
 } from './types';
-import { btnAttrs, escapeHTML, formatReading, setBtnWeight, toast } from './utils';
+import {
+  brandLogoUrl,
+  btnAttrs,
+  escapeHTML,
+  formatReading,
+  setBtnWeight,
+  toast,
+} from './utils';
 
 /** The trigger modes the form offers, in the order the dropdown lists them. */
 // `template` goes last on purpose. The four above it each answer one plain question,
@@ -276,26 +290,84 @@ export function declarativeSection(p: PanelHost): string {
       ${rows}`;
 }
 
-/** One companion row: name, enabled chip, preset badge, description, count, actions. */
-function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
+/** The badge on a companion row's logo for each preset shape: its icon and its name. */
+const SHAPE_BADGES: Record<string, { icon: string; key: string }> = {
+  percent_low: { icon: 'mdi:trending-down', key: 'declarative.companions.shape.percent_low' },
+  life_low: { icon: 'mdi:timer-sand-complete', key: 'declarative.companions.shape.life_low' },
+  wear_high: { icon: 'mdi:counter', key: 'declarative.companions.shape.wear_high' },
+  reading_low: { icon: 'mdi:arrow-down-bold', key: 'declarative.companions.shape.reading_low' },
+  reading_high: { icon: 'mdi:arrow-up-bold', key: 'declarative.companions.shape.reading_high' },
+  alert: { icon: 'mdi:alert-outline', key: 'declarative.companions.shape.alert' },
+};
+
+/** The icon a companion row shows when it has no integration logo. */
+const COMPANION_ICON = 'mdi:puzzle-outline';
+
+/** The name of each entity platform the companion form offers, in the panel language. */
+const PLATFORM_NAMES: Record<string, string> = {
+  binary_sensor: 'declarative.companions.platform.binary_sensor',
+  sensor: 'declarative.companions.platform.sensor',
+  update: 'declarative.companions.platform.update',
+  switch: 'declarative.companions.platform.switch',
+  number: 'declarative.companions.platform.number',
+};
+
+/** The name of entity platform *domain*. Home Assistant does not load the titles of
+ *  the entity platforms in a panel, so the panel has its own for the common ones. */
+function platformName(p: PanelHost, domain: string): string {
+  const key = PLATFORM_NAMES[domain];
+  return key ? t(key) : integrationTitle(p, domain);
+}
+
+/** Home Assistant's title for *domain* (`component.<domain>.title`), else *domain*. */
+function integrationTitle(p: PanelHost, domain: string): string {
+  return p._hass?.localize?.(`component.${domain}.title`) || domain;
+}
+
+/**
+ * One companion row: a logo tile, the name with its status chips, the description,
+ * and a meta line that says the integration, the platform, the limit and the count.
+ */
+export function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
   const count = p._tasks.filter((task) => declarativeSpecId(task) === spec.id).length;
+  const origin = companionOrigin(spec, p._declarativePresets);
   const enabled = spec.enabled
     ? `<ha-assist-chip class="hk-comp-connected" label="${escapeHTML(t('declarative.companions.enabled'))}"></ha-assist-chip>`
     : `<ha-assist-chip class="hk-comp-suggested" label="${escapeHTML(t('declarative.companions.disabled'))}"></ha-assist-chip>`;
-  const preset = spec.preset_id
-    ? `<ha-assist-chip class="hk-decl-preset-chip" label="${escapeHTML(t('declarative.companions.preset_badge') + spec.preset_id)}"></ha-assist-chip>`
+  const custom = origin.custom
+    ? `<span class="hk-decl-custom">${escapeHTML(t('declarative.companions.custom'))}</span>`
     : '';
   const desc = spec.description
     ? `<div class="hk-companion-desc">${escapeHTML(spec.description)}</div>`
     : '';
+  const fallbackIcon = escapeHTML(origin.icon || COMPANION_ICON);
+  const art = origin.domain
+    ? `<img class="hk-decl-logo" alt="" src="${escapeHTML(brandLogoUrl(origin.domain))}" data-domain="${escapeHTML(origin.domain)}" data-fallback-icon="${fallbackIcon}" />`
+    : `<ha-icon class="hk-decl-logo" icon="${fallbackIcon}"></ha-icon>`;
+  const badge = origin.shape ? SHAPE_BADGES[origin.shape] : undefined;
+  const badgeHtml = badge
+    ? `<span class="hk-decl-shape" title="${escapeHTML(t(badge.key))}"><ha-icon icon="${badge.icon}"></ha-icon></span>`
+    : '';
+  const source = origin.domain
+    ? origin.brand || integrationTitle(p, origin.domain)
+    : t('declarative.companions.any_integration');
+  const meta = [
+    source,
+    origin.platform ? platformName(p, origin.platform) : '',
+    origin.limitText ?? '',
+    t('declarative.companions.matches', { count: String(count) }),
+  ]
+    .filter(Boolean)
+    .map((part) => `<span>${escapeHTML(part)}</span>`)
+    .join('');
   const id = escapeHTML(spec.id);
   return `
       <div class="hk-companion hk-decl-row" data-spec-id="${id}">
-        <ha-icon class="hk-companion-ic" icon="mdi:puzzle-outline"></ha-icon>
+        <div class="hk-companion-ic hk-decl-tile">${art}${badgeHtml}</div>
         <div class="hk-companion-body">
-          <div class="hk-companion-name">${escapeHTML(spec.name)} ${enabled} ${preset}</div>
+          <div class="hk-companion-name">${escapeHTML(spec.name)} ${enabled} ${custom}</div>
           ${desc}
-          <div class="hk-decl-matches">${escapeHTML(t('declarative.companions.matches', { count: String(count) }))}</div>
+          <div class="hk-decl-meta">${meta}</div>
         </div>
         <div class="hk-companion-actions">
           <ha-button ${btnAttrs('secondary')} class="hk-decl-edit" data-spec-id="${id}">${escapeHTML(t('declarative.companions.edit'))}</ha-button>
@@ -304,8 +376,21 @@ function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
       </div>`;
 }
 
+/** Make each row's logo fall back to the generic brand image, then to an icon. */
+function wireDeclarativeLogos(root: HTMLElement): void {
+  root.querySelectorAll<HTMLImageElement>('img.hk-decl-logo').forEach((img) =>
+    wireBrandImage(img, () => {
+      const icon = document.createElement('ha-icon');
+      icon.className = 'hk-decl-logo';
+      icon.setAttribute('icon', img.dataset.fallbackIcon || COMPANION_ICON);
+      img.replaceWith(icon);
+    }),
+  );
+}
+
 /** Wire the subsection's Add / Add from preset / Edit / Delete buttons. */
 export function wireDeclarativeSection(p: PanelHost, root: HTMLElement): void {
+  wireDeclarativeLogos(root);
   root
     .querySelector('.hk-decl-add')
     ?.addEventListener('click', () => void openDeclarativeForm(p, null));

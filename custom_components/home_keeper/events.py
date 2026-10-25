@@ -48,6 +48,22 @@ def task_event_data(
     return data
 
 
+def occurrence_moved_extra(
+    occurrence: str, to: str, previous_to: str | None, *, origin: str | None
+) -> dict[str, Any]:
+    """The keys ``home_keeper_task_occurrence_moved`` adds to the task spine.
+
+    ``occurrence`` is the date on the rule, ``to`` where it is now (the same value
+    when the move was undone) and ``previous_to`` where it was before, or ``None``.
+    """
+    return {
+        "occurrence": occurrence,
+        "to": to,
+        "previous_to": previous_to,
+        "origin": origin,
+    }
+
+
 def completion_event_data(
     task: dict[str, Any],
     when: Any,
@@ -176,3 +192,20 @@ def declarative_companion_event_data(
     if match_count is not None:
         data["match_count"] = int(match_count)
     return data
+
+
+def data_transfer_event_data(
+    kind: str, sections: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Return the payload for `home_keeper_data_exported` / `_imported`.
+
+    *kind* is ``data`` for a YAML document and ``bundle`` for a zip file. *sections*
+    maps each section of the document to its counts. A Home Keeper section of an
+    export has the number of records. A Home Keeper section of an import has
+    ``created`` and ``updated``. A companion section has the ``counts`` that the
+    companion returned, as is. The payload holds counts only, never a record.
+    """
+    return {
+        "kind": kind,
+        "sections": {str(name): count for name, count in (sections or {}).items()},
+    }

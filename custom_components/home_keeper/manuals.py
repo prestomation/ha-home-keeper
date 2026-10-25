@@ -25,6 +25,7 @@ import logging
 import os
 import shutil
 import tempfile
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import timedelta
 from http import HTTPStatus
@@ -38,7 +39,7 @@ from homeassistant.components.http.const import KEY_HASS_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
-from . import documents
+from . import documents, task_photos
 from .assets import AssetValidationError, find_part
 from .backend_i18n import resolve_exception
 from .const import (
@@ -46,9 +47,14 @@ from .const import (
     DOMAIN,
     MANUALS_SUBDIR,
     MAX_DOCUMENT_BYTES,
+    MAX_TASK_PHOTO_BYTES,
+    MAX_TASK_PHOTOS,
     PART_FILE_URL_PREFIX,
+    TASK_PHOTO_URL_PREFIX,
+    TASK_PHOTOS_SUBDIR,
 )
 from .documents import SNIFF_BYTES, validate_upload, validate_upload_stream
+from .models import StoreClosedError, TaskValidationError
 
 # Uploads are streamed to a temp file rather than buffered: a 100 MB manual held in
 # memory (twice, counting the bytes() copy) is enough to OOM a small Home Assistant
@@ -64,6 +70,11 @@ _TMP_SUBDIR = ".incoming"
 # ``async_cleanup_temp_uploads``). Generous: a big upload over a slow link can run for
 # a long time, and deleting a live one is far worse than keeping a stray for a day.
 _TEMP_MAX_AGE_S = 24 * 60 * 60
+# The ``(task_id, photo_id)`` pairs of the photo uploads in flight. An upload writes
+# its files before it saves the record, so 2 uploads with the same id would write to
+# the same path. The set is in ``hass.data`` and not on the store, so it outlives an
+# entry reload, and the setup sweep skips the files of an upload in flight.
+_PHOTO_UPLOADS_KEY = f"{DOMAIN}_photo_uploads_in_flight"
 # How long a signed document/part-file URL stays valid for the dashboard card,
 # which pre-signs file documents and embeds the URL as a plain <a href> (so a tap
 # opens natively; the iOS app's WKWebView blocks an async window.open). The URL
@@ -86,11 +97,13 @@ __all__ = [
     "SERVICE_DOCUMENT_URL_TTL",
     "HomeKeeperDocumentView",
     "HomeKeeperPartFileView",
+    "HomeKeeperTaskPhotoView",
     "async_cleanup_temp_uploads",
     "async_delete_part_file",
     "async_register_http",
     "async_sign_document_url",
     "async_sign_part_file_url",
+    "async_sign_task_photo_url",
     "validate_upload",
     "validate_upload_stream",
 ]
@@ -262,6 +275,141 @@ async def async_delete_all_documents(hass: HomeAssistant) -> None:
     the config directory forever (and a reinstall can resurrect stale blobs).
     """
     await hass.async_add_executor_job(_rmtree, _root(hass))
+    await hass.async_add_executor_job(_rmtree, _photo_root(hass))
+
+
+# ── task photos (#399) ───────────────────────────────────────────────────────
+def _photo_root(hass: HomeAssistant) -> Path:
+    return Path(hass.config.path(TASK_PHOTOS_SUBDIR))
+
+
+def task_photo_path(task_id: str, photo_id: str) -> str:
+    """The view path for a task photo (signed by async_sign_task_photo_url)."""
+    return f"{TASK_PHOTO_URL_PREFIX}/{task_id}/{photo_id}"
+
+
+def _store_task_photo(
+    hass: HomeAssistant, task_id: str, photo_id: str, filename: str, src: Path
+) -> None:
+    """Make the thumbnail of *src*, then move *src* into place. Blocking.
+
+    The thumbnail comes first: a file that does not decode raises
+    ``photo_thumbs.ThumbnailError`` before anything is in the task's folder.
+    """
+    from .photo_thumbs import make_thumbnail  # lazy: Pillow only when needed
+
+    root = _photo_root(hass)
+    thumb = task_photos.thumb_path(root, task_id, photo_id)
+    make_thumbnail(src, thumb)
+    try:
+        _move(src, task_photos.photo_path(root, task_id, photo_id, filename))
+    except OSError:
+        _unlink(thumb)
+        raise
+
+
+async def async_delete_task_photo(
+    hass: HomeAssistant, task_id: str, photo_id: str, filename: str
+) -> None:
+    """Delete one task photo and its thumbnail (no-op if already gone)."""
+
+    def _job() -> None:
+        root = _photo_root(hass)
+        _unlink(task_photos.photo_path(root, task_id, photo_id, filename))
+        _unlink(task_photos.thumb_path(root, task_id, photo_id))
+
+    await asyncio.shield(hass.async_add_executor_job(_job))
+
+
+async def async_delete_task_photo_dirs(
+    hass: HomeAssistant, task_ids: Collection[str]
+) -> None:
+    """Remove the photo folders of tasks that are gone."""
+
+    def _job() -> None:
+        root = _photo_root(hass)
+        for task_id in task_ids:
+            _rmtree(documents.resolve_under_root(root, task_id))
+
+    if task_ids:
+        await hass.async_add_executor_job(_job)
+
+
+def _photo_uploads(hass: HomeAssistant) -> set[tuple[str, str]]:
+    """The ``(task_id, photo_id)`` pairs of the photo uploads in flight."""
+    uploads: set[tuple[str, str]] = hass.data.setdefault(_PHOTO_UPLOADS_KEY, set())
+    return uploads
+
+
+async def async_sweep_task_photos(
+    hass: HomeAssistant, tasks: dict[str, dict[str, Any]]
+) -> None:
+    """Remove the photo files that no task owns (called at setup).
+
+    *tasks* maps each live task id to its task. A folder whose task is gone goes,
+    and so does a file in a live task's folder that none of its photos names. The
+    store removes a gone task's folder after the save that drops it. This catches
+    what that cannot: a delete that a restart cut short, an upload that finished
+    just after its task was deleted, or an upload that stopped between the file
+    write and the save. The files of an upload in flight stay.
+    """
+    in_flight: dict[str, set[str]] = {}
+    for task_id, photo_id in _photo_uploads(hass):
+        in_flight.setdefault(task_id, set()).add(photo_id)
+    photos = {
+        task_id: list(task_photos.photos_of(task)) for task_id, task in tasks.items()
+    }
+    live_ids = set(tasks) | set(in_flight)
+
+    def _owned_by_upload(task_id: str, name: str) -> bool:
+        return any(
+            name.startswith((f"{photo_id}__", f"thumb_{photo_id}__"))
+            for photo_id in in_flight.get(task_id, ())
+        )
+
+    def _job() -> None:
+        root = _photo_root(hass)
+        if not root.is_dir():
+            return
+        present = [p.name for p in root.iterdir() if p.is_dir()]
+        for name in task_photos.stale_task_dirs(present, live_ids):
+            _rmtree(root / name)
+        for task_id, task_photo_list in photos.items():
+            if task_id not in present:
+                continue
+            folder = root / task_id
+            files = [p.name for p in folder.iterdir() if p.is_file()]
+            for name in task_photos.stray_photo_files(files, task_photo_list):
+                if not _owned_by_upload(task_id, name):
+                    _unlink(folder / name)
+
+    await hass.async_add_executor_job(_job)
+
+
+async def async_sign_task_photo_url(
+    hass: HomeAssistant,
+    task_id: str,
+    photo_id: str,
+    *,
+    thumb: bool = False,
+    ttl: timedelta = DOCUMENT_URL_TTL,
+) -> str | None:
+    """Mint a short-lived signed URL for a task photo, or None if not found.
+
+    See :func:`async_sign_document_url` for the signing identity and ``ttl``. With
+    *thumb* the URL serves the small copy. The query is part of the signed path,
+    so a signed thumbnail URL cannot be changed into a URL for the original.
+    """
+    coord = _coordinator(hass)
+    photo = task_photos.find_photo(
+        coord.store.get_task(task_id) if coord else None, photo_id
+    )
+    if photo is None:
+        return None
+    path = task_photo_path(task_id, photo_id)
+    if thumb:
+        path = f"{path}?size=thumb"
+    return async_sign_path(hass, path, ttl, use_content_user=True)
 
 
 def document_path(asset_id: str, document_id: str) -> str:
@@ -420,6 +568,7 @@ async def _parse_upload(
     request: web.Request,
     *,
     want_name: bool = False,
+    max_bytes: int = MAX_DOCUMENT_BYTES,
 ) -> tuple[UploadedFile, str, str] | web.Response:
     """Parse a multipart upload's single file part, streaming it to disk under a cap.
 
@@ -438,9 +587,7 @@ async def _parse_upload(
     """
     lang = hass.config.language
     too_large = view.json_message(
-        resolve_exception(
-            lang, "file_too_large", mb=MAX_DOCUMENT_BYTES // (1024 * 1024)
-        ),
+        resolve_exception(lang, "file_too_large", mb=max_bytes // (1024 * 1024)),
         HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
     )
     try:
@@ -475,7 +622,7 @@ async def _parse_upload(
             if uploaded is not None:
                 await async_discard_upload(hass, uploaded)
                 uploaded = None
-            uploaded = await _stream_to_temp(hass, part)
+            uploaded = await _stream_to_temp(hass, part, max_bytes)
             if uploaded is None:
                 return too_large
     except web.HTTPRequestEntityTooLarge:
@@ -500,7 +647,7 @@ async def _parse_upload(
 
 
 async def _stream_to_temp(
-    hass: HomeAssistant, part: BodyPartReader
+    hass: HomeAssistant, part: BodyPartReader, max_bytes: int = MAX_DOCUMENT_BYTES
 ) -> UploadedFile | None:
     """Write one body part to a temp file. Returns None if it exceeds the ceiling.
 
@@ -515,7 +662,7 @@ async def _stream_to_temp(
     try:
         while chunk := await part.read_chunk(_CHUNK_BYTES):
             size += len(chunk)
-            if size > MAX_DOCUMENT_BYTES:
+            if size > max_bytes:
                 # Stop reading immediately — there's no reason to spool gigabytes to
                 # disk just to reject them.
                 await hass.async_add_executor_job(_unlink, tmp)
@@ -875,10 +1022,189 @@ class HomeKeeperPartFileView(HomeAssistantView):
             await async_discard_upload(hass, uploaded)
 
 
+class HomeKeeperTaskPhotoView(HomeAssistantView):
+    """Upload (POST) and serve (GET) the photos of a task (#399).
+
+    A sibling of :class:`HomeKeeperDocumentView` keyed by task. GET serves the
+    original, or with ``?size=thumb`` the small JPEG made at upload.
+    """
+
+    url = TASK_PHOTO_URL_PREFIX + "/{task_id}/{photo_id}"
+    name = "api:home_keeper:task_photo"
+    requires_auth = True
+
+    async def get(
+        self, request: web.Request, task_id: str, photo_id: str
+    ) -> web.StreamResponse:
+        hass = request.app[KEY_HASS]
+        coord = _coordinator(hass)
+        # The lookup is the permission check, as for a document.
+        photo = task_photos.find_photo(
+            coord.store.get_task(task_id) if coord else None, photo_id
+        )
+        if photo is None:
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        thumb = request.query.get("size") == "thumb"
+
+        def _existing_path() -> Path | None:
+            root = _photo_root(hass)
+            try:
+                path = (
+                    task_photos.thumb_path(root, task_id, photo_id)
+                    if thumb
+                    else task_photos.photo_path(
+                        root, task_id, photo_id, photo["filename"]
+                    )
+                )
+            except AssetValidationError:
+                return None
+            return path if path.is_file() else None
+
+        path = await hass.async_add_executor_job(_existing_path)
+        if path is None:
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        name = task_photos.THUMB_FILENAME if thumb else photo["filename"]
+        disposition = documents.content_disposition(
+            name, "" if thumb else str(photo.get("name") or "")
+        )
+        return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
+
+    # Open, like ``add_task``: a photo is task data, and the reply is the task, which
+    # any user can already read. The real-user check below still stops a signed URL.
+    async def post(
+        self, request: web.Request, task_id: str, photo_id: str
+    ) -> web.Response:
+        hass = request.app[KEY_HASS]
+        request._client_max_size = MAX_TASK_PHOTO_BYTES
+        lang = hass.config.language
+        if not _uploader_is_a_real_user(request):
+            message = resolve_exception(lang, "upload_requires_user")
+            return self.json_message(message, HTTPStatus.UNAUTHORIZED)
+        coord = _coordinator(hass)
+        if coord is None:
+            message = resolve_exception(lang, "integration_not_loaded")
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
+        task = coord.store.get_task(task_id)
+        if task is None:
+            message = resolve_exception(lang, "task_not_found", task_id=task_id)
+            return self.json_message(message, HTTPStatus.NOT_FOUND)
+        # Refuse a full task before the body streams and the image decodes. The
+        # store checks again when it saves the record.
+        if len(task_photos.photos_of(task)) >= MAX_TASK_PHOTOS:
+            message = resolve_exception(
+                lang, "invalid_task", error=task_photos.FULL_MESSAGE
+            )
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
+
+        parsed = await _parse_upload(
+            hass, self, request, want_name=True, max_bytes=MAX_TASK_PHOTO_BYTES
+        )
+        if isinstance(parsed, web.Response):
+            return parsed
+        uploaded, filename, display_name = parsed
+        try:
+            try:
+                content_type, safe_name = task_photos.validate_photo_upload(
+                    filename, uploaded.header, uploaded.size
+                )
+            except TaskValidationError as err:
+                message = resolve_exception(lang, "invalid_task", error=str(err))
+                return self.json_message(message, HTTPStatus.BAD_REQUEST)
+            if replaced := _replaced_response(hass, self, coord, lang):
+                return replaced
+            current = coord.store.get_task(task_id) or {}
+            uploads = _photo_uploads(hass)
+            # An id that a saved photo or an upload in flight has gets a new one. No
+            # await comes between this check and the reservation below.
+            photo_id = documents.upload_document_id(
+                photo_id,
+                [
+                    *(str(p.get("id")) for p in task_photos.photos_of(current)),
+                    *(pid for tid, pid in uploads if tid == task_id),
+                ],
+            )
+            reserved = (task_id, photo_id)
+            uploads.add(reserved)
+            try:
+                return await self._store_photo(
+                    hass,
+                    coord,
+                    lang,
+                    task_id,
+                    photo_id,
+                    safe_name,
+                    content_type,
+                    filename,
+                    display_name,
+                    uploaded,
+                )
+            finally:
+                uploads.discard(reserved)
+        finally:
+            await async_discard_upload(hass, uploaded)
+
+    async def _store_photo(
+        self,
+        hass: HomeAssistant,
+        coord: Any,
+        lang: str,
+        task_id: str,
+        photo_id: str,
+        safe_name: str,
+        content_type: str,
+        filename: str,
+        display_name: str | None,
+        uploaded: UploadedFile,
+    ) -> web.Response:
+        """Move a checked upload into place and save its record."""
+        from .photo_thumbs import ThumbnailError  # lazy: Pillow
+
+        # File and thumbnail go in place BEFORE the metadata is saved (which fires
+        # ``home_keeper_task_updated``), as for a document.
+        try:
+            await hass.async_add_executor_job(
+                _store_task_photo, hass, task_id, photo_id, safe_name, uploaded.path
+            )
+        except ThumbnailError as err:
+            message = resolve_exception(lang, "invalid_task", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
+        except OSError as err:
+            _LOGGER.error("Failed to write photo for task %s: %s", task_id, err)
+            message = resolve_exception(lang, "failed_to_store_file")
+            return self.json_message(message, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        try:
+            entry = await coord.store.add_task_photo(
+                task_id,
+                {
+                    "id": photo_id,
+                    "name": display_name or documents.display_filename(filename),
+                    "filename": safe_name,
+                    "content_type": content_type,
+                    "size": uploaded.size,
+                },
+            )
+        except (KeyError, TaskValidationError, StoreClosedError) as err:
+            # The task is gone or full, or the entry unloaded: no record names the
+            # new files.
+            await async_delete_task_photo(hass, task_id, photo_id, safe_name)
+            if isinstance(err, StoreClosedError):
+                message = resolve_exception(lang, "integration_not_loaded")
+                return self.json_message(message, HTTPStatus.NOT_FOUND)
+            if isinstance(err, KeyError):
+                await async_delete_task_photo_dirs(hass, [task_id])
+                message = resolve_exception(lang, "task_not_found", task_id=task_id)
+                return self.json_message(message, HTTPStatus.NOT_FOUND)
+            message = resolve_exception(lang, "invalid_task", error=str(err))
+            return self.json_message(message, HTTPStatus.BAD_REQUEST)
+        return self.json({"task": coord.store.get_task(task_id), "photo": entry})
+
+
 def async_register_http(hass: HomeAssistant) -> None:
     """Register the document HTTP views (idempotent across entry reloads)."""
     if hass.data.get(f"{DOMAIN}_document_view"):
         return
     hass.http.register_view(HomeKeeperDocumentView())
     hass.http.register_view(HomeKeeperPartFileView())
+    hass.http.register_view(HomeKeeperTaskPhotoView())
     hass.data[f"{DOMAIN}_document_view"] = True

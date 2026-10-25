@@ -53,20 +53,23 @@ your topic before you change code or push.
 - **Read what a soft gate produced.** A `continue-on-error` step is always green.
 - **Always squash merge.**
 - **Run the tests locally before you push.** Never use CI as the test runner.
-  Pure unit tests: `pip install pytest PyYAML Babel hypothesis jsonschema`, then
-  `pytest tests/unit`. Run `mypy` too
+  Pure unit tests: `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`,
+  then `pytest tests/unit`. Run `mypy` too
   ([ci-and-ha-versions.md](.amazonq/rules/ci-and-ha-versions.md)).
 - **Ask Amazon Q for a review after each push.** Post `/q review {request}` and ask for
   critical feedback on named topics. Triage what comes back.
 - **Never comment on a GitHub issue.** Findings go in the PR. Link the issue with
-  `Fixes #N`; the release closes it. The 1 exception is the `preview-comment` skill,
-  and only with the maintainer's approval of the exact text.
+  `Fixes #N`; the release closes it. The 1 exception is the `preview-comment` skill, after
+  the maintainer approves the exact text.
 
 ### Plans and PR bodies
 
 - **A plan lives in the PR body.** It starts with the CHANGELOG bullet it will ship.
 - **List one-way doors.** The plan and the PR body name every external contract the
   change commits to: service fields, event payloads, storage, attributes, user-data keys.
+- **Add a Security section.** The plan and the PR body say if each service, websocket
+  command, HTTP method and event that the change adds or changes is admin-only or open,
+  and why ([architecture.md](.amazonq/rules/architecture.md#how-to-decide)).
 - **A subjective UI choice starts with an artifact.** Mock up the options at desktop and
   phone width, then agree on 1.
 

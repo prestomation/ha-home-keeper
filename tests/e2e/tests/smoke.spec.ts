@@ -427,7 +427,7 @@ test.describe('Home Keeper panel — one task, end to end', () => {
     // Create.
     await panel.locator('#add-btn').click();
     await expect(panel.locator('#hk-form')).toBeVisible();
-    await panel.locator('#hk-form input').first().fill(NAME);
+    await panel.locator('#hk-form ha-selector-text input').first().fill(NAME);
     await panel.locator('#f-save').click();
     await expect(panel.locator('#hk-form')).toHaveCount(0);
     const row = panel.locator('.hk-card', { hasText: NAME });
@@ -441,7 +441,7 @@ test.describe('Home Keeper panel — one task, end to end', () => {
     await expect(panel.locator('.hk-detail-title')).toContainText(NAME);
     await panel.locator('.d-edit').click();
     await expect(panel.locator('#hk-form')).toBeVisible();
-    await panel.locator('#hk-form input').first().fill(`${NAME} edited`);
+    await panel.locator('#hk-form ha-selector-text input').first().fill(`${NAME} edited`);
     await panel.locator('#f-save').click();
     await expect(panel.locator('#hk-form')).toHaveCount(0);
     await expect(panel.locator('.hk-detail-title')).toContainText(`${NAME} edited`);

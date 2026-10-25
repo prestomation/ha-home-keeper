@@ -7,7 +7,7 @@ running code cannot disagree — so nothing here describes a field. The schema i
 mechanical transform, by ``voluptuous_openapi``, of
 ``custom_components.home_keeper.TRANSFER_DOCUMENT_SCHEMA``, which is itself
 ``ADD_TASK_SCHEMA`` and ``ADD_ASSET_SCHEMA`` — the shapes the ``add_task`` and
-``add_asset`` actions validate with — extended by the eight keys a document carries
+``add_asset`` actions validate with — extended by the 9 keys a document carries
 that no action takes. Add a field to an action tomorrow and it appears here, typed,
 with no edit to this file.
 

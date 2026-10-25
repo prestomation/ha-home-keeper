@@ -46,6 +46,11 @@ _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_k
 _INIT_TREE = ast.parse((_COMPONENT / "__init__.py").read_text(encoding="utf-8"))
 _WS_TREE = ast.parse((_COMPONENT / "websocket_api.py").read_text(encoding="utf-8"))
 _MANUALS_TREE = ast.parse((_COMPONENT / "manuals.py").read_text(encoding="utf-8"))
+# The modules that define a ``HomeAssistantView``.
+_VIEW_TREES = (
+    _MANUALS_TREE,
+    ast.parse((_COMPONENT / "transfer_http.py").read_text(encoding="utf-8")),
+)
 _STORE_TREE = ast.parse((_COMPONENT / "store.py").read_text(encoding="utf-8"))
 _STRINGS = json.loads((_COMPONENT / "strings.json").read_text(encoding="utf-8"))
 
@@ -143,7 +148,8 @@ def _view_classes() -> dict[str, dict[str, Any]]:
     Also the HTTP methods and which of them carry ``@require_admin``.
     """
     found: dict[str, dict[str, Any]] = {}
-    for node in ast.walk(_MANUALS_TREE):
+    nodes = [node for tree in _VIEW_TREES for node in ast.walk(tree)]
+    for node in nodes:
         if not isinstance(node, ast.ClassDef):
             continue
         if not any("HomeAssistantView" in ast.unparse(b) for b in node.bases):
@@ -476,6 +482,11 @@ def test_payload_spines_match_the_event_builders() -> None:
             events.declarative_companion_event_data,
             ({},),
             (_FULL_DECLARATIVE_SPEC,),
+        ),
+        "data_transfer": (
+            events.data_transfer_event_data,
+            ("data",),
+            ("bundle", {"tasks": {"created": 1, "updated": 0}, "demo": {"dogs": 2}}),
         ),
     }
     assert set(probes) == set(api_surface.PAYLOAD_SPINES), (
@@ -835,6 +846,21 @@ def test_websocket_commands_name_a_real_service() -> None:
     assert not dangling, {"websocket_points_at_no_such_service": dangling}
 
 
+def test_websocket_admin_matches_service_twin() -> None:
+    """A command and its service twin are 1 operation, so they have 1 privilege.
+
+    A gate on 1 half only is no gate: ``call_service`` goes around a gated command, and
+    the websocket goes around a gated service.
+    """
+    services = {spec.name: spec.admin_only for spec in api_surface.SERVICES}
+    wrong = {
+        spec.type: {"websocket": spec.admin_only, "service": services[spec.service]}
+        for spec in api_surface.WEBSOCKET_COMMANDS
+        if spec.service in services and spec.admin_only != services[spec.service]
+    }
+    assert not wrong, {"admin_only_differs_from_service_twin": wrong}
+
+
 def test_http_views_match_source() -> None:
     """Each ``HomeAssistantView``'s url, name, auth and methods are modelled."""
     modelled = {spec.name: spec for spec in api_surface.HTTP_VIEWS}
@@ -843,7 +869,7 @@ def test_http_views_match_source() -> None:
         attrs["name"].strip("'\""): attrs for attrs in found.values() if "name" in attrs
     }
     assert set(names) == set(modelled), {
-        "in_manuals_py_only": sorted(set(names) - set(modelled)),
+        "in_view_modules_only": sorted(set(names) - set(modelled)),
         "in_model_only": sorted(set(modelled) - set(names)),
         "fix": _FIX,
     }
@@ -853,6 +879,9 @@ def test_http_views_match_source() -> None:
         # ``url`` is written as ``PREFIX + '/{...}'``; compare the literal tail,
         # since the prefix constant is what the model already interpolates.
         tail = attrs["url"].split("+", 1)[-1].strip().strip("'\"")
+        # A bare constant (``url = BUNDLE_EXPORT_URL``) is the whole url.
+        if tail.isidentifier() and hasattr(const, tail):
+            tail = getattr(const, tail)
         if not spec.url.endswith(tail):
             wrong[name] = {"source_url_tail": tail, "model_url": spec.url}
         if (attrs.get("requires_auth") == "True") != spec.requires_auth:

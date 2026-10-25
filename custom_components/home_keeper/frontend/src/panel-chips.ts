@@ -273,6 +273,11 @@ export function deviceChip(p: PanelHost, deviceId: string, assetId?: string): st
         brandLogoUrl(domain),
       )}" data-domain="${escapeHTML(domain)}" />`
     : `<ha-svg-icon slot="icon" class="hk-dev-img"></ha-svg-icon>`;
+  // The device page is admin-only, so for a view-only user a chip that goes there
+  // only shows the name. `hk-dev-plain` gets the logo fallback and no link.
+  if (!assetId && p._readOnly()) {
+    return `<ha-assist-chip class="hk-dev-plain" label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
+  }
   const asset = assetId ? ` data-asset-id="${escapeHTML(assetId)}"` : '';
   const tip = assetId ? t('chip.device.appliance.tip') : t('chip.device.tip');
   const chip = `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
@@ -295,7 +300,8 @@ export function virtualDeviceChip(p: PanelHost, asset: Asset): string {
   const deviceId = asset.device_id;
   const label = escapeHTML(t('chip.virtualDevice'));
   const tip = escapeHTML(t('chip.virtualDevice.tip'));
-  if (deviceId && p._hass?.devices?.[deviceId]) {
+  // The device page is admin-only, so a view-only user gets the static marker.
+  if (deviceId && p._hass?.devices?.[deviceId] && !p._readOnly()) {
     return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
       deviceId,
     )}" label="${label}" title="${tip}"><ha-icon slot="icon" icon="mdi:open-in-new" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
@@ -314,7 +320,7 @@ export function virtualDeviceChip(p: PanelHost, asset: Asset): string {
  * only `#hk-list` for the text filter and re-wires that element alone.
  */
 export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
-  root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
+  root.querySelectorAll<HTMLElement>('.hk-device-chip, .hk-dev-plain').forEach((chip) => {
     const id = chip.dataset.deviceId;
     const assetId = chip.dataset.assetId;
     // Stop the event from bubbling to an enclosing `.detail-open` card row — without
@@ -325,14 +331,17 @@ export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
       if (assetId) p._openDetail('asset', assetId);
       else if (id) navigateTo(`/config/devices/device/${id}`);
     };
-    chip.addEventListener('click', go);
-    chip.addEventListener('keydown', (e) => {
-      const key = (e as KeyboardEvent).key;
-      if (key === 'Enter' || key === ' ') {
-        e.preventDefault();
-        go(e);
-      }
-    });
+    // A plain chip (see `deviceChip`) is not a link. It only gets the logo fallback.
+    if (chip.classList.contains('hk-device-chip')) {
+      chip.addEventListener('click', go);
+      chip.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          go(e);
+        }
+      });
+    }
     const fallbackIcon = (): void => {
       const el = chip.querySelector('.hk-dev-img');
       if (!el) return;
@@ -343,19 +352,25 @@ export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
       el.replaceWith(svg);
     };
     const img = chip.querySelector<HTMLImageElement>('img.hk-dev-img');
-    if (img) {
-      img.addEventListener('error', () => {
-        // First failure: retry the generic `_/` brand path; then give up.
-        const domain = img.dataset.domain;
-        if (domain && !img.dataset.retried) {
-          img.dataset.retried = '1';
-          img.src = brandLogoUrl(domain, true);
-        } else {
-          fallbackIcon();
-        }
-      });
+    if (img) wireBrandImage(img, fallbackIcon);
+    else fallbackIcon();
+  });
+}
+
+/**
+ * Make a brand logo `<img>` (with `data-domain`) fail over. The first error retries
+ * the generic `_/` brand path. The second calls *fallback*, which puts an icon in
+ * its place. The device chip and the companion row both use it, so a logo that is
+ * not there fails over the same way on each.
+ */
+export function wireBrandImage(img: HTMLImageElement, fallback: () => void): void {
+  img.addEventListener('error', () => {
+    const domain = img.dataset.domain;
+    if (domain && !img.dataset.retried) {
+      img.dataset.retried = '1';
+      img.src = brandLogoUrl(domain, true);
     } else {
-      fallbackIcon();
+      fallback();
     }
   });
 }

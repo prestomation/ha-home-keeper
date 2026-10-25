@@ -23,13 +23,17 @@
           "problem_sensor_exclude_labels": "Uitgesloten labels",
           "one_off_retention_days": "Bewaartermijn eenmalige taken (dagen)",
           "shopping_list_entity": "Boodschappenlijst",
-          "shopping_line_style": "Tekst op de boodschappenlijst"
+          "shopping_line_style": "Tekst op de boodschappenlijst",
+          "due_time_mode": "Vervaltijd",
+          "due_time": "Vaste vervaltijd"
         },
         "data_description": {
           "sync_problem_sensors": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
           "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard.",
           "shopping_list_entity": "Synchroniseert automatische koopherinneringen met deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om de synchronisatie uit te schakelen.",
-          "shopping_line_style": "Hoe een koopherinnering op de boodschappenlijst staat. 'Alleen product' toont de naam van het onderdeel zonder werkwoord, bijvoorbeeld 'Wasverzachter' in plaats van 'Wasverzachter kopen'."
+          "shopping_line_style": "Hoe een koopherinnering op de boodschappenlijst staat. 'Alleen product' toont de naam van het onderdeel zonder werkwoord, bijvoorbeeld 'Wasverzachter' in plaats van 'Wasverzachter kopen'.",
+          "due_time_mode": "Wanneer een taak die na elke voltooiing terugkomt, vervalt. Met een vaste tijd vervalt de taak op die tijd op de vervaldatum. Ook uitstel eindigt op die tijd.",
+          "due_time": "De lokale tijd waarop deze taken vervallen. Alleen gebruikt bij een vaste tijd."
         }
       }
     }
@@ -62,6 +66,10 @@
         "freq": {
           "name": "Frequentie",
           "description": "Voor fixed-taken: DAILY, WEEKLY of MONTHLY."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
         },
         "anchor": {
           "name": "Anker",
@@ -164,6 +172,10 @@
         "freq": {
           "name": "Frequentie",
           "description": "DAILY, WEEKLY of MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
         },
         "anchor": {
           "name": "Anker",
@@ -404,6 +416,28 @@
         "origin": {
           "name": "Oorsprong",
           "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_due_today_set, zodat een bijdragende integratie het vervroegen dat zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Eén datum verplaatsen",
+      "description": "Verplaatst één datum uit het schema van een vaste taak naar een nieuwe datum en tijd. De andere datums veranderen niet. Verplaats de datum terug naar de oorspronkelijke tijd om de verplaatsing ongedaan te maken.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak. De naam werkt ook. Het paneel toont het id."
+        },
+        "occurrence": {
+          "name": "Datum",
+          "description": "De datum en tijd in het schema die verplaatst moet worden."
+        },
+        "to": {
+          "name": "Nieuwe datum",
+          "description": "De nieuwe datum en tijd. Moet in de toekomst liggen."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije markering die wordt teruggegeven in de gebeurtenis home_keeper_task_occurrence_moved, zodat een bijdragende integratie de wijziging die zij zelf veroorzaakte kan herkennen en negeren (lusvoorkoming). Home Keeper interpreteert deze nooit."
         }
       }
     },
@@ -679,7 +713,11 @@
       "fields": {
         "include": {
           "name": "Meenemen",
-          "description": "Welke onderdelen worden geëxporteerd. Standaard allebei."
+          "description": "Welke onderdelen worden geëxporteerd: apparaten, taken, instellingen of het domein van een metgezel. Standaard alle."
+        },
+        "kind": {
+          "name": "Soort",
+          "description": "\"data\" geeft het YAML-document terug. \"bundle\" schrijft een zip-bestand met de geüploade bestanden en de instellingen naar de map home_keeper_exports en geeft het pad terug."
         }
       }
     },
@@ -691,6 +729,10 @@
           "name": "Document",
           "description": "Het document dat wordt gelezen, in de vorm die export_data teruggeeft. Geef het als toewijzing of als het hele bestand in één tekenreeks."
         },
+        "bundle": {
+          "name": "Pakket",
+          "description": "De naam van een pakketbestand in de map home_keeper_exports. Gebruik dit in plaats van het document."
+        },
         "dry_run": {
           "name": "Alleen voorbeeld",
           "description": "Controleert het document en meldt wat er zou veranderen, zonder iets te schrijven."
@@ -698,6 +740,10 @@
         "match": {
           "name": "Koppeling",
           "description": "Hoe het bedoelde item wordt gezocht. \"auto\" zoekt op id, dan external_id, dan de naam. \"none\" maakt elk item nieuw aan."
+        },
+        "include_settings": {
+          "name": "Instellingen meenemen",
+          "description": "Importeert ook de profielen, de meldingen en de opties van het document."
         }
       }
     },
@@ -732,9 +778,29 @@
           "name": "Tekst op de boodschappenlijst",
           "description": "Hoe een koopherinnering op de boodschappenlijst staat. with_verb (standaard) toont de naam van de herinnering, bijvoorbeeld 'Wasverzachter kopen'. product_only toont alleen de naam van het onderdeel."
         },
+        "due_time_mode": {
+          "name": "Vervaltijd",
+          "description": "Wanneer een taak die na elke voltooiing terugkomt, vervalt. completion (standaard) houdt de tijd van de laatste voltooiing, het uitstel of het overslaan. set_time laat de taak vervallen op due_time op de vervaldatum."
+        },
+        "due_time": {
+          "name": "Vaste vervaltijd",
+          "description": "De lokale tijd (HH:MM) voor set_time. Standaard is 08:00."
+        },
         "dismissed_companions": {
           "name": "Genegeerde companions",
           "description": "Glue-integratiedomeinen om te verbergen uit de lijst \"Voorgesteld\" onder Instellingen → Companions. Negeren dempt alleen een suggestie; een verbonden koppeling wordt altijd getoond."
+        },
+        "hidden_panel_tabs": {
+          "name": "Verborgen paneeltabbladen",
+          "description": "De ID's van de companion-tabbladen die het paneel niet toont."
+        },
+        "cost_windows": {
+          "name": "Kostenperioden (dagen)",
+          "description": "De perioden voor de onderhoudskosten, in dagen. 1 tot 4 getallen van 1 tot 3650. Elke periode krijgt een sensor."
+        },
+        "cost_summary_panel": {
+          "name": "Kosten in het paneel tonen",
+          "description": "Toont de kostentotalen boven de takenlijst in het paneel."
         }
       }
     },
@@ -918,6 +984,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Taakfoto verwijderen",
+      "description": "Verwijdert een foto van een taak en wist het bestand. Voeg foto's toe in het paneel, omdat een serviceaanroep geen bestand kan meesturen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Omslagfoto van taak instellen",
+      "description": "Maakt een foto de omslagfoto van zijn taak. De omslagfoto is de eerste foto. Hij staat in de takenlijst, op de taakpagina en in het afrondvenster.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "URL van taakfoto ondertekenen",
+      "description": "Maakt een kortlevende URL (geen auth-header nodig) die de bytes van een taakfoto geeft, bijvoorbeeld om de foto in een melding te tonen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        },
+        "thumbnail": {
+          "name": "Miniatuur",
+          "description": "Ondertekent de URL van de kleine kopie, maximaal 256 pixels aan de lange zijde."
+        }
+      }
+    },
     "update_skip": {
       "name": "Overslaan bijwerken",
       "description": "Past de gegevens van een vastgelegd overslaan aan, aangeduid met het tijdstempel. Het overslaan houdt zijn datum en het schema blijft ongemoeid.",
@@ -1011,6 +1123,12 @@
         "with_verb": "Met werkwoord",
         "product_only": "Alleen product"
       }
+    },
+    "due_time_mode": {
+      "options": {
+        "completion": "Tijd van voltooiing",
+        "set_time": "Vaste tijd"
+      }
     }
   },
   "entity": {
@@ -1023,6 +1141,15 @@
       },
       "profile_tasks": {
         "name": "Taken van {profile}"
+      },
+      "spend_window": {
+        "name": "Onderhoudskosten {days} dagen"
+      },
+      "spend_all": {
+        "name": "Onderhoudskosten totaal"
+      },
+      "purchases_total": {
+        "name": "Totaal aankoop apparaten"
       }
     },
     "binary_sensor": {
@@ -1071,6 +1198,7 @@
               "task_due_today_set": "Taak op vandaag gezet",
               "task_skip_updated": "Overslaan bijgewerkt",
               "task_skip_removed": "Overslaan verwijderd",
+              "task_occurrence_moved": "Taakmoment verplaatst",
               "task_overdue": "Taak is verlopen",
               "task_due_soon": "Taak vervalt binnenkort",
               "part_low_stock": "Reserveonderdeel bijna op",
@@ -1102,6 +1230,7 @@
               "task_due_today_set": "Taak op vandaag gezet",
               "task_skip_updated": "Overslaan bijgewerkt",
               "task_skip_removed": "Overslaan verwijderd",
+              "task_occurrence_moved": "Taakmoment verplaatst",
               "task_overdue": "Taak is verlopen",
               "task_due_soon": "Taak vervalt binnenkort",
               "part_low_stock": "Reserveonderdeel bijna op",
@@ -1116,7 +1245,9 @@
               "companion_suggested": "Companion voorgesteld",
               "declarative_companion_added": "Declaratieve companion toegevoegd",
               "declarative_companion_updated": "Declaratieve companion bijgewerkt",
-              "declarative_companion_removed": "Declaratieve companion verwijderd"
+              "declarative_companion_removed": "Declaratieve companion verwijderd",
+              "data_exported": "Gegevens geëxporteerd",
+              "data_imported": "Gegevens geïmporteerd"
             }
           }
         }
@@ -1186,6 +1317,9 @@
     "unknown_document": {
       "message": "Onbekend document: {document_id}"
     },
+    "unknown_task_photo": {
+      "message": "Onbekende foto: {photo_id}"
+    },
     "meter_requires_usage_task": {
       "message": "Alleen een taak met een gebruikssensor heeft een meter."
     },
@@ -1203,6 +1337,9 @@
     },
     "file_too_large": {
       "message": "Bestand overschrijdt de limiet van {mb} MB."
+    },
+    "upload_field_too_large": {
+      "message": "Een formulierveld van de upload is groter dan de limiet van {kb} KB."
     },
     "expected_multipart_upload": {
       "message": "Er werd een multipart-upload verwacht."
@@ -1233,6 +1370,18 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan deze profielen niet verwijderen: {profiles}. Deze meldingen gebruiken ze: {notifications}. Wijzig of verwijder elke melding en sla daarna opnieuw op."
+    },
+    "unknown_export_section": {
+      "message": "Home Keeper kan deze onderdelen niet exporteren: {sections}."
+    },
+    "unauthorized_transfer": {
+      "message": "Alleen een beheerder kan Home Keeper-gegevens exporteren of importeren."
+    },
+    "import_not_text": {
+      "message": "Het bestand is geen zip-bestand en geen UTF-8-tekst."
+    },
+    "import_needs_document": {
+      "message": "Geef een document of een pakket om te importeren."
     }
   }
 }
