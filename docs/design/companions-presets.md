@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: 867a4b150de9
+source_hash: 63b8db8c4fee
 ---
 
 # Companions and presets
@@ -74,9 +74,9 @@ The `translation_key` is the best selector, because a rename or a language chang
 
 ### The sync pass
 
-`declarative_companion_sync.DeclarativeCompanionSync` runs a pass at setup, then on each
-entity, device and area registry event through a debouncer, so a burst costs 2 passes. A
-spec change (`SIGNAL_DECLARATIVE_SPECS_CHANGED`) gets its own pass. For each enabled spec:
+`declarative_companion_sync.DeclarativeCompanionSync` runs a pass at setup and when its
+listeners start, then on each registry event through a debouncer (a burst costs 2 passes).
+A spec change (`SIGNAL_DECLARATIVE_SPECS_CHANGED`) gets its own pass. For each enabled spec:
 
 1. `declarative_companions.expand_spec` matches the registry snapshot. The match key is
    `(spec_id, entity_registry_id)`, so a rename keeps the task. Disabled entities and Home
