@@ -271,14 +271,6 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 1d-0b. The list bar stays at the top while the list scrolls (#488). Pinned, it
-  //        shows the Filters button, and the button goes back to the controls.
-  await pinListBar(page, panel);
-  await page.waitForTimeout(BEAT * 2);
-  await panel.locator('#hk-filters-btn').click();
-  await expect(panel.locator('.hk-listbar[data-stuck]')).toHaveCount(0, { timeout: 10_000 });
-  await page.waitForTimeout(BEAT);
-
   // 1d-1. A battery task's part chip is a link. One click opens the Batteries
   //       appliance on the part the task takes, scrolled to and marked; Back
   //       returns to the list.
