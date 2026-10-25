@@ -118,14 +118,13 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
   never merges it. The coordinator makes it green, fixes review findings, and reports it.
 - A dependency PR: the coordinator may squash merge it after every check is green. Read the
   checks yourself. Do not tag, release or bump a version.
-- A PR that changes only this skill, made because the maintainer asked for the change in
-  chat: the coordinator may squash merge it after every check is green. Read the checks
+- A PR that changes only this skill: the coordinator may squash merge it after every check
+  is green, but only when the maintainer asked for the change in chat. Read the checks
   yourself. The coordinator makes the skill change itself. A worker never makes it.
-- Exception: a skill change that adds or widens what the coordinator may merge or do needs
-  the maintainer's own merge. The coordinator never merges it.
+- Exception: a skill change that adds or widens the coordinator's permissions, its scope of
+  repositories, or any action it may take without asking, needs the maintainer's own merge.
+  The coordinator never merges it.
 - Never merge on a red or running check. Fix a failure you did not cause, or report it.
-- Pawsistant: ignore the `notify / notify` check. The Discord secret is not set there. The
-  maintainer decided this. Every other red check still blocks a merge.
 - Merge conflicts: merge the base branch into the PR. Never rewrite someone else's history.
 - Many PRs can be open. Watch for merge conflicts between them.
 
