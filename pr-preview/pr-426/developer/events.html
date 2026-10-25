@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Events reference | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/developer/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Events reference | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change: a task is"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change: a task is"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-426/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/developer/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/developer/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/developer/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/developer/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-426/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/runtime~main.af0d434b.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/main.bd95cae6.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/runtime~main.2389e793.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/main.7e5df1a5.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -30,11 +30,8 @@ For those tasks, automate on the task&#x27;s entities (<code>binary_sensor.&lt;t
 <code>sensor.&lt;task&gt;_next_due</code>) or use the event trigger below.</p>
 </li>
 <li class="">
-<p><strong>Event entities (Event received trigger).</strong> Each device with a Home Keeper task or
-appliance has a <strong>Home Keeper events</strong> entity, and the Home Keeper device has a
-<strong>Home Keeper Events</strong> entity that gets all events. The event type is the event name
-without <code>home_keeper_</code>. See the
-<a class="" href="/ha-home-keeper/pr-preview/pr-426/docs/guide/events#event-entities">guide</a>.</p>
+<p><strong>Event entities.</strong> Each device with a Home Keeper task or appliance has an event entity,
+and 1 more gets all events. Use the Event received trigger (<a class="" href="/ha-home-keeper/pr-preview/pr-426/docs/guide/events#event-entities">guide</a>).</p>
 </li>
 <li class="">
 <p><strong>Event trigger (any automation).</strong> For global automations (&quot;<em>any</em> part low → add to
@@ -54,14 +51,12 @@ from the integration. This page tells what each event means and what a restart d
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-lifecycle">Task lifecycle<a href="#task-lifecycle" class="hash-link" aria-label="Direct link to Task lifecycle" title="Direct link to Task lifecycle" translate="no">​</a></h3>
 <p>A snooze moves only <code>next_due</code>. The recurrence does not change. &quot;Due today&quot; is the
 opposite: <code>next_due</code> moves to now, and the recurrence does not change.</p>
-<p>A skip advances the schedule. The step depends on the kind of task:</p>
-<ul>
-<li class=""><strong>floating</strong> starts a new interval from now</li>
-<li class=""><strong>fixed</strong> moves to the next scheduled occurrence</li>
-<li class=""><strong>one-off</strong>, <strong>triggered</strong> and <strong>sensor</strong> tasks go dormant</li>
-</ul>
-<p>A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the
-new date.</p>
+<p>A skip starts a new interval from now on a <strong>floating</strong> task, and moves a <strong>fixed</strong> task
+to its next scheduled occurrence. After a skip, a <strong>one-off</strong>, <strong>triggered</strong> or
+<strong>sensor</strong> task goes dormant.</p>
+<p>A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.</p>
+<p><code>move_occurrence</code> moves 1 date of a fixed task and fires <code>home_keeper_task_occurrence_moved</code>
+with <code>occurrence</code> (the rule date), <code>to</code> and <code>previous_to</code>. An undo sets <code>to</code> to <code>occurrence</code>.</p>
 <p>Home Keeper records a skip in a <code>skips</code> list, next to the <code>completions</code> list. A skip
 never sets <code>last_completed</code>, and nothing that uses the completion log counts it.
 <code>home_keeper_task_skipped</code> includes the <code>ts</code> of the new entry. <code>update_skip</code>,
@@ -109,24 +104,28 @@ events can add a <code>meter_baseline</code>.</p>
 <table><thead><tr><th><code>origin</code></th><th>Path</th></tr></thead><tbody><tr><td><code>home_keeper_tag_scan</code></td><td>A scan of the NFC/RFID tag linked to the task.</td></tr><tr><td><code>home_keeper_sensor_recover</code></td><td>A <code>threshold</code> or <code>state</code> binding with <code>clear_on_recover</code> sees its condition go away.</td></tr><tr><td><code>home_keeper_shopping_list</code></td><td>A user ticks off a &quot;Buy {part}&quot; line on the synced shopping list.</td></tr><tr><td><code>home_keeper_todo_sync</code></td><td>A user ticks off an item on a to-do list that a Profile syncs to.</td></tr><tr><td><code>home_keeper_problem_sensor_sync</code></td><td>A synced <code>device_class: problem</code> sensor clears.</td></tr></tbody></table>
 <p>To complete a task whose <strong>Require tag scan</strong> toggle blocks every UI surface, an
 automation can pass <code>origin: home_keeper_tag_scan</code> to <code>complete_task</code>.</p>
-<p><strong>Sensor tasks</strong> use the triggered lifecycle. The watcher fires
-<code>home_keeper_task_triggered</code> when a bound entity meets the condition of the task. A
-usage meter that passes its target is one case. A <code>state</code> entity that enters its state is another.
-The task then becomes <code>home_keeper_task_overdue</code> as any due task does. A user completion
-clears it and resets the baseline of a usage meter. A usage meter with a <strong>time
-backstop</strong> (<code>also_every</code> in its <code>sensor</code> block) arms on the first half that is due, also while the
-entity is unavailable.</p>
-<p>With <code>clear_on_recover</code>, the task completes itself. A task that a declarative companion
-with <code>clear_on_recover</code> made cannot be completed by hand: <code>home_keeper.complete_task</code>
-refuses it, and its device page has no Mark done button. If the task is linked to a
-consumable, the auto-completion uses 1 spare. It can then fire <code>home_keeper_part_low_stock</code>
-or <code>home_keeper_part_out_of_stock</code>. An <code>unavailable</code> or <code>unknown</code> entity is not a
-recovery. It counts as no reading and fires no event. A device that goes off the network never
-completes a task.</p>
+<p><strong>Sensor tasks</strong> use the triggered lifecycle. The watcher fires <code>home_keeper_task_triggered</code>
+when a bound entity meets the condition of the task. A usage meter that passes its target
+is one case. A <code>state</code> entity that enters its state is another. The task then becomes
+<code>home_keeper_task_overdue</code> as any due task does. A user completion clears it and resets
+the baseline of a usage meter. A usage meter with a <strong>time backstop</strong> (<code>also_every</code> in its
+<code>sensor</code> block) arms on the first half that is due, also while the entity is unavailable.</p>
+<p>With <code>clear_on_recover</code>, the task completes itself. A task that a declarative companion with
+<code>clear_on_recover</code> made cannot be completed by hand: <code>home_keeper.complete_task</code> refuses it,
+and its device page has no Mark done button. If the task is linked to a consumable, the
+auto-completion uses 1 spare. It can then fire <code>home_keeper_part_low_stock</code> or
+<code>home_keeper_part_out_of_stock</code>. An <code>unavailable</code> or <code>unknown</code> entity is not a recovery. It
+counts as no reading and fires no event. A device that goes off the network never completes
+a task.</p>
 <p>The baseline bookkeeping of the watcher (a new meter anchor, a re-anchor after a meter
 reset) fires <strong>no event</strong>, because it is internal state. A baseline that a user moves
 with the <code>set_task_meter</code> service fires <code>home_keeper_task_updated</code> with
 <code>changed_fields: [&quot;sensor&quot;]</code>.</p>
+<p><strong>Task photos.</strong> A photo change is a task change. When a user adds a photo, removes a
+photo or makes a photo the cover, Home Keeper fires <code>home_keeper_task_updated</code> with
+<code>changed_fields: [&quot;photos&quot;]</code>. There is no separate photo event.</p>
+<p><strong>New appliance device.</strong> If an appliance gets a new device, each moved task and appliance fires
+an <code>_updated</code> event with <code>device_id</code>, <code>source</code> or <code>related_device_ids</code> in <code>changed_fields</code>.</p>
 <p><strong>Shopping list.</strong> When <em>Settings → Shopping list</em> names a to-do list, each automatic
 &quot;Buy {part}&quot; reminder goes on it. The completion has
 <code>source: {&quot;buy&quot;: {&quot;asset_id&quot;: …, &quot;part_id&quot;: …}}</code>. It restocks the part by its restock
@@ -189,10 +188,9 @@ and <code>home_keeper_asset_deleted</code> does not fire.</p>
 <p>Home Keeper shows integrations that work with it in <strong>Settings → Companions</strong> (see
 <a class="" href="/ha-home-keeper/pr-preview/pr-426/developer/integrating#9-discovery-and-declarative-companions">INTEGRATING.md §9</a>).
 As with time-based transitions, Home Keeper records the state at startup with no events.
-An event fires only when a companion <em>changes</em> state at run time, as when it
-registers itself or when a user installs a glue. Home Keeper checks the
-state on each coordinator refresh (about 5 minutes). A read (the panel, or
-<code>list_companions</code>) fires nothing.</p>
+An event fires only when a companion <em>changes</em> state at run time, as when it registers
+itself or when a user installs a glue. Home Keeper checks the state on each coordinator
+refresh (about 5 minutes). A read (the panel, or <code>list_companions</code>) fires nothing.</p>
 <p>A suggestion names the <em>glue</em> in <code>domain</code> and the upstream that Home Keeper found in
 <code>upstream_domain</code>.</p>
 <p>At setup and on reload, Home Keeper fires <code>home_keeper_register_companions</code> with empty
@@ -256,11 +254,11 @@ its <code>task_id</code>, because those task events have <code>device_id: null</
 <li class="">Home Keeper never reads <code>source</code>. Use it, and the <code>origin</code> on completions, to find your
 own tasks and remove duplicates. See <a class="" href="/ha-home-keeper/pr-preview/pr-426/developer/integrating">INTEGRATING.md</a>.</li>
 <li class=""><strong>An import fires 1 event per record, not 1 per completion.</strong> A document that
-<code>home_keeper.import_data</code> reads holds old history, from before the import. A
-backfilled completion fires no <code>home_keeper_task_completed</code>. The record
-arrives as 1 <code>home_keeper_task_created</code> or <code>home_keeper_task_updated</code>. An update that
-only adds history still fires, with <code>completions</code> in its <code>changed_fields</code>. To mirror
-completions, read the task history on that event. Do not count completion events.</li>
+<code>home_keeper.import_data</code> reads holds old history, from before the import. A backfilled
+completion fires no <code>home_keeper_task_completed</code>. The record arrives as 1
+<code>home_keeper_task_created</code> or <code>home_keeper_task_updated</code>. An update that only adds history
+still fires, with <code>completions</code> in its <code>changed_fields</code>. To mirror completions, read the
+task history on that event. Do not count completion events.</li>
 </ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/developer/events.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-426/developer/glue-integrations"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Glue integrations</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/ha-home-keeper/pr-preview/pr-426/developer/architecture"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Architecture</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#what-the-events-mean" class="table-of-contents__link toc-highlight">What the events mean</a><ul><li><a href="#task-lifecycle" class="table-of-contents__link toc-highlight">Task lifecycle</a></li><li><a href="#completion-origins" class="table-of-contents__link toc-highlight">Completion origins</a></li><li><a href="#time-based-transitions-edge-triggered" class="table-of-contents__link toc-highlight">Time-based transitions (edge-triggered)</a></li><li><a href="#stock-transitions-edge-triggered" class="table-of-contents__link toc-highlight">Stock transitions (edge-triggered)</a></li><li><a href="#asset-appliance-lifecycle" class="table-of-contents__link toc-highlight">Asset (appliance) lifecycle</a></li><li><a href="#companion-discovery-edge-triggered" class="table-of-contents__link toc-highlight">Companion discovery (edge-triggered)</a></li><li><a href="#declarative-companion-crud" class="table-of-contents__link toc-highlight">Declarative companion CRUD</a></li></ul></li><li><a href="#payloads" class="table-of-contents__link toc-highlight">Payloads</a></li><li><a href="#example-automations" class="table-of-contents__link toc-highlight">Example automations</a><ul><li><a href="#notify-when-anything-becomes-overdue-event-trigger" class="table-of-contents__link toc-highlight">Notify when anything becomes overdue (event trigger)</a></li><li><a href="#add-a-spare-to-the-shopping-list-when-it-runs-out-event-trigger" class="table-of-contents__link toc-highlight">Add a spare to the shopping list when it runs out (event trigger)</a></li><li><a href="#react-only-to-a-specific-appliance-device-trigger" class="table-of-contents__link toc-highlight">React only to a specific appliance (device trigger)</a></li></ul></li><li><a href="#notes-for-integrators" class="table-of-contents__link toc-highlight">Notes for integrators</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-426/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-426/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
