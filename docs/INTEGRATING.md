@@ -11,7 +11,7 @@ This guide is for **authors of other Home Assistant integrations** that push rec
 into Home Keeper, such as a battery, plant or pet integration. Your integration owns the
 schedule. It uses only the **event bus and services**, with no Python import and no hard
 dependency. The 1 exception is a panel tab (§10), which is a Python API. Home Keeper stores
-and echoes the `source` and `origin` values verbatim. It never branches on their contents.
+and echoes the `source` and `origin` values verbatim. Only the completion gates read `origin`.
 
 Every action, field, event and payload is in the generated
 [API reference](https://prestomation.github.io/ha-home-keeper/developer/api). The event
@@ -116,6 +116,7 @@ task. Home Keeper reads `managed_by` and acts on it.
 | `locked_fields` | The panel removes these fields from the edit form. With every field locked, the task page shows no Edit button. |
 | `config_entry_id` | Orphan detection, and an **Edit in {name}** link on the task page. |
 | `completion_prompt` | A short hint near the **Done** button. |
+| `completion_blocked` | No surface offers **Done**. `complete_task` and `skip_task` accept the task only with your domain as `origin`. Use it only for a read-only mirror. |
 | `deletion_protected` | The panel shows "Delete from {name} instead", and `delete_task` rejects the call while your entry is loaded. Requires `config_entry_id`. |
 
 - Set `managed_by` once, on `add_task`. The `update_task` service has no `managed_by`
@@ -141,9 +142,9 @@ For work that a condition starts, such as a low battery or a wet water sensor, s
 `null` and the task shows only in the panel **Monitored** section).
 
 `add_task` creates the task armed. When the condition resolves, `complete_task` records a
-completion and makes the task dormant. When the condition comes back, `trigger_task` arms it
-again. Both calls are idempotent. Keep **one task per monitored thing** and toggle it, so
-that the id and the history stay.
+completion and makes the task dormant. Send your domain as `origin`. When the condition
+comes back, `trigger_task` arms it again. Both calls are idempotent. Keep **one task per
+monitored thing** and toggle it, so that the id and the history stay.
 
 ### Sensor-based tasks
 
@@ -264,10 +265,9 @@ completion, or keep state across completions. See [GLUE_INTEGRATIONS.md](GLUE_IN
 
 ## 10. Add a panel tab
 
-A companion integration can add an admin tab to the Home Keeper panel at
-`/home-keeper/<id>/...`. The tab runs JavaScript in the admin panel. So only Python code in
-the Home Assistant process registers a tab. The `register_companion` service does not accept
-a tab.
+A companion integration can add an admin tab to the Home Keeper panel at `/home-keeper/<id>/...`.
+The tab runs JavaScript in the admin panel. So only Python code in the Home Assistant process
+registers a tab. The `register_companion` service does not accept a tab.
 
 In your `manifest.json` put `http` in `dependencies` and `home_keeper` in
 `after_dependencies`. Then your config flow can tell the user to install Home Keeper. At

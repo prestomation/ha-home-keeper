@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: ec1451562ad3
+source_hash: 2a1bf3f42911
 ---
 
 # Store
@@ -79,11 +79,12 @@ Events fire after the save, so a listener that reads the store back sees saved s
 `_changed_fields` ignores history and schedule keys, so a reschedule is not an edit, and
 an update with no changed field fires no event.
 
-Guards that every surface must meet live here: reserved `source` namespaces in
-`add_task`, part-owned names and tags, `_check_deletable`, and the completion origin
-gates such as `_reject_scan_required`. Some writes fire no event, because they record
-internal state: the 2 sync bookkeeping setters (which also skip an unchanged save),
-`set_sensor_baseline` with `silent=True`, and the derived edits of a part reconcile.
+Guards that every surface must meet live here: reserved `source` namespaces in `add_task`,
+part-owned names and tags, `_check_deletable`, and the completion origin gates.
+`_reject_completion_blocked` accepts a system origin, or `managed_by.integration` if it is not
+`home_keeper`. Some writes fire no event, because they record internal state: the 2 sync
+bookkeeping setters (which also skip an unchanged save), `set_sensor_baseline` with `silent=True`,
+and part reconcile edits.
 
 ### Responsibilities
 
@@ -93,8 +94,7 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
   and a floating snooze rounds up to it ([recurrence](recurrence.md)).
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
-- **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and
-  documents and part files through `_mutate_asset`.
+- **Appliances:** CRUD, archive, ownership, stock (`_emit_stock_event`), files (`_mutate_asset`).
 - **Task photos:** add, remove and set the cover through `_mutate_task_photos`. `_save`
   removes the photo folder of each task that it dropped ([task-photos](task-photos.md)).
 - **Reconcilers:** `reconcile_part_tasks`, `reconcile_buy_tasks`, `settle_use_tasks`,
@@ -136,8 +136,7 @@ return values and the tasks that bulk deletes return tell the caller which one t
   sections consistent. Each change costs a full write.
 - **Immediate save** over `async_delay_save`: a delayed write still pending at unload
   writes old data over the reloaded file, and the return-means-durable rule breaks.
-- **Load shims** over version bumps: an older file always loads, with no migrate
-  function to keep for each version.
+- **Load shims** over version bumps: an older file always loads, with no migrate function.
 - **A closed flag that raises** over a lock or a generation check: one boolean stops
   every stale pass, and the failure is loud.
 - **Caller-driven refresh** over a store that refreshes: only the caller knows if the
@@ -148,3 +147,4 @@ return values and the tasks that bulk deletes return tell the caller which one t
 - The storage key `home_keeper`, version 1, and the 6 top-level section names. A
   downgrade reads this file, so a rename or a version bump breaks older releases.
 - The event payloads the store fires: see [EVENTS.md](../EVENTS.md).
+- Who can complete or skip a `completion_blocked` task: the owner origin rule above.

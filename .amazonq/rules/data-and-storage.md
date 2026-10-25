@@ -36,6 +36,7 @@ The store is in [store](../../docs/design/store.md), the task model in
 - **A move is a usage action, as a snooze is.** Do not gate `move_occurrence` to admins.
 - **A glue integration sets a default interval but never locks it.** Leave `sensor` out of
   `managed_by.locked_fields`. Use `completion_blocked` only for a read-only mirror.
+  Only the owner clears it: a glue sends its `managed_by.integration` as `origin`.
 
 ## Sensor tasks
 

@@ -8,6 +8,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Glue integration task completion.** A read-only task from a glue integration, such as
+  the Bambu Lab firmware task, completes again when the glue reports that the work is done.
+  A user still cannot complete it by hand.
+
 ## [0.33.0b3]
 
 ### Added
