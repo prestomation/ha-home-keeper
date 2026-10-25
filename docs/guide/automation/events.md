@@ -36,6 +36,10 @@ or an appliance is created or deleted.
 
 ![The Home Keeper device with the Events entity](../../images/79e-device-service-events.png)
 
+The **Event received** trigger in the automation editor needs Home Assistant 2026.7
+or later. The event entities exist on older versions too. Use a `platform: event`
+trigger there.
+
 To use an event entity in an automation (Home Assistant 2026.7 or later):
 
 1. Go to **Settings → Automations & scenes**, and create an automation.

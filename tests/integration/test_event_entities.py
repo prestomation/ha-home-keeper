@@ -3,19 +3,72 @@
 The fixture's garage water heater is a virtual appliance with an attached task
 ("Replace Anode rod") and stocked parts. Its device gets a Home Keeper events
 entity, and the Home Keeper service device gets the global entity. The tests run
-services and read the entity states over REST. An automation in
-``ha_config/configuration.yaml`` uses the Event received trigger on the water
-heater entity, and writes what it saw to ``input_text.hk_last_event_entity_event``.
+services and read the entity states over REST. On Home Assistant 2026.7 or later,
+the ``event_trigger_automation`` fixture also adds an automation with the Event
+received trigger on the water heater entity. It writes what it saw to
+``input_text.hk_last_event_entity_event``. Older versions have no such trigger, so the
+tests skip that one check and keep every entity check.
 """
 
 from __future__ import annotations
 
 import time
 
-from conftest import call_service, get_state
+import pytest
+from conftest import HA_URL, call_service, get_state
 from ha_registry import device_registry, entity_registry, has_identifier
+from packaging.version import Version
 
 GLOBAL = "event.home_keeper_events"
+
+# The Event received trigger (``trigger: event.received``) is new in this version.
+EVENT_TRIGGER_MIN = (2026, 7)
+AUTOMATION_ID = "hk_capture_event_entity"
+AUTOMATION_ENTITY = "automation.capture_home_keeper_event_entity"
+CAPTURE = "input_text.hk_last_event_entity_event"
+
+
+@pytest.fixture
+def event_trigger_automation(ha):
+    """Add an automation with the Event received trigger. Return True if it is on.
+
+    Return False on a Home Assistant that has no such trigger. The automation is
+    stored through the REST config API and removed again after the test.
+    """
+    version = Version(ha.get(f"{HA_URL}/api/config").json()["version"])
+    if version.release[:2] < EVENT_TRIGGER_MIN:
+        yield False
+        return
+    url = f"{HA_URL}/api/config/automation/config/{AUTOMATION_ID}"
+    config = {
+        "alias": "Capture Home Keeper event entity",
+        "triggers": [
+            {
+                "trigger": "event.received",
+                "target": {"entity_id": "event.garage_water_heater_home_keeper_events"},
+                "options": {"event_type": ["task_completed", "part_low_stock"]},
+            }
+        ],
+        "actions": [
+            {
+                "action": "input_text.set_value",
+                "target": {"entity_id": CAPTURE},
+                "data": {
+                    "value": (
+                        "{{ trigger.to_state.attributes.event_type }}:"
+                        "{{ trigger.to_state.attributes.task_id"
+                        " | default(trigger.to_state.attributes.part_id) }}"
+                    )
+                },
+            }
+        ],
+    }
+    ha.post(url, json=config).raise_for_status()
+    _wait_for(ha, AUTOMATION_ENTITY, lambda s: s["state"] == "on")
+    try:
+        yield True
+    finally:
+        ha.delete(url).raise_for_status()
 
 
 def _assets(ha):
@@ -78,7 +131,9 @@ def test_event_entities_exist_on_the_right_devices(ha):
     assert glob_entry["device_id"] == service_device["id"]
 
 
-def test_a_completion_reaches_the_device_entity_and_the_global_entity(ha):
+def test_a_completion_reaches_the_device_entity_and_the_global_entity(
+    ha, event_trigger_automation
+):
     heater = _water_heater(ha)
     entity_id = _device_entity(ha, heater["device_id"])["entity_id"]
     task = next(t for t in _tasks(ha) if t["name"].startswith("Replace Anode rod"))
@@ -116,12 +171,9 @@ def test_a_completion_reaches_the_device_entity_and_the_global_entity(ha):
     )
     assert glob["attributes"]["origin"] == "event_entity_test"
 
-    # The automation with the Event received trigger ran.
-    _wait_for(
-        ha,
-        "input_text.hk_last_event_entity_event",
-        lambda s: s["state"] == f"task_completed:{task['id']}",
-    )
+    if event_trigger_automation:
+        # The automation with the Event received trigger ran.
+        _wait_for(ha, CAPTURE, lambda s: s["state"] == f"task_completed:{task['id']}")
 
     # Undo the completion, so the shared fixture is as it was.
     completed = next(t for t in _tasks(ha) if t["id"] == task["id"])
@@ -152,7 +204,7 @@ def test_a_standalone_task_reaches_only_the_global_entity(ha):
     assert get_state(ha, entity_id)["state"] == before
 
 
-def test_a_stock_crossing_reaches_the_appliance_entity(ha):
+def test_a_stock_crossing_reaches_the_appliance_entity(ha, event_trigger_automation):
     heater = _water_heater(ha)
     entity_id = _device_entity(ha, heater["device_id"])["entity_id"]
     part = next(p for p in heater["parts"] if p["name"] == "Sediment pre-filter")
@@ -176,11 +228,10 @@ def test_a_stock_crossing_reaches_the_appliance_entity(ha):
             ),
         )
         assert state["attributes"]["asset_id"] == heater["id"]
-        _wait_for(
-            ha,
-            "input_text.hk_last_event_entity_event",
-            lambda s: s["state"] == f"part_low_stock:{part['id']}",
-        )
+        if event_trigger_automation:
+            _wait_for(
+                ha, CAPTURE, lambda s: s["state"] == f"part_low_stock:{part['id']}"
+            )
     finally:
         call_service(
             ha,
