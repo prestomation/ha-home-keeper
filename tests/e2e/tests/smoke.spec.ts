@@ -4,6 +4,7 @@ import {
   expectTabActive,
   gotoTab,
   openDashboard,
+  openListFilters,
   openPanel,
   openTodoCard,
   tabBar,
@@ -196,6 +197,7 @@ test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
     const panel = page.locator('home-keeper-panel').first();
     // Default grouping is by status — collapsible group sections are present.
     await expect(panel.locator('details.hk-group').first()).toBeVisible();
+    await openListFilters(panel);
     // The "Overdue" quick filter narrows the list to the overdue chip(s).
     await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Overdue' }).click();
     await expect(panel.locator('ha-assist-chip.hk-overdue').first()).toBeVisible();

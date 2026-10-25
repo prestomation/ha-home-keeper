@@ -195,6 +195,9 @@ export const LS_PROFILE = 'home-keeper.profile';
 export const LS_ASSET_VIEW = 'home-keeper.assetView';
 export const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
 export const LS_LABELS = 'home-keeper.labels';
+/** Whether the task list's filter controls are open on a phone: `open` or `folded`
+ *  (see `list-bar.ts`). */
+export const LS_CONTROLS = 'home-keeper.controls';
 
 /**
  * The Import and export card's state.

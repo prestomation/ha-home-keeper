@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/cost_summary.py
   - custom_components/home_keeper/frontend/src/panel-spend.ts
 related: [completions, appliances, coordinator-entities, frontend]
-source_hash: 3222a3c8dda7
+source_hash: 48e2c7dc1aaa
 ---
 
 # Cost totals
@@ -75,11 +75,16 @@ removes is pruned at the reload. Attributes: `count`, plus `first` for all time.
 ### The panel
 
 `home_keeper/get_spend` is an open read. It gives `windows`, `all_time`, `purchases` and
-`records`. `panel-spend.ts` draws 1 toggle button for each total above the task list. The
-open total lists its records. A record opens `/tasks/<id>/history`, or for a deleted task
-`/appliances/<id>/history`. The purchases total opens the appliance list. The strip does
-not show when there is no record and no priced appliance. The open total is panel state,
-not part of the URL. Settings → Cost tracking edits the 2 options.
+`records`. `panel-spend.ts` draws 1 toggle button for each total. The open total lists its
+records. A record opens `/tasks/<id>/history`, or for a deleted task
+`/appliances/<id>/history`. The purchases total opens the appliance list.
+
+Above the task list, `spendStrip(p, 'compact')` puts the totals on 1 line. A phone hides
+that strip. There, `spendButton` in the task list bar shows the total of the first period
+in whole units, and opens `spendSheet`: the full strip in a modal sheet. The
+strip and the button do not show when there is no record and no priced appliance. The open
+total and the open sheet are panel state, not part of the URL. Settings → Cost tracking
+edits the 2 options.
 
 ## Trade-offs
 

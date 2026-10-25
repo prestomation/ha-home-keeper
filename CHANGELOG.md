@@ -6,7 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.33.0b5]
+
+### Added
+
+- **[Compact task list bar](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-bar).**
+  On a phone, Search, Filters and the spend button share 1 bar that stays at the top
+  while you scroll, and a chip shows each filter that is on. On a desktop, the spend
+  totals take 1 line. (Fixes #488)
 
 ### Fixed
 

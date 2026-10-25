@@ -40,6 +40,7 @@ import {
   authToken,
   callService,
   gotoTab,
+  openListFilters,
   openPanel,
   openDashboard,
   openPart,
@@ -56,6 +57,16 @@ const VIEWER_STATE_PATH = resolve(__dirname, '.auth/viewer-state.json');
 
 /** A readable pause so motion in the recording is easy to follow. */
 const BEAT = 900;
+
+/** Scroll the task list until its bar is pinned to the top (#488). */
+async function pinListBar(page: Page, panel: Locator): Promise<void> {
+  await expect(async () => {
+    const card = await panel.locator('#hk-list ha-card.hk-card').first().boundingBox();
+    await page.mouse.move((card?.x ?? 100) + 20, (card?.y ?? 300) + 10);
+    await page.mouse.wheel(0, 500);
+    await expect(panel.locator('.hk-listbar[data-stuck]')).toHaveCount(1, { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+}
 
 /**
  * Pick *option* in an `ha-select` and wait until *effect* reads *text*, trying again
@@ -1437,13 +1448,28 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
-  // 2. The scope pills wrap onto a second row rather than scrolling off the edge —
-  //    a joined segment cannot wrap, so at this width it comes apart into chips.
+  // 2. The list bar (#488). The filter controls are folded behind Filters. Overdue
+  //    turns into a chip with a count on the button, the bar stays at the top as the
+  //    list scrolls, and the spend button opens the totals in a sheet.
+  await panel.locator('#hk-filters-btn').click();
   const overdue = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"]');
-  await overdue.click();
-  await page.waitForTimeout(BEAT * 2);
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await expect(overdue).toBeVisible();
   await page.waitForTimeout(BEAT);
+  await overdue.click();
+  await panel.locator('#hk-filters-btn').click();
+  await expect(panel.locator('.hk-filter-chip')).toHaveCount(1);
+  await page.waitForTimeout(BEAT * 2);
+  await pinListBar(page, panel);
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#hk-spend-btn').click();
+  await expect(panel.locator('.hk-spend-sheet')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('.hk-spend-sheet')).toHaveCount(0);
+  await panel.locator('[data-clear-filter="scope"]').click();
+  await expect(panel.locator('.hk-filter-chip')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+  await openListFilters(panel);
 
   // 2b. The board on a phone, from the Layout menu. A column takes most of the
   //     width and the next one is a swipe away — the desktop board's columns do not

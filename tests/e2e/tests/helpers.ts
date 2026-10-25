@@ -403,3 +403,17 @@ export async function openPanelAt(page: Page, size: Viewport): Promise<Locator> 
   await openPanel(page);
   return page.locator('home-keeper-panel').first();
 }
+
+/**
+ * Make the task list's filter controls visible (#488). A phone folds them behind the
+ * Filters button, and the fold is kept per browser, so a spec that clicks a scope pill
+ * or a Group by menu calls this first. On a wider screen the controls always show and
+ * this does nothing.
+ */
+export async function openListFilters(panel: Locator): Promise<void> {
+  const controls = panel.locator('#hk-list-controls');
+  await controls.waitFor({ state: 'attached' });
+  if (await controls.isVisible()) return;
+  await panel.locator('#hk-filters-btn').click();
+  await expect(controls).toBeVisible();
+}
