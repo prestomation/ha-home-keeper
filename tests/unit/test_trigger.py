@@ -20,6 +20,18 @@ import pytest
 pytest.importorskip("homeassistant")
 vol = pytest.importorskip("voluptuous")
 
+from homeassistant.const import __version__ as HA_VERSION  # noqa: E402
+
+# The trigger platform needs the Home Assistant that Home Keeper supports
+# (ci/oldest-ha.env). On Python 3.12, pip resolves an older Home Assistant that has
+# no such API, so this module skips there. The Docker tiers test the real platform.
+_OLDEST = (2026, 1)
+if tuple(int(part) for part in HA_VERSION.split(".")[:2]) < _OLDEST:
+    pytest.skip(
+        f"Home Assistant {HA_VERSION} is older than {_OLDEST}",
+        allow_module_level=True,
+    )
+
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
 )
