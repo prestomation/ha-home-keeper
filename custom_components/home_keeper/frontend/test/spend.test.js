@@ -375,6 +375,19 @@ describe('the strip kinds, the spend button and the sheet (#488)', () => {
     expect(div.querySelector('.hk-spend-btn-text').textContent).toBe('28');
   });
 
+  it('the button names the sheet in aria-controls only while the sheet is open', () => {
+    const closed = html(spendButton(host({ _spendSheet: false }))).querySelector('.hk-spend-btn');
+    expect(closed.hasAttribute('aria-controls')).toBe(false);
+    expect(closed.getAttribute('aria-expanded')).toBe('false');
+    expect(closed.getAttribute('aria-haspopup')).toBe('dialog');
+    const p = host({ _spendSheet: true });
+    const div = html(spendButton(p) + spendSheet(p));
+    const open = div.querySelector('.hk-spend-btn');
+    expect(open.getAttribute('aria-expanded')).toBe('true');
+    expect(open.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(div.querySelector(`#${open.getAttribute('aria-controls')}`)).toBeTruthy();
+  });
+
   it('the sheet holds the full strip and a named Close', () => {
     const div = html(spendSheet(host({ _spendSheet: true })));
     const sheet = div.querySelector('.hk-spend-sheet');

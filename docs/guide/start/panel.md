@@ -87,6 +87,8 @@ The spend button shows the total of the first spend period. Press it to see the
 [spend totals](../views/costs.md) in a sheet. On a desktop, the totals are on 1 line above
 the list.
 
+A browser without `IntersectionObserver` never shows the pinned state. The bar still works.
+
 ![On a phone, the task list bar with Search, Filters and the spend button, and the list under it](../../images/81c-panel-mobile-task-bar.png)
 
 ![On a phone, 2 filters on, each with a chip under the bar, and Clear all](../../images/81e-panel-mobile-task-bar-chips.png)

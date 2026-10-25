@@ -199,7 +199,7 @@ describe('the spend button', () => {
     expect(btn.getAttribute('aria-label')).toBe('Maintenance spend, Last 30 days: $28.18');
     expect(btn.getAttribute('aria-haspopup')).toBe('dialog');
     expect(btn.getAttribute('aria-expanded')).toBe('false');
-    expect(btn.getAttribute('aria-controls')).toBe('hk-spend-sheet');
+    expect(btn.hasAttribute('aria-controls')).toBe(false);
   });
 
   it('uses all time when no period is set', async () => {

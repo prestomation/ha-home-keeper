@@ -173,7 +173,9 @@ export function spendButton(p: PanelHost): string {
     total: formatCost(p._hass, total),
   });
   return `<button type="button" class="hk-spend-btn" id="hk-spend-btn" data-spend-btn
-      aria-haspopup="dialog" aria-expanded="${p._spendSheet}" aria-controls="hk-spend-sheet"
+      aria-haspopup="dialog" aria-expanded="${p._spendSheet}"${
+    p._spendSheet ? ' aria-controls="hk-spend-sheet"' : ''
+  }
       aria-label="${escapeHTML(name)}" title="${escapeHTML(name)}"><ha-icon icon="${escapeHTML(
         icon,
       )}"></ha-icon><span class="hk-spend-btn-text">${escapeHTML(text)}</span></button>`;
