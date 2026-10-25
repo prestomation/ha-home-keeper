@@ -7,6 +7,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definePanelStubs, makeHass, mountPanel, waitFor } from './panel-harness.js';
 
+// jsdom applies no media query, so the stylesheet would read as a desktop and hide
+// the phone's Filters and spend buttons, which then cannot take focus. These specs
+// test what the buttons do, so the panel renders with no stylesheet.
+vi.mock('../src/panel-styles.ts', () => ({ STYLES: '', TASK_CARD_INLINE_CHIPS: 2 }));
+
 const NOW = Date.now();
 const ago = (days) => new Date(NOW - days * 86400000).toISOString();
 

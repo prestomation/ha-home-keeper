@@ -1683,7 +1683,11 @@ export const STYLES = `
     --mdc-icon-size: 18px;
   }
   .hk-filters-btn ha-icon, .hk-spend-btn ha-icon { color: var(--hk-ink-2); }
-  .hk-filters-btn:hover, .hk-spend-btn:hover { background: var(--hk-page); }
+  /* Only where a pointer can hover: a touch screen keeps :hover after a tap, and the
+     button then reads as pressed. */
+  @media (hover: hover) {
+    .hk-filters-btn:hover, .hk-spend-btn:hover { background: var(--hk-page); }
+  }
   .hk-filters-btn:focus-visible, .hk-spend-btn:focus-visible {
     outline: 2px solid var(--hk-accent); outline-offset: 2px;
   }

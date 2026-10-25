@@ -2554,6 +2554,8 @@ test('capture the phone layout', async () => {
   await panel.locator('select[data-profile-filter]').selectOption('');
   await expect(panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn').first()).toBeVisible();
   // 81d. The filter controls open under the bar.
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/81d-panel-mobile-task-bar-open.png` });
   // 52 and 81c. Folded, which is where a phone starts: Search, Filters and the spend
@@ -2562,6 +2564,8 @@ test('capture the phone layout', async () => {
   await expect(panel.locator('#hk-list-controls')).toBeHidden();
   await expect(panel.locator('#hk-list')).toBeVisible();
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
   await page.screenshot({ path: `${OUT}/81c-panel-mobile-task-bar.png` });
@@ -2572,6 +2576,8 @@ test('capture the phone layout', async () => {
   await panel.locator('#hk-filters-btn').click();
   await panel.locator('.hk-search-input').fill('filter');
   await expect(panel.locator('.hk-filter-chip')).toHaveCount(2);
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/81e-panel-mobile-task-bar-chips.png` });
 
