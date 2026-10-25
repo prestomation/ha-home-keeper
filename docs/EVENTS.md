@@ -10,24 +10,24 @@ created, edited, completed, deleted, or becomes overdue or due soon. It also fir
 spare-part stock changes (low stock, out of stock, restocked) and appliance changes
 (added, changed, removed). Automations and other integrations use these events.
 
-You can react to the events in 2 ways:
+You can react to the events in 3 ways:
 
-1. **Visual automation editor (device triggers).** On a Home Keeper **appliance**,
-   *Add automation → When* lists Home Keeper triggers such as **"Task became overdue"**
-   or **"Spare part out of stock"**. You do not need the event name. These triggers
-   apply only to that device.
-
-   Home Keeper offers device triggers only on devices that it owns (its appliances),
-   not on a device of another integration that a task is attached to. In Home Assistant
-   2026.8 and later, a device belongs to 1 integration only (see
-   [device links](design/coordinator-entities.md#per-task-entities-and-device-links)).
-   For those tasks, automate on the task's entities (`binary_sensor.<task>_overdue`,
-   `sensor.<task>_next_due`) or use the event trigger below.
+1. **Home Keeper triggers (visual automation editor).** *Add trigger* lists 1 Home
+   Keeper trigger for each event, such as **"Task became overdue"** or **"Spare part
+   out of stock"**, by target, by type and in its search. A task, part or appliance
+   trigger takes a target: an entity, device, area, floor or label. It works on every
+   kind of device, also on a device that another integration owns. See the
+   [guide](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).
 2. **Event trigger (any automation).** For global automations ("*any* part low → add to
    1 shopping list"), use a `platform: event` trigger on the event name.
+3. **Events entity.** The Home Keeper **Events** entity gets every event with a payload.
+   Use it with the Event received trigger, or read its history.
+
+The device triggers (`platform: device`) on Home Keeper's own devices are the older
+path. Automations that use them keep working.
 
 The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events)
-lists each event with its payload and device trigger. Home Keeper generates that page
+lists each event with its payload and triggers. Home Keeper generates that page
 from the integration. This page tells what each event means and what a restart does.
 
 > Integrators that push tasks into Home Keeper must also read
@@ -43,11 +43,9 @@ All event names use the pattern `home_keeper_<noun>_<verb>`. Task events share a
 A snooze moves only `next_due`. The recurrence does not change. "Due today" is the
 opposite: `next_due` moves to now, and the recurrence does not change.
 
-A skip advances the schedule. The step depends on the kind of task:
-
-* **floating** starts a new interval from now
-* **fixed** moves to the next scheduled occurrence
-* **one-off**, **triggered** and **sensor** tasks go dormant
+A skip starts a new interval from now on a **floating** task, and moves a **fixed** task
+to its next scheduled occurrence. After a skip, a **one-off**, **triggered** or
+**sensor** task goes dormant.
 
 A snooze, a due-today, and a skip all re-arm the overdue and due-soon events for the new date.
 
@@ -266,25 +264,26 @@ automation:
             {{ trigger.event.data.part_number }} ({{ trigger.event.data.vendor }})
 ```
 
-### React only to a specific appliance (device trigger)
+### React only to a specific appliance
 
-In the automation editor, select the device of the appliance and the **"Spare part low
-on stock"** trigger. The same automation in YAML:
+In the automation editor, select **Add trigger**, then the device of the appliance under
+**By target**, then the **"Spare part low on stock"** trigger. The same automation in
+YAML:
 
 ```yaml
 automation:
   - alias: "Furnace filter low"
-    trigger:
-      - platform: device
-        domain: home_keeper
-        device_id: <furnace device id>
-        type: part_low_stock
-    action: ...
+    triggers:
+      - trigger: home_keeper.part_low_stock
+        target:
+          device_id: <furnace device id>
+    actions: ...
 ```
 
-A device trigger filters to the selected device. An appliance or existing-device trigger
-matches the `device_id` of the event. The self-owned device of a standalone task matches
-its `task_id`, because those task events have `device_id: null`.
+Home Keeper reads the target when the event fires. A device target matches the
+`device_id` of the event, and each Home Keeper entity on the device adds its task,
+part or appliance. A self-owned task device matches through its entities. The `event`
+trigger variable holds the bus event, the same as for a `platform: event` trigger.
 
 ## Notes for integrators
 

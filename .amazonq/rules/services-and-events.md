@@ -89,13 +89,21 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
 ## The declared surface
 
 - **`api_surface.py` declares every surface an integrator can touch**: services, events
-  and payloads, device triggers, entity platforms and attributes, options, websocket
+  and payloads, triggers, device triggers, entity platforms and attributes, options, websocket
   commands and HTTP views. A new one is not done until it has a spec there.
   `tests/unit/test_api_surface.py` parses the source and fails on drift.
-- A device-facing event also needs a `device_trigger.py` trigger with
-  `strings.json` `device_automation` labels at full translation parity.
-- **The runtime reads the model.** `device_trigger.py` builds its maps from
-  `triggers_for()`. Never write a second literal list beside a modelled one.
+- **A new fired event with a payload is also a trigger and an event type.** `trigger.py`
+  and `event.py` take the list from `api_surface.TRIGGERS`. Add its key to `triggers.yaml`
+  and `icons.json`, and its `triggers` name and description to `strings.json` and all
+  locales. Its `name` is the same text as its event type label on the `event` entity.
+  `tests/unit/test_triggers_yaml.py` fails on a gap. A task, stock or asset payload takes a
+  target. If a target fits a new payload, give it a rule in `trigger_targets.py`.
+- To keep a large payload key off the recorder, add it to `EVENT_ENTITY_DROPPED_FIELDS`
+  with a reason.
+- Do not add a device trigger. `device_trigger.py` keeps the 10 that automations use.
+- **The runtime reads the model.** `trigger.py` builds its triggers from `TRIGGERS`, and
+  `device_trigger.py` builds its maps from `triggers_for()`. Never write a second literal
+  list beside a modelled one.
 - **The model holds names and structure only.** Labels and descriptions come from
   `services.yaml` and `strings.json` when the reference is generated. Never put a
   user-facing sentence in `api_surface.py`. `EventSpec.summary` and

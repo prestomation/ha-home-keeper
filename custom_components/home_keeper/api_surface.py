@@ -95,6 +95,22 @@ class DeviceTriggerSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class TriggerSpec:
+    """A Home Keeper trigger (``trigger: home_keeper.<key>``) over 1 bus event."""
+
+    key: str
+    """The bus name without ``home_keeper_``. User automations store it."""
+    event: str
+    payload: str
+    """The payload spine. It decides what a target means for the trigger."""
+
+    @property
+    def targeted(self) -> bool:
+        """True when the trigger takes a target of tasks, parts or appliances."""
+        return self.payload in TRIGGER_TARGET_PAYLOADS
+
+
+@dataclass(frozen=True, slots=True)
 class EntityPlatformSpec:
     """One entity platform and the state attributes its entities expose."""
 
@@ -803,6 +819,24 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
         ),
     ),
     EntityPlatformSpec(
+        "event",
+        ("home_keeper_events",),
+        attributes=(
+            Field(
+                "event_type",
+                "str",
+                "the bus event name without the home_keeper_ prefix, for example "
+                "task_completed",
+            ),
+            Field(
+                "*",
+                "",
+                "the bus event payload, without the keys in "
+                "EVENT_ENTITY_DROPPED_FIELDS",
+            ),
+        ),
+    ),
+    EntityPlatformSpec(
         "number",
         ("part_spares",),
         attributes=(
@@ -1044,10 +1078,17 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "are the same object.",
     ),
     SurfaceKind(
+        "Triggers",
+        "published",
+        "Each bus event with a payload is also a Home Keeper trigger "
+        "(`trigger: home_keeper.<event>`) in the automation editor. A task, part or "
+        "appliance trigger takes a target: an entity, device, area, floor or label.",
+    ),
+    SurfaceKind(
         "Device triggers",
         "published",
-        "Ten of the bus events are offered in the visual automation editor on "
-        "Home Keeper's own appliance and task devices.",
+        "Ten of the bus events are offered as device triggers on Home Keeper's own "
+        "appliance and task devices. Automations that use them keep working.",
     ),
     SurfaceKind(
         "Device conditions",
@@ -1064,8 +1105,16 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "Entity platforms",
         "published",
-        "todo, calendar, sensor, binary_sensor, button and number — usage surfaces, "
-        "next to the panel.",
+        "todo, calendar, sensor, binary_sensor, button, number and event — usage "
+        "surfaces, next to the panel.",
+    ),
+    SurfaceKind(
+        "Event entities",
+        "published",
+        "1 global event entity gets each bus event with a payload, for history and "
+        "for the Event received trigger. home_keeper_register_companions is not "
+        "mirrored: it asks companions to announce themselves and is not a state "
+        "change.",
     ),
     SurfaceKind(
         "Entity attributes",
@@ -1203,6 +1252,60 @@ def triggers_for(scope: str) -> dict[str, str]:
     return {spec.type: spec.event for spec in DEVICE_TRIGGERS if spec.scope == scope}
 
 
+# ── Event entities and triggers ──────────────────────────────────────────────
+#
+# ``event.py`` mirrors the bus events onto the global event entity, and
+# ``trigger.py`` offers 1 trigger for each bus event. Both take the list from here,
+# so a new fired event with a payload is mirrored and gets a trigger with no second
+# list to keep in step.
+
+TRIGGER_TARGET_PAYLOADS: tuple[str, ...] = ("task", "stock", "asset")
+"""The payloads that name a task, a part or an appliance.
+
+A trigger over 1 of these payloads takes a target.
+"""
+
+EVENT_ENTITY_DROPPED_FIELDS: dict[str, str] = {
+    "source": "opaque provenance; can be large, and is on the bus event",
+    "managed_by": "ownership block; can be large, and is on the bus event",
+    "task_chips": "display metadata, not useful in an automation",
+    "active_season": "schedule detail, not useful in an automation",
+    "note": "free text of any length; the recorder keeps each event",
+    "photo": "a file reference, not useful in an automation",
+    "sections": "nested counts for each section; the full count is on the bus event",
+}
+"""Payload keys that the event entity does not copy, with the reason for each.
+
+The recorder stores the attributes of every event, so the entity keeps the ids,
+the names and the short per-event fields. The full payload stays on the bus event.
+"""
+
+
+def event_entity_type(event_name: str) -> str:
+    """The short name of a bus event: the bus name without ``home_keeper_``.
+
+    It is the event type on the event entity and the key of the trigger.
+    """
+    return event_name.removeprefix(f"{const.DOMAIN}_")
+
+
+TRIGGERS: tuple[TriggerSpec, ...] = tuple(
+    TriggerSpec(event_entity_type(spec.name), spec.name, spec.payload)
+    for spec in EVENTS
+    if spec.direction == "fired" and spec.payload != "none"
+)
+"""1 trigger for each fired event that has a payload, in declaration order.
+
+``home_keeper_register_companions`` has no payload. It asks companions to announce
+themselves and is not a state change, so it gets no trigger and no event type.
+"""
+
+
+def event_entity_events() -> dict[str, str]:
+    """Return ``{event_type: bus_event_name}`` for the global event entity."""
+    return {spec.key: spec.event for spec in TRIGGERS}
+
+
 def events_by_payload(payload: str) -> tuple[EventSpec, ...]:
     """Return every fired event sharing one payload shape, in declaration order."""
     return tuple(
@@ -1215,6 +1318,7 @@ __all__ = [
     "DEVICE_TRIGGERS",
     "ENTITY_PLATFORMS",
     "EVENTS",
+    "EVENT_ENTITY_DROPPED_FIELDS",
     "HTTP_VIEWS",
     "OPTIONS",
     "PAYLOAD_SPINES",
@@ -1222,6 +1326,8 @@ __all__ = [
     "SERVICE_NAMES",
     "STATUSES",
     "SURFACE_KINDS",
+    "TRIGGERS",
+    "TRIGGER_TARGET_PAYLOADS",
     "WEBSOCKET_COMMANDS",
     "CompanionCapabilitySpec",
     "DeviceTriggerSpec",
@@ -1232,7 +1338,10 @@ __all__ = [
     "OptionSpec",
     "ServiceSpec",
     "SurfaceKind",
+    "TriggerSpec",
     "WebsocketSpec",
+    "event_entity_events",
+    "event_entity_type",
     "events_by_payload",
     "triggers_for",
 ]

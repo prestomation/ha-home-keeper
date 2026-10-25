@@ -1179,6 +1179,47 @@
       "upcoming_tasks": {
         "name": "即将到来的任务"
       }
+    },
+    "event": {
+      "home_keeper_events": {
+        "name": "事件",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "任务已创建",
+              "task_updated": "任务已更新",
+              "task_deleted": "任务已删除",
+              "task_completed": "任务已完成",
+              "task_uncompleted": "完成记录已删除",
+              "task_completion_updated": "完成记录已更新",
+              "task_triggered": "任务已触发",
+              "task_snoozed": "任务已推迟",
+              "task_skipped": "任务已跳过",
+              "task_due_today_set": "任务已设为今天到期",
+              "task_skip_updated": "跳过记录已更新",
+              "task_skip_removed": "跳过记录已删除",
+              "task_occurrence_moved": "任务时间已移动",
+              "task_overdue": "任务已逾期",
+              "task_due_soon": "任务即将到期",
+              "part_low_stock": "备件库存不足",
+              "part_out_of_stock": "备件缺货",
+              "part_restocked": "备件已补货",
+              "asset_created": "电器已添加",
+              "asset_updated": "电器已更新",
+              "asset_deleted": "电器已删除",
+              "asset_archived": "电器已归档",
+              "asset_restored": "电器已恢复",
+              "companion_connected": "搭档已连接",
+              "companion_suggested": "搭档已推荐",
+              "declarative_companion_added": "声明式搭档已添加",
+              "declarative_companion_updated": "声明式搭档已更新",
+              "declarative_companion_removed": "声明式搭档已删除",
+              "data_exported": "数据已导出",
+              "data_imported": "数据已导入"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {
@@ -1193,6 +1234,128 @@
       "part_low_stock": "备件库存不足",
       "part_out_of_stock": "备件缺货",
       "part_restocked": "备件已补货"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "任务已创建",
+      "description": "在创建任务时触发。"
+    },
+    "task_updated": {
+      "name": "任务已更新",
+      "description": "在任务更改时触发。"
+    },
+    "task_deleted": {
+      "name": "任务已删除",
+      "description": "在删除任务时触发。"
+    },
+    "task_completed": {
+      "name": "任务已完成",
+      "description": "在完成任务时触发。"
+    },
+    "task_uncompleted": {
+      "name": "完成记录已删除",
+      "description": "在删除任务的完成记录时触发。"
+    },
+    "task_completion_updated": {
+      "name": "完成记录已更新",
+      "description": "在编辑任务的完成记录时触发。"
+    },
+    "task_triggered": {
+      "name": "任务已触发",
+      "description": "在触发型任务或传感器任务到期时触发。"
+    },
+    "task_snoozed": {
+      "name": "任务已推迟",
+      "description": "在推迟任务时触发。"
+    },
+    "task_skipped": {
+      "name": "任务已跳过",
+      "description": "在跳过任务时触发。"
+    },
+    "task_due_today_set": {
+      "name": "任务已设为今天到期",
+      "description": "在将任务设为今天到期时触发。"
+    },
+    "task_occurrence_moved": {
+      "name": "任务时间已移动",
+      "description": "在固定任务的某个日期移动时触发。"
+    },
+    "task_skip_updated": {
+      "name": "跳过记录已更新",
+      "description": "在编辑任务的跳过记录时触发。"
+    },
+    "task_skip_removed": {
+      "name": "跳过记录已删除",
+      "description": "在删除任务的跳过记录时触发。"
+    },
+    "task_overdue": {
+      "name": "任务已逾期",
+      "description": "在任务逾期时触发。"
+    },
+    "task_due_soon": {
+      "name": "任务即将到期",
+      "description": "在任务将于 3 天内到期时触发。"
+    },
+    "part_low_stock": {
+      "name": "备件库存不足",
+      "description": "在备件库存降到补货阈值时触发。"
+    },
+    "part_out_of_stock": {
+      "name": "备件缺货",
+      "description": "在备件库存降到 0 时触发。"
+    },
+    "part_restocked": {
+      "name": "备件已补货",
+      "description": "在备件库存回升到补货阈值以上时触发。"
+    },
+    "asset_created": {
+      "name": "电器已添加",
+      "description": "在添加电器时触发。"
+    },
+    "asset_updated": {
+      "name": "电器已更新",
+      "description": "在电器更改时触发。"
+    },
+    "asset_deleted": {
+      "name": "电器已删除",
+      "description": "在删除电器时触发。"
+    },
+    "asset_archived": {
+      "name": "电器已归档",
+      "description": "在归档电器时触发。"
+    },
+    "asset_restored": {
+      "name": "电器已恢复",
+      "description": "在恢复已归档的电器时触发。"
+    },
+    "companion_connected": {
+      "name": "搭档已连接",
+      "description": "在搭档集成连接时触发。"
+    },
+    "companion_suggested": {
+      "name": "搭档已推荐",
+      "description": "在 Home Keeper 推荐搭档集成时触发。"
+    },
+    "declarative_companion_added": {
+      "name": "声明式搭档已添加",
+      "description": "在添加声明式搭档时触发。"
+    },
+    "declarative_companion_updated": {
+      "name": "声明式搭档已更新",
+      "description": "在声明式搭档更改时触发。"
+    },
+    "declarative_companion_removed": {
+      "name": "声明式搭档已删除",
+      "description": "在删除声明式搭档时触发。"
+    },
+    "data_exported": {
+      "name": "数据已导出",
+      "description": "在 Home Keeper 导出数据时触发。"
+    },
+    "data_imported": {
+      "name": "数据已导入",
+      "description": "在 Home Keeper 导入数据时触发。"
     }
   },
   "exceptions": {

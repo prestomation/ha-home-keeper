@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.33.0b6]
+
+### Added
+
+- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
+  Add trigger lists a Home Keeper trigger for each event by target, by type and in its
+  search, such as Task became overdue. Select a device, area, label or task entity as the
+  target, also a device of another integration. (Fixes #415)
+
 ## [0.33.0b5]
 
 ### Added

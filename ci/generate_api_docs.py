@@ -324,6 +324,35 @@ def render_events(sources: Sources) -> list[str]:
     return lines
 
 
+_TRIGGER_TARGETS = {"task": "tasks", "stock": "parts", "asset": "appliances"}
+
+
+def render_triggers(sources: Sources) -> list[str]:
+    surface, _, strings = sources
+    labels = strings.get("triggers", {})
+    return [
+        "## Triggers",
+        "",
+        "In the automation editor, *Add trigger* offers these by name, by target",
+        "and in its search. Each is 1 of the events above. A task, part or",
+        "appliance trigger takes a target: an entity, device, area, floor or label.",
+        "The trigger variables hold the bus event as `trigger.event`.",
+        "",
+        *_table(
+            ["Trigger", "Shown as", "Event", "Target"],
+            [
+                [
+                    f"`home_keeper.{spec.key}`",
+                    cell(labels.get(spec.key, {}).get("name")),
+                    f"`{spec.event}`",
+                    _TRIGGER_TARGETS.get(spec.payload, "none"),
+                ]
+                for spec in surface.TRIGGERS
+            ],
+        ),
+    ]
+
+
 def render_device_triggers(sources: Sources) -> list[str]:
     surface, _, strings = sources
     labels = strings.get("device_automation", {}).get("trigger_type", {})
@@ -332,7 +361,8 @@ def render_device_triggers(sources: Sources) -> list[str]:
         "",
         "On a Home Keeper device, *Add automation → When* offers these by name, so",
         "an automation can be built without knowing any event name. They are the",
-        "same events as above, filtered to that one device.",
+        "same events as above, filtered to that one device. The triggers above",
+        "replace them for a new automation.",
         "",
         *_table(
             ["Trigger", "Shown as", "Event", "Offered on"],
@@ -452,6 +482,7 @@ def render(sources: Sources) -> str:
         *render_surface_coverage(sources),
         *render_services(sources),
         *render_events(sources),
+        *render_triggers(sources),
         *render_device_triggers(sources),
         *render_entities(sources),
         *render_options(sources),
