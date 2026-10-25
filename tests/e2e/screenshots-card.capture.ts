@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openCardDashboard } from './tests/helpers';
+import { callService, openCardDashboard } from './tests/helpers';
 import { TASK } from './fixture-ids';
 import { PHONE } from './viewports';
 
@@ -12,6 +12,19 @@ import { PHONE } from './viewports';
  * Kept out of the *.spec.ts suite so it doesn't run as a normal test.
  */
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
+
+// A Profile that selects every task, so only the card's own labels narrow the list (#492).
+const ALL_PROFILE = {
+  id: 'shot_all',
+  name: 'Everything',
+  filter: { status: 'all', labels: [], areas: [], devices: [] },
+};
+const PROFILE_LABELS = {
+  type: 'custom:home-keeper-card',
+  title: 'Dog tasks',
+  profile: 'shot_all',
+  labels: ['dog'],
+};
 
 /** Pick the seeded filter housing photo in a card's New task form (#399), and wait
  *  for its preview. */
@@ -156,6 +169,11 @@ async function placeTopRows(page: Page, room: boolean): Promise<void> {
   );
   await openCardDashboard(page);
 }
+
+test.afterEach(async () => {
+  // The seeded container has no profiles, so this is what it started with.
+  await callService('home_keeper', 'set_options', { profiles: [] });
+});
 
 test('capture Home Keeper card screenshots', async ({ page }) => {
   // Tall viewport so even the second (grouped) card sits above the fold and its
@@ -303,6 +321,14 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(labelCard.locator('ha-alert[alert-type="warning"]')).toBeVisible();
   await shotCard(page, labelCard, `${OUT}/card-profile-missing.png`);
 
+  // 5d. A Profile and Limit to labels together: the labels still narrow the Profile (#492).
+  await callService('home_keeper', 'set_options', { profiles: [ALL_PROFILE] });
+  await labelCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), PROFILE_LABELS);
+  await expect(labelCard.locator('.hk-name').first()).toBeVisible();
+  await expect(labelCard.locator('.hk-name', { hasText: 'Buddy: Medicine' })).toBeVisible();
+  await expect(labelCard.locator('.hk-name', { hasText: 'Replace fridge filter' })).toHaveCount(0);
+  await shotCard(page, labelCard, `${OUT}/card-profile-labels.png`);
+
   // 6. Truncated list ("+N more" — previously an untranslated template literal).
   // Close the add form from step 4, then reconfigure the default card to a small
   // max_items so the seeded task set (well over a dozen) overflows.
@@ -435,8 +461,17 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form-photos.png` });
 
-  // The deleted-profile warning on a phone (F05-4).
+  // 7e. Profile plus Limit to labels on a phone (#492).
   await mobileForm.locator('ha-button', { hasText: 'Cancel' }).click();
+  await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), PROFILE_LABELS);
+  await expect(mobileCard.locator('.hk-name', { hasText: 'Buddy: Medicine' })).toBeVisible();
+  await expect(mobileCard.locator('.hk-name', { hasText: 'Replace fridge filter' })).toHaveCount(0);
+  await mobileCard
+    .locator('ha-card')
+    .first()
+    .screenshot({ path: `${OUT}/card-mobile-profile-labels.png` });
+
+  // The deleted-profile warning on a phone (F05-4).
   await mobileCard.evaluate((el: { setConfig: (c: Record<string, unknown>) => void }) =>
     el.setConfig({ type: 'custom:home-keeper-card', profile: 'deleted-profile' }),
   );
