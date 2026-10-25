@@ -12,7 +12,17 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **[Card label limit with a profile](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
   The card option **Limit to labels** now works when the card also uses a profile. Before,
-  the card showed every task of the profile. (Fixes #492)
+  the card showed every task of the profile. (Fixes #492) A card with **Hide card when empty**
+  may now hide if the labels match no task of the profile.
+
+## [0.33.0b6]
+
+### Added
+
+- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
+  Add trigger lists a Home Keeper trigger for each event by target, by type and in its
+  search, such as Task became overdue. Select a device, area, label or task entity as the
+  target, also a device of another integration. (Fixes #415)
 
 ## [0.33.0b5]
 

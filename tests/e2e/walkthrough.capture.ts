@@ -47,6 +47,7 @@ import {
   openSettingsSection,
   openTaskTab,
 } from './tests/helpers';
+import { openAddTrigger, searchTriggers, showDeviceTriggers } from './automation-triggers';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import { DESKTOP, PHONE, Viewport } from './viewports';
@@ -1352,6 +1353,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(notifyRow.locator('> .hk-item-body')).toBeHidden();
   await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
+
+  // 7d. Home Keeper triggers (#415). Home Assistant's own Add trigger dialog lists
+  //     the Home Keeper triggers by name. Hold on the search for "overdue", then on
+  //     the triggers of the water heater device under By target.
+  let addTrigger = await openAddTrigger(page);
+  await searchTriggers(addTrigger, 'overdue');
+  await page.waitForTimeout(BEAT * 3);
+  addTrigger = await openAddTrigger(page);
+  await showDeviceTriggers(addTrigger, 'Garage water heater');
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
   //    family's own list, now carrying the synced chores with their due dates.

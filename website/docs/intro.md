@@ -26,7 +26,7 @@ changes, water filters, taking medicine, and anything else that recurs.
   structured metadata (with optional tracked-date sensors), **parts & wear items**,
   **spare-part inventory**, and a CSV **appliance report** for insurance.
 - **Events & automation triggers**: a bus event for every state change, plus
-  visual-editor **device triggers** like *"Task became overdue."*
+  **automation editor triggers** like *"Task became overdue."*
 - **Services for everything**: every data action is a `home_keeper.*` service for
   automations, scripts, and voice.
 - **Localized in 16 languages**, following your Home Assistant language.

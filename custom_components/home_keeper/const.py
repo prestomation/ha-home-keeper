@@ -3,7 +3,15 @@
 DOMAIN = "home_keeper"
 
 # Entity platforms forwarded from the config entry.
-PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
+PLATFORMS = [
+    "todo",
+    "calendar",
+    "button",
+    "sensor",
+    "binary_sensor",
+    "number",
+    "event",
+]
 
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against

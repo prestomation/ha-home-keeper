@@ -37,6 +37,7 @@ offers a device's triggers only for the single integration the device belongs
 to.
 
 An automation built that way must be rebuilt on the task's own entities,
-`binary_sensor.<task>_overdue` and `sensor.<task>_next_due`, or on the matching
-`home_keeper_*` event. These react to the same transitions. Home Keeper
+`binary_sensor.<task>_overdue` and `sensor.<task>_next_due`, on the matching
+`home_keeper_*` event, or on a [Home Keeper trigger](../automation/events.md#triggers).
+These react to the same transitions. Home Keeper
 appliances are not affected and keep their device triggers.

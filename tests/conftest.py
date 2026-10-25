@@ -102,6 +102,9 @@ _PURE_MODULES = (
     # ``task_entities`` names the per-task device-page entities. It imports
     # ``declarative_companions`` and ``notifications``, so it comes after both.
     "task_entities",
+    # ``trigger_targets`` decides what a trigger target means for an event. It
+    # imports only ``const``.
+    "trigger_targets",
     # ``api_surface`` is the index of every integrator-facing surface. Pure like the
     # rest, and last because it does ``from . import options``.
     "api_surface",

@@ -1,0 +1,90 @@
+# The Home Keeper triggers for the automation editor. The keys and the targets
+# follow api_surface.TRIGGERS, and tests/unit/test_triggers_yaml.py checks that.
+# A task, part or appliance trigger targets the Home Keeper entities.
+
+.target: &target
+  entity:
+    - integration: home_keeper
+
+task_created:
+  target: *target
+
+task_updated:
+  target: *target
+
+task_deleted:
+  target: *target
+
+task_completed:
+  target: *target
+
+task_uncompleted:
+  target: *target
+
+task_completion_updated:
+  target: *target
+
+task_triggered:
+  target: *target
+
+task_snoozed:
+  target: *target
+
+task_skipped:
+  target: *target
+
+task_due_today_set:
+  target: *target
+
+task_occurrence_moved:
+  target: *target
+
+task_skip_updated:
+  target: *target
+
+task_skip_removed:
+  target: *target
+
+task_overdue:
+  target: *target
+
+task_due_soon:
+  target: *target
+
+part_low_stock:
+  target: *target
+
+part_out_of_stock:
+  target: *target
+
+part_restocked:
+  target: *target
+
+asset_created:
+  target: *target
+
+asset_updated:
+  target: *target
+
+asset_deleted:
+  target: *target
+
+asset_archived:
+  target: *target
+
+asset_restored:
+  target: *target
+
+companion_connected: {}
+
+companion_suggested: {}
+
+declarative_companion_added: {}
+
+declarative_companion_updated: {}
+
+declarative_companion_removed: {}
+
+data_exported: {}
+
+data_imported: {}
