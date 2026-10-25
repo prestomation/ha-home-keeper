@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: 88e81b1a39b3
+source_hash: b070b43f6748
 ---
 
 # Profiles and notifications
@@ -59,7 +59,8 @@ A task inherits labels from its device and its area, and an area from its device
 copies before the pure matcher runs. `DUE_SOON_DAYS` (3) mirrors the backend window and
 is different from the card's 7-day `soon` section. `tests/fixtures/profile_filter_cases.json`
 holds the shared cases. The card `profile` setting and the active profile in
-`panel-lists.ts` use `profileMatches` in place of their own filters.
+`panel-lists.ts` use `profileMatches` in place of their own filters. The card keeps its own
+`labels` and `label_match` on top of a profile (`matchesCardLabels`).
 
 ### Notification model (`notifications.py`)
 
