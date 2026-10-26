@@ -9,6 +9,7 @@ import {
   bucketByKey,
   filterTasks,
   groupTasks,
+  matchesCardLabels,
   matchesQuery,
   normalizeCardConfig,
   normalizeSearch,
@@ -867,5 +868,30 @@ describe('assetMatchesQuery', () => {
   it('matches the notes written on the appliance', () => {
     const noted = { id: 'a3', kind: 'device', name: 'Boiler', notes: 'Serviced by Acme every March' };
     expect(assetMatchesQuery(noted, 'acme')).toBe(true);
+  });
+});
+
+describe('matchesCardLabels (#492)', () => {
+  const a = task({ labels: ['tasks', 'p1'] });
+
+  it('passes every task when the card sets no labels', () => {
+    expect(matchesCardLabels(a, {})).toBe(true);
+    expect(matchesCardLabels(a, { labels: [] })).toBe(true);
+  });
+
+  it('matches any label by default', () => {
+    expect(matchesCardLabels(a, { labels: ['p1', 'p2'] })).toBe(true);
+    expect(matchesCardLabels(a, { labels: ['p2'] })).toBe(false);
+  });
+
+  it('needs every label with label_match all', () => {
+    expect(matchesCardLabels(a, { labels: ['tasks', 'p1'], label_match: 'all' })).toBe(true);
+    expect(matchesCardLabels(a, { labels: ['tasks', 'p2'], label_match: 'all' })).toBe(false);
+  });
+
+  it('agrees with filterTasks', () => {
+    const b = task({ labels: ['tasks', 'p2'] });
+    const config = { labels: ['p2'] };
+    expect(filterTasks([a, b], config, {}, NOW, {})).toEqual([b]);
   });
 });

@@ -1213,6 +1213,32 @@ describe('HomeKeeperCard profile that is gone (F05-4)', () => {
     }
   });
 
+  it('#492: the card\'s Limit to labels narrows a profile result', async () => {
+    const both = [
+      { ...sampleTasks[0], id: 'a', name: 'Feed the cat', labels: ['kid', 'p1'] },
+      { ...sampleTasks[0], id: 'b', name: 'Walk the dog', labels: ['kid', 'p2'] },
+      { ...sampleTasks[0], id: 'c', name: 'Clean the gutters', labels: ['p1'] },
+    ];
+    const card = makeCard({
+      type: 'custom:home-keeper-card',
+      profile: 'p1',
+      labels: ['p1'],
+    });
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: both };
+        if (msg.type === 'home_keeper/get_profiles') return { profiles: [PROFILE] };
+        return {};
+      },
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    const text = sr(card).textContent;
+    expect(text).toContain('Feed the cat');
+    expect(text).not.toContain('Walk the dog');
+    expect(text).not.toContain('Clean the gutters');
+  });
+
   it('F05-4: keeps the last profile list when a later fetch fails', async () => {
     const card = makeCard({ type: 'custom:home-keeper-card', profile: 'p1' });
     card.hass = hassWith([PROFILE]);

@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.33.0b7]
+
+### Fixed
+
+- **[Card label limit with a profile](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The card option **Limit to labels** now works when the card also uses a profile. Before,
+  the card showed every task of the profile. (Fixes #492) A card with **Hide card when empty**
+  may now hide if the labels match no task of the profile.
+
 ## [0.33.0b6]
 
 ### Added
