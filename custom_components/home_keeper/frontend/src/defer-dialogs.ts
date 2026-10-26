@@ -185,7 +185,7 @@ export class DeferMenus {
     // The top layer is outside every card, so no theme can clip or cover the menu.
     // A browser without the Popover API keeps the menu in the card, where CSS places it.
     if (typeof menu.showPopover === 'function') {
-      menu.popover = 'manual';
+      menu.setAttribute('popover', 'manual');
       menu.showPopover();
       placeMenu(split, menu);
     }
