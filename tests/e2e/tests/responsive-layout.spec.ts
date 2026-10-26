@@ -1,5 +1,5 @@
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openAppliance, openPanel, openSettingsSection } from './helpers';
+import { openAppliance, openListFilters, openPanel, openSettingsSection } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
 
 /**
@@ -119,6 +119,8 @@ test.describe('Home Keeper panel — phone layout', { tag: '@phone' }, () => {
   test('the filter segment comes apart into chips, and none is off the edge', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
+    // A phone folds the controls behind the Filters button (#488).
+    await openListFilters(panel);
     await expect(panel.locator('.hk-seg-btn').first()).toBeVisible();
 
     // A joined segment cannot wrap — it is one pill with hairlines between its
@@ -129,7 +131,7 @@ test.describe('Home Keeper panel — phone layout', { tag: '@phone' }, () => {
 
     // Nothing scrolls sideways: a control parked off the edge of a phone screen is
     // a control nobody finds, and there is no affordance saying to swipe for it.
-    for (const selector of ['.hk-controls', '.hk-wrap']) {
+    for (const selector of ['.hk-listbar', '.hk-controls', '.hk-wrap']) {
       expect(await horizontalOverflow(panel, selector), `${selector} overflows`)
         .toBeLessThanOrEqual(0);
     }
@@ -157,13 +159,14 @@ test.describe('Home Keeper panel — phone layout', { tag: '@phone' }, () => {
   }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
+    await openListFilters(panel);
     await expect(panel.locator('.hk-seg-btn').first()).toBeVisible();
 
     // Read the floor off the panel's own token rather than writing 44 here twice.
     const tap = Number.parseFloat(await token(panel, '--hk-tap'));
     expect(tap).toBeGreaterThan(0);
 
-    for (const selector of ['.hk-seg-btn', '.hk-menu']) {
+    for (const selector of ['.hk-seg-btn', '.hk-menu', '#hk-filters-btn', '#hk-spend-btn']) {
       const targets = panel.locator(selector);
       const count = await targets.count();
       expect(count, `no ${selector} found`).toBeGreaterThan(0);

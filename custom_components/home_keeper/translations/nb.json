@@ -1179,6 +1179,47 @@
       "upcoming_tasks": {
         "name": "Kommende oppgaver"
       }
+    },
+    "event": {
+      "home_keeper_events": {
+        "name": "Hendelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Oppgave opprettet",
+              "task_updated": "Oppgave oppdatert",
+              "task_deleted": "Oppgave slettet",
+              "task_completed": "Oppgave utført",
+              "task_uncompleted": "Fullføring fjernet",
+              "task_completion_updated": "Fullføring oppdatert",
+              "task_triggered": "Oppgave utløst",
+              "task_snoozed": "Oppgave utsatt",
+              "task_skipped": "Oppgave hoppet over",
+              "task_due_today_set": "Oppgave satt til i dag",
+              "task_skip_updated": "Overhopping oppdatert",
+              "task_skip_removed": "Overhopping fjernet",
+              "task_occurrence_moved": "Oppgaveforekomst flyttet",
+              "task_overdue": "Oppgave ble forfalt",
+              "task_due_soon": "Oppgave forfaller snart",
+              "part_low_stock": "Lavt lager av reservedel",
+              "part_out_of_stock": "Reservedel utsolgt",
+              "part_restocked": "Reservedel fylt på",
+              "asset_created": "Apparat lagt til",
+              "asset_updated": "Apparat oppdatert",
+              "asset_deleted": "Apparat slettet",
+              "asset_archived": "Apparat arkivert",
+              "asset_restored": "Apparat gjenopprettet",
+              "companion_connected": "Følgesvenn tilkoblet",
+              "companion_suggested": "Følgesvenn foreslått",
+              "declarative_companion_added": "Deklarativ companion lagt til",
+              "declarative_companion_updated": "Deklarativ companion oppdatert",
+              "declarative_companion_removed": "Deklarativ companion slettet",
+              "data_exported": "Data eksportert",
+              "data_imported": "Data importert"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {
@@ -1193,6 +1234,128 @@
       "part_low_stock": "Lavt lager av reservedel",
       "part_out_of_stock": "Reservedel utsolgt",
       "part_restocked": "Reservedel fylt på"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Oppgave opprettet",
+      "description": "Utløses når en oppgave opprettes."
+    },
+    "task_updated": {
+      "name": "Oppgave oppdatert",
+      "description": "Utløses når en oppgave endres."
+    },
+    "task_deleted": {
+      "name": "Oppgave slettet",
+      "description": "Utløses når en oppgave slettes."
+    },
+    "task_completed": {
+      "name": "Oppgave utført",
+      "description": "Utløses når en oppgave fullføres."
+    },
+    "task_uncompleted": {
+      "name": "Fullføring fjernet",
+      "description": "Utløses når en fullføring av en oppgave fjernes."
+    },
+    "task_completion_updated": {
+      "name": "Fullføring oppdatert",
+      "description": "Utløses når en fullføring av en oppgave redigeres."
+    },
+    "task_triggered": {
+      "name": "Oppgave utløst",
+      "description": "Utløses når en utløst oppgave eller en sensoroppgave forfaller."
+    },
+    "task_snoozed": {
+      "name": "Oppgave utsatt",
+      "description": "Utløses når en oppgave utsettes."
+    },
+    "task_skipped": {
+      "name": "Oppgave hoppet over",
+      "description": "Utløses når en oppgave hoppes over."
+    },
+    "task_due_today_set": {
+      "name": "Oppgave satt til i dag",
+      "description": "Utløses når en oppgave settes til å forfalle i dag."
+    },
+    "task_occurrence_moved": {
+      "name": "Oppgaveforekomst flyttet",
+      "description": "Utløses når en dato for en fast oppgave flyttes."
+    },
+    "task_skip_updated": {
+      "name": "Overhopping oppdatert",
+      "description": "Utløses når en overhopping av en oppgave redigeres."
+    },
+    "task_skip_removed": {
+      "name": "Overhopping fjernet",
+      "description": "Utløses når en overhopping av en oppgave fjernes."
+    },
+    "task_overdue": {
+      "name": "Oppgave ble forfalt",
+      "description": "Utløses når en oppgave blir forfalt."
+    },
+    "task_due_soon": {
+      "name": "Oppgave forfaller snart",
+      "description": "Utløses når en oppgave forfaller om 3 dager eller mindre."
+    },
+    "part_low_stock": {
+      "name": "Lavt lager av reservedel",
+      "description": "Utløses når beholdningen av en reservedel faller til bestillingsgrensen."
+    },
+    "part_out_of_stock": {
+      "name": "Reservedel utsolgt",
+      "description": "Utløses når beholdningen av en reservedel når 0."
+    },
+    "part_restocked": {
+      "name": "Reservedel fylt på",
+      "description": "Utløses når beholdningen av en reservedel stiger over bestillingsgrensen."
+    },
+    "asset_created": {
+      "name": "Apparat lagt til",
+      "description": "Utløses når et apparat legges til."
+    },
+    "asset_updated": {
+      "name": "Apparat oppdatert",
+      "description": "Utløses når et apparat endres."
+    },
+    "asset_deleted": {
+      "name": "Apparat slettet",
+      "description": "Utløses når et apparat slettes."
+    },
+    "asset_archived": {
+      "name": "Apparat arkivert",
+      "description": "Utløses når et apparat arkiveres."
+    },
+    "asset_restored": {
+      "name": "Apparat gjenopprettet",
+      "description": "Utløses når et arkivert apparat gjenopprettes."
+    },
+    "companion_connected": {
+      "name": "Følgesvenn tilkoblet",
+      "description": "Utløses når en companion-integrasjon kobler til."
+    },
+    "companion_suggested": {
+      "name": "Følgesvenn foreslått",
+      "description": "Utløses når Home Keeper foreslår en companion-integrasjon."
+    },
+    "declarative_companion_added": {
+      "name": "Deklarativ companion lagt til",
+      "description": "Utløses når en deklarativ companion legges til."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklarativ companion oppdatert",
+      "description": "Utløses når en deklarativ companion endres."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklarativ companion slettet",
+      "description": "Utløses når en deklarativ companion slettes."
+    },
+    "data_exported": {
+      "name": "Data eksportert",
+      "description": "Utløses når Home Keeper eksporterer data."
+    },
+    "data_imported": {
+      "name": "Data importert",
+      "description": "Utløses når Home Keeper importerer data."
     }
   },
   "exceptions": {

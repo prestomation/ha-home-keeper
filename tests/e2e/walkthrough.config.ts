@@ -58,6 +58,11 @@ export default captureConfig('walkthrough.capture.ts', {
   // the ~40% that a measurement asks for, so the next PR that adds a beat must first
   // shorten the walk.
   //
+  // Re-measured for #415, which added beat 7d (the Home Keeper triggers in the Add
+  // trigger dialog, 6 beats plus 2 page loads of the automation editor): **294s in the
+  // dev container** (the phone walk 59s), an 18% margin against the 360s cap. The cap
+  // stays; the next beat must shorten the walk.
+  //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
   // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —

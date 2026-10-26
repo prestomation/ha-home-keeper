@@ -29,7 +29,7 @@ import { expect, test } from '@playwright/test';
 import { ASSET, TASK } from './fixture-ids';
 import { centre } from './shots';
 import { PHONE } from './viewports';
-import { openCardDashboard, openPanel } from './tests/helpers';
+import { openCardDashboard, openListFilters, openPanel } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -225,6 +225,7 @@ test('capture counted wear items', async ({ page }) => {
     await intro.click();
     await expect(panel.locator('.hk-intro')).toHaveCount(0);
   }
+  await openListFilters(panel);
   await panel
     .locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="counted"]')
     .click();

@@ -1,11 +1,15 @@
 ---
 title: Events and API surface
-summary: The events, device triggers, services and websocket commands, and their model.
+summary: The events, triggers, services and websocket commands, and their model.
 implements:
   - custom_components/home_keeper/events.py
   - custom_components/home_keeper/logbook.py
   - custom_components/home_keeper/transitions.py
   - custom_components/home_keeper/device_trigger.py
+  - custom_components/home_keeper/trigger.py
+  - custom_components/home_keeper/trigger_targets.py
+  - custom_components/home_keeper/triggers.yaml
+  - custom_components/home_keeper/icons.json
   - custom_components/home_keeper/api_surface.py
   - custom_components/home_keeper/resolve.py
   - custom_components/home_keeper/service_errors.py
@@ -13,7 +17,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: a6b0ed435c3a
+source_hash: 7fca3263729f
 ---
 
 # Events and API surface
@@ -50,10 +54,11 @@ Privileges: [SECURITY.md](../SECURITY.md).
 
 ### Payload builders
 
-`events.py` has no Home Assistant imports. Each builder returns the dict for the bus. All
-task events share 1 spine (`events.task_event_data`), so 1 automation template works for
-all of them. Per-event keys merge on top through `extra`. The spine `entity_id` is the
-to-do list, which `todo.async_added_to_hass` gives to the store as `todo_entity_id`.
+`events.py` has no Home Assistant imports. Each builder, such as `events.task_event_data`,
+returns the dict for the bus. All task events share 1 spine, so 1 template works for all.
+Per-event keys (`changed_fields`, `days_overdue`) merge on top through `extra`. The spine
+`entity_id` is the to-do list, which `todo.async_added_to_hass` gives to the store as
+`todo_entity_id`.
 
 `store.py` fires at each mutation point, never in a handler, also on the wear-part
 reconcile and the appliance delete cascade. An update that changes no field fires no event.
@@ -82,20 +87,19 @@ fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fi
 `events.logbook_message`. The logbook matches the `entity_id` and `device_id` in the data, so a
 row shows on the to-do list and on the task device. A row names no entity, to keep the task name.
 
-### Device triggers
+### Triggers
 
-`device_trigger.py` builds `TASK_TRIGGERS` and `ASSET_TRIGGERS` from `api_surface.triggers_for`.
-`device_trigger.async_attach_trigger` wraps the event trigger with a filter on the data:
+`trigger.py` gives 1 trigger (`home_keeper.<key>`) for each `api_surface.TRIGGERS` entry:
+each fired event with a payload. `triggers.yaml` and `icons.json` describe them to the
+editor. A task, part or appliance trigger requires a target. Each trigger listens on its
+bus event. `trigger.resolve_target` resolves the target with the Home Assistant target
+helper for each event, and the pure `trigger_targets.matches` applies the rule of the
+payload: a task matches by its entities, `device_id`, `area_id` or `labels`.
 
-| Device | Identifier | Filter |
-|---|---|---|
-| Self-owned task device | `(home_keeper, <task_id>)` | `task_id` |
-| Appliance device | `(home_keeper, asset_<id>)` | `device_id` |
-| Other device with tasks attached | foreign | `device_id` |
-
-A standalone task has `device_id: null` in its payload, so its device filters on `task_id`.
-`device_trigger._attach_filter` reads only the device registry: automations attach at
-startup, often before the entry loads. `_filters` reads the coordinator to choose triggers.
+`device_trigger.py` builds its maps from `api_surface.triggers_for`. It filters the event
+on `task_id` for a self-owned task device `(home_keeper, <task_id>)`, else on `device_id`.
+`device_trigger._attach_filter` reads only the device registry, because automations attach
+at startup, often before the entry loads. `event.py` mirrors events onto 1 event entity.
 
 ### Services and websocket commands
 
@@ -115,21 +119,19 @@ An admin-only operation has 2 gates: `@websocket_api.require_admin` on the comma
 
 `resolve.resolve_task_id` tries an exact id, then an exact name, then a trimmed, case-folded
 name. Parts and documents resolve only inside 1 resolved appliance. More than 1 match
-raises `resolve.AmbiguousName`, which lists every candidate id. No match returns the key
-unchanged, so the error quotes the user's text. An unknown uuid deletes with success.
+raises `resolve.AmbiguousName` with every candidate id. No match returns the key, so the
+error quotes the user's text. A delete of an unknown uuid succeeds (`resolve.looks_like_id`).
 
-`service_errors.store_errors` turns a store `KeyError`, `TaskValidationError` or
-`AssetValidationError` into a `ServiceValidationError` with a translation key. The innermost id
-given picks the key: `unknown_task_photo` or `unknown_part` before `asset_not_found`.
+`service_errors.store_errors` turns a store error into a `ServiceValidationError`. The
+innermost id picks the key: `unknown_task_photo` or `unknown_part` before `asset_not_found`.
 
 ### The declared surface
 
-`api_surface.py` imports only `const`. Its tables (`SERVICES`, `EVENTS`, `PAYLOAD_SPINES`,
-`WEBSOCKET_COMMANDS` and others) hold names and structure. The only text is each `summary`.
-`tests/unit/test_api_surface.py` parses the source with `ast` and checks the services,
-events, payload keys, websocket commands, views and admin gates against the model.
-`tests/integration/test_api_surface.py` checks a running instance. `ci/generate_api_docs.py`
-renders the Developer Guide API page from the model.
+`api_surface.py` imports only `const`. Its tables (`SERVICES`, `EVENTS`, `TRIGGERS` and
+others) hold names and structure only. The text fields are `EventSpec.summary` and
+`CompanionCapabilitySpec.summary`. `tests/unit/test_api_surface.py` checks the source
+against the model with `ast`, and `tests/integration/test_api_surface.py` checks a running
+instance. `ci/generate_api_docs.py` renders the Developer Guide API page from the model.
 
 `testing.async_setup_fake_home_keeper` registers a `FakeHomeKeeper` under the real service
 names. It uses `models.build_task` and the `events.py` builders, but no overdue events.
@@ -138,13 +140,18 @@ names. It uses `models.build_task` and the `events.py` builders, but no overdue 
 
 - **Fire from the store** over **from the handlers**: every surface reaches 1 method.
 - **Silent baseline at startup** over **saved edge state**: no overdue storm after a
-  restart. A crossing during downtime is not announced; the binary sensors show the state.
-- **Device triggers** over **a trigger platform for the integration**: users look on devices.
+  restart, and no storage write per tick. A crossing during downtime is not announced; the
+  binary sensors still show the state.
+- **Home Keeper triggers** over **an event entity on each device**: the Add trigger dialog
+  of Home Assistant 2026.7 lists only these by target, and 2026.8 offers device triggers
+  only on Home Keeper's own devices. A trigger works on each kind of device from 2026.1,
+  and reads the bus, so a reload loses no event. Cost: the trigger API is young.
 - **Ambiguity raises** over **first match wins**: names are not unique; deletes must not guess.
 
 ## One-way doors
 
 - Event names, every payload key in `PAYLOAD_SPINES`, and the logbook message text.
-- Device trigger `type` values, which user automations store.
+- Device trigger `type` values and trigger keys (`home_keeper.<key>`), which user
+  automations store. What a target means for each payload, and the `event` variable.
 - Service names, field names, and the name-or-id form of each `*_id` field.
 - The `testing.py` entry point and the `FakeHomeKeeper` helper names.

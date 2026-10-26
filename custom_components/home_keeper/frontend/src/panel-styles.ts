@@ -69,6 +69,10 @@ export const STYLES = `
     --hk-chip-col-wide: 300px;
     --hk-shadow-card: 0 1px 3px rgba(0,0,0,.08);
     --hk-shadow-float: 0 4px 18px rgba(0,0,0,.16);
+    /* The page behind the cards, for the task list bar that stays over it (#488). */
+    --hk-bg: var(--primary-background-color);
+    /* Behind a modal sheet: Home Assistant's own dialog scrim. */
+    --hk-scrim: var(--mdc-dialog-scrim-color, rgba(0, 0, 0, 0.32));
     display: block;
   }
 
@@ -473,6 +477,51 @@ export const STYLES = `
     .hk-spend-who { grid-column: 2; grid-row: 2; text-align: end; }
     .hk-spend-tag { grid-column: 1; grid-row: 3; }
   }
+  /* The compact strip above the task list (#488): the heading and the totals on 1
+     line, each total a label and a value. The open total lists its records under it,
+     at full width. A phone hides it and shows the spend button in the list bar. */
+  .hk-spend-compact {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 8px 6px 14px;
+  }
+  .hk-spend-compact .hk-spend-totals { display: flex; flex-wrap: wrap; gap: 4px; }
+  .hk-spend-compact .hk-spend-total {
+    flex-direction: row; align-items: baseline; gap: 6px; min-height: 36px;
+    padding: 6px 10px; border-width: 1px; border-color: transparent;
+  }
+  .hk-spend-compact .hk-spend-total:hover { border-color: var(--hk-line); }
+  .hk-spend-compact .hk-spend-total.open { border-color: var(--hk-accent); }
+  .hk-spend-compact .hk-spend-value { font-size: 0.95rem; }
+  .hk-spend-compact .hk-spend-records { flex: 1 1 100%; margin-top: 4px; }
+
+  /* The spend sheet (#488): the full strip, from the bottom of the screen, over a
+     scrim. Only the spend button of a phone opens it. The panel makes the page under
+     it inert and closes it on Escape. */
+  .hk-spend-scrim { position: fixed; inset: 0; z-index: 7; background: var(--hk-scrim); }
+  .hk-spend-sheet {
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 8;
+    max-height: 85dvh; overflow-y: auto; overscroll-behavior: contain;
+    padding: 6px 16px max(20px, env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0; border-top: 1px solid var(--hk-line);
+    background: var(--hk-surface); color: var(--hk-ink);
+    box-shadow: 0 -8px 32px color-mix(in srgb, var(--hk-ink) 26%, transparent);
+  }
+  .hk-spend-sheet:focus { outline: none; }
+  .hk-spend-sheet::before {
+    content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
+    margin: 4px auto 6px; background: var(--hk-line);
+  }
+  .hk-spend-sheet-head { display: flex; align-items: center; gap: 8px; }
+  .hk-spend-sheet-title { flex: 1; margin: 0; font-size: 1.1rem; font-weight: 500; }
+  .hk-spend-sheet-close {
+    appearance: none; border: 0; background: transparent; color: var(--hk-ink-2); cursor: pointer;
+    width: var(--hk-tap); height: var(--hk-tap); border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .hk-spend-sheet-close:hover { background: var(--hk-page); }
+  .hk-spend-sheet-close:focus-visible { outline: 2px solid var(--hk-accent); }
+  .hk-spend-sheet .hk-spend { border: 0; padding: 0; margin: 0; background: transparent; }
+  .hk-spend-sheet .hk-spend-heading { display: none; }
+
   /* Preset suggestions above the task list: the same card as the intro, with one
      tile per preset. Two tiles side by side where they fit, one per row on a phone. */
   .hk-preset-nudge {
@@ -1596,6 +1645,96 @@ export const STYLES = `
   }
   /* The one primary action per surface. */
   .hk-add-btn { flex: none; }
+
+  /* ── Task list bar (#488) ──────────────────────────────────────────────────
+     Search, Filters, the spend button and Add in 1 bar that stays at the top while
+     the list scrolls, and under it a chip for each active filter. Sticky, not
+     fixed: the bar moves with the panel, under whatever Home Assistant draws above
+     it. The sentinel above it tells the panel when it is pinned (\`data-stuck\`).
+     The filter controls follow the bar, in the normal flow, so they scroll away
+     with the list.
+
+     On a wide screen the controls are always in view. The Filters button and the
+     chips only show once the bar is pinned, and the spend button never shows: the
+     compact strip above the list holds the totals. */
+  .hk-listbar-sentinel { height: 1px; margin-bottom: -1px; }
+  .hk-listbar {
+    position: sticky; top: 0; z-index: 3;
+    margin: 0 -16px; padding: 0 16px;
+    background: var(--hk-bg);
+  }
+  .hk-listbar[data-stuck] {
+    padding-top: 8px; border-bottom: 1px solid var(--hk-line);
+    box-shadow: var(--hk-shadow-card);
+  }
+  .hk-listbar[data-stuck] + .hk-list-controls { margin-top: 12px; }
+  .hk-listbar-row {
+    display: flex; align-items: center; gap: 8px 12px; padding-bottom: 12px; min-width: 0;
+  }
+  .hk-listbar-row .hk-search { flex: 0 1 320px; min-width: 0; }
+  .hk-listbar-row .hk-search-input { flex: 1 1 auto; width: auto; }
+  .hk-listbar-row .hk-add-btn { margin-left: auto; }
+  .hk-filters-btn, .hk-spend-btn {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; flex: none;
+    min-height: 34px; padding: 0 12px; cursor: pointer;
+    border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+    background: var(--hk-surface); color: var(--hk-ink);
+    --mdc-icon-size: 18px;
+  }
+  .hk-filters-btn ha-icon, .hk-spend-btn ha-icon { color: var(--hk-ink-2); }
+  /* Only where a pointer can hover: a touch screen keeps :hover after a tap, and the
+     button then reads as pressed. */
+  @media (hover: hover) {
+    .hk-filters-btn:hover, .hk-spend-btn:hover { background: var(--hk-page); }
+  }
+  .hk-filters-btn:focus-visible, .hk-spend-btn:focus-visible {
+    outline: 2px solid var(--hk-accent); outline-offset: 2px;
+  }
+  .hk-filters-btn[aria-expanded="true"], .hk-spend-btn[aria-expanded="true"] {
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink); border-color: var(--hk-accent);
+  }
+  .hk-filters-btn[aria-expanded="true"] ha-icon,
+  .hk-spend-btn[aria-expanded="true"] ha-icon { color: var(--hk-accent-ink); }
+  .hk-filters-badge {
+    min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
+    background: var(--hk-accent); color: var(--hk-accent-fg);
+    font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .hk-spend-btn-text { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hk-active-filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-bottom: 12px;
+  }
+  .hk-active-filters:empty { display: none; }
+  .hk-filter-chip {
+    display: inline-flex; align-items: center; max-width: 100%; min-width: 0; height: 30px;
+    padding: 0 2px 0 12px; border-radius: var(--hk-r-pill); font-size: 0.82rem; font-weight: 600;
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink);
+    box-shadow: inset 0 0 0 1px var(--hk-accent);
+  }
+  .hk-filter-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .hk-filter-chip-clear {
+    appearance: none; border: 0; background: transparent; color: inherit; cursor: pointer;
+    position: relative; flex: none; width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; --mdc-icon-size: 16px;
+  }
+  /* The circle is 28px. A transparent ring takes the hit area to --hk-tap. */
+  .hk-filter-chip-clear::before {
+    content: ''; position: absolute; inset: calc((28px - var(--hk-tap)) / 2);
+  }
+  .hk-filter-chip-clear:hover { background: color-mix(in srgb, var(--hk-accent) 18%, transparent); }
+  .hk-filter-chip-clear:focus-visible, .hk-filter-clear-all:focus-visible {
+    outline: 2px solid var(--hk-accent); outline-offset: 1px;
+  }
+  .hk-filter-clear-all {
+    appearance: none; border: 0; background: transparent; cursor: pointer; font: inherit;
+    font-size: 0.82rem; font-weight: 600; color: var(--hk-accent-ink);
+    text-decoration: underline; padding: 6px 4px; min-height: 30px;
+  }
+  .hk-listbar:not([data-stuck]) .hk-filters-btn,
+  .hk-listbar:not([data-stuck]) .hk-active-filters,
+  .hk-spend-btn { display: none; }
 
   /* ── Collapsible group sections ───────────────────────────────────────────
      An eyebrow, its count, then a hairline that carries the eye to a chevron at
@@ -2794,5 +2933,21 @@ export const STYLES = `
     .hk-decl-key-row .hk-decl-key-remove { grid-column: 2; grid-row: 1 / span 2; }
     .hk-decl-key-row + .hk-decl-key-row { border-top: 1px solid var(--divider-color); padding-top: 8px; }
     .hk-decl-key-head { display: none; }
+  }
+
+  /* The task list bar on a phone (#488). Last in the sheet, because it overrides the
+     phone rules of the control row above: Search shares its row with 2 buttons
+     instead of taking a row of its own. The Filters button and the chips always
+     show, the filter controls show only when they are open, and the spend button
+     takes the place of the strip. */
+  @media (max-width: 700px) {
+    .hk-listbar { margin: 0 -12px; padding: 0 12px; }
+    .hk-listbar-row { gap: 8px; }
+    .hk-listbar-row .hk-search { flex: 1 1 auto; }
+    .hk-listbar .hk-listbar-row .hk-filters-btn,
+    .hk-listbar-row .hk-spend-btn { display: inline-flex; min-height: var(--hk-tap); }
+    .hk-listbar > .hk-active-filters:not(:empty) { display: flex; }
+    .hk-list-controls:not([data-open]) { display: none; }
+    #hk-list .hk-spend-compact { display: none; }
   }
 `;

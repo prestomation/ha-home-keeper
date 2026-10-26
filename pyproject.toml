@@ -101,6 +101,9 @@ only_mutate = [
     # Aggregate profile / all-tasks counts behind the count sensors. Pure and driven
     # by tests/unit/test_task_counts.py; sensor.py is a thin publisher over it.
     "custom_components/home_keeper/task_counts.py",
+    # What a trigger target means for 1 event (#415). Pure, and driven by
+    # tests/unit/test_trigger_targets.py; trigger.py is a thin listener over it.
+    "custom_components/home_keeper/trigger_targets.py",
     "custom_components/home_keeper/problem_tasks.py",
     "custom_components/home_keeper/appliance_report.py",
     # Spend and purchase totals (#460). Pure, and driven by test_cost_summary.py.

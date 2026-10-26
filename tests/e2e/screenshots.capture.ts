@@ -16,6 +16,7 @@ import {
   callService,
   gotoTab,
   listTasks,
+  openListFilters,
   openPanel,
   openDashboard,
   openPart,
@@ -39,6 +40,16 @@ import {
 } from './shots';
 import { ASSET, PART, PHOTO, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
+
+/** Scroll the task list until its bar is pinned to the top (#488). */
+async function pinListBar(p: Page, panel: Locator): Promise<void> {
+  await expect(async () => {
+    const card = await panel.locator('#hk-list ha-card.hk-card').first().boundingBox();
+    await p.mouse.move((card?.x ?? 100) + 20, (card?.y ?? 300) + 10);
+    await p.mouse.wheel(0, 500);
+    await expect(panel.locator('.hk-listbar[data-stuck]')).toHaveCount(1, { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+}
 
 /** The name of the throwaway appliance the orphaned-owner shots create. */
 const ORPHANED_APPLIANCE = 'Old battery pool';
@@ -2065,6 +2076,21 @@ test('capture Settings and the usage surfaces', async () => {
   await panel.locator('.hk-spend [data-spend="all"]').click();
   await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
 
+  // 81. The task list bar at rest on a desktop (#488): Search and Add in the bar,
+  // the filter controls under it, and the spend totals on 1 line.
+  await openPanel(page);
+  await expect(panel.locator('#hk-list .hk-spend-compact')).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/81-panel-task-bar.png` });
+  // 81b. The same bar pinned to the top after a scroll, with the Overdue scope on:
+  // the Filters button and its chip show only while the bar is pinned.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"]').click();
+  await pinListBar(page, panel);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/81b-panel-task-bar-pinned.png` });
+  await panel.locator('[data-clear-filter="scope"]').click();
+  await expect(panel.locator('.hk-filter-chip')).toHaveCount(0);
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
   // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
@@ -2522,24 +2548,60 @@ test('capture the phone layout', async () => {
   await page.setViewportSize(PHONE);
 
   await openPanel(page);
-  // Shot 23 left a Profile selected, and a filtered list hides the scope pills —
-  // which are the single most phone-specific thing on this screen, since they are
-  // what comes apart into wrapping chips below 700px. Clear it first.
+  // Shot 23 left a Profile selected, and a filtered list hides the scope pills.
+  // Clear it first. A phone folds the filter controls behind Filters (#488).
+  await openListFilters(panel);
   await panel.locator('select[data-profile-filter]').selectOption('');
   await expect(panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn').first()).toBeVisible();
+  // 81d. The filter controls open under the bar.
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/81d-panel-mobile-task-bar-open.png` });
+  // 52 and 81c. Folded, which is where a phone starts: Search, Filters and the spend
+  // button in 1 bar, and the list right under it.
+  await panel.locator('#hk-filters-btn').click();
+  await expect(panel.locator('#hk-list-controls')).toBeHidden();
   await expect(panel.locator('#hk-list')).toBeVisible();
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+  await page.screenshot({ path: `${OUT}/81c-panel-mobile-task-bar.png` });
 
-  // 72c. The spend totals on a phone (#460): 2 totals to a row, and the records of
-  // the open total stacked under them.
-  await panel.locator('.hk-spend [data-spend="all"]').click();
-  await expect(panel.locator('.hk-spend-row').first()).toBeVisible();
+  // 81e. 2 filters on: a chip for each, the count on Filters, and Clear all.
+  await openListFilters(panel);
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"]').click();
+  await panel.locator('#hk-filters-btn').click();
+  await panel.locator('.hk-search-input').fill('filter');
+  await expect(panel.locator('.hk-filter-chip')).toHaveCount(2);
+  // The pointer off the bar, so no button shows its hover state.
+  await page.mouse.move(1, PHONE.height - 1);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/81e-panel-mobile-task-bar-chips.png` });
+
+  // 81f. The bar pinned to the top after a scroll, chips and all.
+  await panel.locator('.hk-search-input').fill('');
+  await pinListBar(page, panel);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/81f-panel-mobile-task-bar-pinned.png` });
+  await panel.locator('[data-clear-filter="scope"]').click();
+  await expect(panel.locator('.hk-filter-chip')).toHaveCount(0);
+
+  // 72c. The spend totals on a phone (#460, #488): the spend button opens them in a
+  // sheet, with the records of the open total under the totals.
+  await openPanel(page);
+  await panel.locator('#hk-spend-btn').click();
+  const sheet = panel.locator('.hk-spend-sheet');
+  await expect(sheet).toBeVisible();
+  await sheet.locator('[data-spend="all"]').click();
+  await expect(sheet.locator('.hk-spend-row').first()).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/72c-panel-mobile-spend.png` });
-  await panel.locator('.hk-spend [data-spend="all"]').click();
-  await expect(panel.locator('.hk-spend-row')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('.hk-spend-sheet')).toHaveCount(0);
+  await openListFilters(panel);
 
   // 71d. Tiles on a phone. Two to a row rather than three, which is the layout the
   // picker exists for: a phone list row is a tall stacked block, so the same screen

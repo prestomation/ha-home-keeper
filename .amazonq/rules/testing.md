@@ -127,6 +127,9 @@ Run the tests locally before you push. CI is not the test runner.
 - Never name a tab bar in a spec. Use `gotoTab()`, `expectTabActive()` and
   `openSettingsSection()`, because CSS picks which bar shows.
 - A viewport project sets the viewport only, never a device descriptor.
+- A phone folds the task list's filter controls. A spec or a capture that uses a scope
+  pill, Profile, Group by, Layout or Print labels on the Tasks tab calls
+  `openListFilters(panel)` first.
 - A capture config pins the desktop project with `captureConfig()` from
   `tests/e2e/capture-config.ts`. `--list` must show 1 project.
 - Measure layout by relations (A is above B), never by coordinates. Assert that a list is

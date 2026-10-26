@@ -10,13 +10,117 @@ events to build automations. The events are:
 | Appliance | created, updated, deleted, archived, restored |
 | Companion | connected, suggested |
 
-There are 2 ways to trigger on an event. Select a device trigger in the visual
-automation editor on a Home Keeper appliance, such as "Task became overdue" or
-"Spare part out of stock". Or use a plain `platform: event` trigger.
+There are 3 ways to trigger on an event:
 
-For a task attached to a device that another integration owns, automate on the
-task's own entities or on the event. Home Assistant offers device triggers only
-for the one integration a device belongs to.
+- Select a Home Keeper trigger in the automation editor, such as **Task became
+  overdue** or **Spare part out of stock**. See [Triggers](#triggers) below.
+- Use the **Event received** trigger on the Home Keeper **Events** entity. See
+  [Events entity](#events-entity) below.
+- Use a plain `platform: event` trigger on the event name.
+
+## Triggers
+
+Home Keeper adds 1 trigger for each of its events to the automation editor. The
+triggers work on Home Assistant 2026.1 and later. In **Add trigger**, find them in
+3 places:
+
+- **By target**: select a device, an area or a label. The **Home Keeper** group
+  lists the triggers for it.
+- **By type**: select **Home Keeper** under **Integrations**.
+- **Search**: type a word of the trigger name, such as `overdue`.
+
+![Add trigger, By target, with the Home Keeper triggers of an appliance](../../images/79-automation-trigger-by-target.png)
+
+![Add trigger, By type, with Home Keeper selected](../../images/79b-automation-trigger-by-type.png)
+
+![A search for overdue finds the Task became overdue trigger](../../images/79c-automation-trigger-search.png)
+
+### Target
+
+A task, part or appliance trigger needs a target. The target selects the tasks,
+parts and appliances that fire the trigger:
+
+| Target | The trigger fires for |
+| --- | --- |
+| Entity | The task, part or appliance of the Home Keeper entity |
+| Device | The tasks, parts and appliances on the device |
+| Area | The tasks and devices in the area, and each task with that area |
+| Floor | The areas on the floor |
+| Label | The tasks with the label, and the entities, devices and areas with it |
+| Home Keeper device | All tasks, parts and appliances |
+
+A task with no device has no entities. Target it by its area or its label, or select
+the Home Keeper device or the Home Keeper to-do list. The triggers for companions,
+declarative companions, data export and data import have no target.
+
+![The Task became overdue trigger with a device target](../../images/79d-automation-trigger-added.png)
+
+Home Keeper reads the target when the event fires. If a task moves to another device,
+the trigger follows the task. If you remove a device or a task, the trigger stops for
+it. The count next to the target in the trigger row can show 0. The trigger still
+fires for the tasks on that target.
+
+The trigger variables hold the event as `trigger.event`, the same as a
+`platform: event` trigger. In YAML:
+
+```yaml
+automation:
+  - alias: "Garage task overdue"
+    triggers:
+      - trigger: home_keeper.task_overdue
+        target:
+          area_id: garage
+    actions:
+      - action: notify.notify
+        data:
+          message: "Overdue: {{ trigger.event.data.name }}"
+```
+
+The trigger name is the event name without `home_keeper_`, such as
+`home_keeper.task_completed` or `home_keeper.part_low_stock`.
+
+### Device triggers
+
+The device triggers on a Home Keeper appliance and on a task device still work. Use
+the Home Keeper triggers for a new automation. In Home Assistant 2026.7 and later,
+**Add trigger** shows the device triggers under **By type**, **Device**. Home
+Assistant offers device triggers only for the 1 integration a device belongs to.
+
+## Events entity
+
+Home Keeper adds 1 **Events** entity, `event.home_keeper_events`, on the Home Keeper
+device. It gets all events, also for a task that has no device. The logbook and the
+history of the entity show each event.
+
+![The Home Keeper device with the Events entity](../../images/79e-device-service-events.png)
+
+Use it with the **Event received** trigger to get more than 1 event type from 1
+trigger. The **Event received** trigger needs Home Assistant 2026.7 or later. In
+Home Assistant 2026.6, it is a Labs preview. In YAML:
+
+```yaml
+automation:
+  - alias: "Any task done"
+    triggers:
+      - trigger: event.received
+        target:
+          entity_id: event.home_keeper_events
+        options:
+          event_type: [task_completed, task_skipped]
+    actions:
+      - action: notify.notify
+        data:
+          message: "{{ trigger.to_state.attributes.name }}"
+```
+
+The event type is the event name without `home_keeper_`. The attributes are the event
+data, without the large fields (`source`, `managed_by`, `task_chips`, `active_season`,
+`note`, `photo` and `sections`). Add a condition on the `task_id` attribute to select
+1 task.
+
+If an event fires while Home Keeper reloads, the Events entity can miss it. Adding a
+task to a device starts a reload. The Home Keeper triggers read each event from the
+bus, so they get every event.
 
 An automation can add a part to the shopping list when the part goes out of stock.
 This is useful for a part without

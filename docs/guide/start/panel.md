@@ -68,6 +68,33 @@ follow you to each browser and phone.
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](../../images/54-panel-task-detail-edit.png)
 
+### Task list bar
+
+The **Search** box, the **Filters** button and **Add task** are in a bar above the task
+list. The bar stays at the top of the screen when you scroll the list.
+
+On a phone, the filter controls are folded:
+
+1. Press **Filters** to show the scope pills, **Profile**, **Group by**, **Layout** and
+   **Print labels**.
+2. Press **Filters** again to fold them. The panel keeps your choice in this browser.
+
+Each filter that is on shows as a chip under the bar. Press the **x** on a chip to clear
+that filter. **Filters** shows how many filters are on, and **Clear all** clears them
+all. If you press **Filters** after you scroll, the list goes back to the filter controls.
+
+The spend button shows the total of the first spend period. Press it to see the
+[spend totals](../views/costs.md) in a sheet. On a desktop, the totals are on 1 line above
+the list.
+
+A browser without `IntersectionObserver` never shows the pinned state. The bar still works.
+
+![On a phone, the task list bar with Search, Filters and the spend button, and the list under it](../../images/81c-panel-mobile-task-bar.png)
+
+![On a phone, 2 filters on, each with a chip under the bar, and Clear all](../../images/81e-panel-mobile-task-bar-chips.png)
+
+![On a desktop, the task list bar pinned to the top after a scroll, with Filters and the Overdue chip](../../images/81b-panel-task-bar-pinned.png)
+
 ### Task list layouts
 
 The **Tasks** tab has a **Layout** menu with 3 choices. **Rows** is the default list.

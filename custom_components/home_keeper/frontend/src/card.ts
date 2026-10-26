@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  matchesCardLabels,
   normalizeCardConfig,
   profileMatches,
   sortTasks,
@@ -835,11 +836,16 @@ export class HomeKeeperCard extends HTMLElement {
     const devices = this._hass?.devices;
     const areas = this._hass?.areas;
     // A configured profile defines the task set; otherwise use the card's own filters.
+    // The card's Limit to labels still narrows a profile result (#492).
     // A profile that is gone shows no rows, not every task (F05-4).
     if (this._profileMissing()) return [];
     const profile = this._profile();
     const filtered = profile
-      ? this._tasks.filter((t) => profileMatches(t, profile.filter, devices, areas, now))
+      ? this._tasks.filter(
+          (t) =>
+            profileMatches(t, profile.filter, devices, areas, now) &&
+            matchesCardLabels(t, this._config, devices, areas),
+        )
       : filterTasks(this._tasks, this._config, devices, now, areas);
     return sortTasks(filtered, this._config.sort ?? 'due', areas, devices);
   }

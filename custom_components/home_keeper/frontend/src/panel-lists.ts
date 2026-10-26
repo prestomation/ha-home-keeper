@@ -103,7 +103,8 @@ function introCard(p: PanelHost): string {
 }
 
 export function tasksList(p: PanelHost): string {
-  const intro = introCard(p) + presetNudgeCard(p) + spendStrip(p);
+  // The compact spend strip. A phone hides it and shows the spend button instead.
+  const intro = introCard(p) + presetNudgeCard(p) + spendStrip(p, 'compact');
   if (!p._tasks.length) {
     const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
     return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;

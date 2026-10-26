@@ -105,6 +105,7 @@ def _sources(**overrides):
         EVENTS=(),
         PAYLOAD_SPINES={},
         DEVICE_TRIGGERS=(),
+        TRIGGERS=(),
         ENTITY_PLATFORMS=(),
         OPTIONS=(),
         events_by_payload=lambda shape: (),
@@ -137,6 +138,7 @@ def _sources(**overrides):
             }
         },
         "device_automation": {"trigger_type": {}},
+        "triggers": {},
         "entity": {},
         "options": {"step": {"init": {"data": {}, "data_description": {}}}},
         "exceptions": {},
@@ -250,6 +252,7 @@ def test_render_covers_every_modelled_surface() -> None:
     absent("services", (f"home_keeper.{n}" for n in api_surface.SERVICE_NAMES))
     absent("events", (s.name for s in api_surface.EVENTS))
     absent("device_triggers", (s.type for s in api_surface.DEVICE_TRIGGERS))
+    absent("triggers", (f"home_keeper.{s.key}" for s in api_surface.TRIGGERS))
     absent("entity_platforms", (s.platform for s in api_surface.ENTITY_PLATFORMS))
     absent("options", (s.key for s in api_surface.OPTIONS))
     absent("surface_kinds", (s.kind for s in api_surface.SURFACE_KINDS))
@@ -296,3 +299,32 @@ def test_main_writes_the_page(tmp_path: Path) -> None:
     out = tmp_path / "api.md"
     assert gen.main(["--out", str(out)]) == 0
     assert out.read_text(encoding="utf-8").startswith("---\n")
+
+
+def test_triggers_section_names_each_trigger_with_its_label_and_target() -> None:
+    surface = SimpleNamespace(
+        **{
+            **vars(_sources().surface),
+            "TRIGGERS": (
+                api_surface.TriggerSpec(
+                    "task_overdue", "home_keeper_task_overdue", "task"
+                ),
+                api_surface.TriggerSpec(
+                    "data_exported", "home_keeper_data_exported", "data_transfer"
+                ),
+            ),
+        }
+    )
+    strings = {
+        **_sources().strings,
+        "triggers": {"task_overdue": {"name": "Localized overdue"}},
+    }
+    lines = gen.render_triggers(gen.Sources(surface, {}, strings))
+    page = "\n".join(lines)
+    assert "## Triggers" in page
+    assert "| `home_keeper.task_overdue` | Localized overdue | " in page
+    assert "`home_keeper_task_overdue` | tasks |" in page
+    assert (
+        "| `home_keeper.data_exported` |  | `home_keeper_data_exported` | none |"
+        in page
+    )

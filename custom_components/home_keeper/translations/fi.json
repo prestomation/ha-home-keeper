@@ -1179,6 +1179,47 @@
       "upcoming_tasks": {
         "name": "Tulevat tehtävät"
       }
+    },
+    "event": {
+      "home_keeper_events": {
+        "name": "Tapahtumat",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tehtävä luotu",
+              "task_updated": "Tehtävä päivitetty",
+              "task_deleted": "Tehtävä poistettu",
+              "task_completed": "Tehtävä suoritettu",
+              "task_uncompleted": "Suoritus poistettu",
+              "task_completion_updated": "Suoritus päivitetty",
+              "task_triggered": "Tehtävä laukaistu",
+              "task_snoozed": "Tehtävä lykätty",
+              "task_skipped": "Tehtävä ohitettu",
+              "task_due_today_set": "Tehtävä asetettu tälle päivälle",
+              "task_skip_updated": "Ohitus päivitetty",
+              "task_skip_removed": "Ohitus poistettu",
+              "task_occurrence_moved": "Tehtävän esiintymä siirretty",
+              "task_overdue": "Tehtävä erääntyi",
+              "task_due_soon": "Tehtävä erääntyy pian",
+              "part_low_stock": "Varaosan varasto vähissä",
+              "part_out_of_stock": "Varaosa loppu",
+              "part_restocked": "Varaosa täydennetty",
+              "asset_created": "Laite lisätty",
+              "asset_updated": "Laite päivitetty",
+              "asset_deleted": "Laite poistettu",
+              "asset_archived": "Laite arkistoitu",
+              "asset_restored": "Laite palautettu",
+              "companion_connected": "Kumppani yhdistetty",
+              "companion_suggested": "Kumppania ehdotettu",
+              "declarative_companion_added": "Deklaratiivinen kumppani lisätty",
+              "declarative_companion_updated": "Deklaratiivinen kumppani päivitetty",
+              "declarative_companion_removed": "Deklaratiivinen kumppani poistettu",
+              "data_exported": "Tiedot viety",
+              "data_imported": "Tiedot tuotu"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {
@@ -1193,6 +1234,128 @@
       "part_low_stock": "Varaosan varasto vähissä",
       "part_out_of_stock": "Varaosa loppu",
       "part_restocked": "Varaosa täydennetty"
+    }
+  },
+  "triggers": {
+    "task_created": {
+      "name": "Tehtävä luotu",
+      "description": "Laukeaa, kun tehtävä luodaan."
+    },
+    "task_updated": {
+      "name": "Tehtävä päivitetty",
+      "description": "Laukeaa, kun tehtävä muuttuu."
+    },
+    "task_deleted": {
+      "name": "Tehtävä poistettu",
+      "description": "Laukeaa, kun tehtävä poistetaan."
+    },
+    "task_completed": {
+      "name": "Tehtävä suoritettu",
+      "description": "Laukeaa, kun tehtävä suoritetaan."
+    },
+    "task_uncompleted": {
+      "name": "Suoritus poistettu",
+      "description": "Laukeaa, kun tehtävän suoritus poistetaan."
+    },
+    "task_completion_updated": {
+      "name": "Suoritus päivitetty",
+      "description": "Laukeaa, kun tehtävän suoritusta muokataan."
+    },
+    "task_triggered": {
+      "name": "Tehtävä laukaistu",
+      "description": "Laukeaa, kun laukaistu tehtävä tai anturitehtävä erääntyy."
+    },
+    "task_snoozed": {
+      "name": "Tehtävä lykätty",
+      "description": "Laukeaa, kun tehtävää lykätään."
+    },
+    "task_skipped": {
+      "name": "Tehtävä ohitettu",
+      "description": "Laukeaa, kun tehtävä ohitetaan."
+    },
+    "task_due_today_set": {
+      "name": "Tehtävä asetettu tälle päivälle",
+      "description": "Laukeaa, kun tehtävä asetetaan erääntymään tänään."
+    },
+    "task_occurrence_moved": {
+      "name": "Tehtävän esiintymä siirretty",
+      "description": "Laukeaa, kun kiinteän tehtävän päivämäärä siirtyy."
+    },
+    "task_skip_updated": {
+      "name": "Ohitus päivitetty",
+      "description": "Laukeaa, kun tehtävän ohitusta muokataan."
+    },
+    "task_skip_removed": {
+      "name": "Ohitus poistettu",
+      "description": "Laukeaa, kun tehtävän ohitus poistetaan."
+    },
+    "task_overdue": {
+      "name": "Tehtävä erääntyi",
+      "description": "Laukeaa, kun tehtävä myöhästyy."
+    },
+    "task_due_soon": {
+      "name": "Tehtävä erääntyy pian",
+      "description": "Laukeaa, kun tehtävä erääntyy 3 päivän sisällä."
+    },
+    "part_low_stock": {
+      "name": "Varaosan varasto vähissä",
+      "description": "Laukeaa, kun varaosan varasto laskee tilausrajaan."
+    },
+    "part_out_of_stock": {
+      "name": "Varaosa loppu",
+      "description": "Laukeaa, kun varaosan varasto on 0."
+    },
+    "part_restocked": {
+      "name": "Varaosa täydennetty",
+      "description": "Laukeaa, kun varaosan varasto nousee tilausrajan yli."
+    },
+    "asset_created": {
+      "name": "Laite lisätty",
+      "description": "Laukeaa, kun laite lisätään."
+    },
+    "asset_updated": {
+      "name": "Laite päivitetty",
+      "description": "Laukeaa, kun laite muuttuu."
+    },
+    "asset_deleted": {
+      "name": "Laite poistettu",
+      "description": "Laukeaa, kun laite poistetaan."
+    },
+    "asset_archived": {
+      "name": "Laite arkistoitu",
+      "description": "Laukeaa, kun laite arkistoidaan."
+    },
+    "asset_restored": {
+      "name": "Laite palautettu",
+      "description": "Laukeaa, kun arkistoitu laite palautetaan."
+    },
+    "companion_connected": {
+      "name": "Kumppani yhdistetty",
+      "description": "Laukeaa, kun kumppani-integraatio yhdistyy."
+    },
+    "companion_suggested": {
+      "name": "Kumppania ehdotettu",
+      "description": "Laukeaa, kun Home Keeper ehdottaa kumppani-integraatiota."
+    },
+    "declarative_companion_added": {
+      "name": "Deklaratiivinen kumppani lisätty",
+      "description": "Laukeaa, kun deklaratiivinen kumppani lisätään."
+    },
+    "declarative_companion_updated": {
+      "name": "Deklaratiivinen kumppani päivitetty",
+      "description": "Laukeaa, kun deklaratiivinen kumppani muuttuu."
+    },
+    "declarative_companion_removed": {
+      "name": "Deklaratiivinen kumppani poistettu",
+      "description": "Laukeaa, kun deklaratiivinen kumppani poistetaan."
+    },
+    "data_exported": {
+      "name": "Tiedot viety",
+      "description": "Laukeaa, kun Home Keeper vie tietoja."
+    },
+    "data_imported": {
+      "name": "Tiedot tuotu",
+      "description": "Laukeaa, kun Home Keeper tuo tietoja."
     }
   },
   "exceptions": {

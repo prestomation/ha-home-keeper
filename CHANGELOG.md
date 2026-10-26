@@ -6,7 +6,41 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [Unreleased]
+## [0.33.0b8]
+
+### Added
+
+- **[Task history in the logbook](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
+  Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
+  logbook, with the task name. The rows show on the Home Keeper to-do list and on the
+  device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
+
+## [0.33.0b7]
+
+### Fixed
+
+- **[Card label limit with a profile](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The card option **Limit to labels** now works when the card also uses a profile. Before,
+  the card showed every task of the profile. (Fixes #492) A card with **Hide card when empty**
+  may now hide if the labels match no task of the profile.
+
+## [0.33.0b6]
+
+### Added
+
+- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
+  Add trigger lists a Home Keeper trigger for each event by target, by type and in its
+  search, such as Task became overdue. Select a device, area, label or task entity as the
+  target, also a device of another integration. (Fixes #415)
+
+## [0.33.0b5]
+
+### Added
+
+- **[Compact task list bar](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-bar).**
+  On a phone, Search, Filters and the spend button share 1 bar that stays at the top
+  while you scroll, and a chip shows each filter that is on. On a desktop, the spend
+  totals take 1 line. (Fixes #488)
 
 ### Fixed
 
@@ -16,15 +50,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Resumed task after enabling an entity.** A task that Home Keeper paused for a disabled
   entity now resumes when you enable the entity, also when Home Assistant reloads Home
   Keeper at that time. (Fixes #470)
-
-## [0.33.0b3]
-
-### Added
-
-- **[Task history in the logbook](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
-  Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
-  logbook, with the task name. The rows show on the Home Keeper to-do list and on the
-  device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
 
 ## [0.33.0b2]
 
