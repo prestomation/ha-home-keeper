@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.33.0b8]
+## [0.34.0b1]
 
 ### Added
 
@@ -15,72 +15,39 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   logbook, with the task name. The rows show on the Home Keeper to-do list and on the
   device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
 
-## [0.33.0b7]
-
-### Fixed
-
-- **[Card label limit with a profile](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
-  The card option **Limit to labels** now works when the card also uses a profile. Before,
-  the card showed every task of the profile. (Fixes #492) A card with **Hide card when empty**
-  may now hide if the labels match no task of the profile.
-
-## [0.33.0b6]
-
-### Added
-
-- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
-  Add trigger lists a Home Keeper trigger for each event by target, by type and in its
-  search, such as Task became overdue. Select a device, area, label or task entity as the
-  target, also a device of another integration. (Fixes #415)
-
-## [0.33.0b5]
-
-### Added
-
-- **[Compact task list bar](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-bar).**
-  On a phone, Search, Filters and the spend button share 1 bar that stays at the top
-  while you scroll, and a chip shows each filter that is on. On a desktop, the spend
-  totals take 1 line. (Fixes #488)
-
-### Fixed
-
-- **Glue integration task completion.** A read-only task from a glue integration, such as
-  the Bambu Lab firmware task, completes again when the glue reports that the work is done.
-  A user still cannot complete it by hand.
-- **Resumed task after enabling an entity.** A task that Home Keeper paused for a disabled
-  entity now resumes when you enable the entity, also when Home Assistant reloads Home
-  Keeper at that time. (Fixes #470)
-
-## [0.33.0b2]
+## [0.33.0] - 2026-10-26
 
 ### Added
 
 - **[Maintenance spend totals](https://prestomation.github.io/ha-home-keeper/docs/guide/costs).**
   Sensors and the panel show your maintenance spend for periods such as 30 days and for
-  all time, plus the total cost of your appliances. Select a total in the panel to see
-  its records, and set your own periods in Settings. (Fixes #460)
-
-## [0.33.0b1]
-
-### Changed
-
-- **Installation from HACS default list.** Search for Home Keeper in HACS to install it.
-  You no longer add it as a custom repository.
-
-### Added
-
+  all time, plus the total cost of your appliances. (Fixes #460)
+- **[Automation editor triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/events#triggers).**
+  Add trigger lists a Home Keeper trigger for each event, such as Task became overdue.
+  Select a device, area, label or task entity as the target. (Fixes #415)
+- **[Compact task list bar](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-bar).**
+  On a phone, Search, Filters and the spend button share 1 bar that stays at the top
+  while you scroll. On a desktop, the spend totals take 1 line. (Fixes #488)
 - **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
   Home Keeper now suggests tasks for the Compit ventilation filter. Ecovacs presets also
   cover more filters, the mop washing tray, the cleaning solution and the strainer.
 
+### Changed
+
+- **HACS default listing.** Search for Home Keeper in HACS to install it. You no longer
+  add it as a custom repository.
+
 ### Fixed
 
-- **Admin-only companion registration.** Only an admin can register a companion now. A
-  household member can no longer choose an integration that an admin's export or import
-  then calls.
-- **Your own list items.** If a to-do or shopping list already has an open item with the
-  same name, Home Keeper uses it but never ticks off, renames, removes or rewrites it. A
-  tick on that item still completes the task or buys the part.
+- **Profile label limit.** The card option **Limit to labels** now works when the card
+  also uses a profile. (Fixes #492)
+- **Resumed tasks.** A task that Home Keeper paused for a disabled entity now resumes
+  when you enable the entity. (Fixes #470)
+- **Glue task completion.** A read-only task from a glue integration, such as the Bambu
+  Lab firmware task, completes again when the glue reports that the work is done.
+- **Admin-only companion registration.** Only an admin can register a companion now.
+- **Existing list items.** If a to-do or shopping list already has an open item with the
+  same name, Home Keeper uses it but never ticks off, renames or removes it.
 
 ## [0.32.0] - 2026-10-16
 
