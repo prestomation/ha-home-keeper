@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b2]
+
+### Added
+
+- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
+  the unit reports a filter alarm.
+
 ## [0.34.0b1]
 
 ### Added
@@ -14,9 +22,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
   logbook, with the task name. The rows show on the Home Keeper to-do list and on the
   device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
-- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
-  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
-  the unit reports a filter alarm.
 
 ## [0.33.0] - 2026-10-26
 
