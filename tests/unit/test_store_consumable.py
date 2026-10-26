@@ -1378,3 +1378,40 @@ def test_task_events_carry_the_to_do_entity_id(store) -> None:
     _run(store.complete_task(task["id"]))
     for event in ("home_keeper_task_skipped", "home_keeper_task_completed"):
         assert store._hass.bus.of(event)[-1]["entity_id"] == "todo.home_keeper_tasks"
+
+
+def test_a_moved_completion_reads_as_a_pair_of_logbook_rows(store) -> None:
+    """A move fires uncompleted then completed. The rows name the 2 days (#467)."""
+    events = sys.modules["hk.events"]
+    task = _task(store)
+    _run(store.complete_task(task["id"]))
+    old_ts = store._tasks[task["id"]]["completions"][-1]["ts"]
+    earlier = (NOW - timedelta(days=3)).isoformat()
+    _run(store.move_completion(task["id"], old_ts, earlier))
+    fired = NOW.timestamp()
+    removed = store._hass.bus.of("home_keeper_task_uncompleted")[-1]
+    added = store._hass.bus.of("home_keeper_task_completed")[-1]
+    rows = [
+        events.logbook_message(name, data, fired_ts=fired, tz=TZ)
+        for name, data in (
+            ("home_keeper_task_uncompleted", removed),
+            ("home_keeper_task_completed", added),
+        )
+    ]
+    assert rows == ["had a completion removed", "was completed on 2026-06-10"]
+    # Move it back: the removed completion is now the one on another day.
+    _run(store.move_completion(task["id"], earlier, old_ts))
+    removed = store._hass.bus.of("home_keeper_task_uncompleted")[-1]
+    added = store._hass.bus.of("home_keeper_task_completed")[-1]
+    assert (
+        events.logbook_message(
+            "home_keeper_task_uncompleted", removed, fired_ts=fired, tz=TZ
+        )
+        == "had its completion on 2026-06-10 removed"
+    )
+    assert (
+        events.logbook_message(
+            "home_keeper_task_completed", added, fired_ts=fired, tz=TZ
+        )
+        == "was completed"
+    )

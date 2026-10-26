@@ -144,6 +144,16 @@ def test_logbook_shows_task_events_on_the_to_do_list(ha):
             ha, "home_keeper", "complete_task", {"task_id": task_id, "who": "Ann"}
         )
         call_service(ha, "home_keeper", "skip_task", {"task_id": task_id})
+        # A backdated completion names its day. 3 days back is never today.
+        backdated = time.strftime(
+            "%Y-%m-%dT12:00:00+00:00", time.gmtime(time.time() - 3 * 86400)
+        )
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task_id, "completed_at": backdated},
+        )
         rows: list[dict] = []
         for _ in range(20):
             r = ha.get(
@@ -152,11 +162,14 @@ def test_logbook_shows_task_events_on_the_to_do_list(ha):
             )
             r.raise_for_status()
             rows = [row for row in r.json() if row.get("name") == "Logbook test task"]
-            if len(rows) >= 2:
+            if len(rows) >= 3:
                 break
             time.sleep(0.5)
         messages = {row["message"] for row in rows}
         assert {"was completed by Ann", "was skipped"} <= messages, r.json()
+        # The day in the row is in the time zone of Home Assistant, so it can be the
+        # day before or after the UTC day of the timestamp.
+        assert any(m.startswith("was completed on ") for m in messages), r.json()
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 

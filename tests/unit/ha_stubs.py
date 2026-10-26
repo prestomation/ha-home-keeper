@@ -181,6 +181,10 @@ def _install_components(ha: types.ModuleType) -> None:
         if not hasattr(comp_logbook, const_name):
             setattr(comp_logbook, const_name, key)
     components.logbook = comp_logbook
+    logbook_models = _mod("homeassistant.components.logbook.models")
+    if not hasattr(logbook_models, "TIME_FIRED_TS_POS"):
+        logbook_models.TIME_FIRED_TS_POS = 3
+    comp_logbook.models = logbook_models
 
     comp_event = _mod("homeassistant.components.event")
     if not hasattr(comp_event, "EventEntity"):

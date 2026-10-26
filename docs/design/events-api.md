@@ -17,7 +17,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 79e6de3abe3b
+source_hash: 6795c0e2a305
 ---
 
 # Events and API surface
@@ -61,8 +61,8 @@ Per-event keys (`changed_fields`, `days_overdue`) merge on top through `extra`.
 `store.py` fires at each mutation point, never in a handler, also on the wear-part
 reconcile and the appliance delete cascade. An update that changes no field fires no event.
 `transfer_runner.py` fires the export and import summary events ([transfer](transfer.md)).
-`logbook.py` describes each event (`events.LOGBOOK_EVENTS`, `events.logbook_message`). It matches
-the spine `entity_id` (the to-do list) and `device_id`, so a row shows on both.
+`logbook.py` describes each event in `events.LOGBOOK_EVENTS`. It matches the spine `entity_id`
+(the to-do list) and `device_id`. A completion row names its day if the row fired on another day.
 
 ### Edge-triggered transitions
 

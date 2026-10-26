@@ -4,7 +4,7 @@ This is the single source of the ``home_keeper_task_completed`` payload, used by
 both the real store and the test fake, so the contract can't drift.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_events as ev
 import pytest
@@ -353,3 +353,97 @@ def test_spine_copies_enabled_chips_and_season_from_the_task():
     assert data["enabled"] is False
     assert data["task_chips"] == chips
     assert data["active_season"] == season
+
+
+# ── The completion day in the logbook row ────────────────────────────────────
+
+# 2026-10-26 09:00 in UTC-4, the day the event fires.
+FIRED = datetime(2026, 10, 26, 9, tzinfo=TZ).timestamp()
+
+
+@pytest.mark.parametrize(
+    ("event", "data", "message"),
+    [
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-26T08:00:00-04:00"},
+            "was completed",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-20T08:00:00-04:00", "who": "Ann"},
+            "was completed by Ann on 2026-10-20",
+        ),
+        (
+            "home_keeper_task_completed",
+            {
+                "completed_at": "2026-10-20T08:00:00-04:00",
+                "origin": "home_keeper_tag_scan",
+            },
+            "was completed on 2026-10-20 with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {
+                "completed_at": "2026-10-20T08:00:00-04:00",
+                "origin": "home_keeper_sensor_recover",
+            },
+            "was completed by its sensor on 2026-10-20",
+        ),
+        # 02:00 UTC on the 27th is still the 26th in UTC-4.
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-27T02:00:00+00:00"},
+            "was completed",
+        ),
+        # 23:30 on the 25th in UTC-4 is the 26th in UTC, but the row uses UTC-4.
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-25T23:30:00-04:00"},
+            "was completed on 2026-10-25",
+        ),
+        ("home_keeper_task_completed", {"completed_at": "not a date"}, "was completed"),
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-26T07:00:00-04:00"},
+            "had a completion removed",
+        ),
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-20T07:00:00-04:00"},
+            "had its completion on 2026-10-20 removed",
+        ),
+        ("home_keeper_task_uncompleted", {"ts": None}, "had a completion removed"),
+        # 02:00 UTC on the 27th, but the 26th in UTC-4.
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-26T22:00:00-04:00"},
+            "had a completion removed",
+        ),
+        (
+            "home_keeper_task_skipped",
+            {"ts": "2026-10-20T07:00:00-04:00"},
+            "was skipped",
+        ),
+    ],
+)
+def test_logbook_message_names_a_completion_on_another_day(
+    event: str, data: dict, message: str
+):
+    assert ev.logbook_message(event, data, fired_ts=FIRED, tz=TZ) == message
+
+
+def test_logbook_message_names_the_day_when_the_fire_time_is_not_known():
+    data = {"completed_at": "2026-10-26T08:00:00-04:00"}
+    message = ev.logbook_message("home_keeper_task_completed", data, tz=TZ)
+    assert message == "was completed on 2026-10-26"
+
+
+def test_the_fire_day_is_in_the_given_time_zone():
+    """01:00 UTC on the 27th is 21:00 on the 26th in UTC-4, the completion day."""
+    fired = datetime(2026, 10, 27, 1, tzinfo=UTC).timestamp()
+    data = {"completed_at": "2026-10-26T20:00:00-04:00"}
+    message = ev.logbook_message(
+        "home_keeper_task_completed", data, fired_ts=fired, tz=TZ
+    )
+    assert message == "was completed"

@@ -9,6 +9,7 @@ against. Pure — imports nothing from Home Assistant.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC, date, datetime, tzinfo
 from typing import Any
 
 from .const import (
@@ -260,27 +261,59 @@ def _day(value: Any) -> str:
     return str(value)[:10] if value else "?"
 
 
-def _completed_message(data: Mapping[str, Any]) -> str:
+def _local_day(value: Any, tz: tzinfo) -> date | None:
+    """The day of an ISO date or datetime string in *tz*, or None if it is not one."""
+    try:
+        when = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    if when.tzinfo is not None:
+        when = when.astimezone(tz)
+    return when.date()
+
+
+def _on_day(value: Any, tz: tzinfo, fired_on: date | None) -> str:
+    """ " on YYYY-MM-DD" for a completion on a day that is not *fired_on*, else ""."""
+    day = _local_day(value, tz) if value else None
+    if day is None or day == fired_on:
+        return ""
+    return f" on {day.isoformat()}"
+
+
+def _completed_message(data: Mapping[str, Any], on_day: str) -> str:
     origin = data.get("origin")
     if origin in _SENSOR_ORIGINS:
-        return "was completed by its sensor"
+        return f"was completed by its sensor{on_day}"
     message = "was completed"
     if who := data.get("who"):
         message += f" by {who}"
+    message += on_day
     if origin == ORIGIN_TAG_SCAN:
         message += " with a tag scan"
     return message
 
 
-def logbook_message(event_type: str, data: Mapping[str, Any]) -> str:
+def logbook_message(
+    event_type: str,
+    data: Mapping[str, Any],
+    *,
+    fired_ts: float | None = None,
+    tz: tzinfo = UTC,
+) -> str:
     """The logbook text for a task event. The logbook shows it after the task name.
 
     The text is English: Home Assistant shows the logbook text of an integration as
-    it is.
+    it is. *fired_ts* is the time the event fired. A completion row names the day of
+    the completion in *tz* when that day is not the day the event fired, or when
+    *fired_ts* is None.
     """
+    fired_on = None if fired_ts is None else datetime.fromtimestamp(fired_ts, tz).date()
     if event_type == EVENT_TASK_COMPLETED:
-        return _completed_message(data)
+        on_day = _on_day(data.get("completed_at"), tz, fired_on)
+        return _completed_message(data, on_day)
     if event_type == EVENT_TASK_UNCOMPLETED:
+        if on_day := _on_day(data.get("ts"), tz, fired_on):
+            return f"had its completion{on_day} removed"
         return "had a completion removed"
     if event_type == EVENT_TASK_SKIPPED:
         return "was skipped"

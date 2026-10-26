@@ -155,8 +155,10 @@ Home Keeper writes a logbook row for each of these task events:
 | Event | Row |
 | --- | --- |
 | Completed | was completed by Ann |
+| Completed on an earlier day | was completed by Ann on 2026-10-20 |
 | Completed by a sensor | was completed by its sensor |
 | Completion removed | had a completion removed |
+| Completion of an earlier day removed | had its completion on 2026-10-20 removed |
 | Skipped | was skipped |
 | Snoozed | was snoozed until 2026-10-20 |
 | Due soon | is due in 48 hours |
@@ -164,6 +166,10 @@ Home Keeper writes a logbook row for each of these task events:
 | Armed | became due |
 | Due today set | was set to due today |
 | Occurrence moved | has its occurrence on 2026-11-01 moved to 2026-11-03 |
+
+A completion row shows the day of the completion when it is not the day of the row.
+The day is in the time zone of Home Assistant. A change to the time of a completion
+writes 2 rows: the completion that is removed and the completion that is added.
 
 Each row starts with the task name. The rows show in these places:
 
