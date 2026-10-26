@@ -121,7 +121,57 @@ def test_task_lifecycle_events(ha, ha_token):
     assert events["home_keeper_task_updated"][0]["changed_fields"] == ["name"]
     assert events["home_keeper_task_completed"][0]["task_id"] == created_id["id"]
     assert "completed_at" in events["home_keeper_task_completed"][0]
+    # The logbook ties the task events to the to-do list by this key (#467).
+    assert (
+        events["home_keeper_task_completed"][0]["entity_id"] == "todo.home_keeper_tasks"
+    )
     assert events["home_keeper_task_deleted"][0]["task_id"] == created_id["id"]
+
+
+def test_logbook_shows_task_events_on_the_to_do_list(ha):
+    """A completion and a skip are logbook rows of the to-do list (#467)."""
+    start = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(time.time() - 5))
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": "Logbook test task", "interval": 7, "unit": "days"},
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        call_service(
+            ha, "home_keeper", "complete_task", {"task_id": task_id, "who": "Ann"}
+        )
+        call_service(ha, "home_keeper", "skip_task", {"task_id": task_id})
+        # A backdated completion names its day. 3 days back is never today.
+        backdated = time.strftime(
+            "%Y-%m-%dT12:00:00+00:00", time.gmtime(time.time() - 3 * 86400)
+        )
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task_id, "completed_at": backdated},
+        )
+        rows: list[dict] = []
+        for _ in range(20):
+            r = ha.get(
+                f"{ha.base_url}/api/logbook/{start}",
+                params={"entity": "todo.home_keeper_tasks"},
+            )
+            r.raise_for_status()
+            rows = [row for row in r.json() if row.get("name") == "Logbook test task"]
+            if len(rows) >= 3:
+                break
+            time.sleep(0.5)
+        messages = {row["message"] for row in rows}
+        assert {"was completed by Ann", "was skipped"} <= messages, r.json()
+        # The day in the row is in the time zone of Home Assistant, so it can be the
+        # day before or after the UTC day of the timestamp.
+        assert any(m.startswith("was completed on ") for m in messages), r.json()
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
 def test_uncompleted_event_names_the_completion_and_origin(ha, ha_token):

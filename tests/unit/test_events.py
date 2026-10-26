@@ -4,9 +4,10 @@ This is the single source of the ``home_keeper_task_completed`` payload, used by
 both the real store and the test fake, so the contract can't drift.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_events as ev
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 WHEN = datetime(2026, 6, 14, 10, tzinfo=TZ)
@@ -39,6 +40,7 @@ def test_payload_has_contract_fields():
         "task_chips": [],
         "tag_id": None,
         "active_season": None,
+        "entity_id": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }
@@ -257,3 +259,191 @@ def test_declarative_companion_event_reads_enabled_from_the_spec():
         {"id": "spec-1", "name": "x", "preset_id": None, "enabled": False}
     )
     assert data["enabled"] is False
+
+
+# ── Logbook rows ─────────────────────────────────────────────────────────────
+
+
+def test_spine_carries_the_to_do_entity_id():
+    assert ev.task_event_data({})["entity_id"] is None
+    data = ev.task_event_data({"id": "t1"}, entity_id="todo.home_keeper_tasks")
+    assert data["entity_id"] == "todo.home_keeper_tasks"
+
+
+def test_completion_event_passes_the_entity_id_on():
+    data = ev.completion_event_data({}, WHEN, None, entity_id="todo.tasks")
+    assert data["entity_id"] == "todo.tasks"
+
+
+def test_every_logbook_event_has_an_icon():
+    assert all(icon.startswith("mdi:") for icon in ev.LOGBOOK_ICONS.values())
+
+
+def test_created_updated_and_deleted_get_no_row():
+    assert "home_keeper_task_created" not in ev.LOGBOOK_EVENTS
+    assert "home_keeper_task_updated" not in ev.LOGBOOK_EVENTS
+    assert "home_keeper_task_deleted" not in ev.LOGBOOK_EVENTS
+
+
+@pytest.mark.parametrize(
+    ("event", "data", "message"),
+    [
+        ("home_keeper_task_completed", {}, "was completed"),
+        ("home_keeper_task_completed", {"who": "Ann"}, "was completed by Ann"),
+        (
+            "home_keeper_task_completed",
+            {"who": "Ann", "origin": "home_keeper_tag_scan"},
+            "was completed by Ann with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"origin": "home_keeper_tag_scan"},
+            "was completed with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"who": "Ann", "origin": "home_keeper_problem_sensor_sync"},
+            "was completed by its sensor",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"origin": "home_keeper_sensor_recover"},
+            "was completed by its sensor",
+        ),
+        ("home_keeper_task_completed", {"origin": "pawsistant"}, "was completed"),
+        ("home_keeper_task_uncompleted", {}, "had a completion removed"),
+        ("home_keeper_task_skipped", {}, "was skipped"),
+        (
+            "home_keeper_task_snoozed",
+            {"snoozed_until": "2026-10-20T09:00:00-04:00"},
+            "was snoozed until 2026-10-20",
+        ),
+        ("home_keeper_task_snoozed", {}, "was snoozed until ?"),
+        ("home_keeper_task_overdue", {"days_overdue": 3}, "became overdue"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 12.0}, "is due in 12 hours"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 2.5}, "is due in 2.5 hours"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 1.0}, "is due in 1 hour"),
+        ("home_keeper_task_due_soon", {"due_in_hours": 0.5}, "is due in 0.5 hours"),
+        ("home_keeper_task_due_soon", {}, "is due in 0 hours"),
+        ("home_keeper_task_triggered", {}, "became due"),
+        ("home_keeper_task_due_today_set", {}, "was set to due today"),
+        (
+            "home_keeper_task_occurrence_moved",
+            {"occurrence": "2026-11-01T08:00:00-04:00", "to": "2026-11-03"},
+            "has its occurrence on 2026-11-01 moved to 2026-11-03",
+        ),
+        (
+            "home_keeper_task_occurrence_moved",
+            {"occurrence": "2026-11-01", "to": "2026-11-01T08:00:00-04:00"},
+            "has its occurrence on 2026-11-01 back on its date",
+        ),
+        ("home_keeper_other", {}, "home_keeper_other"),
+    ],
+)
+def test_logbook_message(event: str, data: dict, message: str):
+    assert ev.logbook_message(event, data) == message
+
+
+def test_spine_copies_enabled_chips_and_season_from_the_task():
+    season = [{"start": "04-01", "end": "09-30"}]
+    chips = [{"label": "Pet"}]
+    data = ev.task_event_data(
+        {"enabled": False, "task_chips": chips, "active_season": season}
+    )
+    assert data["enabled"] is False
+    assert data["task_chips"] == chips
+    assert data["active_season"] == season
+
+
+# ── The completion day in the logbook row ────────────────────────────────────
+
+# 2026-10-26 09:00 in UTC-4, the day the event fires.
+FIRED = datetime(2026, 10, 26, 9, tzinfo=TZ).timestamp()
+
+
+@pytest.mark.parametrize(
+    ("event", "data", "message"),
+    [
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-26T08:00:00-04:00"},
+            "was completed",
+        ),
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-20T08:00:00-04:00", "who": "Ann"},
+            "was completed by Ann on 2026-10-20",
+        ),
+        (
+            "home_keeper_task_completed",
+            {
+                "completed_at": "2026-10-20T08:00:00-04:00",
+                "origin": "home_keeper_tag_scan",
+            },
+            "was completed on 2026-10-20 with a tag scan",
+        ),
+        (
+            "home_keeper_task_completed",
+            {
+                "completed_at": "2026-10-20T08:00:00-04:00",
+                "origin": "home_keeper_sensor_recover",
+            },
+            "was completed by its sensor on 2026-10-20",
+        ),
+        # 02:00 UTC on the 27th is still the 26th in UTC-4.
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-27T02:00:00+00:00"},
+            "was completed",
+        ),
+        # 23:30 on the 25th in UTC-4 is the 26th in UTC, but the row uses UTC-4.
+        (
+            "home_keeper_task_completed",
+            {"completed_at": "2026-10-25T23:30:00-04:00"},
+            "was completed on 2026-10-25",
+        ),
+        ("home_keeper_task_completed", {"completed_at": "not a date"}, "was completed"),
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-26T07:00:00-04:00"},
+            "had a completion removed",
+        ),
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-20T07:00:00-04:00"},
+            "had its completion on 2026-10-20 removed",
+        ),
+        ("home_keeper_task_uncompleted", {"ts": None}, "had a completion removed"),
+        # 02:00 UTC on the 27th, but the 26th in UTC-4.
+        (
+            "home_keeper_task_uncompleted",
+            {"ts": "2026-10-26T22:00:00-04:00"},
+            "had a completion removed",
+        ),
+        (
+            "home_keeper_task_skipped",
+            {"ts": "2026-10-20T07:00:00-04:00"},
+            "was skipped",
+        ),
+    ],
+)
+def test_logbook_message_names_a_completion_on_another_day(
+    event: str, data: dict, message: str
+):
+    assert ev.logbook_message(event, data, fired_ts=FIRED, tz=TZ) == message
+
+
+def test_logbook_message_names_the_day_when_the_fire_time_is_not_known():
+    data = {"completed_at": "2026-10-26T08:00:00-04:00"}
+    message = ev.logbook_message("home_keeper_task_completed", data, tz=TZ)
+    assert message == "was completed on 2026-10-26"
+
+
+def test_the_fire_day_is_in_the_given_time_zone():
+    """01:00 UTC on the 27th is 21:00 on the 26th in UTC-4, the completion day."""
+    fired = datetime(2026, 10, 27, 1, tzinfo=UTC).timestamp()
+    data = {"completed_at": "2026-10-26T20:00:00-04:00"}
+    message = ev.logbook_message(
+        "home_keeper_task_completed", data, fired_ts=fired, tz=TZ
+    )
+    assert message == "was completed"

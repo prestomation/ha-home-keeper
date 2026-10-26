@@ -305,6 +305,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._edge_state = next_state
             self._persist_edge_state()
             for event_name, payload in fired:
+                payload["entity_id"] = self.store.todo_entity_id
                 self.hass.bus.async_fire(event_name, payload)
             # Automatic notification source: send each notification whose auto
             # trigger matches a transition that fired this cycle, for a task in its

@@ -62,6 +62,15 @@ class HomeKeeperTodoListEntity(
         self._attr_unique_id = f"{DOMAIN}_tasks"
         self._attr_device_info = service_device_info()
 
+    async def async_added_to_hass(self) -> None:
+        """Give the store the entity id, so the task events carry it.
+
+        Home Assistant adds the entity again after a rename of its entity id, so the
+        store always has the current one.
+        """
+        await super().async_added_to_hass()
+        self.coordinator.store.todo_entity_id = self.entity_id
+
     @property
     def todo_items(self) -> list[TodoItem]:
         """Return one item per enabled, non-dormant task, dated by next_due."""

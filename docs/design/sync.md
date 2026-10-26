@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 93862d92f066
+source_hash: aa1747466c06
 ---
 
 # To-do, calendar and list sync
@@ -51,7 +51,8 @@ task has no date and stays listed. The due date is the local date of `next_due`.
 declares only `UPDATE_TODO_ITEM`. A tick calls `store.complete_task`, then
 `coordinator.async_settle_buy_tasks`. A tick on a completed one-off is ignored. A new summary or
 description goes to the task `name` and `notes` through `store.update_task`. A
-`TaskValidationError` becomes a translated `HomeAssistantError`.
+`TaskValidationError` becomes a translated `HomeAssistantError`. When Home Assistant adds the
+entity, it gives its `entity_id` to the store, so the logbook ties task events to it.
 
 `calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`
 and never shows a `triggered` or `sensor` task. Each other task is 1 event at `next_due`.

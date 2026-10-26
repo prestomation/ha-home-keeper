@@ -305,6 +305,12 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "the date ranges the task is scheduled in, each a "
             '{"start": "MM-DD", "end": "MM-DD"} window, or None when it runs all year',
         ),
+        Field(
+            "entity_id",
+            "str | None",
+            "the Home Keeper to-do list entity, so the logbook shows the event on it, "
+            "or None before the entity is registered",
+        ),
     ),
     "stock": (
         Field("asset_id", "str"),
@@ -1268,6 +1274,7 @@ A trigger over 1 of these payloads takes a target.
 EVENT_ENTITY_DROPPED_FIELDS: dict[str, str] = {
     "source": "opaque provenance; can be large, and is on the bus event",
     "managed_by": "ownership block; can be large, and is on the bus event",
+    "entity_id": "the to-do list, for the logbook; it reads like a group attribute",
     "task_chips": "display metadata, not useful in an automation",
     "active_season": "schedule detail, not useful in an automation",
     "note": "free text of any length; the recorder keeps each event",

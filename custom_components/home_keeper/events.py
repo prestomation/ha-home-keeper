@@ -8,11 +8,31 @@ against. Pure — imports nothing from Home Assistant.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from datetime import UTC, date, datetime, tzinfo
 from typing import Any
+
+from .const import (
+    EVENT_TASK_COMPLETED,
+    EVENT_TASK_DUE_SOON,
+    EVENT_TASK_DUE_TODAY_SET,
+    EVENT_TASK_OCCURRENCE_MOVED,
+    EVENT_TASK_OVERDUE,
+    EVENT_TASK_SKIPPED,
+    EVENT_TASK_SNOOZED,
+    EVENT_TASK_TRIGGERED,
+    EVENT_TASK_UNCOMPLETED,
+    ORIGIN_PROBLEM_SENSOR_SYNC,
+    ORIGIN_SENSOR_RECOVER,
+    ORIGIN_TAG_SCAN,
+)
 
 
 def task_event_data(
-    task: dict[str, Any], *, extra: dict[str, Any] | None = None
+    task: dict[str, Any],
+    *,
+    extra: dict[str, Any] | None = None,
+    entity_id: str | None = None,
 ) -> dict[str, Any]:
     """Return the common "spine" payload shared by every task event.
 
@@ -27,6 +47,10 @@ def task_event_data(
     entities then live on a self-owned device keyed on ``task_id``). Per-event extras
     (``changed_fields``,
     ``days_overdue``, ``due_in_hours``) are merged in via *extra*.
+
+    ``entity_id`` is the Home Keeper to-do list entity, or ``None`` before it is
+    registered. The logbook matches an event to an entity by this key, so the rows
+    that ``logbook.py`` writes show on the to-do list.
     """
     data: dict[str, Any] = {
         "task_id": task.get("id"),
@@ -42,6 +66,7 @@ def task_event_data(
         "task_chips": task.get("task_chips", []),
         "tag_id": task.get("tag_id"),
         "active_season": task.get("active_season"),
+        "entity_id": entity_id,
     }
     if extra:
         data.update(extra)
@@ -70,6 +95,7 @@ def completion_event_data(
     origin: str | None,
     *,
     metadata: dict[str, Any] | None = None,
+    entity_id: str | None = None,
 ) -> dict[str, Any]:
     """Return the ``home_keeper_task_completed`` event data for a completed task.
 
@@ -88,7 +114,7 @@ def completion_event_data(
     }
     if metadata:
         extra.update(metadata)
-    return task_event_data(task, extra=extra)
+    return task_event_data(task, extra=extra, entity_id=entity_id)
 
 
 def asset_event_data(
@@ -209,3 +235,102 @@ def data_transfer_event_data(
         "kind": kind,
         "sections": {str(name): count for name, count in (sections or {}).items()},
     }
+
+
+# The task events that ``logbook.py`` writes a row for, with the icon of the row. The
+# created, updated and deleted events get no row: an edit is not part of the history
+# of a task.
+LOGBOOK_ICONS: dict[str, str] = {
+    EVENT_TASK_COMPLETED: "mdi:check-circle-outline",
+    EVENT_TASK_UNCOMPLETED: "mdi:undo",
+    EVENT_TASK_SKIPPED: "mdi:debug-step-over",
+    EVENT_TASK_SNOOZED: "mdi:alarm-snooze",
+    EVENT_TASK_OVERDUE: "mdi:alert-circle-outline",
+    EVENT_TASK_DUE_SOON: "mdi:clock-alert-outline",
+    EVENT_TASK_TRIGGERED: "mdi:bell-ring-outline",
+    EVENT_TASK_DUE_TODAY_SET: "mdi:calendar-today",
+    EVENT_TASK_OCCURRENCE_MOVED: "mdi:calendar-arrow-right",
+}
+LOGBOOK_EVENTS: tuple[str, ...] = tuple(LOGBOOK_ICONS)
+
+_SENSOR_ORIGINS = (ORIGIN_PROBLEM_SENSOR_SYNC, ORIGIN_SENSOR_RECOVER)
+
+
+def _day(value: Any) -> str:
+    """The date part of an ISO date or datetime string, as stored."""
+    return str(value)[:10] if value else "?"
+
+
+def _local_day(value: Any, tz: tzinfo) -> date | None:
+    """The day of an ISO date or datetime string in *tz*, or None if it is not one."""
+    try:
+        when = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    if when.tzinfo is not None:
+        when = when.astimezone(tz)
+    return when.date()
+
+
+def _on_day(value: Any, tz: tzinfo, fired_on: date | None) -> str:
+    """ " on YYYY-MM-DD" for a completion on a day that is not *fired_on*, else ""."""
+    day = _local_day(value, tz) if value else None
+    if day is None or day == fired_on:
+        return ""
+    return f" on {day.isoformat()}"
+
+
+def _completed_message(data: Mapping[str, Any], on_day: str) -> str:
+    origin = data.get("origin")
+    if origin in _SENSOR_ORIGINS:
+        return f"was completed by its sensor{on_day}"
+    message = "was completed"
+    if who := data.get("who"):
+        message += f" by {who}"
+    message += on_day
+    if origin == ORIGIN_TAG_SCAN:
+        message += " with a tag scan"
+    return message
+
+
+def logbook_message(
+    event_type: str,
+    data: Mapping[str, Any],
+    *,
+    fired_ts: float | None = None,
+    tz: tzinfo = UTC,
+) -> str:
+    """The logbook text for a task event. The logbook shows it after the task name.
+
+    The text is English: Home Assistant shows the logbook text of an integration as
+    it is. *fired_ts* is the time the event fired. A completion row names the day of
+    the completion in *tz* when that day is not the day the event fired, or when
+    *fired_ts* is None.
+    """
+    fired_on = None if fired_ts is None else datetime.fromtimestamp(fired_ts, tz).date()
+    if event_type == EVENT_TASK_COMPLETED:
+        on_day = _on_day(data.get("completed_at"), tz, fired_on)
+        return _completed_message(data, on_day)
+    if event_type == EVENT_TASK_UNCOMPLETED:
+        if on_day := _on_day(data.get("ts"), tz, fired_on):
+            return f"had its completion{on_day} removed"
+        return "had a completion removed"
+    if event_type == EVENT_TASK_SKIPPED:
+        return "was skipped"
+    if event_type == EVENT_TASK_SNOOZED:
+        return f"was snoozed until {_day(data.get('snoozed_until'))}"
+    if event_type == EVENT_TASK_OVERDUE:
+        return "became overdue"
+    if event_type == EVENT_TASK_DUE_SOON:
+        hours = data.get("due_in_hours", 0)
+        return f"is due in {hours:g} hour{'' if hours == 1 else 's'}"
+    if event_type == EVENT_TASK_TRIGGERED:
+        return "became due"
+    if event_type == EVENT_TASK_DUE_TODAY_SET:
+        return "was set to due today"
+    if event_type == EVENT_TASK_OCCURRENCE_MOVED:
+        occurrence, to = _day(data.get("occurrence")), _day(data.get("to"))
+        if occurrence == to:
+            return f"has its occurrence on {occurrence} back on its date"
+        return f"has its occurrence on {occurrence} moved to {to}"
+    return event_type
