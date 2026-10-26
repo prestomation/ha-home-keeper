@@ -199,3 +199,6 @@ The logbook keeps the rows for as long as the recorder keeps its data. The defau
 recorder:
   purge_keep_days: 90
 ```
+
+The recorder keeps the task events only if it keeps the Home Keeper to-do list. If your
+recorder `exclude` has the `todo` domain or the to-do list, the logbook shows no rows.

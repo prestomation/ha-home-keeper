@@ -236,21 +236,9 @@ def data_transfer_event_data(
     }
 
 
-# The task events that ``logbook.py`` writes a row for. The created, updated and
-# deleted events get no row: an edit is not part of the history of a task.
-LOGBOOK_EVENTS: tuple[str, ...] = (
-    EVENT_TASK_COMPLETED,
-    EVENT_TASK_UNCOMPLETED,
-    EVENT_TASK_SKIPPED,
-    EVENT_TASK_SNOOZED,
-    EVENT_TASK_OVERDUE,
-    EVENT_TASK_DUE_SOON,
-    EVENT_TASK_TRIGGERED,
-    EVENT_TASK_DUE_TODAY_SET,
-    EVENT_TASK_OCCURRENCE_MOVED,
-)
-
-# The icon of the logbook row for each event in ``LOGBOOK_EVENTS``.
+# The task events that ``logbook.py`` writes a row for, with the icon of the row. The
+# created, updated and deleted events get no row: an edit is not part of the history
+# of a task.
 LOGBOOK_ICONS: dict[str, str] = {
     EVENT_TASK_COMPLETED: "mdi:check-circle-outline",
     EVENT_TASK_UNCOMPLETED: "mdi:undo",
@@ -262,6 +250,7 @@ LOGBOOK_ICONS: dict[str, str] = {
     EVENT_TASK_DUE_TODAY_SET: "mdi:calendar-today",
     EVENT_TASK_OCCURRENCE_MOVED: "mdi:calendar-arrow-right",
 }
+LOGBOOK_EVENTS: tuple[str, ...] = tuple(LOGBOOK_ICONS)
 
 _SENSOR_ORIGINS = (ORIGIN_PROBLEM_SENSOR_SYNC, ORIGIN_SENSOR_RECOVER)
 
@@ -300,7 +289,8 @@ def logbook_message(event_type: str, data: Mapping[str, Any]) -> str:
     if event_type == EVENT_TASK_OVERDUE:
         return "became overdue"
     if event_type == EVENT_TASK_DUE_SOON:
-        return f"is due in {data.get('due_in_hours', 0):g} hours"
+        hours = data.get("due_in_hours", 0)
+        return f"is due in {hours:g} hour{'' if hours == 1 else 's'}"
     if event_type == EVENT_TASK_TRIGGERED:
         return "became due"
     if event_type == EVENT_TASK_DUE_TODAY_SET:
