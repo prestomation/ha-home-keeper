@@ -341,3 +341,14 @@ def test_created_updated_and_deleted_get_no_row():
 )
 def test_logbook_message(event: str, data: dict, message: str):
     assert ev.logbook_message(event, data) == message
+
+
+def test_spine_copies_enabled_chips_and_season_from_the_task():
+    season = [{"start": "04-01", "end": "09-30"}]
+    chips = [{"label": "Pet"}]
+    data = ev.task_event_data(
+        {"enabled": False, "task_chips": chips, "active_season": season}
+    )
+    assert data["enabled"] is False
+    assert data["task_chips"] == chips
+    assert data["active_season"] == season
