@@ -12,7 +12,7 @@ implements:
 max_lines: 193
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: f2db15af07eb
+source_hash: 69cdc7fbec5f
 ---
 
 # Task model and recurrence
@@ -154,8 +154,8 @@ In the frontend, `defer.deferVerbs` decides which actions to show: all need a `n
 a task that is not `completion_blocked`, Due today one that is not overdue, and each has an
 option switch. The details item opens the completion dialog on a one-tap task.
 `defer.snoozeTarget` repeats `snooze_from` and the set-time round-up, and refuses a custom
-date that is not later. `defer-dialogs.ts` holds the menu and both dialogs for the panel and
-the card; `panel-defer.ts` binds them to the panel host. On a fixed task, the Snooze dialog
+date that is not later. `defer-dialogs.ts` holds the menu (a top-layer popover) and both
+dialogs; `panel-defer.ts` binds them to the panel host. On a fixed task, the Snooze dialog
 lists the due date and the later dates. A later date moves with `move_occurrence`.
 
 ### Dormant, disabled and one-off
