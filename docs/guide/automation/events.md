@@ -186,6 +186,11 @@ the to-do list, with the **Complete** button, with a tag scan or with an action.
 automation or a script called the action, the row shows that automation or script. A row
 that Home Keeper writes on its own, such as **became overdue**, shows no user.
 
+The event has the same context, so an automation can read the user from
+`trigger.event.context.user_id`. A tag scan gives a context with the user of the scan,
+and the scan as its parent. An overdue or due-soon crossing, or a change from a sensor,
+has a new context with no user.
+
 ![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
 
 ![The Activity card on the device page of a water heater, with the completion of its task](../../images/logbook-after-device.png)
