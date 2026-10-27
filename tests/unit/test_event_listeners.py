@@ -302,3 +302,53 @@ def test_a_scan_completes_with_a_child_of_the_scan_context(monkeypatch):
         [context] = coord.store.callers
         assert (context.user_id, context.parent_id) == ("ann", "scan-ctx")
         assert caller.current() is None
+
+
+def test_a_scan_during_a_reload_keeps_its_context_on_a_real_task(monkeypatch):
+    """The entry loads after the scan callback returns, on a real asyncio task (#467).
+
+    ``hass.async_create_task`` is ``loop.create_task`` here, as in Home Assistant.
+    The task copies the context variables when it is created, inside the block, so
+    the completion still has the scan context after the block ends.
+    """
+    coord = _TagCoord()
+    loaded = asyncio.Event()
+    monkeypatch.setattr(
+        tag_listener.tags, "tasks_for_tag", lambda tasks, tag_id: list(tasks)
+    )
+
+    async def _run():
+        loop = asyncio.get_running_loop()
+        tasks = []
+        hass = types.SimpleNamespace(
+            bus=_Bus(),
+            async_create_task=lambda coro: tasks.append(loop.create_task(coro)),
+        )
+
+        async def _wait(_hass):
+            await loaded.wait()
+            return coord
+
+        fake = types.ModuleType("hk.coordinator")
+        fake.find_coordinator = lambda _hass: None
+        fake.async_wait_for_coordinator = _wait
+        saved = sys.modules.get("hk.coordinator")
+        sys.modules["hk.coordinator"] = fake
+        try:
+            tag_listener.async_setup_tag_listener(hass)
+            hass.bus.listeners[tag_listener.EVENT_HA_TAG_SCANNED](_scan_event())
+        finally:
+            if saved is None:
+                sys.modules.pop("hk.coordinator", None)
+            else:
+                sys.modules["hk.coordinator"] = saved
+        # The callback has returned and the block has ended. Now the entry loads.
+        assert caller.current() is None
+        await asyncio.sleep(0)
+        assert coord.store.callers == []
+        loaded.set()
+        await asyncio.gather(*tasks)
+
+    asyncio.run(_run())
+    [context] = coord.store.callers
+    assert (context.user_id, context.parent_id) == ("ann", "scan-ctx")
