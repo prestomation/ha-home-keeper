@@ -80,6 +80,7 @@ from .const import (
     OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_TASK_DEVICE_ENTITIES,
     PLATFORMS,
     SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
@@ -846,6 +847,7 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
+        vol.Optional(OPTION_TASK_DEVICE_ENTITIES): cv.boolean,
         # Cost tracking (#460): the spend windows in days, and the panel totals.
         # Duplicates are dropped before the length check, so [30, 30, 60] is 2
         # windows. ``cost_summary.normalize_windows`` then sorts them.

@@ -37,7 +37,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import assets as asset_model
-from .const import SIGNAL_PART_STOCK_CHANGED
+from .const import OPTION_TASK_DEVICE_ENTITIES, SIGNAL_PART_STOCK_CHANGED
 from .coordinator import HomeKeeperCoordinator
 from .task_entities import entity_name_prefix
 
@@ -68,6 +68,12 @@ class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
             )
             prefix = f"{label}: " if label else ""
         self._attr_translation_placeholders = {"task_name": prefix}
+        # Home Assistant reads this only when it registers the entity the first time.
+        # With the option off, a new task's entities start disabled (#496). The
+        # coordinator switches the entities that exist when the option changes.
+        self._attr_entity_registry_enabled_default = bool(
+            coordinator.applied_options.get(OPTION_TASK_DEVICE_ENTITIES, True)
+        )
 
     @property
     def _task(self) -> dict[str, Any]:

@@ -45,6 +45,7 @@ def test_the_same_options_need_no_reload() -> None:
         (const.OPTION_SHOPPING_LIST_ENTITY, "todo.shopping"),
         (const.OPTION_SHOPPING_LINE_STYLE, "product_only"),
         (const.OPTION_COST_SUMMARY_PANEL, False),
+        (const.OPTION_TASK_DEVICE_ENTITIES, False),
         (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, ["binary_sensor.a"]),
         (const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES, ["dev1"]),
         (const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, ["kitchen"]),
@@ -133,6 +134,7 @@ def test_no_change_has_no_steps() -> None:
         (const.OPTION_SHOPPING_LIST_ENTITY, "todo.shopping", opts.APPLY_SHOPPING),
         (const.OPTION_SHOPPING_LINE_STYLE, "product_only", opts.APPLY_SHOPPING),
         (const.OPTION_PROFILES, [_P1], opts.APPLY_TODO_LISTS),
+        (const.OPTION_TASK_DEVICE_ENTITIES, False, opts.APPLY_TASK_ENTITIES),
         (
             const.OPTION_NOTIFICATIONS,
             [{"id": "n1", "name": "Walk", "profile_id": None, "targets": []}],
@@ -182,6 +184,7 @@ def test_every_option_key_is_classified() -> None:
         opts.APPLY_PROBLEM_SYNC,
         opts.APPLY_SHOPPING,
         opts.APPLY_TODO_LISTS,
+        opts.APPLY_TASK_ENTITIES,
     }
     for steps in opts._APPLY_STEPS.values():
         assert set(steps) <= known

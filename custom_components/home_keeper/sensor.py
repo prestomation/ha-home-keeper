@@ -46,6 +46,7 @@ from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .options import current_options
 from .sensor_watcher import read_sensor_value
 from .service_device import service_device_info
+from .task_entities import TASK_ENTITY_NEXT_DUE, task_entity_unique_id
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
 _DATE_ICON = "mdi:calendar-clock"
@@ -225,7 +226,7 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
-        self._attr_unique_id = f"{DOMAIN}_{task_id}_next_due"
+        self._attr_unique_id = task_entity_unique_id(task_id, TASK_ENTITY_NEXT_DUE)
 
     @property
     def native_value(self) -> datetime | None:

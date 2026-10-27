@@ -242,3 +242,98 @@ def test_the_listener_reloads_an_entry_with_no_coordinator() -> None:
     hass, entry = _FakeHass(), _FakeEntry(_doc(allow_snooze=False))
     asyncio.run(coordinator.async_apply_entry_options(hass, entry))
     assert hass.config_entries.reloaded == ["entry-1"]
+
+
+# ------------------------------------------- the device entities switch (#496)
+
+
+class _RegEntry:
+    def __init__(self, entity_id: str, unique_id: str, disabled_by: str | None) -> None:
+        self.entity_id = entity_id
+        self.unique_id = unique_id
+        self.disabled_by = disabled_by
+
+
+class _FakeRegistry:
+    def __init__(self, entries: list[_RegEntry]) -> None:
+        self.entries = {e.entity_id: e for e in entries}
+        self.updates: list[tuple[str, Any]] = []
+
+    def async_update_entity(self, entity_id: str, *, disabled_by: Any) -> None:
+        self.updates.append((entity_id, disabled_by))
+        self.entries[entity_id].disabled_by = disabled_by
+
+
+def _install_registry(monkeypatch: pytest.MonkeyPatch, registry: _FakeRegistry) -> None:
+    import types
+
+    fake_er = types.SimpleNamespace(
+        async_get=lambda hass: registry,
+        async_entries_for_config_entry=lambda reg, entry_id: (
+            list(reg.entries.values()) if entry_id == "entry-1" else []
+        ),
+        RegistryEntryDisabler=lambda value: f"enum:{value}",
+    )
+    monkeypatch.setattr(coordinator, "er", fake_er)
+
+
+def _registry() -> _FakeRegistry:
+    return _FakeRegistry(
+        [
+            _RegEntry("button.t1_done", "home_keeper_t1_done", None),
+            _RegEntry("sensor.t1_next_due", "home_keeper_t1_next_due", "user"),
+            _RegEntry("binary_sensor.t1_overdue", "home_keeper_t1_overdue", None),
+            # Not a per-task entity: the count sensor stays as it is.
+            _RegEntry("sensor.home_keeper_tasks", "home_keeper_tasks", None),
+            # The entity of a task that is gone: the platforms prune it.
+            _RegEntry("button.gone_done", "home_keeper_gone_done", None),
+        ]
+    )
+
+
+def test_switching_task_entities_off_disables_them_live(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = _registry()
+    _install_registry(monkeypatch, registry)
+    coord = _make(_doc(), _doc(task_device_entities=False))
+    coord.data = {"t1": {"id": "t1", "device_id": "dev1"}}
+    _apply(coord)
+    # Only the enabled per-task entities of a live task change.
+    assert registry.updates == [
+        ("button.t1_done", "enum:integration"),
+        ("binary_sensor.t1_overdue", "enum:integration"),
+    ]
+    # No reload: Home Assistant removes a disabled entity by itself.
+    assert coord.hass.config_entries.reloaded == []
+    assert coord.refreshes == [True]
+
+
+def test_switching_task_entities_on_enables_only_what_it_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = _registry()
+    registry.entries["button.t1_done"].disabled_by = "integration"
+    _install_registry(monkeypatch, registry)
+    coord = _make(_doc(task_device_entities=False), _doc())
+    coord.data = {"t1": {"id": "t1", "device_id": "dev1"}}
+    _apply(coord)
+    # The user's own choice stays. Home Assistant reloads the entry for an enabled
+    # entity by itself, so this does not reload as well.
+    assert registry.updates == [("button.t1_done", None)]
+    assert coord.hass.config_entries.reloaded == []
+
+
+def test_another_option_does_not_touch_the_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The walk runs only when the switch changes, so a user's enable stays."""
+    registry = _registry()
+    _install_registry(monkeypatch, registry)
+    coord = _make(
+        _doc(task_device_entities=False),
+        _doc(task_device_entities=False, allow_skip=False),
+    )
+    coord.data = {"t1": {"id": "t1", "device_id": "dev1"}}
+    _apply(coord)
+    assert registry.updates == []

@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Kosten in het paneel tonen",
           "description": "Toont de kostentotalen boven de takenlijst in het paneel."
+        },
+        "task_device_entities": {
+          "name": "Taakentiteiten op apparaatpagina's inschakelen",
+          "description": "Schakelt de knop Markeren als gedaan en de sensoren voor vervaldatum en achterstand in die elke taak aan de pagina van zijn apparaat toevoegt. Uit schakelt ze uit en behoudt hun entiteit-ID's."
         }
       }
     },

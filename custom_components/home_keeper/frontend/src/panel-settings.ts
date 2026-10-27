@@ -316,6 +316,7 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     problem_sensor_exclude_areas: [],
     problem_sensor_exclude_labels: [],
     one_off_retention_days: 0,
+    task_device_entities: true,
     shopping_list_entity: '',
     shopping_line_style: 'with_verb',
     profiles: [],

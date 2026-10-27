@@ -1876,6 +1876,9 @@ export function generalSchema(): FormField[] {
       name: 'one_off_retention_days',
       selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
     },
+    // The per-task entities on device pages (#496). Off disables them in the entity
+    // registry and keeps their ids.
+    { name: 'task_device_entities', selector: selBool() },
   ];
 }
 

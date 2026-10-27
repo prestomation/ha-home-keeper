@@ -630,6 +630,8 @@
   "settings.heading": "Synchronizacja czujników problemów",
   "settings.help": "Synchronizuj czujniki binarne o klasie urządzenia „problem” jako zadania. Zsynchronizowane zadanie pozostaje aktywne, dopóki czujnik zgłasza problem, i jest automatycznie czyszczone, gdy integracja źródłowa go rozwiąże; nie można go ukończyć w Home Keeper. Poniżej wyklucz wybrane czujniki, urządzenia, obszary lub etykiety.",
   "settings.one_off_retention_days": "Usuń ukończone zadania jednorazowe po (dniach, 0 = nigdy)",
+  "settings.task_device_entities": "Włącz encje zadań na stronach urządzeń",
+  "settings.task_device_entities_help": "Każde zadanie przypisane do urządzenia dodaje do strony urządzenia przycisk Oznacz jako wykonane oraz czujniki terminu i zaległości. Wyłączenie je wyłącza. Zdarzenia, powiadomienia i czujniki liczników działają dalej, a pojedynczą encję możesz ponownie włączyć na stronie jej urządzenia.",
   "settings.problem_sensor_exclude_areas": "Wykluczone obszary",
   "settings.problem_sensor_exclude_devices": "Wykluczone urządzenia",
   "settings.problem_sensor_exclude_entities": "Wykluczone czujniki",

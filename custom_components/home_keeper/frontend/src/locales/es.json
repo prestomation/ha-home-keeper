@@ -611,6 +611,8 @@
   "settings.heading": "Sincronización de sensores de problema",
   "settings.help": "Sincroniza los sensores binarios con la clase de dispositivo «problema» como tareas. Una tarea sincronizada permanece activa mientras su sensor informa de un problema y se borra automáticamente cuando la integración de origen lo resuelve; no se puede completar en Home Keeper. Excluye abajo sensores, dispositivos, áreas o etiquetas concretos.",
   "settings.one_off_retention_days": "Eliminar tareas únicas completadas tras (días, 0 = nunca)",
+  "settings.task_device_entities": "Activar entidades de tarea en las páginas de dispositivo",
+  "settings.task_device_entities_help": "Cada tarea en un dispositivo añade un botón Marcar como hecha y sensores de vencimiento y de retraso a la página del dispositivo. Desactivado, se deshabilitan. Los eventos, las notificaciones y los sensores de recuento siguen funcionando, y puedes volver a habilitar una entidad en la página de su dispositivo.",
   "settings.problem_sensor_exclude_areas": "Áreas excluidas",
   "settings.problem_sensor_exclude_devices": "Dispositivos excluidos",
   "settings.problem_sensor_exclude_entities": "Sensores excluidos",

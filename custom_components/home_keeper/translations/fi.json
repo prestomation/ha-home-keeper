@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Näytä kulut paneelissa",
           "description": "Näyttää kulujen summat tehtäväluettelon yläpuolella paneelissa."
+        },
+        "task_device_entities": {
+          "name": "Ota tehtäväentiteetit käyttöön laitesivuilla",
+          "description": "Ottaa käyttöön Merkitse tehdyksi -painikkeen sekä erääntymis- ja myöhästymisanturit, jotka kukin tehtävä lisää laitteensa sivulle. Pois päältä poistaa ne käytöstä ja säilyttää niiden entiteettitunnukset."
         }
       }
     },

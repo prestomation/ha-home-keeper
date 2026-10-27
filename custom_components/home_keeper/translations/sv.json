@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Visa kostnader i panelen",
           "description": "Visar kostnadssummorna ovanför uppgiftslistan i panelen."
+        },
+        "task_device_entities": {
+          "name": "Aktivera uppgiftsentiteter på enhetssidor",
+          "description": "Aktiverar knappen Markera som klar och sensorerna för förfallodatum och försening som varje uppgift lägger till på sin enhetssida. Av inaktiverar dem och behåller deras entitets-ID."
         }
       }
     },
