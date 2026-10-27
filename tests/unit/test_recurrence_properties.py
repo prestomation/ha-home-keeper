@@ -459,6 +459,13 @@ def test_r7_completing_a_fixed_task_always_clears_the_occurrence_it_showed(
     unit=st.sampled_from(["days", "weeks", "months"]),
     season=st.one_of(st.none(), ps.seasons(always_exists=True)),
 )
+@example(
+    completed=datetime(2021, 10, 31, 1, 30, tzinfo=ZoneInfo("America/New_York")),
+    gap_days=0,
+    interval=1,
+    unit="weeks",
+    season=None,
+)
 def test_r8_a_stored_floating_due_date_agrees_with_the_live_one(
     completed, gap_days, interval, unit, season
 ):
@@ -473,6 +480,11 @@ def test_r8_a_stored_floating_due_date_agrees_with_the_live_one(
     The completion time goes through UTC first, because a real clock never reads a
     local time that a daylight-saving gap skips.
 
+    The 2 dates compare as instants. Python makes ``==`` false for 2 aware values with
+    different ``tzinfo`` if either one falls in the repeated hour of a daylight-saving
+    change, although both name the same instant. The live value has the zone and the
+    stored one has a fixed offset, so ``==`` fails on a due time in that hour.
+
     Kills the removal of ``_local`` in ``compute_next_due``.
     """
     zone = completed.tzinfo
@@ -484,7 +496,8 @@ def test_r8_a_stored_floating_due_date_agrees_with_the_live_one(
     task = models.build_task(payload, now=now)
     r.apply_completion(task, completed, now=now)
     live = datetime.fromisoformat(task["next_due"])
-    assert r.compute_next_due(task, now=now) == live
+    again = r.compute_next_due(task, now=now)
+    assert again.astimezone(_UTC) == live.astimezone(_UTC)
 
 
 def _scheduled_payload() -> st.SearchStrategy[dict]:

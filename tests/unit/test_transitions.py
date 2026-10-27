@@ -139,8 +139,8 @@ def test_b16_6_a_snooze_of_an_overdue_task_sends_no_due_soon_push():
     _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
     snoozed = _task(next_due=NOW + timedelta(hours=24))
     fired, _ = t.detect_transitions(state, {"t1": snoozed}, now=NOW)
-    # The event still fires, but it sends no automatic notification.
-    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+    # The new date is already in the window, so no due_soon event fires for it.
+    assert fired == []
     assert t.auto_crossings(state, fired) == []
 
 
@@ -150,7 +150,7 @@ def test_b16_6_completing_a_due_soon_task_sends_no_due_soon_push():
     assert state["t1"]["overdue_fired"] is False
     completed = _task(next_due=NOW + timedelta(days=2))
     fired, _ = t.detect_transitions(state, {"t1": completed}, now=NOW)
-    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+    assert fired == []
     assert t.auto_crossings(state, fired) == []
 
 
@@ -200,3 +200,89 @@ def test_b16_6_auto_crossings_skips_other_events_and_a_missing_task_id():
     assert t.auto_crossings(
         {"t2": {"overdue_fired": True}}, held_back_then_overdue
     ) == [("overdue", "t3")]
+
+
+# ── a completion that moves next_due into the window (R4) ──────────────────────
+
+
+def test_completing_a_short_interval_task_fires_no_due_soon():
+    # A 2-day task is overdue, the user completes it, and the new next_due is 2 days
+    # away: already inside the 3-day window. That date was never "entered", so the
+    # completion must not fire due_soon for it.
+    overdue = _task(next_due=NOW - timedelta(hours=1))
+    _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
+    completed = _task(next_due=NOW + timedelta(days=2))
+    fired, state2 = t.detect_transitions(state, {"t1": completed}, now=NOW)
+    assert fired == []
+    assert state2["t1"]["due_soon_fired"] is True
+    assert state2["t1"]["overdue_fired"] is False
+    # Later passes stay quiet until the new date is overdue.
+    fired, state3 = t.detect_transitions(
+        state2, {"t1": completed}, now=NOW + timedelta(days=1)
+    )
+    assert fired == []
+    fired, _ = t.detect_transitions(
+        state3, {"t1": completed}, now=NOW + timedelta(days=2, minutes=1)
+    )
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+
+
+def test_completing_a_long_interval_task_fires_due_soon_on_entering_the_window():
+    due_soon = _task(next_due=NOW + timedelta(days=1))
+    _, state = t.detect_transitions({}, {"t1": due_soon}, now=NOW)
+    completed = _task(next_due=NOW + timedelta(days=30))
+    fired, state2 = t.detect_transitions(state, {"t1": completed}, now=NOW)
+    assert fired == []
+    assert state2["t1"]["due_soon_fired"] is False
+    fired, _ = t.detect_transitions(
+        state2, {"t1": completed}, now=NOW + timedelta(days=28)
+    )
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+
+def test_a_move_of_a_never_announced_task_into_the_window_still_fires():
+    far = _task(next_due=NOW + timedelta(days=20))
+    _, state = t.detect_transitions({}, {"t1": far}, now=NOW)
+    moved = _task(next_due=NOW + timedelta(days=1))
+    fired, _ = t.detect_transitions(state, {"t1": moved}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+
+def test_a_disabled_task_moved_into_the_window_announces_when_enabled_again():
+    overdue = _task(next_due=NOW - timedelta(hours=1))
+    _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
+    moved_off = _task(next_due=NOW + timedelta(days=2), enabled=False)
+    fired, state2 = t.detect_transitions(state, {"t1": moved_off}, now=NOW)
+    assert fired == []
+    assert state2["t1"]["due_soon_fired"] is False
+    moved_on = _task(next_due=NOW + timedelta(days=2))
+    fired, _ = t.detect_transitions(state2, {"t1": moved_on}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+
+def test_a_task_with_no_enabled_key_counts_as_enabled():
+    def bare(next_due):
+        task = _task(next_due=next_due)
+        del task["enabled"]
+        return task
+
+    fired, state = t.detect_transitions(
+        {}, {"t1": bare(NOW - timedelta(hours=1))}, now=NOW
+    )
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    fired, state2 = t.detect_transitions(
+        state, {"t1": bare(NOW + timedelta(days=2))}, now=NOW
+    )
+    assert fired == []
+    assert state2["t1"]["due_soon_fired"] is True
+    fired, _ = t.detect_transitions({}, {"t2": bare(NOW + timedelta(days=1))}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+
+def test_due_in_hours_is_in_hours_with_one_decimal():
+    next_due = NOW + timedelta(hours=71.96)
+    fired, _ = t.detect_transitions({}, {"t1": _task(next_due=next_due)}, now=NOW)
+    assert fired[0][1]["due_in_hours"] == 72.0
+    next_due = NOW + timedelta(hours=2.34)
+    fired, _ = t.detect_transitions({}, {"t1": _task(next_due=next_due)}, now=NOW)
+    assert fired[0][1]["due_in_hours"] == 2.3

@@ -14,6 +14,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   disable a task that has no device. The same applies to an appliance edit that changes no
   value, so the logbook stays clear.
 
+## [0.34.0b8]
+
+### Fixed
+
+- **No false due-soon event.** Completing a task that repeats every 3 days or less no
+  longer fires a "due soon" event for the new date at once. The event now fires only when a
+  date enters the 3-day window.
+
 ## [0.34.0b7]
 
 ### Fixed
