@@ -592,6 +592,8 @@
   "settings.heading": "Ongelma-anturien synkronointi",
   "settings.help": "Synkronoi laiteluokan ”ongelma” binäärianturit tehtäviksi. Synkronoitu tehtävä pysyy aktiivisena niin kauan kuin anturi ilmoittaa ongelmasta ja tyhjenee automaattisesti, kun lähdeintegraatio ratkaisee sen; sitä ei voi merkitä valmiiksi Home Keeperissä. Sulje alta pois tietyt anturit, laitteet, alueet tai tunnisteet.",
   "settings.one_off_retention_days": "Poista valmiit kertaluonteiset tehtävät (päivän kuluttua, 0 = ei koskaan)",
+  "settings.task_device_entities": "Ota tehtäväentiteetit käyttöön laitesivuilla",
+  "settings.task_device_entities_help": "Jokainen laitteeseen liitetty tehtävä lisää laitesivulle Merkitse tehdyksi -painikkeen sekä erääntymis- ja myöhästymisanturit. Pois päältä poistaa ne käytöstä. Tapahtumat, ilmoitukset ja laskenta-anturit toimivat edelleen, ja voit ottaa yksittäisen entiteetin uudelleen käyttöön sen laitesivulla.",
   "settings.problem_sensor_exclude_areas": "Poissuljetut alueet",
   "settings.problem_sensor_exclude_devices": "Poissuljetut laitteet",
   "settings.problem_sensor_exclude_entities": "Poissuljetut anturit",

@@ -630,6 +630,8 @@
   "settings.heading": "Synchronizace senzorů problémů",
   "settings.help": "Synchronizuje binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, zařízení, oblasti nebo štítky.",
   "settings.one_off_retention_days": "Smazat dokončené jednorázové úkoly po (dnech, 0 = nikdy)",
+  "settings.task_device_entities": "Povolit entity úkolů na stránkách zařízení",
+  "settings.task_device_entities_help": "Každý úkol u zařízení přidá na stránku zařízení tlačítko Označit jako hotové a senzory termínu a zpoždění. Vypnuto je zakáže. Události, oznámení a senzory počtu fungují dál a jednotlivou entitu můžete znovu povolit na stránce jejího zařízení.",
   "settings.problem_sensor_exclude_areas": "Vyloučené oblasti",
   "settings.problem_sensor_exclude_devices": "Vyloučená zařízení",
   "settings.problem_sensor_exclude_entities": "Vyloučené senzory",

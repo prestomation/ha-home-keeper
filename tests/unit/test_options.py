@@ -225,6 +225,8 @@ _PROBES: dict[str, Any] = {
     const.OPTION_COST_WINDOWS: [7, 90],
     # Defaults on, so the non-default probe is False.
     const.OPTION_COST_SUMMARY_PANEL: False,
+    # Defaults on, so the non-default probe is False (#496).
+    const.OPTION_TASK_DEVICE_ENTITIES: False,
 }
 
 
@@ -392,6 +394,7 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "notifications": [],
         "cost_windows": [30, 60],
         "cost_summary_panel": True,
+        "task_device_entities": True,
         "problem_sensor_exclude_entities": [],
         "problem_sensor_exclude_devices": [],
         "problem_sensor_exclude_areas": [],

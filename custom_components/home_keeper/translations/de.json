@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Kosten im Panel anzeigen",
           "description": "Zeigt die Kostensummen über der Aufgabenliste im Panel."
+        },
+        "task_device_entities": {
+          "name": "Aufgaben-Entitäten auf Geräteseiten aktivieren",
+          "description": "Aktiviert die Schaltfläche Erledigt und die Sensoren für Fälligkeit und Überfälligkeit, die jede Aufgabe auf ihrer Geräteseite anlegt. Aus deaktiviert sie und behält ihre Entitäts-IDs."
         }
       }
     },

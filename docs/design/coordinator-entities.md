@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 4e22b757e510
+source_hash: d2c7deab269e
 ---
 
 # Coordinator and entities
@@ -48,47 +48,40 @@ tasks, counts, part stock and events as entities on device pages.
 1. `coordinator._purge_expired_one_offs` deletes completed one-offs past the retention option.
 2. `store.settle_use_tasks` brings due a counted wear item whose time backstop passed.
 3. The sensor watcher evaluates sensor tasks with `refresh=False`.
-4. `transitions.detect_transitions` compares the edge state with the tasks. When events are
-   on, the coordinator fires each event, stores the new edge state, and passes
-   `transitions.auto_crossings` to `notifier.async_send_auto`.
+4. `transitions.detect_transitions` compares the edge state with the tasks. With events on, the
+   coordinator fires them, stores the state, and passes `transitions.auto_crossings` on.
 5. `companions.async_reconcile` runs, and the shopping and to-do list syncs schedule a sweep.
 
-`coordinator.async_start_clock` refreshes every `SCAN_INTERVAL` (5 minutes). The base class
-gets `update_interval=None`, because Home Assistant polls only while an entity listens. Each
-service and websocket handler also asks for a refresh after a mutation.
+`coordinator.async_start_clock` refreshes every `SCAN_INTERVAL` (5 minutes). The base class gets
+`update_interval=None`: it polls only while an entity listens. Handlers refresh after a change.
 
 ### Edge state and the silent baseline
 
-The edge state lives in `hass.data` per config entry, so it lives through an entry reload.
-Until setup calls `coordinator.enable_transition_events`, a refresh fires no event. With no
-stored edge state (a restart), the refresh adopts the detected state as a silent baseline, so
-a task overdue at startup does not fire again. With stored state (a reload), the refresh keeps
-it, and a crossing during the reload fires on the first refresh after setup.
-
-`coordinator.discard_edge_state_if_disabled` drops the state when the user disables the
-entry. Without it, a re-enable after days sends 1 event per crossing in that time.
+The edge state lives in `hass.data` per config entry, so it lives through a reload. Until
+`coordinator.enable_transition_events`, a refresh fires no event. After a restart (no stored
+state) the refresh adopts the state as a silent baseline. After a reload it keeps the stored
+state, so a crossing during the reload fires after setup. When the user disables the entry,
+`coordinator.discard_edge_state_if_disabled` drops the state, or a re-enable fires each crossing.
 
 ### Reload or refresh
 
-Home Assistant caches entity names, and platforms add entities only at setup. A change to
-the entity set therefore needs an entry reload:
+Home Assistant caches entity names, and platforms add entities only at setup, so a change to
+the entity set reloads the entry:
 
 - `coordinator.task_has_entities`: an enabled task with a `device_id` owns entities. An add
   or delete of such a task reloads. `store._task_owns_entities` repeats this rule.
 - `task_entities.entity_set_key`: on update, the key holds `device_id`, `enabled`, the name,
   the companion name, `completion_blocked` and `require_tag_scan`. A changed key reloads.
-- `coordinator.async_settle_buy_tasks` reloads when a buy task with entities appears or
-  goes, or when a part gains or loses its stock entities (`coordinator.part_entity_kinds`).
-  It defers the reload with `async_create_task` and a guard flag, so the calling entity is
-  not torn down mid-call and several changes start 1 reload.
-- Without a reload, it sends `SIGNAL_PART_STOCK_CHANGED`. Only part entities listen, so a
-  new count shows before the debounced refresh.
+- `coordinator.async_settle_buy_tasks` reloads when a buy task with entities comes or goes,
+  or a part gains or loses stock entities (`coordinator.part_entity_kinds`). An
+  `async_create_task` and a guard flag defer it, so several changes start 1 reload. Else it
+  sends `SIGNAL_PART_STOCK_CHANGED`, so part entities show a new count before the refresh.
 - An options change reloads only for a new `options.options_entity_key` or an unloaded entry.
 
 ### Per-task entities and device links
 
-`coordinator.device_attached_task_ids` lists enabled tasks with a `device_id`. Each gets
-3 entities, built on `entity.HomeKeeperTaskEntity`:
+`coordinator.device_attached_task_ids` lists enabled tasks with a `device_id`. Each gets 3
+entities on `entity.HomeKeeperTaskEntity` (ids from `task_entities.task_entity_unique_id`):
 
 | Platform | Unique ID | State | Attributes |
 |---|---|---|---|
@@ -105,31 +98,36 @@ and links to the device without a claim. If not, it gets a self-owned device wit
 name. On a shared device, `task_entities.entity_name_prefix` puts a label before each name:
 the companion name, or the task name without the device name.
 
+With the `task_device_entities` option off, `entity.HomeKeeperTaskEntity` sets
+`entity_registry_enabled_default` false, so a new entity starts disabled. A change runs
+`coordinator._switch_task_entities` once: `task_entities.switched_disabled_by` sets
+`disabled_by=integration` for off and clears only that value for on. A user-disabled entry stays.
+Off needs no reload. For on, Home Assistant reloads the entry itself 30 seconds after.
+
 ### Part, appliance and event entities
 
-On parts from `coordinator.virtual_asset_parts`, `number.py` gives a spares `number` per
-stock-tracked part, and an edit calls `store.adjust_part_stock`. `binary_sensor.py` gives a
-low-stock sensor per part with a reorder threshold. `sensor.py` gives a `date` sensor per
-tracked date metadata entry. Before it adds entities, each platform calls
-`entity.prune_registry_entries`. Its `keep` returns `None` for a unique ID shape that the
-platform does not own, so no platform removes the entities of another.
-`event.py` gives 1 `event` entity, `home_keeper_events`, on the service device. It gets
-every event with a payload, and it listens on the bus, so a reload can lose an event. To
-target 1 device, area or task, automations use the triggers ([events-api](events-api.md)).
+For parts from `coordinator.virtual_asset_parts`, `number.py` gives a spares `number` per
+stock-tracked part (an edit calls `store.adjust_part_stock`), and `binary_sensor.py` a low-stock
+sensor per part with a reorder threshold. `sensor.py` gives a `date` sensor per tracked date.
+Each platform calls `entity.prune_registry_entries` first. Its `keep` returns `None` for a
+unique ID shape that the platform does not own, so no platform removes another's entities.
+`event.py` gives 1 `event` entity, `home_keeper_events`, on the service device, for every event
+with a payload. It listens on the bus, so a reload can lose an event. Automations that target
+1 device, area or task use the triggers ([events-api](events-api.md)).
 
 ### Count sensors and the service device
 
 `sensor.py` always makes `home_keeper_tasks` (state: overdue tasks), plus
 `home_keeper_profile_<profile_id>_tasks` per profile. `task_counts.count_tasks` computes the
-state with the profile status filter, and the attributes over the scope with status `all`:
+state with the profile status filter, and over the scope with status `all` the attributes
 `total`, `overdue`, `due_soon` (in the window, not overdue), `due_today` (local calendar date),
-`next_due`, `next_task_name`, `next_task_id` and `most_overdue_days`. Tasks first pass through
+`next_due`, `next_task_name`, `next_task_id` and `most_overdue_days`. Tasks pass through
 `notifier.effective_filter_tasks`, so inherited labels and areas count. The state class is
-`MEASUREMENT` with no unit. A profile sensor reads its filter from the options on each update.
+`MEASUREMENT` with no unit. A profile sensor reads its filter on each update.
 
-`service_device.service_device_info` describes 1 `SERVICE` device for counts, the to-do list
-and the calendar. Home Assistant creates it from `device_info`, and the all-tasks sensor always
-exists, so the device always has an entity. It has the [cost](cost-summary.md) sensors too.
+`service_device.service_device_info` describes 1 `SERVICE` device for counts, the to-do list,
+the calendar and the [cost](cost-summary.md) sensors. The all-tasks sensor always exists, so
+the device always has an entity.
 
 ## Trade-offs
 
@@ -139,6 +137,7 @@ exists, so the device always has an entity. It has the [cost](cost-summary.md) s
 - **Entry reload** for name changes over live renames: Home Assistant caches entity names.
 - **Pure `task_counts.py`** over counts in the entity: unit tests need no Home Assistant, and
   the count uses the same `profiles` filter as the panel.
+- **Disable in the registry** over no entities: ids stay and 1 can come back. Cost: "+N disabled".
 
 ## One-way doors
 
@@ -148,3 +147,4 @@ exists, so the device always has an entity. It has the [cost](cost-summary.md) s
 - Entity attributes, declared in `api_surface.ENTITY_PLATFORMS`. The `last_completion_<field>`
   keys follow `const.COMPLETION_ENTRY_FIELDS`, and `usage_*` keys exist only on usage tasks.
 - The count semantics: `due_soon` excludes overdue tasks; `due_today` is a local calendar date.
+- `task_device_entities` off means disabled by the integration, not removed.

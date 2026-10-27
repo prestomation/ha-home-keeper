@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b6]
+
+### Added
+
+- **[Optional device task entities](https://prestomation.github.io/ha-home-keeper/docs/guide/device-entities).**
+  A new setting disables the button and sensors that each task adds to its device page.
+  Their entity ids stay, so your dashboards find them again when you turn the setting
+  back on. (Fixes #496)
+
 ## [0.34.0b5]
 
 ### Fixed

@@ -8,7 +8,8 @@ through the `home_keeper.set_options` service.
 The tab has 10 sections:
 
 - **General** sets how long completed one-off tasks are kept. This number saves
-  when you leave the box or press Enter.
+  when you leave the box or press Enter. It also has the switch for the
+  [task entities on device pages](../tasks/device-entities.md).
 - **Due time** sets when a task that repeats after each completion is due. See
   [Due time](#due-time).
 - **Cost tracking** sets the periods of the spend totals, and if the panel shows them.

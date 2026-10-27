@@ -592,6 +592,8 @@
   "settings.heading": "Probleemsensor-synchronisatie",
   "settings.help": "Binaire sensoren met de apparaatklasse 'probleem' als taken synchroniseren. Een gesynchroniseerde taak blijft actief zolang de sensor een probleem meldt en wordt automatisch gewist wanneer de bronintegratie het oplost; hij kan niet in Home Keeper worden voltooid. Sluit hieronder specifieke sensoren, apparaten, gebieden of labels uit.",
   "settings.one_off_retention_days": "Voltooide eenmalige taken verwijderen na (dagen, 0 = nooit)",
+  "settings.task_device_entities": "Taakentiteiten op apparaatpagina's inschakelen",
+  "settings.task_device_entities_help": "Elke taak op een apparaat voegt een knop Markeren als gedaan en sensoren voor vervaldatum en achterstand toe aan de apparaatpagina. Uit schakelt ze uit. Gebeurtenissen, meldingen en de telsensoren blijven werken, en je kunt een entiteit weer inschakelen op de pagina van het apparaat.",
   "settings.problem_sensor_exclude_areas": "Uitgesloten gebieden",
   "settings.problem_sensor_exclude_devices": "Uitgesloten apparaten",
   "settings.problem_sensor_exclude_entities": "Uitgesloten sensoren",

@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Vis kostnader i panelet",
           "description": "Viser kostnadssummene over oppgavelisten i panelet."
+        },
+        "task_device_entities": {
+          "name": "Aktiver oppgaveentiteter på enhetssider",
+          "description": "Aktiverer knappen Merk som utført og sensorene for forfall og forsinkelse som hver oppgave legger til på enhetssiden sin. Av deaktiverer dem og beholder entitets-ID-ene."
         }
       }
     },

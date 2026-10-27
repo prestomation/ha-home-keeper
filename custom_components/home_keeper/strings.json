@@ -935,6 +935,10 @@
         "cost_summary_panel": {
           "name": "Show spend in the panel",
           "description": "Show the spend totals above the task list in the panel."
+        },
+        "task_device_entities": {
+          "name": "Enable task entities on device pages",
+          "description": "Enable the Mark done button and the next-due and overdue sensors that each task adds to its device page. Off disables them and keeps their entity ids."
         }
       }
     },

@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Zobrazit výdaje v panelu",
           "description": "Zobrazí součty výdajů nad seznamem úkolů v panelu."
+        },
+        "task_device_entities": {
+          "name": "Povolit entity úkolů na stránkách zařízení",
+          "description": "Povolí tlačítko Označit jako hotové a senzory termínu a zpoždění, které každý úkol přidá na stránku svého zařízení. Vypnuto je zakáže a ponechá jejich ID entit."
         }
       }
     },

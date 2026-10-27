@@ -592,6 +592,8 @@
   "settings.heading": "Problem sensor sync",
   "settings.help": "Sync binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it. It can't be completed in Home Keeper. Exclude specific sensors, devices, areas, or labels below.",
   "settings.one_off_retention_days": "Delete completed one-offs after (days, 0 = never)",
+  "settings.task_device_entities": "Enable task entities on device pages",
+  "settings.task_device_entities_help": "Each task on a device adds a Mark done button and next-due and overdue sensors to the device page. When this is off, Home Keeper disables them, but events and notifications do not change. To keep 1 of them, enable it on its device page.",
   "settings.problem_sensor_exclude_areas": "Excluded areas",
   "settings.problem_sensor_exclude_devices": "Excluded devices",
   "settings.problem_sensor_exclude_entities": "Excluded sensors",

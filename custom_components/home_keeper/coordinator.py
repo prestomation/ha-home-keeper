@@ -22,6 +22,7 @@ try:
 except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -33,6 +34,7 @@ from .const import (
     DOMAIN,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
+    OPTION_TASK_DEVICE_ENTITIES,
     SIGNAL_PART_STOCK_CHANGED,
 )
 from .device_compat import resolve_device
@@ -41,6 +43,7 @@ from .options import (
     APPLY_NOTIFICATIONS,
     APPLY_PROBLEM_SYNC,
     APPLY_SHOPPING,
+    APPLY_TASK_ENTITIES,
     APPLY_TODO_LISTS,
     apply_steps,
     current_options,
@@ -50,6 +53,7 @@ from .options import (
 )
 from .reconcile import buy_source
 from .store import HomeKeeperStore
+from .task_entities import switched_disabled_by, task_entity_unique_ids
 
 if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
@@ -351,7 +355,31 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             await self.shopping_sync.async_apply_options()
         if APPLY_TODO_LISTS in steps and self.todo_list_sync is not None:
             await self.todo_list_sync.async_apply_options()
+        if APPLY_TASK_ENTITIES in steps:
+            self._switch_task_entities(enabled=new[OPTION_TASK_DEVICE_ENTITIES])
         return True
+
+    def _switch_task_entities(self, *, enabled: bool) -> None:
+        """Disable or enable the per-task entities in the entity registry (#496).
+
+        This runs only when the option changes. An entity that the user enables by
+        hand while the option is off stays enabled until the option goes off again
+        (on, then off), which disables it again. Off needs no reload: Home
+        Assistant removes a disabled entity from its platform. On needs no reload from
+        here either: Home Assistant reloads the entry by itself after an entity is
+        enabled, and that reload adds the entities.
+        """
+        registry = er.async_get(self.hass)
+        uids = task_entity_unique_ids(self.data or {})
+        for entry in er.async_entries_for_config_entry(registry, self.entry.entry_id):
+            if entry.unique_id not in uids:
+                continue
+            new = switched_disabled_by(entry.disabled_by, enabled=enabled)
+            if new != entry.disabled_by:
+                registry.async_update_entity(
+                    entry.entity_id,
+                    disabled_by=None if new is None else er.RegistryEntryDisabler(new),
+                )
 
     async def _async_reload_for_buy_tasks(self) -> None:
         try:

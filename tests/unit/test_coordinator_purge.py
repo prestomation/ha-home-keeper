@@ -74,6 +74,7 @@ def _load_coordinator():
         "APPLY_PROBLEM_SYNC",
         "APPLY_SHOPPING",
         "APPLY_TODO_LISTS",
+        "APPLY_TASK_ENTITIES",
         "apply_steps",
         "due_time_of",
         "reload_needed",

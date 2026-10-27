@@ -22,7 +22,11 @@ from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .models import TaskValidationError
 from .recurrence import one_off_completed
-from .task_entities import has_mark_done_button
+from .task_entities import (
+    TASK_ENTITY_DONE,
+    has_mark_done_button,
+    task_entity_unique_id,
+)
 
 
 async def async_setup_entry(
@@ -71,7 +75,7 @@ class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
-        self._attr_unique_id = f"{DOMAIN}_{task_id}_done"
+        self._attr_unique_id = task_entity_unique_id(task_id, TASK_ENTITY_DONE)
 
     async def async_press(self) -> None:
         """Complete the task. Show a translated error if the store refuses it.

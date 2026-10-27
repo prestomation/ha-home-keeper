@@ -611,6 +611,8 @@
   "settings.heading": "Synchronisation des capteurs de problème",
   "settings.help": "Synchroniser les capteurs binaires de classe « problème » sous forme de tâches. Une tâche synchronisée reste active tant que son capteur signale un problème et se vide automatiquement lorsque l'intégration d'origine le résout ; elle ne peut pas être terminée dans Home Keeper. Excluez ci-dessous certains capteurs, appareils, zones ou étiquettes.",
   "settings.one_off_retention_days": "Supprimer les tâches uniques terminées après (jours, 0 = jamais)",
+  "settings.task_device_entities": "Activer les entités de tâche sur les pages d'appareil",
+  "settings.task_device_entities_help": "Chaque tâche liée à un appareil ajoute un bouton Marquer comme fait et des capteurs d'échéance et de retard à la page de l'appareil. Désactivé, ils sont désactivés. Les événements, les notifications et les capteurs de comptage continuent de fonctionner, et vous pouvez réactiver une entité sur la page de son appareil.",
   "settings.problem_sensor_exclude_areas": "Zones exclues",
   "settings.problem_sensor_exclude_devices": "Appareils exclus",
   "settings.problem_sensor_exclude_entities": "Capteurs exclus",

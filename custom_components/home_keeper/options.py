@@ -55,6 +55,7 @@ from .const import (
     OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_TASK_DEVICE_ENTITIES,
 )
 
 if TYPE_CHECKING:
@@ -82,6 +83,7 @@ _BOOL_OPTIONS = (
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_COST_SUMMARY_PANEL,
+    OPTION_TASK_DEVICE_ENTITIES,
 )
 
 
@@ -97,7 +99,8 @@ def _empty_options() -> dict[str, Any]:
     "Nothing" is not always ``False``. ``allow_snooze`` / ``allow_skip`` /
     ``allow_due_today`` default to **True**, so a document written before they
     existed — every existing install — reads back with every verb available, which is
-    what those installs already have.
+    what those installs already have. ``task_device_entities`` defaults to **True**
+    for the same reason: each install had the per-task entities before the switch.
     """
     return {
         OPTION_SYNC_PROBLEM_SENSORS: False,
@@ -113,6 +116,7 @@ def _empty_options() -> dict[str, Any]:
         OPTION_NOTIFICATIONS: [],
         OPTION_COST_WINDOWS: list(cost_summary.DEFAULT_WINDOWS),
         OPTION_COST_SUMMARY_PANEL: True,
+        OPTION_TASK_DEVICE_ENTITIES: True,
         **{key: [] for key in _LIST_OPTIONS},
     }
 
@@ -150,6 +154,7 @@ APPLY_NOTIFICATIONS = "notifications"  # warn about a dropped notify target
 APPLY_PROBLEM_SYNC = "problem_sync"  # the state listener and the synced tasks
 APPLY_SHOPPING = "shopping"  # the shopping-list listener, then 1 pass
 APPLY_TODO_LISTS = "todo_lists"  # the to-do list listeners, then 1 pass
+APPLY_TASK_ENTITIES = "task_entities"  # disable or enable them in the registry
 
 # The steps a change to each option needs. ``tests/unit/test_options_apply.py``
 # asserts this covers every key, so a new option must say how it applies.
@@ -173,6 +178,7 @@ _APPLY_STEPS: dict[str, tuple[str, ...]] = {
     OPTION_ONE_OFF_RETENTION_DAYS: (),
     OPTION_COST_WINDOWS: (),
     OPTION_COST_SUMMARY_PANEL: (),
+    OPTION_TASK_DEVICE_ENTITIES: (APPLY_TASK_ENTITIES,),
     OPTION_DISMISSED_COMPANIONS: (),
     OPTION_HIDDEN_PANEL_TABS: (),
 }

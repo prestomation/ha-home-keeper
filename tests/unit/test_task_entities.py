@@ -252,3 +252,45 @@ def test_b15_1_a_sibling_with_no_enabled_key_counts_and_others_are_read_past() -
     assert (
         te.entity_name_prefix(black, "Printer", tasks) == "Replace ink: Printer black"
     )
+
+
+# ------------------------------------------------- the device entities switch (#496)
+
+
+def test_task_entity_unique_ids_are_the_platform_shapes() -> None:
+    """The 3 unique ids that the platforms give a task (a one-way door)."""
+    assert te.task_entity_unique_id("t1", te.TASK_ENTITY_DONE) == "home_keeper_t1_done"
+    assert te.task_entity_unique_ids(["t1", "t2"]) == {
+        "home_keeper_t1_done",
+        "home_keeper_t1_next_due",
+        "home_keeper_t1_overdue",
+        "home_keeper_t2_done",
+        "home_keeper_t2_next_due",
+        "home_keeper_t2_overdue",
+    }
+
+
+def test_no_task_has_no_unique_ids() -> None:
+    assert te.task_entity_unique_ids([]) == set()
+
+
+@pytest.mark.parametrize(
+    ("current", "enabled", "expected"),
+    [
+        # Off disables an enabled entity, and keeps another disabler.
+        (None, False, "integration"),
+        ("integration", False, "integration"),
+        ("user", False, "user"),
+        # On enables only what the switch disabled.
+        ("integration", True, None),
+        ("user", True, "user"),
+        (None, True, None),
+        # A disabler that Home Keeper does not know stays.
+        ("config_entry", True, "config_entry"),
+        ("config_entry", False, "config_entry"),
+    ],
+)
+def test_switched_disabled_by(
+    current: str | None, enabled: bool, expected: str | None
+) -> None:
+    assert te.switched_disabled_by(current, enabled=enabled) == expected
