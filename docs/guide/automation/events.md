@@ -181,16 +181,20 @@ Each row starts with the task name. The rows show in these places:
 The logbook text is in English. Created, updated and deleted tasks get no row on the
 to-do list.
 
-A row also shows who made the change. When a user completes a task in the panel or on the
-to-do list, the row names that user. The **Complete** button, a tag scan and an action
-also name the user. When an automation calls the action, the row names the automation.
-A script works the same way. Home Keeper writes some rows on its own, such as **became
-overdue**. These rows show no user.
+A row also shows who made the change:
 
-The event has the same context, so an automation can read the user from
+| Change made by | The row shows |
+| --- | --- |
+| A user in the panel or on the to-do list | That user |
+| The **Complete** button or a tag scan | The user who pressed or scanned |
+| An action that a user calls | That user |
+| An automation or a script | That automation or script |
+| Home Keeper on its own, such as **became overdue** | No user |
+
+The event has the same context. An automation can read the user from
 `trigger.event.context.user_id`. For a tag scan, the context has the user of the scan.
-Its parent is the scan. An overdue crossing has a new context with no user. A due-soon
-crossing and a change from a sensor also get a new context with no user.
+Its parent is the scan. A change that Home Keeper makes on its own has a new context with
+no user. Examples are an overdue crossing and a change from a sensor.
 
 ![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
 
