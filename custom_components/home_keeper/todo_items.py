@@ -89,8 +89,7 @@ def _by_text(
     found = [
         item
         for item in items
-        # The fallback text is equivalent: *summary* is never empty.
-        if same_text(str(item.get("summary") or ""), summary)  # pragma: no mutate
+        if same_text(str(item.get("summary") or ""), summary)
         and (entity_id, item_identity(item)) not in claimed
     ]
     return sorted(

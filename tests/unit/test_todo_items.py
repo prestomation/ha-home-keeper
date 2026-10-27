@@ -266,3 +266,13 @@ def test_a_uid_less_open_line_is_claimed_by_its_summary():
     item = {"summary": NAME}
     assert _find([item]) is item
     assert _find([item], claimed={(LIST, NAME)}) is None
+
+
+def test_an_item_with_no_title_matches_no_text():
+    untitled = {"uid": "i1", "status": ti.STATUS_NEEDS_ACTION}
+    for text in ("XXXX", "None", NAME):
+        assert _resolve([untitled], uid=None, summary=text) is None
+        assert (
+            ti.find_open([untitled], entity_id=LIST, summary=text, claimed=set())
+            is None
+        )
