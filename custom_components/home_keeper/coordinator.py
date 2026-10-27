@@ -466,7 +466,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         completed one-offs forever, so this is a no-op until the user opts in.
         """
         if take_retention_grace(self.entry.entry_id):
-            # The write that started this reload lowered the retention. Wait one
+            # The write before this refresh lowered the retention. Wait one
             # periodic tick before a lower value can delete tasks, so a value that
             # is only on its way to a higher number deletes no task (see
             # ``options.take_retention_grace``).

@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: dc6d0f4feeed
+source_hash: 751565727b73
 ---
 
 # Architecture
@@ -102,8 +102,8 @@ and default (`options.ALL_OPTIONS`). The options flow, `set_options` and Setting
 
 - `set_options` and the panel send a partial update to `options.async_set_options`. It merges,
   ignores a list option sent as a value that is not a list, refuses a save that strands a
-  notification (`options.ProfileInUseError`), writes, and waits for
-  `async_apply_options` ([rules](coordinator-entities.md#reload-or-refresh)), as the listener does.
+  notification (`options.ProfileInUseError`), writes, and waits for `async_apply_options`
+  ([rules](coordinator-entities.md#reload-or-refresh)), or for a reload with no coordinator.
 - Home Assistant stores an options flow result as the whole options object. The form
   shows only `options.FLOW_OPTIONS`, so the flow returns `options.merge_flow_input`: a
   cleared form key resets, and a key outside the form keeps its value.

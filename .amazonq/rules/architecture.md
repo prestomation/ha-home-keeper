@@ -113,8 +113,8 @@ How the entities work is in [coordinator-entities](../../docs/design/coordinator
   `options.merge_flow_input(entry, user_input)` from `async_create_entry`, never
   `user_input`. HA stores the result as the whole options object, so a raw return deletes
   every panel-only key (profiles, notifications, dismissed companions).
-- The `set_options` service is the canonical write path. It awaits the reload, so the
-  change is in effect when the call returns.
+- The `set_options` service is the canonical write path. It awaits the live apply or
+  the reload, so the change is in effect when the call returns.
 - A single-value picker in the panel needs a clear coercion: `ha-form` emits `undefined`
   on clear, and JSON drops it.
 
