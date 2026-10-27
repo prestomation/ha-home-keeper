@@ -92,7 +92,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from . import profiles
@@ -108,6 +108,7 @@ from .todo_items import (
     item_identity,
     item_is_open,
     resolve_tracked,
+    same_text,
 )
 from .todo_items import add_unconfirmed as _add_unconfirmed
 from .todo_items import added_stamp as _added_stamp
@@ -276,6 +277,27 @@ def _as_date(value: str) -> str | None:
         return date.fromisoformat(value).isoformat()
     except ValueError:
         return None
+
+
+def _live_date(value: Any, *, now: datetime) -> str:
+    """The date a list item is due, read in *now*'s zone.
+
+    A list can give the due date as a datetime. One with a zone, often UTC, is
+    converted to *now*'s zone first, the zone :func:`desired_by_sync` writes the
+    date in, or a UTC list reads as a move of 1 day. A date, a datetime with no
+    zone, and a midnight keep their own date: a list can store the date we wrote
+    as midnight in UTC, and read in a zone west of UTC that midnight is the day
+    before. Each pass would then move the task 1 day back.
+    """
+    text = str(value or "")
+    if len(text) > 10:
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return text[:10]
+        if parsed.tzinfo is not None and parsed.time() != time(0, 0):
+            return parsed.astimezone(now.tzinfo).date().isoformat()
+    return text[:10]
 
 
 def reschedule_until(next_due: str, day: str, *, now: datetime) -> datetime:
@@ -596,14 +618,18 @@ def plan_sync(
         # An item with a uid that reads as neither what we last wrote nor what we
         # write now was renamed by someone on the list. Their name wins: the title
         # is left alone from now on, while completion, the due date and the notes
-        # still sync.
+        # still sync. A list that stores a title in another case or space did not
+        # rename it (todo_items.same_text).
         user_named = bool(entry.get("user_named")) or (
-            bool(item.get("uid")) and bool(written) and live not in (written, name)
+            bool(item.get("uid"))
+            and bool(written)
+            and not same_text(live, written)
+            and not same_text(live, name)
         )
-        rename = name if not user_named and live != name else None
+        rename = name if not user_named and not same_text(live, name) else None
         due = None
         moved = None
-        live_due = str(item.get("due") or "")[:10]
+        live_due = _live_date(item.get("due"), now=now)
         if CAP_DUE_DATE in caps and live_due != str(want["due"]):
             # A list that cannot hold a due date is never told one: comparing a
             # field it drops would rewrite the same item on every pass forever.
@@ -625,8 +651,11 @@ def plan_sync(
                 plan.reschedule.append(RescheduleOp(key, task_id, moved))
         notes = str(want["notes"])
         description = None
-        if CAP_DESCRIPTION in caps and str(item.get("description") or "") != notes:
-            # "" clears a description the task no longer carries.
+        if CAP_DESCRIPTION in caps and not same_text(
+            str(item.get("description") or ""), notes
+        ):
+            # "" clears a description the task no longer carries. A list that
+            # stores the notes trimmed holds them already.
             description = notes
         if rename is not None or due is not None or description is not None:
             plan.update.append(

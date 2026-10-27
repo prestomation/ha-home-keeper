@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: 63b8db8c4fee
+source_hash: df36022badc5
 ---
 
 # Companions and presets
@@ -85,7 +85,7 @@ A spec change (`SIGNAL_DECLARATIVE_SPECS_CHANGED`) gets its own pass. For each e
 3. `declarative_companions.reconcile_declarative_tasks` creates a dormant task for a new
    match, writes the owned fields of an existing one, deletes a lost key's task, and pauses
    a disabled entity's task if `has_history`, else deletes it. A `stale` key or a blank
-   name keeps the task name and notes.
+   name keeps the task name and notes. A rendered name is trimmed.
 4. When the task set changed, the pass marks new ids (`sensor_watcher.async_mark_tasks_new`)
    and reloads the entry for the device-page entities. Else it refreshes the coordinator.
 

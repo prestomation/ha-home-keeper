@@ -1456,3 +1456,30 @@ def test_b11_3_same_text_ignores_case_and_white_space_only():
     assert sh._same_text(" 500\tml ", "500ml") is True
     assert sh._same_text("500 ml", "50 ml") is False
     assert sh._same_text("", "") is True
+
+
+# ── a list that stores the title in another case ──────────────────────────────
+
+
+def test_a_title_stored_in_lower_case_is_not_a_user_rename():
+    desired = sh.buy_tasks_by_part({"t1": _buy_task()})
+    plan = _plan(
+        tracked=_tracked(), desired=desired, items=[_item(summary="buy anode rod")]
+    )
+    assert plan.update == []
+    assert "user_named" not in plan.tracked[KEY]
+    # So a later rename of the reminder still reaches the line.
+    renamed = sh.buy_tasks_by_part({"t1": _buy_task(name="Buy Magnesium rod")})
+    later = _plan(
+        tracked=plan.tracked, desired=renamed, items=[_item(summary="buy anode rod")]
+    )
+    assert [op.rename for op in later.update] == ["Buy Magnesium rod"]
+
+
+def test_a_title_in_upper_case_on_a_list_with_no_uid_gets_no_rename():
+    plan = _plan(
+        tracked=_tracked(uid=None),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(summary="BUY ANODE ROD", uid=None)],
+    )
+    assert plan.update == []

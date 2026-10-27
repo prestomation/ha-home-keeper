@@ -179,11 +179,35 @@ def test_every_summary_match_being_claimed_resolves_to_nothing():
     assert _resolve([_item()], uid=None, claimed={(LIST, "i1")}) is None
 
 
-def test_a_summary_match_is_exact():
-    # No trimming, no case folding: the driver writes the summary itself, so a
-    # near-miss is somebody else's line.
-    assert _resolve([_item(summary=NAME + " ")], uid=None) is None
-    assert _resolve([_item(summary=NAME.lower())], uid=None) is None
+def test_a_summary_match_ignores_only_case_and_white_space():
+    # A list can store the title in another case or trimmed (R5). Reading that as
+    # another line made the sync add a second copy after each hold.
+    spaced = _item(summary=NAME + " ")
+    lowered = _item(summary=NAME.lower())
+    assert _resolve([spaced], uid=None) is spaced
+    assert _resolve([lowered], uid=None) is lowered
+    assert _resolve([_item(summary=NAME + "s")], uid=None) is None
+    assert ti.same_text("500 ML", " 500ml") is True
+    assert ti.same_text("500 ml", "50 ml") is False
+
+
+def test_an_exact_summary_wins_over_a_near_one_with_the_same_status():
+    near = _item(summary=NAME.lower(), uid="near")
+    exact = _item(uid="exact")
+    assert _resolve([near, exact], uid=None) is exact
+    done = ti.STATUS_COMPLETED
+    near_done = _item(summary=NAME.lower(), uid="nd", status=done)
+    exact_done = _item(uid="ed", status=done)
+    assert _resolve([near_done, exact_done], uid=None) is exact_done
+    # An open item still wins over a ticked one, whatever the text.
+    assert _resolve([exact_done, near], uid=None) is near
+    assert (
+        ti.find_open([near, exact], entity_id=LIST, summary=NAME, claimed=set())
+        is exact
+    )
+    assert (
+        ti.find_open([near_done], entity_id=LIST, summary=NAME, claimed=set()) is None
+    )
 
 
 def test_a_uid_less_line_is_claimed_by_its_summary():

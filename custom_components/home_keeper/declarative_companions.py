@@ -917,8 +917,10 @@ def reconcile_declarative_tasks(
         owned: list[tuple[str, Any]] = []
         # A render without live state, or a blank name, keeps what the task has.
         trusted = key not in stale
+        # The name is trimmed as ``models.build_task`` trims it, or a name with a
+        # space at the end reads as a rename on each pass.
         if trusted and rendered_name.strip():
-            owned.append(("name", rendered_name))
+            owned.append(("name", rendered_name.strip()))
         # A spec with no notes template does not own the notes: the task keeps
         # whatever a person wrote there (see :func:`owns_notes`).
         if trusted and owns_notes(spec):

@@ -1883,3 +1883,138 @@ def test_398_reschedule_until_gives_the_new_date_its_own_offset():
     now = datetime(2026, 10, 30, 12, 0, tzinfo=zone)
     until = tm.reschedule_until("2026-10-30T09:00:00-04:00", "2026-11-03", now=now)
     assert until.isoformat() == "2026-11-03T09:00:00-05:00"
+
+
+# ── a list that changes what it stores ────────────────────────────────────────
+# A list can store a title or a note in another form: other case, other white
+# space. A UTC list can give a due date as a UTC datetime. None of that is a change
+# by a person, and none of it may give an op on each pass.
+
+
+def test_r5_a_list_that_stores_the_title_in_lower_case_gets_no_second_add():
+    first = _plan(desired=_desired([_want()]), items=[])
+    assert [op.summary for op in first.add] == [NAME]
+    stored = [_item(summary=NAME.lower(), uid="i1")]
+    for minutes in (5, 25):
+        later = _plan(
+            tracked=first.tracked,
+            desired=_desired([_want()]),
+            items=stored,
+            now=NOW + timedelta(minutes=minutes),
+        )
+        assert later.add == []
+        assert later.update == []
+        assert later.tracked[KEY]["uid"] == "i1"
+        assert later.tracked[KEY]["added_at"] is None
+        assert "user_named" not in later.tracked[KEY]
+
+
+def test_r5_a_lost_entry_adopts_an_item_that_differs_only_in_case_and_space():
+    plan = _plan(
+        desired=_desired([_want()]),
+        items=[_item(summary="  change THE   filter ", uid="i9")],
+    )
+    assert plan.add == []
+    assert plan.tracked[KEY]["adopted"] is True
+    assert plan.tracked[KEY]["uid"] == "i9"
+
+
+def test_r5_a_list_with_no_uid_that_changes_case_gets_no_rename_each_pass():
+    plan = _plan(
+        tracked=_tracked(_entry(uid=None)),
+        desired=_desired([_want()]),
+        items=[_item(summary=NAME.upper(), uid=None)],
+    )
+    assert plan.update == []
+    assert plan.add == []
+
+
+def test_r5_a_case_change_is_not_a_user_rename_so_a_task_rename_still_syncs():
+    tracked = _tracked(_entry(uid="i1"))
+    lowered = [_item(summary=NAME.lower(), uid="i1")]
+    settled = _plan(tracked=tracked, desired=_desired([_want()]), items=lowered)
+    assert settled.update == []
+    renamed = _plan(
+        tracked=settled.tracked,
+        desired=_desired([_want(name="Swap the filter")]),
+        items=lowered,
+    )
+    assert renamed.update == [tm.UpdateOp(KEY, LIST, "i1", rename="Swap the filter")]
+
+
+def test_r5_an_exact_title_wins_over_one_that_differs_only_in_case():
+    plan = _plan(
+        tracked=_tracked(_added(5)),
+        desired=_desired([_want()]),
+        items=[_item(summary=NAME.lower(), uid="i8"), _item(uid="i1")],
+    )
+    assert plan.tracked[KEY]["uid"] == "i1"
+    assert plan.update == []
+
+
+def test_r6_a_list_that_trims_the_notes_gets_no_update_each_pass():
+    notes = "Use the blue filter. "
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(notes=notes)]),
+        items=[_item(description=notes.strip())],
+    )
+    assert plan.update == []
+
+
+def test_r6_new_notes_still_reach_the_list():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(notes="Use the red filter.")]),
+        items=[_item(description="Use the blue filter.")],
+    )
+    assert plan.update == [
+        tm.UpdateOp(KEY, LIST, "i1", description="Use the red filter.")
+    ]
+
+
+def test_r7_a_utc_datetime_due_on_the_list_is_read_in_the_local_zone():
+    now = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=2)))
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due="2026-06-13T22:00:00+00:00")],
+        now=now,
+    )
+    assert plan.reschedule == []
+    assert plan.update == []
+
+
+def test_r7_a_utc_datetime_that_is_a_real_move_still_moves_the_task():
+    now = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=2)))
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due="2026-06-19T22:00:00+00:00")],
+        now=now,
+    )
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, "2026-06-20")]
+
+
+def test_r7_a_naive_datetime_due_keeps_its_own_date():
+    now = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=2)))
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due="2026-06-14T23:30:00")],
+        now=now,
+    )
+    assert plan.reschedule == []
+    assert plan.update == []
+
+
+def test_r7_a_list_that_stores_the_date_as_utc_midnight_keeps_that_date():
+    # West of UTC, that midnight is the evening before. Read as a move, each pass
+    # would take the task 1 day back.
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=f"{DUE}T00:00:00+00:00")],
+    )
+    assert plan.reschedule == []
+    assert plan.update == []

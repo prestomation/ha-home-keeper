@@ -12,15 +12,14 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: aa1747466c06
+source_hash: 99281fdb6d55
 ---
 
 # To-do, calendar and list sync
 
-Home Keeper shows its tasks as 1 native to-do list and 1 calendar. 2 syncs write to lists
-that other integrations own: a profile syncs its tasks onto 1 external list, and the buy
-reminders go onto 1 shopping list. Both syncs read changes back. Each is a pure planner
-and a Home Assistant driver.
+Home Keeper shows its tasks as 1 native to-do list and 1 calendar. 2 syncs write to lists that
+other integrations own: a profile syncs its tasks onto 1 external list, and the buy reminders go
+onto 1 shopping list. Both syncs read changes back. Each is a pure planner and an HA driver.
 
 ## Goals
 
@@ -74,13 +73,15 @@ No driver syncs onto Home Keeper's own entity (`shopping_sync.own_todo_entity_id
 ### Item matching and the hold
 
 `todo_items.resolve_tracked` finds the item of an entry by `uid` first, then by summary,
-an open item before a ticked one. A `claimed` set spans the whole plan, so 2 entries never
-share 1 item. A planner adopts an open item with the same summary (`todo_items.find_open`)
-before it adds one, and marks the entry `adopted: True`. Home Keeper changes only items it
-added: a tick on an adopted item still counts, but it is never removed, ticked off, renamed
-or rewritten, and its date is never a move. When the item is not needed, the entry goes and
-the item stays. Due date and description are written and compared only when the list
-supports them (`CAP_DUE_DATE`, `CAP_DESCRIPTION`), or each pass rewrites them.
+an open item before a ticked one. Text compares by `todo_items.same_text`, which ignores
+case and white space, because a list can store them in another form. An exact text wins. A
+`claimed` set spans the whole plan, so 2 entries never share 1 item. A planner adopts an
+open item with the same text (`todo_items.find_open`) before it adds one, and marks the
+entry `adopted: True`. Home Keeper changes only items it added: a tick on an adopted item
+still counts, but it is never removed, ticked off, renamed or rewritten, and its date is
+never a move. When the item is not needed, the entry goes and the item stays. Due date and
+description (by `same_text`) are written and compared only when the list supports them
+(`CAP_DUE_DATE`, `CAP_DESCRIPTION`), or each pass rewrites them.
 
 The `add_item` service returns no uid, so a new entry has `uid: None` and `added_at`. The
 CalDAV entity shows a new item late. A pass that cannot find the item carries the entry
@@ -106,12 +107,12 @@ so the item is ticked off. When the task is due again, a new item goes next to i
 - **Vanish.** With both toggles on and a captured `uid`, the task completes (Todoist drops
   completed items). Otherwise the item is added again.
 - **Rename.** An item with a `uid` whose summary is neither the last written name nor the
-  new name gets `user_named: True`, and the sync never renames it again.
+  new name (by `same_text`) gets `user_named: True`, and the sync never renames it again.
 - **Date move.** With `two_way` on, a date that is neither `due` in the entry nor the wanted
-  date gives a `RescheduleOp`. The driver calls `store.snooze_task`, which sets any date,
-  earlier or later, and changes only `next_due`. `todo_list.reschedule_until` keeps the
-  local time of day. A completion in the same pass wins. If the snooze fails, the next pass
-  writes the task date back on the item.
+  date gives a `RescheduleOp`. `todo_list._live_date` reads a datetime in the local zone,
+  except a midnight. The driver calls `store.snooze_task`, which sets any date and changes
+  only `next_due`. `todo_list.reschedule_until` keeps the local time of day. A completion in
+  the same pass wins. If the snooze fails, the next pass writes the task date back.
 - **Profile removed.** A deleted or switched-off profile removes its open items from the list.
 
 ### Shopping list mirror

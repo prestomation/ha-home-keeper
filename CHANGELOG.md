@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b7]
+
+### Fixed
+
+- **Steadier to-do list sync.** A synced to-do list that stores a title in another case,
+  trims the notes or gives the due date in UTC no longer gets a second copy of the item,
+  a rewrite on each pass, or a task snoozed 1 day early.
+
 ## [0.34.0b3]
 
 ### Fixed
