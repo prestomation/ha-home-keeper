@@ -140,7 +140,9 @@ export function deferSplit(
   // Both halves square off (ha-button takes a single-value radius override, and
   // rejects a four-value one), and `.hk-split-pill` rounds the pair by clipping. The
   // menu is deliberately outside that clip: it hangs below the button, and the
-  // overflow that rounds the corners would otherwise cut it off.
+  // overflow that rounds the corners would otherwise cut it off. When it opens, it
+  // becomes a manual popover in the top layer (see DeferMenus), so a theme that clips
+  // or layers the card (`overflow`, `backdrop-filter`) can neither cut it nor cover it.
   return (
     `<span class="hk-split" data-id="${escapeHTML(task.id)}">` +
     `<span class="hk-split-pill">${doneBtn}` +
