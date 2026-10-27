@@ -17,13 +17,27 @@ CONFIG="$(mktemp -d "${TMPDIR:-/tmp}/hk-noise-config.XXXXXX")"
 COMPOSE=(docker compose --project-name hk-noise -f "$ROOT/tests/integration/docker-compose.yml")
 export HA_CONFIG="$CONFIG"
 
+# Home Assistant runs as root in the container and writes root-owned files into the
+# config dir, so a runner user cannot always remove them. A container removes them,
+# and the host dir, which is the runner's, goes after. A cleanup that fails never
+# changes the exit code of the tests.
+remove_config() {
+  rm -rf "$CONFIG" 2>/dev/null && return 0
+  docker run --rm -v "$CONFIG:/config" --entrypoint /bin/sh \
+    "ghcr.io/home-assistant/home-assistant:${HA_TAG:-stable}" \
+    -c 'rm -rf /config/* /config/.[!.]* /config/..?*' >/dev/null 2>&1
+  rm -rf "$CONFIG"
+}
+
 cleanup() {
+  local status=$?
   if [ "${KEEP_UP:-0}" != "1" ]; then
     "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true
-    rm -rf "$CONFIG"
+    remove_config || echo "[noise] could not remove $CONFIG"
   else
     echo "[noise] container left running; config in $CONFIG"
   fi
+  exit "$status"
 }
 trap cleanup EXIT
 
