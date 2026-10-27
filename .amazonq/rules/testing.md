@@ -16,6 +16,7 @@ Run the tests locally before you push. CI is not the test runner.
 | Integration | `tests/integration` (Docker HA) | `bash ci/test-python-integration.sh` |
 | Browser | `tests/e2e` (Playwright) | `bash ci/e2e-up.sh` |
 | Upgrade | `tests/upgrade` | stage fixtures with `bash ci/fetch-glues.sh` first |
+| Noise budget | `tests/noise` (Docker HA) | `bash ci/test-noise.sh` |
 
 - The pure unit lane needs only
   `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
@@ -134,6 +135,32 @@ Run the tests locally before you push. CI is not the test runner.
   `tests/e2e/capture-config.ts`. `--list` must show 1 project.
 - Measure layout by relations (A is above B), never by coordinates. Assert that a list is
   not empty before you loop over it.
+
+## Noise budget
+
+`tests/noise` counts what each action writes: logbook rows, flips to and from
+`unavailable`, `home_keeper_*` events, store writes and entry reloads. It compares the
+counts with `tests/noise/baseline.json`. Issue #467 is why: a restart rename loop and a
+reload on each options change filled the logbook, and no test saw it.
+
+- `ci/test-noise.sh` runs it on its own Home Assistant, on a temporary copy of the
+  fixture with the test-only `hk_noise_probe` integration added. The scenarios share
+  state and run in file order. The `Noise budget` job in `integration.yml` runs it on
+  each PR.
+- **A budget is a maximum.** Some counters are `pinned` at 0 (a restart, an idle tick, a
+  no-op call). A pinned counter changes only by hand, with a reason in the PR.
+- **Change a budget on purpose.** `HK_NOISE_UPDATE=1 bash ci/test-noise.sh` writes the
+  measured numbers, except pinned counters and known bugs. Commit the diff and say why
+  in the PR body.
+- **A known bug is a `known` entry** with the bug id, a `target` and a `now` per counter.
+  It is a strict xfail for each counter: above `now` fails, at or below `target` fails
+  too. The PR that fixes the bug deletes the entry and sets the budget.
+- **A new reload trigger, sync or listener gets a scenario** in
+  `tests/noise/test_noise_budget.py` in the same PR.
+- **State the loop guard.** Code that listens to a state, a registry or a bus event and
+  writes the store, an entity or another integration says in a comment what stops its
+  own write from coming back as an input (compare before write, an origin marker, a
+  debounce, a fixed point). Name the guard in the PR body too.
 
 ## Translations
 

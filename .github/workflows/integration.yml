@@ -92,6 +92,29 @@ jobs:
         working-directory: tests/integration
         run: docker compose down -v
 
+  noise:
+    # The noise budget (tests/noise): how many logbook rows, unavailable flips,
+    # events, store writes and reloads each action makes, against
+    # tests/noise/baseline.json. Issue #467 filled users' logbooks and no test saw it.
+    # It runs in parallel with `integration` on its own Home Assistant, about 8
+    # minutes of scenarios. It needs no panel build: it reads no frontend.
+    name: Noise budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run the noise-budget scenarios
+        run: bash ci/test-noise.sh
+
   upgrade:
     # The upgrade suite boots a pre-split Home Assistant (2026.7) with the last
     # Home Keeper it ran, then the current stable with this tree, against one config
