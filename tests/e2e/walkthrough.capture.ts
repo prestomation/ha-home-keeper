@@ -1050,6 +1050,12 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //    at the time it was done, or at 1 set time on its date (#438). Shown, not
   //    changed: a save reloads the entry and moves the stored dates.
   await gotoTab(panel, 'settings');
+  //    Settings → General holds the switch for the task entities on device pages
+  //    (#496). Shown, not changed: the other beats show the device page entities.
+  await expect(panel.locator('#hk-settings-general')).toContainText(
+    'Enable task entities on device pages',
+  );
+  await page.waitForTimeout(BEAT * 2);
   await expect(panel.locator('#hk-settings-duetime ha-form')).toBeVisible();
   await panel.locator('#hk-settings-duetime').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
@@ -1569,6 +1575,16 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  //    The General section: the switch for the task entities on device pages (#496).
+  await panel.locator('.hk-index-row[data-section="general"]').click();
+  await expect(panel.locator('#hk-settings-general')).toContainText(
+    'Enable task entities on device pages',
+  );
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
 
   //    The Shopping list section: "Product only" drops the verb from each line, and
   //    the preview under the choice shows the list as it will read (#369).

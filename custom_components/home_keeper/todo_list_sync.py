@@ -96,27 +96,26 @@ class TodoListSync(TodoSyncDriver):
         """Watch the synced lists, and the task changes that feed them.
 
         Subscriptions go through ``entry.async_on_unload``, so unload/reload tears
-        them down. There is no resubscribe path on purpose: the only thing that
-        changes which lists are synced is an options save, and that reloads the
-        entry.
+        them down. An options save that changes which lists are synced moves the
+        watch through ``async_apply_options``, with no reload (#467).
         """
         self._entry.async_on_unload(self._async_stop)
-        targets = sorted(
-            {
-                str(profile["sync"]["entity_id"])
-                for profile in profiles.synced_profiles(self._configured_syncs())
-            }
-        )
-        if targets:
-            self._entry.async_on_unload(
-                async_track_state_change_event(
-                    self._hass, targets, self._handle_state_change
-                )
-            )
+        self._entry.async_on_unload(self._unwatch_lists)
+        self._rewatch_lists()
         for event_name in _TASK_EVENTS:
             self._entry.async_on_unload(
                 self._hass.bus.async_listen(event_name, self._handle_task_event)
             )
+
+    def _watched_lists(self) -> list[str]:
+        return [
+            str(profile["sync"]["entity_id"])
+            for profile in profiles.synced_profiles(self._configured_syncs())
+        ]
+
+    @callback
+    def _rewatch_lists(self) -> None:
+        self._watch_lists(async_track_state_change_event)
 
     @callback
     def _handle_task_event(self, event: Event[Any]) -> None:

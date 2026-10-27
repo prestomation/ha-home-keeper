@@ -67,6 +67,19 @@ def _load_coordinator():
     # The grace is the real one: the tests below lower the retention through the
     # real ``async_set_options`` and then watch the purge that reads it.
     options.take_retention_grace = real_options.take_retention_grace
+    # The live options apply (#467) uses the real pure rules.
+    for name in (
+        "APPLY_DUE_TIME",
+        "APPLY_NOTIFICATIONS",
+        "APPLY_PROBLEM_SYNC",
+        "APPLY_SHOPPING",
+        "APPLY_TODO_LISTS",
+        "APPLY_TASK_ENTITIES",
+        "apply_steps",
+        "due_time_of",
+        "reload_needed",
+    ):
+        setattr(options, name, getattr(real_options, name))
     sys.modules["hk.options"] = options
 
     store_mod = types.ModuleType("hk.store")

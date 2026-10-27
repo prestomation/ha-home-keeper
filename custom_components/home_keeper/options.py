@@ -6,10 +6,12 @@ Three surfaces edit the same options object — the **options flow**
 ``home_keeper/set_options`` websocket commands). The key list, defaults, and
 normalization live here so they can't drift. Writing options goes through
 ``hass.config_entries.async_update_entry``, which fires the entry's update listener
-(wired in ``__init__``) and reloads — re-running the problem-sensor reconcile. The
-service / websocket path (``async_set_options``) additionally *awaits* that reload so
-the caller sees the reconciled task set immediately (the options flow, which updates
-the entry directly, still relies on the update listener).
+(wired in ``__init__``). The listener calls the coordinator's ``async_apply_options``,
+which applies the change live, or reloads the entry when the change adds, removes or
+renames an entity (``reload_needed``, #467). The service / websocket path
+(``async_set_options``) additionally *awaits* that apply so the caller sees the
+reconciled task set immediately (the options flow, which updates the entry directly,
+still relies on the update listener).
 
 Two of those three surfaces send a *partial* update, which ``_normalize`` merges onto
 what is already stored. The options flow can't: Home Assistant stores whatever an
@@ -53,6 +55,7 @@ from .const import (
     OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_TASK_DEVICE_ENTITIES,
 )
 
 if TYPE_CHECKING:
@@ -80,6 +83,7 @@ _BOOL_OPTIONS = (
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_COST_SUMMARY_PANEL,
+    OPTION_TASK_DEVICE_ENTITIES,
 )
 
 
@@ -95,7 +99,8 @@ def _empty_options() -> dict[str, Any]:
     "Nothing" is not always ``False``. ``allow_snooze`` / ``allow_skip`` /
     ``allow_due_today`` default to **True**, so a document written before they
     existed — every existing install — reads back with every verb available, which is
-    what those installs already have.
+    what those installs already have. ``task_device_entities`` defaults to **True**
+    for the same reason: each install had the per-task entities before the switch.
     """
     return {
         OPTION_SYNC_PROBLEM_SENSORS: False,
@@ -111,6 +116,7 @@ def _empty_options() -> dict[str, Any]:
         OPTION_NOTIFICATIONS: [],
         OPTION_COST_WINDOWS: list(cost_summary.DEFAULT_WINDOWS),
         OPTION_COST_SUMMARY_PANEL: True,
+        OPTION_TASK_DEVICE_ENTITIES: True,
         **{key: [] for key in _LIST_OPTIONS},
     }
 
@@ -138,22 +144,93 @@ FLOW_OPTIONS: tuple[str, ...] = (
     OPTION_DUE_TIME,
 )
 
-# Entry ids whose reload an explicit caller (the ``set_options`` service / the
-# panel's websocket command) is already awaiting. The config-entry update
-# listener (``__init__._async_options_updated``) consults this so it doesn't fire
-# a *second*, overlapping reload for the same change.
-_CALLER_RELOADING: set[str] = set()
+# What a live options change asks of the running entry (#467). An options change
+# that keeps the entity set is applied without a reload, because a reload writes
+# ``unavailable`` for each entity and fills the logbook. Most readers read
+# ``entry.options`` each time, so the coordinator refresh after the change is enough
+# for them. The readers that keep a value from setup get a step.
+APPLY_DUE_TIME = "due_time"  # the store keeps the set due time
+APPLY_NOTIFICATIONS = "notifications"  # warn about a dropped notify target
+APPLY_PROBLEM_SYNC = "problem_sync"  # the state listener and the synced tasks
+APPLY_SHOPPING = "shopping"  # the shopping-list listener, then 1 pass
+APPLY_TODO_LISTS = "todo_lists"  # the to-do list listeners, then 1 pass
+APPLY_TASK_ENTITIES = "task_entities"  # disable or enable them in the registry
+
+# The steps a change to each option needs. ``tests/unit/test_options_apply.py``
+# asserts this covers every key, so a new option must say how it applies.
+_APPLY_STEPS: dict[str, tuple[str, ...]] = {
+    OPTION_SYNC_PROBLEM_SENSORS: (APPLY_PROBLEM_SYNC,),
+    OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: (APPLY_PROBLEM_SYNC,),
+    OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: (APPLY_PROBLEM_SYNC,),
+    OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: (APPLY_PROBLEM_SYNC,),
+    OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: (APPLY_PROBLEM_SYNC,),
+    OPTION_DUE_TIME_MODE: (APPLY_DUE_TIME,),
+    OPTION_DUE_TIME: (APPLY_DUE_TIME,),
+    OPTION_SHOPPING_LIST_ENTITY: (APPLY_SHOPPING,),
+    OPTION_SHOPPING_LINE_STYLE: (APPLY_SHOPPING,),
+    # The count sensors read their filter live. A profile's to-do list sync is in
+    # the profile.
+    OPTION_PROFILES: (APPLY_TODO_LISTS,),
+    OPTION_NOTIFICATIONS: (APPLY_NOTIFICATIONS,),
+    OPTION_ALLOW_SNOOZE: (),
+    OPTION_ALLOW_SKIP: (),
+    OPTION_ALLOW_DUE_TODAY: (),
+    OPTION_ONE_OFF_RETENTION_DAYS: (),
+    OPTION_COST_WINDOWS: (),
+    OPTION_COST_SUMMARY_PANEL: (),
+    OPTION_TASK_DEVICE_ENTITIES: (APPLY_TASK_ENTITIES,),
+    OPTION_DISMISSED_COMPANIONS: (),
+    OPTION_HIDDEN_PANEL_TABS: (),
+}
 
 
-def caller_is_reloading(entry_id: str) -> bool:
-    """Whether an ``async_set_options`` caller is already reloading *entry_id*."""
-    return entry_id in _CALLER_RELOADING
+def options_entity_key(opts: dict[str, Any]) -> tuple[frozenset[Any], frozenset[Any]]:
+    """The part of normalized *opts* that decides which entities exist.
+
+    1 spend sensor exists for each cost window, and 1 count sensor for each profile,
+    with the profile name in the entity name. The order of either list makes no
+    entity, so the key holds sets.
+    """
+    return (
+        frozenset(opts[OPTION_COST_WINDOWS]),
+        frozenset((p["id"], p["name"]) for p in opts[OPTION_PROFILES]),
+    )
+
+
+def reload_needed(old: dict[str, Any], new: dict[str, Any]) -> bool:
+    """Whether a change from normalized *old* to *new* must reload the entry.
+
+    Only the platform setup adds, removes or renames an entity.
+    """
+    return options_entity_key(old) != options_entity_key(new)
+
+
+def apply_steps(old: dict[str, Any], new: dict[str, Any]) -> frozenset[str]:
+    """The live steps a change from normalized *old* to *new* needs."""
+    return frozenset(
+        step
+        for key, steps in _APPLY_STEPS.items()
+        if old.get(key) != new.get(key)
+        for step in steps
+    )
+
+
+# Entry ids whose options change an explicit caller (the ``set_options`` service /
+# the panel's websocket command) is already applying. The config-entry update
+# listener (``__init__._async_options_updated``) consults this so it doesn't apply
+# the same change a *second* time.
+_CALLER_APPLYING: set[str] = set()
+
+
+def caller_is_applying(entry_id: str) -> bool:
+    """Whether an ``async_set_options`` caller is already applying *entry_id*."""
+    return entry_id in _CALLER_APPLYING
 
 
 # Entry ids whose last ``async_set_options`` write lowered the one-off retention. The
-# coordinator skips the purge once for each, in the first refresh of that reload.
+# coordinator skips the purge once for each, in the first refresh after the write.
 # A lower retention deletes tasks for good, so it takes effect one periodic tick
-# after the write, not in the reload of the write. A value that is only on its way to
+# after the write, not in the refresh of the write. A value that is only on its way to
 # a higher number (the "3" of "30") then deletes no task, because the next write
 # replaces it before the purge reads it.
 _RETENTION_GRACE: set[str] = set()
@@ -420,7 +497,7 @@ def merge_flow_input(entry: ConfigEntry, user_input: dict[str, Any]) -> dict[str
 
     This is the options flow's entry point and nothing else's. The ``set_options``
     service and the panel's Settings tab already send partial updates, so they go
-    through ``async_set_options``, which persists and reloads as well.
+    through ``async_set_options``, which persists and applies as well.
     """
     empty = _empty_options()
     submitted = {
@@ -513,17 +590,18 @@ async def async_set_options(
     Only the keys present in *updates* change (the panel saves the whole form, but
     the service / an automation may set just one).
 
-    When the options actually change we **await** the entry reload so the caller
-    observes the reconciled state — synced problem-sensor tasks created/removed for
-    the new exclusions — by the time this returns, instead of racing the
-    fire-and-forget update-listener reload (which left the panel showing stale tasks
-    until something else triggered a refresh). The entry is flagged for the duration
-    so the update listener skips its own, overlapping reload.
+    When the options actually change we **await** the coordinator's
+    ``async_apply_options``, so the caller observes the reconciled state — synced
+    problem-sensor tasks created/removed for the new exclusions — by the time this
+    returns. That applies the change live, or reloads the entry when the entity set
+    changes (#467). An entry that is not loaded has no coordinator, so it is
+    reloaded, which sets it up with the new options. The entry is flagged for the
+    duration so the update listener does not apply the change again.
     """
     base = current_options(entry)
     merged = _normalize(updates, base)
     if merged == base:
-        # No effective change — nothing to persist, and no reload to await.
+        # No effective change — nothing to persist, and nothing to apply.
         return merged
     if blocked := profile_removals_in_use(base, merged):
         # Before the write, so a refused save changes nothing, and after the
@@ -536,10 +614,14 @@ async def async_set_options(
         base[OPTION_ONE_OFF_RETENTION_DAYS], merged[OPTION_ONE_OFF_RETENTION_DAYS]
     ):
         _RETENTION_GRACE.add(entry.entry_id)
-    _CALLER_RELOADING.add(entry.entry_id)
+    _CALLER_APPLYING.add(entry.entry_id)
     try:
         hass.config_entries.async_update_entry(entry, options=merged)
-        await hass.config_entries.async_reload(entry.entry_id)
+        coordinator = getattr(entry, "runtime_data", None)
+        if coordinator is None:
+            await hass.config_entries.async_reload(entry.entry_id)
+        else:
+            await coordinator.async_apply_options()
     finally:
-        _CALLER_RELOADING.discard(entry.entry_id)
+        _CALLER_APPLYING.discard(entry.entry_id)
     return merged

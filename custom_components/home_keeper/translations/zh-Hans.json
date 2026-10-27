@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "在面板中显示支出",
           "description": "在面板的任务列表上方显示支出总计。"
+        },
+        "task_device_entities": {
+          "name": "在设备页面上启用任务实体",
+          "description": "启用每个任务添加到其设备页面上的“标记完成”按钮以及到期和逾期传感器。关闭时会禁用它们，并保留其实体 ID。"
         }
       }
     },

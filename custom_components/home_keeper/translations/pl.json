@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Pokaż wydatki w panelu",
           "description": "Pokazuje sumy wydatków nad listą zadań w panelu."
+        },
+        "task_device_entities": {
+          "name": "Włącz encje zadań na stronach urządzeń",
+          "description": "Włącza przycisk Oznacz jako wykonane oraz czujniki terminu i zaległości, które każde zadanie dodaje do strony swojego urządzenia. Wyłączenie je wyłącza i zachowuje ich identyfikatory encji."
         }
       }
     },

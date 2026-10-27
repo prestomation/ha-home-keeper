@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Mostrar o gasto no painel",
           "description": "Mostra os totais de gasto acima da lista de tarefas no painel."
+        },
+        "task_device_entities": {
+          "name": "Ativar entidades de tarefa nas páginas de dispositivo",
+          "description": "Ativa o botão Marcar como concluída e os sensores de vencimento e de atraso que cada tarefa adiciona à página do seu dispositivo. Desligado, desativa-os e mantém os IDs de entidade."
         }
       }
     },

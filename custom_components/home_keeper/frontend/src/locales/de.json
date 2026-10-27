@@ -592,6 +592,8 @@
   "settings.heading": "Problemsensor-Synchronisierung",
   "settings.help": "Binärsensoren mit der Geräteklasse „Problem“ als Aufgaben synchronisieren. Eine synchronisierte Aufgabe bleibt aktiv, solange ihr Sensor ein Problem meldet, und wird automatisch gelöscht, wenn die Quellintegration es behebt; sie kann in Home Keeper nicht abgeschlossen werden. Schließe unten bestimmte Sensoren, Geräte, Bereiche oder Labels aus.",
   "settings.one_off_retention_days": "Erledigte Einmalaufgaben löschen nach (Tagen, 0 = nie)",
+  "settings.task_device_entities": "Aufgaben-Entitäten auf Geräteseiten aktivieren",
+  "settings.task_device_entities_help": "Jede Aufgabe an einem Gerät legt auf der Geräteseite eine Schaltfläche Erledigt sowie Sensoren für Fälligkeit und Überfälligkeit an. Aus deaktiviert sie. Ereignisse, Benachrichtigungen und die Zählsensoren funktionieren weiter, und du kannst einzelne Entitäten auf ihrer Geräteseite wieder aktivieren.",
   "settings.problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
   "settings.problem_sensor_exclude_devices": "Ausgeschlossene Geräte",
   "settings.problem_sensor_exclude_entities": "Ausgeschlossene Sensoren",

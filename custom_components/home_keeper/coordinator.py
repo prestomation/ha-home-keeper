@@ -22,22 +22,38 @@ try:
 except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import assets, companions, notifier, recurrence, transitions
+from . import assets, companions, notifications, notifier, recurrence, transitions
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
+    OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
+    OPTION_TASK_DEVICE_ENTITIES,
     SIGNAL_PART_STOCK_CHANGED,
 )
 from .device_compat import resolve_device
-from .options import current_options, take_retention_grace
+from .options import (
+    APPLY_DUE_TIME,
+    APPLY_NOTIFICATIONS,
+    APPLY_PROBLEM_SYNC,
+    APPLY_SHOPPING,
+    APPLY_TASK_ENTITIES,
+    APPLY_TODO_LISTS,
+    apply_steps,
+    current_options,
+    due_time_of,
+    reload_needed,
+    take_retention_grace,
+)
 from .reconcile import buy_source
 from .store import HomeKeeperStore
+from .task_entities import switched_disabled_by, task_entity_unique_ids
 
 if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
@@ -50,7 +66,7 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=5)
 
 # hass.data namespace holding the transition edge-state map per config entry, so it
-# survives a config-entry *reload* (add/delete task, options save) even though the
+# survives a config-entry *reload* (add/delete task, a new profile) even though the
 # coordinator object is recreated. A genuine HA *restart* starts with an empty
 # hass.data, which is how we still baseline silently on restart (no overdue storm).
 _EDGE_STATE_STORE = f"{DOMAIN}_edge_state"
@@ -160,7 +176,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions. Seeded from the process-lifetime store so it
         # survives a config-entry reload — otherwise a reload (triggered by any
-        # add/delete task or options save) would recreate the coordinator with an
+        # add/delete task or a new profile) would recreate the coordinator with an
         # empty map and silently baseline any transition that happened since the last
         # refresh, losing the overdue/due-soon event forever.
         prior = _edge_state_store(hass).get(entry.entry_id)
@@ -173,6 +189,11 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # Guards against piling up entry reloads when several buy-task syncs land close
         # together (mirrors ProblemSensorSync._reload_scheduled).
         self._buy_reload_scheduled = False
+        # The options this entry runs with. Setup applied them before it made the
+        # coordinator, so ``async_apply_options`` compares a change with these.
+        self.applied_options: dict[str, Any] = current_options(entry)
+        # 1 options change at a time, so a 2nd change compares with the 1st.
+        self._options_lock = asyncio.Lock()
 
     @property
     def entry(self) -> ConfigEntry:
@@ -275,6 +296,90 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # entity, and the refresh then wrote each one again (X08-5).
             async_dispatcher_send(self.hass, SIGNAL_PART_STOCK_CHANGED)
             await self.async_request_refresh()
+
+    async def async_apply_options(self) -> None:
+        """Apply the entry's current options, with no reload when that is possible.
+
+        A reload makes Home Assistant write ``unavailable`` for each entity and then
+        the state again, so each reload puts many rows in the logbook (#467). This
+        reloads only when ``options.reload_needed`` says that entities must come or
+        go, or when the problem-sensor reconcile changed the entity set. Else it runs
+        the steps of ``options.apply_steps`` and refreshes once. A step that raises
+        falls back to 1 reload, which applies every option from setup.
+        """
+        async with self._options_lock:
+            new = current_options(self.entry)
+            old = self.applied_options
+            if new == old:
+                return
+            # A failed setup keeps ``runtime_data``, so this coordinator can be one
+            # whose syncs and store are closed. Only a reload applies options then.
+            loaded = (
+                self.entry.state is ConfigEntryState.LOADED
+                and getattr(self.entry, "runtime_data", None) is self
+            )
+            if loaded and not reload_needed(old, new):
+                try:
+                    live = await self._async_apply_live(old, new)
+                except Exception:
+                    _LOGGER.exception(
+                        "Could not apply the Home Keeper options without a reload; "
+                        "reloading the entry"
+                    )
+                    live = False
+                if live:
+                    self.applied_options = new
+                    await self.async_request_refresh()
+                    return
+            await self.hass.config_entries.async_reload(self.entry.entry_id)
+
+    async def _async_apply_live(self, old: dict[str, Any], new: dict[str, Any]) -> bool:
+        """Run the live steps from *old* to *new*. False when a reload is needed."""
+        steps = apply_steps(old, new)
+        # First, because a changed entity set makes the other steps wasted work.
+        if (
+            APPLY_PROBLEM_SYNC in steps
+            and self.problem_sync is not None
+            and await self.problem_sync.async_apply_options()
+        ):
+            return False
+        if APPLY_DUE_TIME in steps:
+            await self.store.async_apply_due_time(due_time_of(new))
+        if APPLY_NOTIFICATIONS in steps:
+            # Warn once for each change about a notify target the allowlist drops,
+            # as setup does. A read of the options does not warn (B16-11).
+            notifications.normalize_notifications(
+                self.entry.options.get(OPTION_NOTIFICATIONS)
+            )
+        if APPLY_SHOPPING in steps and self.shopping_sync is not None:
+            await self.shopping_sync.async_apply_options()
+        if APPLY_TODO_LISTS in steps and self.todo_list_sync is not None:
+            await self.todo_list_sync.async_apply_options()
+        if APPLY_TASK_ENTITIES in steps:
+            self._switch_task_entities(enabled=new[OPTION_TASK_DEVICE_ENTITIES])
+        return True
+
+    def _switch_task_entities(self, *, enabled: bool) -> None:
+        """Disable or enable the per-task entities in the entity registry (#496).
+
+        This runs only when the option changes. An entity that the user enables by
+        hand while the option is off stays enabled until the option goes off again
+        (on, then off), which disables it again. Off needs no reload: Home
+        Assistant removes a disabled entity from its platform. On needs no reload from
+        here either: Home Assistant reloads the entry by itself after an entity is
+        enabled, and that reload adds the entities.
+        """
+        registry = er.async_get(self.hass)
+        uids = task_entity_unique_ids(self.data or {})
+        for entry in er.async_entries_for_config_entry(registry, self.entry.entry_id):
+            if entry.unique_id not in uids:
+                continue
+            new = switched_disabled_by(entry.disabled_by, enabled=enabled)
+            if new != entry.disabled_by:
+                registry.async_update_entity(
+                    entry.entity_id,
+                    disabled_by=None if new is None else er.RegistryEntryDisabler(new),
+                )
 
     async def _async_reload_for_buy_tasks(self) -> None:
         try:
@@ -555,3 +660,17 @@ def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
         if isinstance(coord, HomeKeeperCoordinator):
             return coord
     return None
+
+
+async def async_apply_entry_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply *entry*'s options, from the config-entry update listener (#467).
+
+    Home Assistant runs the listener as a task, so the entry can unload before the
+    task runs, and the unload deletes ``runtime_data``. Such an entry is reloaded,
+    which sets it up with the new options.
+    """
+    coordinator = getattr(entry, "runtime_data", None)
+    if isinstance(coordinator, HomeKeeperCoordinator):
+        await coordinator.async_apply_options()
+    else:
+        await hass.config_entries.async_reload(entry.entry_id)

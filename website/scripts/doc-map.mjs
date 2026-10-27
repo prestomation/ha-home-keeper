@@ -28,6 +28,12 @@ export const USER_SECTIONS = [
   {slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
   {slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
   {slug: 'disabled-tasks', title: 'Disabled tasks', label: 'Disabled tasks', group: 'tasks'},
+  {
+    slug: 'device-entities',
+    title: 'Task entities on device pages',
+    label: 'Device entities',
+    group: 'tasks',
+  },
   {slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
   {slug: 'qr-labels', title: 'QR code labels', label: 'QR code labels', group: 'appliances'},
   {slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},

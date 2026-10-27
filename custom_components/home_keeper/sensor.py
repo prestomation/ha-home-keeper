@@ -46,6 +46,7 @@ from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .options import current_options
 from .sensor_watcher import read_sensor_value
 from .service_device import service_device_info
+from .task_entities import TASK_ENTITY_NEXT_DUE, task_entity_unique_id
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
 _DATE_ICON = "mdi:calendar-clock"
@@ -200,6 +201,7 @@ def _count_entities(
                 translation_key="profile_tasks",
                 placeholders={"profile": profile["name"]},
                 task_filter=profile["filter"],
+                profile_id=profile["id"],
             )
         )
     return entities, live
@@ -224,7 +226,7 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
-        self._attr_unique_id = f"{DOMAIN}_{task_id}_next_due"
+        self._attr_unique_id = task_entity_unique_id(task_id, TASK_ENTITY_NEXT_DUE)
 
     @property
     def native_value(self) -> datetime | None:
@@ -340,13 +342,32 @@ class HomeKeeperTaskCountSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         translation_key: str,
         placeholders: dict[str, str],
         task_filter: dict[str, Any],
+        profile_id: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = unique_id
         self._attr_translation_key = translation_key
         self._attr_translation_placeholders = placeholders
         self._filter = task_filter
+        self._profile_id = profile_id
         self._attr_device_info = service_device_info()
+
+    def _task_filter(self) -> dict[str, Any]:
+        """The filter to count with: for a profile, the one the options hold now.
+
+        An options change that keeps the set of profiles and their names does not
+        reload the entry (#467), so a filter edit reaches the sensor only here. A
+        profile that is gone keeps the filter from setup until the reload that
+        removes this sensor.
+        """
+        if self._profile_id is None:
+            return self._filter
+        for profile in (
+            current_options(self.coordinator.entry).get(OPTION_PROFILES) or []
+        ):
+            if profile["id"] == self._profile_id:
+                return profile["filter"]
+        return self._filter
 
     def _counts(self) -> dict[str, Any]:
         """The whole count result for this profile, as of now.
@@ -363,7 +384,7 @@ class HomeKeeperTaskCountSensor(CoordinatorEntity[HomeKeeperCoordinator], Sensor
         tasks = notifier.effective_filter_tasks(
             self.hass, list(self.coordinator.data.values())
         )
-        return task_counts.count_tasks(tasks, self._filter, now=dt_util.now())
+        return task_counts.count_tasks(tasks, self._task_filter(), now=dt_util.now())
 
     def _update_counts(self) -> None:
         """Count once and keep the result for the state and the attributes.

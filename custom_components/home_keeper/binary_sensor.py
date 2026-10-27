@@ -32,6 +32,7 @@ from .entity import (
     HomeKeeperTaskEntity,
     prune_registry_entries,
 )
+from .task_entities import TASK_ENTITY_OVERDUE, task_entity_unique_id
 from .transitions import DUE_SOON_WINDOW  # shared so the event and entity agree
 
 _LOW_STOCK_ICON = "mdi:package-variant-closed-remove"
@@ -102,7 +103,7 @@ class HomeKeeperOverdueBinarySensor(HomeKeeperTaskEntity, BinarySensorEntity):
 
     def __init__(self, coordinator: HomeKeeperCoordinator, task_id: str) -> None:
         super().__init__(coordinator, task_id)
-        self._attr_unique_id = f"{DOMAIN}_{task_id}_overdue"
+        self._attr_unique_id = task_entity_unique_id(task_id, TASK_ENTITY_OVERDUE)
 
     @property
     def is_on(self) -> bool:

@@ -69,6 +69,17 @@ class ProblemSensorSync:
             self._eligible(), config_entry_id=self._entry.entry_id
         )
 
+    async def async_apply_options(self) -> bool:
+        """Follow an options change with no reload. True when the entity set changed.
+
+        The caller (``coordinator.async_apply_options``) reloads for a changed
+        entity set, and else refreshes, so this schedules neither (#467).
+        """
+        self._resubscribe_state()
+        return await self._coordinator.store.reconcile_problem_sensor_tasks(
+            self._eligible(), config_entry_id=self._entry.entry_id
+        )
+
     @callback
     def async_start_listeners(self) -> None:
         """Begin reacting to sensor state changes and registry updates.

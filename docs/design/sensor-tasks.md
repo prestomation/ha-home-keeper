@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/problem_tasks.py
   - custom_components/home_keeper/problem_sync.py
 related: [recurrence, store, coordinator-entities, completions, companions-presets, events-api]
-source_hash: f7d1da80ec35
+source_hash: db751f3d5e8e
 ---
 
 # Sensor tasks and problem sensors
@@ -120,7 +120,7 @@ false/no/off/disable; a number is an error. Each error is logged once per task.
 `ProblemSensorSync` runs when the `sync_problem_sensors` option is on. It lists each
 enabled problem `binary_sensor` except Home Keeper's own and the exclusions (entity,
 device, area, label). `problem_sync._is_problem` gives `True`, `False` or `None`. The name
-is the sensor `friendly_name`, but with no live state a mirror keeps its name.
+is the trimmed sensor `friendly_name`, but with no live state a mirror keeps its name.
 
 `problem_tasks.reconcile_problem_tasks` is the pure diff. It returns the new task map,
 ordered ops (`created`, `deleted`, `updated`, `armed`, `cleared`) and a changed flag.
@@ -130,7 +130,7 @@ ordered ops (`created`, `deleted`, `updated`, `armed`, `cleared`) and a changed 
 from users; snooze is allowed. `notes` stays editable and is kept by entity id in
 `problem_notes`, so a mirror made again gets its note back.
 `problem_tasks.rename_problem_entity` moves a mirror to a renamed id. A created or deleted
-mirror, or a new name or device, reloads the entry once; other changes refresh.
+mirror, or a new name or device, reloads once (also after an options change); else refresh.
 
 ## Trade-offs
 

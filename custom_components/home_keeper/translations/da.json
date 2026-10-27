@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Vis udgifter i panelet",
           "description": "Vis udgiftstotalerne over opgavelisten i panelet."
+        },
+        "task_device_entities": {
+          "name": "Aktivér opgaveentiteter på enhedssider",
+          "description": "Aktiverer knappen Markér som udført og sensorerne for forfald og overskridelse, som hver opgave tilføjer til sin enhedsside. Fra deaktiverer dem og beholder deres entitets-id'er."
         }
       }
     },

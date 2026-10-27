@@ -29,6 +29,7 @@ import {
   costSchema,
   costWindows,
   dueTimeSchema,
+  deviceEntitiesSchema,
   generalSchema,
   notificationDeliverySchema,
   notificationProfileSchema,
@@ -316,6 +317,7 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     problem_sensor_exclude_areas: [],
     problem_sensor_exclude_labels: [],
     one_off_retention_days: 0,
+    task_device_entities: true,
     shopping_list_entity: '',
     shopping_line_style: 'with_verb',
     profiles: [],
@@ -337,8 +339,9 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       generalSchema(),
       opts,
       // A number box sends a value on each keystroke, and each save reloads the entry
-      // and can delete completed one-offs. Typing "30" must not first save "3".
-      { commitOnLeave: true },
+      // and can delete completed one-offs. Typing "30" must not first save "3". The
+      // switch below it saves on each change.
+      { commitOnLeave: true, instant: deviceEntitiesSchema() },
     ),
   );
   // Due time — when a floating task is due (#438).
@@ -403,6 +406,9 @@ interface SettingsCardExtra {
   /** Hold each change until focus leaves the form or the user presses Enter, for a
    *  field whose partial values must not be saved (a number box). */
   commitOnLeave?: boolean;
+  /** Fields in a 2nd form under the first one that save on each change, also in a
+   *  `commitOnLeave` card. */
+  instant?: FormField[];
 }
 
 /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
@@ -417,7 +423,7 @@ function settingsCard(
   opts: HomeKeeperOptions,
   extra: SettingsCardExtra = {},
 ): HTMLElement {
-  const { coerce, dependent, commitOnLeave } = extra;
+  const { coerce, dependent, commitOnLeave, instant } = extra;
   const card = document.createElement('ha-card');
   card.className = 'hk-form-card hk-settings-card';
   card.id = id;
@@ -433,7 +439,7 @@ function settingsCard(
   // This card autosaves, so it says so beside its own name rather than through a toast.
   inner.querySelector('.hk-form-title')?.appendChild(saveStatusSlot(p, id));
 
-  const build = (fields: FormField[]): HTMLElement => {
+  const build = (fields: FormField[], hold = Boolean(commitOnLeave)): HTMLElement => {
     // Changed but not saved yet: only a `commitOnLeave` form holds a value here.
     let pending: Partial<HomeKeeperOptions> | null = null;
     const commit = (): void => {
@@ -453,7 +459,7 @@ function settingsCard(
       (raw) => {
         const own = coerce ? coerce(raw) : pickFormData(raw, fields);
         const value = own as Partial<HomeKeeperOptions>;
-        if (commitOnLeave) {
+        if (hold) {
           pending = value;
           return;
         }
@@ -473,7 +479,7 @@ function settingsCard(
         },
       },
     );
-    if (commitOnLeave) {
+    if (hold) {
       // `focusout` and `keydown` are composed, so they reach the form from the input
       // inside its shadow roots. A native `change` event does not.
       form.addEventListener('focusout', commit);
@@ -485,6 +491,7 @@ function settingsCard(
   };
 
   inner.appendChild(build(schema));
+  if (instant) inner.appendChild(build(instant, false));
   if (dependent) {
     // Fields that only bite while the setting above them is on, indented behind a
     // rule and captioned with that condition — the same treatment the task form

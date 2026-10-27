@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Mostrar el gasto en el panel",
           "description": "Muestra los totales de gasto sobre la lista de tareas en el panel."
+        },
+        "task_device_entities": {
+          "name": "Activar entidades de tarea en las páginas de dispositivo",
+          "description": "Activa el botón Marcar como hecha y los sensores de vencimiento y de retraso que cada tarea añade a la página de su dispositivo. Desactivado, los deshabilita y conserva sus ID de entidad."
         }
       }
     },

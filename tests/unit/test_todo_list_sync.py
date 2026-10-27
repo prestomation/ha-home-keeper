@@ -922,6 +922,97 @@ def test_no_configured_list_means_no_state_listener(monkeypatch):
     assert watched == []
 
 
+# ── a live options change (#467) ─────────────────────────────────────────────
+def _tracking(monkeypatch) -> tuple[list[list[str]], list[list[str]]]:
+    """Capture each watch and each stopped watch."""
+    watched: list[list[str]] = []
+    stopped: list[list[str]] = []
+
+    def _track(_hass, entity_ids, _handler):
+        ids = list(entity_ids)
+        watched.append(ids)
+        return lambda: stopped.append(ids)
+
+    monkeypatch.setattr(todo_list_sync, "async_track_state_change_event", _track)
+    return watched, stopped
+
+
+def _applied(sync) -> list[bool]:
+    """Run ``async_apply_options`` and return the *force* of each pass it asked for."""
+    forced: list[bool] = []
+
+    async def _record(*, force=False):
+        forced.append(force)
+
+    sync.async_sync = _record
+    asyncio.run(sync.async_apply_options())
+    return forced
+
+
+def test_an_options_change_moves_the_watch_to_the_new_list(monkeypatch):
+    watched, stopped = _tracking(monkeypatch)
+    sync, _ = _build(_FakeHass({LIST: [], OTHER: []}), _FakeStore())
+    sync.async_start_listeners()
+    sync._entry.options = {"profiles": [_synced_profile(entity_id=OTHER)]}
+
+    assert _applied(sync) == [True]  # 1 forced pass brings the new list in step
+    assert watched == [[LIST], [OTHER]]
+    assert stopped == [[LIST]]
+
+
+def test_an_options_change_that_keeps_the_lists_keeps_the_watch(monkeypatch):
+    """A filter edit still asks for a pass: other tasks now belong on the list."""
+    watched, stopped = _tracking(monkeypatch)
+    sync, _ = _build(_FakeHass(), _FakeStore())
+    sync.async_start_listeners()
+    sync._entry.options = {
+        "profiles": [_synced_profile(filt={"status": "all"})],
+    }
+
+    assert _applied(sync) == [True]
+    assert watched == [[LIST]]
+    assert stopped == []
+
+
+def test_turning_every_sync_off_stops_the_watch(monkeypatch):
+    watched, stopped = _tracking(monkeypatch)
+    sync, _ = _build(_FakeHass(), _FakeStore())
+    sync.async_start_listeners()
+    sync._entry.options = {"profiles": [_synced_profile(entity_id="")]}
+
+    _applied(sync)
+    assert watched == [[LIST]]
+    assert stopped == [[LIST]]
+
+
+def test_an_options_change_before_the_start_only_moves_the_watch(monkeypatch):
+    """The initial pass after Home Assistant starts reads the new lists."""
+    watched, _ = _tracking(monkeypatch)
+    sync, _ = _build(_FakeHass({LIST: [], OTHER: []}), _FakeStore(), started=False)
+    sync.async_start_listeners()
+    sync._entry.options = {"profiles": [_synced_profile(entity_id=OTHER)]}
+
+    assert _applied(sync) == []
+    assert watched == [[LIST], [OTHER]]
+
+
+def test_the_unload_stops_the_watch_that_is_current(monkeypatch):
+    """The unload callback stops the watch made by the last options change too."""
+    _, stopped = _tracking(monkeypatch)
+    unloads: list = []
+    sync, _ = _build(_FakeHass({LIST: [], OTHER: []}), _FakeStore())
+    sync._entry.async_on_unload = unloads.append
+    sync.async_start_listeners()
+    sync._entry.options = {"profiles": [_synced_profile(entity_id=OTHER)]}
+    _applied(sync)
+
+    for unload in unloads:
+        if unload == sync._unwatch_lists:
+            unload()
+    assert stopped == [[LIST], [OTHER]]
+    assert sync._unwatch is None
+
+
 def test_a_list_edit_forces_a_pass_while_a_task_event_does_not():
     # ``needs_pass`` can see a task change but never a tick-off on somebody's
     # phone, so only the list's own state change has to force the read.

@@ -611,6 +611,8 @@
   "settings.heading": "Sincronizzazione sensori di problema",
   "settings.help": "Sincronizza i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, dispositivi, aree o etichette specifici.",
   "settings.one_off_retention_days": "Elimina le attività una tantum completate dopo (giorni, 0 = mai)",
+  "settings.task_device_entities": "Abilita le entità delle attività nelle pagine dei dispositivi",
+  "settings.task_device_entities_help": "Ogni attività su un dispositivo aggiunge un pulsante Segna come fatto e sensori di scadenza e di ritardo alla pagina del dispositivo. Disattivato, vengono disabilitati. Eventi, notifiche e sensori di conteggio continuano a funzionare, e puoi riabilitare una singola entità nella pagina del suo dispositivo.",
   "settings.problem_sensor_exclude_areas": "Aree escluse",
   "settings.problem_sensor_exclude_devices": "Dispositivi esclusi",
   "settings.problem_sensor_exclude_entities": "Sensori esclusi",

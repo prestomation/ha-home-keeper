@@ -43,12 +43,14 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.todo import TodoListEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
+    CALLBACK_TYPE,
     Event,
     EventStateChangedData,
     HomeAssistant,
@@ -116,6 +118,10 @@ class TodoSyncDriver(ABC):
         # Reasons already logged at warning level, so a permanently misconfigured
         # target says its piece once instead of on every event that pokes a pass.
         self._warned: set[str] = set()
+        # The lists whose state changes this driver watches, and the callback that
+        # stops the watch. An options change moves the watch with no reload (#467).
+        self._watched: tuple[str, ...] = ()
+        self._unwatch: CALLBACK_TYPE | None = None
 
     # ── lifecycle ────────────────────────────────────────────────────────────
     async def async_initial_sync(self) -> None:
@@ -131,6 +137,47 @@ class TodoSyncDriver(ABC):
     @callback
     def _async_stop(self) -> None:
         self._stopped = True
+
+    @abstractmethod
+    def _watched_lists(self) -> list[str]:
+        """The entity ids of the lists to watch, from the current options."""
+
+    @callback
+    def _watch_lists(self, track: Callable[..., CALLBACK_TYPE]) -> None:
+        """Watch the state of the lists that the options name now.
+
+        *track* is ``async_track_state_change_event``, passed in by each driver so
+        that its tests can replace it. The entry unload stops the watch through
+        ``_unwatch_lists``, which each driver registers once.
+        """
+        targets = tuple(sorted(set(self._watched_lists())))
+        if targets == self._watched:
+            return
+        self._unwatch_lists()
+        self._watched = targets
+        if targets:
+            self._unwatch = track(self._hass, list(targets), self._handle_state_change)
+
+    @callback
+    def _unwatch_lists(self) -> None:
+        if self._unwatch is not None:
+            self._unwatch()
+            self._unwatch = None
+        self._watched = ()
+
+    @abstractmethod
+    def _rewatch_lists(self) -> None:
+        """Call ``_watch_lists`` with the driver's own tracker."""
+
+    async def async_apply_options(self) -> None:
+        """Follow an options change with no reload: watch the new lists, then sync.
+
+        Before Home Assistant has started, the initial pass is still to come, so
+        only the watch moves.
+        """
+        self._rewatch_lists()
+        if self._started:
+            await self.async_sync(force=True)
 
     @callback
     def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:
