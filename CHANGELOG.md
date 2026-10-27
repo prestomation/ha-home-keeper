@@ -15,6 +15,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   longer shows each Home Keeper entity go unavailable and back, and a "Task updated" event
   for each problem sensor task, after each restart. (Fixes #467)
 
+## [0.34.0b2]
+
+### Fixed
+
+- **Done menu with custom themes.** The Done menu on the task list and on the task page
+  now shows in full under themes with glass cards, such as Liquid Glass Tinted. (Fixes #497)
+
 ## [0.34.0b1]
 
 ### Added
