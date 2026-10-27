@@ -192,9 +192,12 @@ def reconcile_problem_tasks(
         # ``task_updated`` and reloads when the device-page entities change (B18-4).
         managed_by = build_managed_by(entity_id, config_entry_id, lang=lang)
         # A name read with no live state comes from the registry, not from the
-        # sensor, so the task keeps its name (#467).
+        # sensor, so the task keeps its name (#467). The name is trimmed as
+        # ``models.build_task`` trims it, or a sensor name with a space at the end
+        # reads as a rename on the pass after the create.
+        name = str(meta["name"]).strip()
         owned = (
-            *((("name", meta["name"]),) if meta.get("name_live", True) else ()),
+            *((("name", name),) if meta.get("name_live", True) else ()),
             ("device_id", meta.get("device_id")),
             ("area_id", meta.get("area_id")),
             ("managed_by", managed_by),

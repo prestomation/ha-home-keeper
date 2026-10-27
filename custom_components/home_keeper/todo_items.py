@@ -32,6 +32,7 @@ __all__ = [
     "item_identity",
     "item_is_open",
     "resolve_tracked",
+    "same_text",
 ]
 
 # ``TodoItemStatus`` values, as the ``todo.get_items`` response spells them.
@@ -61,6 +62,40 @@ CAP_DESCRIPTION = "description"
 # mutation nor a list state change and so wakes nothing by itself. That sweep has to
 # stay unconditional for this to repair at all; its docstring says so.
 UNCONFIRMED_GRACE = timedelta(minutes=20)
+
+
+def same_text(live: str, ours: str) -> bool:
+    """Whether the *live* text on a list is the text Home Keeper wrote as *ours*.
+
+    Case and white space do not count, because a list can change them when it
+    stores a line ("500 ml" can come back as "500ML", a title can come back in
+    lower case, a note can come back trimmed).
+    """
+    return "".join(live.split()).casefold() == "".join(ours.split()).casefold()
+
+
+def _by_text(
+    items: list[dict[str, Any]],
+    *,
+    entity_id: str,
+    summary: str,
+    claimed: set[tuple[str, str]],
+) -> list[dict[str, Any]]:
+    """The unclaimed items that read as *summary*, best match first.
+
+    An open item comes before a ticked-off one. With the same status, an item
+    with the exact text comes before one that differs only in case or space.
+    """
+    found = [
+        item
+        for item in items
+        if same_text(str(item.get("summary") or ""), summary)
+        and (entity_id, item_identity(item)) not in claimed
+    ]
+    return sorted(
+        found,
+        key=lambda item: (not item_is_open(item), item.get("summary") != summary),
+    )
 
 
 def item_identity(item: dict[str, Any]) -> str:
@@ -94,7 +129,8 @@ def resolve_tracked(
     summary — that is how a freshly added item is picked up on the next pass
     (``todo.add_item`` returns nothing, so there is no uid to record at the
     time), and how a sync re-attaches to its own items if the bookkeeping is
-    ever lost. An open item wins over a ticked-off one with the same text.
+    ever lost. The text matches as :func:`same_text` says. An open item wins
+    over a ticked-off one, and then the exact text wins.
 
     When we captured a uid and no live item carries it, only an *open* item with
     the same text can take its place: the list recreated our line under a new uid.
@@ -107,15 +143,9 @@ def resolve_tracked(
             claim = (entity_id, item_identity(item))
             if item.get("uid") == uid and claim not in claimed:
                 return item
-    by_summary = [
-        item
-        for item in items
-        if item.get("summary") == summary
-        and (entity_id, item_identity(item)) not in claimed
-    ]
-    for item in by_summary:
-        if item_is_open(item):
-            return item
+    by_summary = _by_text(items, entity_id=entity_id, summary=summary, claimed=claimed)
+    if by_summary and item_is_open(by_summary[0]):
+        return by_summary[0]
     if bound:
         return None
     return by_summary[0] if by_summary else None
@@ -128,15 +158,13 @@ def find_open(
     summary: str,
     claimed: set[tuple[str, str]],
 ) -> dict[str, Any] | None:
-    """An un-ticked item already reading *summary*, if the list has one."""
-    for item in items:
-        if (
-            item_is_open(item)
-            and item.get("summary") == summary
-            and (entity_id, item_identity(item)) not in claimed
-        ):
-            return item
-    return None
+    """An un-ticked item already reading *summary*, if the list has one.
+
+    The text matches as :func:`same_text` says, so a line the list stored in
+    another case is adopted, not added a second time.
+    """
+    found = _by_text(items, entity_id=entity_id, summary=summary, claimed=claimed)
+    return found[0] if found and item_is_open(found[0]) else None
 
 
 def added_stamp(entry: dict[str, Any], *, now: datetime) -> str:

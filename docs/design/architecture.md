@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: dc6d0f4feeed
+source_hash: 6a7716a709c1
 ---
 
 # Architecture
