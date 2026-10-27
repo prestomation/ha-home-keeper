@@ -362,8 +362,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def _switch_task_entities(self, *, enabled: bool) -> None:
         """Disable or enable the per-task entities in the entity registry (#496).
 
-        This runs only when the option changes, so an entity that the user enables
-        by hand while the option is off stays enabled. Off needs no reload: Home
+        This runs only when the option changes. An entity that the user enables by
+        hand while the option is off stays enabled until the option goes off again
+        (on, then off), which disables it again. Off needs no reload: Home
         Assistant removes a disabled entity from its platform. On needs no reload from
         here either: Home Assistant reloads the entry by itself after an entity is
         enabled, and that reload adds the entities.

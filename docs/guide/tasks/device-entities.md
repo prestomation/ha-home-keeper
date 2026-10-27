@@ -42,8 +42,8 @@ When the switch is off:
 
 Turn the switch off, then enable the entities that you use. On the device page, click
 **+N disabled entities**, open the entity, and turn on **Enabled** in its settings. After
-about 30 seconds Home Assistant adds the entity again, and Home Keeper leaves it enabled
-while the switch stays off.
+about 30 seconds Home Assistant adds the entity again. It stays enabled until you turn
+the switch on and then off again. That disables it again.
 
 ## Turn the entities on again
 

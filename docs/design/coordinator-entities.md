@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 796d7f697fe7
+source_hash: d2c7deab269e
 ---
 
 # Coordinator and entities
@@ -101,7 +101,7 @@ the companion name, or the task name without the device name.
 With the `task_device_entities` option off, `entity.HomeKeeperTaskEntity` sets
 `entity_registry_enabled_default` false, so a new entity starts disabled. A change runs
 `coordinator._switch_task_entities` once: `task_entities.switched_disabled_by` sets
-`disabled_by=integration` for off and clears only that value for on, so a user's choice stays.
+`disabled_by=integration` for off and clears only that value for on. A user-disabled entry stays.
 Off needs no reload. For on, Home Assistant reloads the entry itself 30 seconds after.
 
 ### Part, appliance and event entities
