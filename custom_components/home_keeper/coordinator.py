@@ -307,32 +307,41 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         go, or when the problem-sensor reconcile changed the entity set. Else it runs
         the steps of ``options.apply_steps`` and refreshes once. A step that raises
         falls back to 1 reload, which applies every option from setup.
+
+        The options can change again while a step awaits. The update listener of
+        that write does nothing while ``async_set_options`` applies, so this reads
+        the options again after the steps, until nothing is left to apply.
         """
         async with self._options_lock:
-            new = current_options(self.entry)
-            old = self.applied_options
-            if new == old:
-                return
-            # A failed setup keeps ``runtime_data``, so this coordinator can be one
-            # whose syncs and store are closed. Only a reload applies options then.
-            loaded = (
-                self.entry.state is ConfigEntryState.LOADED
-                and getattr(self.entry, "runtime_data", None) is self
-            )
-            if loaded and not reload_needed(old, new):
-                try:
-                    live = await self._async_apply_live(old, new)
-                except Exception:
-                    _LOGGER.exception(
-                        "Could not apply the Home Keeper options without a reload; "
-                        "reloading the entry"
-                    )
-                    live = False
-                if live:
-                    self.applied_options = new
-                    await self.async_request_refresh()
+            applied_live = False
+            while (new := current_options(self.entry)) != self.applied_options:
+                if not await self._async_apply_live_or_fail(new):
+                    await self.hass.config_entries.async_reload(self.entry.entry_id)
                     return
-            await self.hass.config_entries.async_reload(self.entry.entry_id)
+                self.applied_options = new
+                applied_live = True
+            if applied_live:
+                await self.async_request_refresh()
+
+    async def _async_apply_live_or_fail(self, new: dict[str, Any]) -> bool:
+        """Apply *new* to the running entry. False when only a reload can apply it."""
+        old = self.applied_options
+        # A failed setup keeps ``runtime_data``, so this coordinator can be one
+        # whose syncs and store are closed. Only a reload applies options then.
+        loaded = (
+            self.entry.state is ConfigEntryState.LOADED
+            and getattr(self.entry, "runtime_data", None) is self
+        )
+        if not loaded or reload_needed(old, new):
+            return False
+        try:
+            return await self._async_apply_live(old, new)
+        except Exception:
+            _LOGGER.exception(
+                "Could not apply the Home Keeper options without a reload; "
+                "reloading the entry"
+            )
+            return False
 
     async def _async_apply_live(self, old: dict[str, Any], new: dict[str, Any]) -> bool:
         """Run the live steps from *old* to *new*. False when a reload is needed."""
@@ -458,7 +467,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         completed one-offs forever, so this is a no-op until the user opts in.
         """
         if take_retention_grace(self.entry.entry_id):
-            # The write that started this reload lowered the retention. Wait one
+            # The write before this refresh lowered the retention. Wait one
             # periodic tick before a lower value can delete tasks, so a value that
             # is only on its way to a higher number deletes no task (see
             # ``options.take_retention_grace``).

@@ -183,13 +183,55 @@ def test_a_live_step_that_raises_falls_back_to_a_reload(
 
 def test_a_missing_sync_is_skipped() -> None:
     """Setup attaches the syncs after the first refresh."""
-    coord = _make(_doc(), _doc(shopping_list_entity="todo.shopping", profiles=[]))
+    profile = {"id": "p1", "name": "Chores", "filter": {"status": "overdue"}}
+    old = _doc(profiles=[profile])
+    new = _doc(
+        shopping_list_entity="todo.shopping",
+        problem_sensor_exclude_areas=["kitchen"],
+        profiles=[{**profile, "filter": {"status": "all"}}],
+    )
+    assert real_options.apply_steps(old, new) >= {
+        real_options.APPLY_SHOPPING,
+        real_options.APPLY_PROBLEM_SYNC,
+        real_options.APPLY_TODO_LISTS,
+    }
+    coord = _make(old, new)
     coord.shopping_sync = None
     coord.problem_sync = None
     coord.todo_list_sync = None
     _apply(coord)
     assert coord.hass.config_entries.reloaded == []
     assert coord.refreshes == [True]
+
+
+def test_a_notifications_change_warns_once_about_dropped_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup warns about a notify target the allowlist drops. A live change must too."""
+    seen: list[Any] = []
+    monkeypatch.setattr(
+        coordinator,
+        "notifications",
+        type("N", (), {"normalize_notifications": staticmethod(seen.append)}),
+    )
+    new = {**_doc(), const.OPTION_NOTIFICATIONS: [{"id": "n1"}]}
+    coord = _make(_doc(), new)
+    _apply(coord)
+    assert seen == [[{"id": "n1"}]]
+    assert coord.hass.config_entries.reloaded == []
+
+
+def test_another_change_does_not_warn_about_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[Any] = []
+    monkeypatch.setattr(
+        coordinator,
+        "notifications",
+        type("N", (), {"normalize_notifications": staticmethod(seen.append)}),
+    )
+    _apply(_make(_doc(), _doc(allow_skip=False)))
+    assert seen == []
 
 
 def test_a_second_change_compares_with_the_first() -> None:
@@ -200,6 +242,51 @@ def test_a_second_change_compares_with_the_first() -> None:
     coord.config_entry.options = first
     _apply(coord)
     assert coord.refreshes == [True]
+
+
+def test_a_change_written_during_an_apply_is_applied_too() -> None:
+    """A 2nd write while a step awaits must not be lost.
+
+    ``async_set_options`` flags the entry while it applies, so the update listener
+    of a write that lands during the apply (an options flow) does nothing. The
+    apply reads the options again when its steps are done, and applies the rest.
+    """
+    first = _doc(shopping_list_entity="todo.shopping")
+    second = _doc(
+        shopping_list_entity="todo.shopping",
+        due_time_mode=const.DUE_TIME_MODE_SET_TIME,
+        due_time="09:30",
+    )
+    coord = _make(_doc(), first)
+
+    class _WriteDuringStep(_FakeSync):
+        async def async_apply_options(self) -> Any:
+            coord.config_entry.options = second
+            return await super().async_apply_options()
+
+    coord.shopping_sync = _WriteDuringStep()
+    _apply(coord)
+    assert coord.store.due_times == [time(9, 30)]
+    assert coord.shopping_sync.calls == 1
+    assert coord.applied_options == second
+    assert coord.refreshes == [True]
+    assert coord.hass.config_entries.reloaded == []
+
+
+def test_a_change_written_during_an_apply_can_reload() -> None:
+    first = _doc(shopping_list_entity="todo.shopping")
+    second = _doc(shopping_list_entity="todo.shopping", cost_windows=[7, 30])
+    coord = _make(_doc(), first)
+
+    class _WriteDuringStep(_FakeSync):
+        async def async_apply_options(self) -> Any:
+            coord.config_entry.options = second
+            return await super().async_apply_options()
+
+    coord.shopping_sync = _WriteDuringStep()
+    _apply(coord)
+    assert coord.hass.config_entries.reloaded == ["entry-1"]
+    assert coord.refreshes == []
 
 
 # ── an entry that is not loaded, or a coordinator that is stale ─────────────────

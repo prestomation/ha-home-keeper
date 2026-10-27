@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: d531c76ba3dc
+source_hash: e929c051359a
 ---
 
 # Coordinator and entities
@@ -75,7 +75,8 @@ Platforms add entities only at setup, and Home Assistant caches names. So these 
   or a part gains or loses stock entities (`coordinator.part_entity_kinds`). An
   `async_create_task` and a guard flag defer it, so several changes start 1 reload. Else it
   sends `SIGNAL_PART_STOCK_CHANGED`, so part entities show a new count before the refresh.
-- An options change reloads only for a new `options.options_entity_key` or an unloaded entry.
+- An options change reloads for a new `options.options_entity_key`, an unloaded entry, a live
+  step that raises, or a problem-sensor reconcile that changes the entity set.
   An `update_task` or `update_asset` that changes no field does not save, fire or reload.
 
 ### Per-task entities and device links
@@ -126,8 +127,7 @@ state with the profile status filter, and over the scope with status `all` the a
 `MEASUREMENT` with no unit. A profile sensor reads its filter on each update.
 
 `service_device.service_device_info` describes 1 `SERVICE` device for counts, the to-do list,
-the calendar and the [cost](cost-summary.md) sensors. The all-tasks sensor always exists, so
-the device always has an entity.
+the calendar and the [cost](cost-summary.md) sensors. The all-tasks sensor is always on it.
 
 ## Trade-offs
 

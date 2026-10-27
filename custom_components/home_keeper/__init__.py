@@ -2232,9 +2232,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     #
     # The sidebar panel is deliberately *not* dropped on an ordinary unload,
     # because most unloads are the first half of a reload — and a reload is
-    # routine here (saving options, a synced problem sensor appearing, a purged
-    # one-off). Removing the panel deletes ``home-keeper`` from ``hass.panels``
-    # for as long as setup takes, and Home Assistant's ``partial-panel-resolver``
+    # routine here (a new profile or spend period, a synced problem sensor
+    # appearing, a purged one-off). Removing the panel deletes ``home-keeper``
+    # from ``hass.panels`` for as long as setup takes, and Home Assistant's
+    # ``partial-panel-resolver``
     # answers a panel disappearing under an open page by navigating to the
     # default one: #247's reporter was thrown back to their dashboard "every 10
     # seconds or so". Nothing about the registration is entry-scoped — it names a

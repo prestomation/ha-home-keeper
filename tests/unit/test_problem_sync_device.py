@@ -168,3 +168,51 @@ def test_an_options_change_resubscribes_and_reports_the_entity_set(changed):
     assert resubscribed == [True]
     assert store.calls == [({}, "e1")]  # syncing is off, so nothing is eligible
     assert jobs == []
+
+
+def _registry_entry(entity_id: str) -> types.SimpleNamespace:
+    return types.SimpleNamespace(
+        entity_id=entity_id,
+        domain="binary_sensor",
+        platform="other",
+        device_class="problem",
+        original_device_class=None,
+        disabled=False,
+        device_id=None,
+        area_id=None,
+        labels=set(),
+        name=None,
+        original_name="Washer Problem",
+    )
+
+
+def test_467_eligible_says_which_name_is_live(monkeypatch):
+    """The reconcile keeps a task's name when ``name_live`` is false (#467)."""
+    states = {
+        "binary_sensor.live": types.SimpleNamespace(
+            state="off", attributes={"friendly_name": "Live Problem"}
+        ),
+        "binary_sensor.restored": types.SimpleNamespace(
+            state="unavailable", attributes={"restored": True}
+        ),
+    }
+    hass = types.SimpleNamespace(states=types.SimpleNamespace(get=states.get))
+    entry = types.SimpleNamespace(options={"sync_problem_sensors": True}, entry_id="e1")
+    sync = problem_sync.ProblemSensorSync(hass, entry, coordinator=None)
+    ids = ("binary_sensor.live", "binary_sensor.restored", "binary_sensor.gone")
+    entities = [_registry_entry(eid) for eid in ids]
+    registry = types.SimpleNamespace(
+        entities=types.SimpleNamespace(values=lambda: entities)
+    )
+    monkeypatch.setattr(
+        problem_sync, "er", types.SimpleNamespace(async_get=lambda hass: registry)
+    )
+    monkeypatch.setattr(
+        problem_sync, "dr", types.SimpleNamespace(async_get=lambda hass: None)
+    )
+    eligible = sync._eligible()
+    assert {eid: meta["name_live"] for eid, meta in eligible.items()} == {
+        "binary_sensor.live": True,
+        "binary_sensor.restored": False,
+        "binary_sensor.gone": False,
+    }

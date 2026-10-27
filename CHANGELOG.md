@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b10]
+
+### Fixed
+
+- **Logbook row dates.** A snoozed task or a moved date now shows the day in your time zone
+  in the logbook. Before, an evening snooze could show the next day.
+
 ## [0.34.0b9]
 
 ### Fixed

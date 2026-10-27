@@ -256,11 +256,6 @@ LOGBOOK_EVENTS: tuple[str, ...] = tuple(LOGBOOK_ICONS)
 _SENSOR_ORIGINS = (ORIGIN_PROBLEM_SENSOR_SYNC, ORIGIN_SENSOR_RECOVER)
 
 
-def _day(value: Any) -> str:
-    """The date part of an ISO date or datetime string, as stored."""
-    return str(value)[:10] if value else "?"
-
-
 def _local_day(value: Any, tz: tzinfo) -> date | None:
     """The day of an ISO date or datetime string in *tz*, or None if it is not one."""
     try:
@@ -270,6 +265,16 @@ def _local_day(value: Any, tz: tzinfo) -> date | None:
     if when.tzinfo is not None:
         when = when.astimezone(tz)
     return when.date()
+
+
+def _day(value: Any, tz: tzinfo) -> str:
+    """The day of an ISO date or datetime string in *tz*, or "?" if it is not one.
+
+    The panel sends a snooze or a move as a UTC instant, so the stored string can
+    name the next day.
+    """
+    day = _local_day(value, tz) if value else None
+    return "?" if day is None else day.isoformat()
 
 
 def _on_day(value: Any, tz: tzinfo, fired_on: date | None) -> str:
@@ -318,7 +323,7 @@ def logbook_message(
     if event_type == EVENT_TASK_SKIPPED:
         return "was skipped"
     if event_type == EVENT_TASK_SNOOZED:
-        return f"was snoozed until {_day(data.get('snoozed_until'))}"
+        return f"was snoozed until {_day(data.get('snoozed_until'), tz)}"
     if event_type == EVENT_TASK_OVERDUE:
         return "became overdue"
     if event_type == EVENT_TASK_DUE_SOON:
@@ -329,7 +334,7 @@ def logbook_message(
     if event_type == EVENT_TASK_DUE_TODAY_SET:
         return "was set to due today"
     if event_type == EVENT_TASK_OCCURRENCE_MOVED:
-        occurrence, to = _day(data.get("occurrence")), _day(data.get("to"))
+        occurrence, to = _day(data.get("occurrence"), tz), _day(data.get("to"), tz)
         if occurrence == to:
             return f"has its occurrence on {occurrence} back on its date"
         return f"has its occurrence on {occurrence} moved to {to}"

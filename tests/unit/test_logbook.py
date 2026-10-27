@@ -104,3 +104,36 @@ def test_a_completion_on_the_day_it_fires_names_no_day() -> None:
         row=_row(datetime(2026, 10, 26, 9, tzinfo=UTC)),
     )
     assert describe(event)[_LB.LOGBOOK_ENTRY_MESSAGE] == "had a completion removed"
+
+
+def test_a_snooze_row_names_the_day_in_the_home_assistant_time_zone(
+    monkeypatch,
+) -> None:
+    """The panel sends a UTC instant. 03:00 UTC on the 29th is the 28th at UTC-7."""
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("America/Los_Angeles")
+    monkeypatch.setattr(
+        logbook, "dt_util", types.SimpleNamespace(get_default_time_zone=lambda: zone)
+    )
+    describers = _describers()
+    snoozed = types.SimpleNamespace(
+        event_type="home_keeper_task_snoozed",
+        data={"name": "Filter", "snoozed_until": "2026-10-29T03:00:00+00:00"},
+        row=_row(datetime(2026, 10, 27, 9, tzinfo=UTC)),
+    )
+    moved = types.SimpleNamespace(
+        event_type="home_keeper_task_occurrence_moved",
+        data={
+            "name": "Filter",
+            "occurrence": "2026-10-28T20:00:00-07:00",
+            "to": "2026-10-29T03:00:00+00:00",
+        },
+        row=_row(datetime(2026, 10, 27, 9, tzinfo=UTC)),
+    )
+    snooze_row = describers["home_keeper_task_snoozed"](snoozed)
+    moved_row = describers["home_keeper_task_occurrence_moved"](moved)
+    assert snooze_row[_LB.LOGBOOK_ENTRY_MESSAGE] == "was snoozed until 2026-10-28"
+    assert moved_row[_LB.LOGBOOK_ENTRY_MESSAGE] == (
+        "has its occurrence on 2026-10-28 back on its date"
+    )

@@ -65,6 +65,22 @@ describe('#497: Done menu in the top layer', () => {
     expect(at.top).toBe('574px');
   });
 
+  it('opens above only when the menu does not fit below', () => {
+    // The menu fits below while its bottom stays 6px inside the viewport.
+    const fits = place({ split: rect(100, 638, 80, 30), menu: rect(0, 0, 220, 120) });
+    expect(fits.top).toBe('674px');
+    const over = place({ split: rect(100, 639, 80, 30), menu: rect(0, 0, 220, 120) });
+    expect(over.top).toBe('513px');
+  });
+
+  it('opens above only when the menu fits above', () => {
+    const viewport = [1000, 150];
+    const fits = place({ split: rect(100, 132, 80, 30), menu: rect(0, 0, 220, 120), viewport });
+    expect(fits.top).toBe('6px');
+    const over = place({ split: rect(100, 131, 80, 30), menu: rect(0, 0, 220, 120), viewport });
+    expect(over.top).toBe('167px');
+  });
+
   it('opens below when there is no room above either', () => {
     const at = place({
       split: rect(100, 30, 80, 30),
@@ -121,6 +137,9 @@ describe('#497: Done menu in the top layer', () => {
     menus.wire(root);
     root.querySelector('.hk-split-caret').click();
     expect(menu.hidden).toBe(false);
+    // The menu stays in the flow, under its button, as the CSS places it.
+    expect(menu.hasAttribute('popover')).toBe(false);
+    expect(menu.style.top).toBe('');
     menus.close();
     expect(menu.hidden).toBe(true);
   });

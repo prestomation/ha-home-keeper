@@ -447,3 +447,45 @@ def test_the_fire_day_is_in_the_given_time_zone():
         "home_keeper_task_completed", data, fired_ts=fired, tz=TZ
     )
     assert message == "was completed"
+
+
+@pytest.mark.parametrize(
+    ("event", "data", "message"),
+    [
+        # The panel sends a UTC instant. 01:00 UTC on the 21st is the 20th in UTC-4.
+        (
+            "home_keeper_task_snoozed",
+            {"snoozed_until": "2026-10-21T01:00:00+00:00"},
+            "was snoozed until 2026-10-20",
+        ),
+        (
+            "home_keeper_task_snoozed",
+            {"snoozed_until": "2026-10-21"},
+            "was snoozed until 2026-10-21",
+        ),
+        (
+            "home_keeper_task_snoozed",
+            {"snoozed_until": "not a date"},
+            "was snoozed until ?",
+        ),
+        (
+            "home_keeper_task_occurrence_moved",
+            {
+                "occurrence": "2026-11-01T08:00:00-04:00",
+                "to": "2026-11-04T01:00:00+00:00",
+            },
+            "has its occurrence on 2026-11-01 moved to 2026-11-03",
+        ),
+        # An undo: the occurrence is local and the target is the same day in UTC.
+        (
+            "home_keeper_task_occurrence_moved",
+            {
+                "occurrence": "2026-11-01T20:00:00-04:00",
+                "to": "2026-11-02T00:00:00+00:00",
+            },
+            "has its occurrence on 2026-11-01 back on its date",
+        ),
+    ],
+)
+def test_logbook_message_names_the_local_day(event: str, data: dict, message: str):
+    assert ev.logbook_message(event, data, fired_ts=FIRED, tz=TZ) == message

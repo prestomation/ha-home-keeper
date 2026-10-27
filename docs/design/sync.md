@@ -130,7 +130,7 @@ runs the mirror before and after the reconcile. `shopping-preview.ts` is the pan
 The first pass waits for Home Assistant to start. After a task event or a settle, a pass
 reads the lists only if `needs_pass` finds drift. A list state change and the 5-minute
 sweep force a read; only the sweep sees a task fall due or a hold end.
-An options change moves the list listener (`TodoSyncDriver._watch_lists`), then forces a pass.
+An options change moves the watch (`TodoSyncDriver._watch_lists`). A pass follows after the start.
 
 ## Trade-offs
 
