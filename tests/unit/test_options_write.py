@@ -2,7 +2,7 @@
 
 Every surface that changes options goes through here: the ``set_options`` service,
 the panel's websocket command, and (indirectly) the Configure dialog. So this is
-where the profile-in-use guard sits, and where the awaited-reload contract is kept.
+where the profile-in-use guard sits, and where the awaited-apply contract is kept.
 
 ``options.py`` imports Home Assistant only under ``TYPE_CHECKING``, so a fake entry
 and a fake ``hass`` are enough — the same trick ``test_coordinator_purge.py`` and
@@ -48,9 +48,31 @@ class _FakeHass:
 
 
 class _FakeEntry:
+    """An entry that is not loaded: it has no ``runtime_data``."""
+
     def __init__(self, options: dict[str, Any]) -> None:
         self.entry_id = "entry-1"
         self.options = options
+
+
+class _FakeCoordinator:
+    """Records each ``async_apply_options`` call and the options it saw."""
+
+    def __init__(self, entry: Any, on_apply: Any = None) -> None:
+        self._entry = entry
+        self.applied: list[dict[str, Any]] = []
+        self._on_apply = on_apply
+
+    async def async_apply_options(self) -> None:
+        self.applied.append(dict(self._entry.options))
+        if self._on_apply is not None:
+            self._on_apply()
+
+
+def _loaded_entry(options: dict[str, Any], on_apply: Any = None) -> _FakeEntry:
+    entry = _FakeEntry(options)
+    entry.runtime_data = _FakeCoordinator(entry, on_apply)  # type: ignore[attr-defined]
+    return entry
 
 
 _P1 = {"id": "p1", "name": "My chores", "filter": {"status": "overdue"}}
@@ -64,58 +86,78 @@ def _set(hass: Any, entry: Any, updates: dict[str, Any]) -> dict[str, Any]:
 # ------------------------------------------------------------------ the write itself
 
 
-def test_a_real_change_is_written_and_its_reload_awaited() -> None:
-    """The merged document is persisted, then the entry reload is awaited.
+def test_a_real_change_on_a_loaded_entry_is_written_then_applied() -> None:
+    """The merged document is persisted, then the coordinator's apply is awaited.
 
     The await is the contract: the caller has to see the reconciled task set by the
-    time this returns, rather than racing the update listener's own reload.
+    time this returns. The coordinator decides between a live apply and a reload
+    (#467), so this path never reloads by itself.
     """
-    hass, entry = _FakeHass(), _FakeEntry({})
+    hass = _FakeHass()
+    entry = _loaded_entry({})
     merged = _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
     assert merged[const.OPTION_SYNC_PROBLEM_SENSORS] is True
+    assert hass.config_entries.updated == [("entry-1", merged)]
+    # Applied after the write, so the coordinator reads the new options.
+    assert entry.runtime_data.applied == [merged]
+    assert hass.config_entries.reloaded == []
+
+
+def test_a_real_change_on_an_entry_that_is_not_loaded_reloads() -> None:
+    """With no coordinator to apply it, the reload sets the entry up again."""
+    hass, entry = _FakeHass(), _FakeEntry({})
+    merged = _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
     assert hass.config_entries.updated == [("entry-1", merged)]
     assert hass.config_entries.reloaded == ["entry-1"]
 
 
 def test_a_save_that_changes_nothing_writes_nothing() -> None:
-    """No write, and no reload — reloading an entry is expensive and visible.
+    """No write, and no apply — the panel saves on each debounced keystroke.
 
-    The panel saves a whole card on every keystroke it debounces, so most saves that
-    reach here are already what is stored.
+    So most saves that reach here are already what is stored.
     """
     hass = _FakeHass()
-    entry = _FakeEntry({const.OPTION_SYNC_PROBLEM_SENSORS: True})
+    entry = _loaded_entry({const.OPTION_SYNC_PROBLEM_SENSORS: True})
     merged = _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
     assert merged == opts.current_options(entry)
     assert hass.config_entries.updated == []
+    assert entry.runtime_data.applied == []
     assert hass.config_entries.reloaded == []
 
 
-def test_the_caller_reloading_flag_is_set_during_the_reload_and_cleared_after() -> None:
-    """The update listener reads this flag to skip its own overlapping reload.
+def test_the_caller_applying_flag_is_set_during_the_apply_and_cleared_after() -> None:
+    """The update listener reads this flag to skip a second apply of the change.
 
-    Asserted from *inside* the fake reload, because a check after the call cannot
+    Asserted from *inside* the fake apply, because a check after the call cannot
     tell a flag that was set from one that never was.
     """
     seen: list[bool] = []
-    hass = _FakeHass(on_reload=lambda: seen.append(opts.caller_is_reloading("entry-1")))
-    entry = _FakeEntry({})
-    _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
+    entry = _loaded_entry(
+        {}, on_apply=lambda: seen.append(opts.caller_is_applying("entry-1"))
+    )
+    _set(_FakeHass(), entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
     assert seen == [True]
-    assert opts.caller_is_reloading("entry-1") is False
+    assert opts.caller_is_applying("entry-1") is False
 
 
-def test_the_flag_is_cleared_even_when_the_reload_raises() -> None:
-    """Otherwise one failed reload leaves the listener muted for the rest of the run."""
+def test_the_flag_is_set_during_the_fallback_reload_too() -> None:
+    seen: list[bool] = []
+    hass = _FakeHass(on_reload=lambda: seen.append(opts.caller_is_applying("entry-1")))
+    _set(hass, _FakeEntry({}), {const.OPTION_SYNC_PROBLEM_SENSORS: True})
+    assert seen == [True]
+    assert opts.caller_is_applying("entry-1") is False
+
+
+def test_the_flag_is_cleared_even_when_the_apply_raises() -> None:
+    """Otherwise one failed apply leaves the listener muted for the rest of the run."""
 
     def boom() -> None:
-        raise RuntimeError("reload failed")
+        raise RuntimeError("apply failed")
 
-    hass = _FakeHass(on_reload=boom)
-    entry = _FakeEntry({})
+    entry = _loaded_entry({}, on_apply=boom)
     with pytest.raises(RuntimeError):
-        _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
-    assert opts.caller_is_reloading("entry-1") is False
+        _set(_FakeHass(), entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
+    assert opts.caller_is_applying("entry-1") is False
 
 
 # -------------------------------------------------------- the profile-in-use guard

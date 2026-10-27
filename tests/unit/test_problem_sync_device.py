@@ -130,3 +130,41 @@ def test_467_a_name_is_live_only_with_a_state_the_integration_wrote(state, live)
     entry = types.SimpleNamespace(options={}, entry_id="e1")
     sync = problem_sync.ProblemSensorSync(hass, entry, coordinator=None)
     assert sync._has_live_state("binary_sensor.washer_problem") is live
+
+
+# ── a live options change (#467) ─────────────────────────────────────────────
+class _Store:
+    def __init__(self, changed: bool) -> None:
+        self.calls: list[tuple[dict, str]] = []
+        self._changed = changed
+
+    async def reconcile_problem_sensor_tasks(self, eligible, *, config_entry_id):
+        self.calls.append((eligible, config_entry_id))
+        return self._changed
+
+
+@pytest.mark.parametrize("changed", [True, False])
+def test_an_options_change_resubscribes_and_reports_the_entity_set(changed):
+    """The coordinator reloads only when the reconcile changed the entity set.
+
+    The sync itself must not schedule a reload or a refresh here: the coordinator
+    does 1 of the 2 after all its steps.
+    """
+    import asyncio
+
+    jobs: list[object] = []
+    hass = types.SimpleNamespace(async_create_task=jobs.append)
+    entry = types.SimpleNamespace(
+        options={"sync_problem_sensors": False}, entry_id="e1"
+    )
+    store = _Store(changed)
+    sync = problem_sync.ProblemSensorSync(
+        hass, entry, coordinator=types.SimpleNamespace(store=store)
+    )
+    resubscribed: list[bool] = []
+    sync._resubscribe_state = lambda: resubscribed.append(True)
+
+    assert asyncio.run(sync.async_apply_options()) is changed
+    assert resubscribed == [True]
+    assert store.calls == [({}, "e1")]  # syncing is off, so nothing is eligible
+    assert jobs == []

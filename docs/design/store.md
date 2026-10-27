@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 2762c7400a94
+source_hash: eb65b63c3fef
 ---
 
 # Store
@@ -90,8 +90,8 @@ and part reconcile edits.
 
 - **Tasks:** add, update, delete, trigger, snooze, due today, skip, `move_occurrence` and
   meter baseline. A delete calls `_archive_task_history` to keep history on a linked
-  appliance. The set due time from `async_apply_due_time` goes to each recurrence call,
-  and a floating snooze rounds up to it ([recurrence](recurrence.md)).
+  appliance. Setup and an options change set the due time (`async_apply_due_time`). It goes
+  to each recurrence call, and a floating snooze rounds up to it ([recurrence](recurrence.md)).
 - **History:** `complete_task` and the edit, move and delete methods for completions
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
 - **Appliances:** CRUD, archive, ownership, stock (`_emit_stock_event`), files (`_mutate_asset`).

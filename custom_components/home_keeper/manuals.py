@@ -238,9 +238,10 @@ async def async_cleanup_temp_uploads(hass: HomeAssistant) -> None:
     apiece those would quietly accumulate in the config directory forever.
 
     Deliberately age-based rather than a blanket wipe: setup re-runs on every config
-    entry *reload* (an options change, say) while the HTTP view stays registered, so
-    clearing the whole directory could delete a temp file an in-flight upload is
-    still writing — turning someone's upload into a 500 mid-transfer.
+    entry *reload* (a new task with a device, say) while the HTTP view stays
+    registered, so clearing the whole directory could delete a temp file an
+    in-flight upload is still writing — turning someone's upload into a 500
+    mid-transfer.
     """
     await hass.async_add_executor_job(
         documents.purge_stale_temps, _tmp_root(hass), _TEMP_MAX_AGE_S
