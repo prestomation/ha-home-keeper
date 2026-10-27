@@ -210,7 +210,9 @@ def test_a_coordinator_of_an_entry_that_is_not_loaded_reloads() -> None:
     reload sets the entry up with the new options, as before #467.
     """
     coord = _make(_doc(), _doc(allow_snooze=False))
-    coord.config_entry.state = coordinator.ConfigEntryState.SETUP_ERROR
+    # Any state that is not LOADED. The HA stub of the bare unit lane (and of the
+    # mutation lane) has only ``LOADED``, so the test names no other member.
+    coord.config_entry.state = "setup_error"
     _apply(coord)
     assert coord.hass.config_entries.reloaded == ["entry-1"]
     assert coord.refreshes == []
