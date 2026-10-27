@@ -206,10 +206,22 @@ def test_noop_update_asset(
 
 
 def test_change_option(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    # An option that keeps the entity set applies to the running entry (#501), so
+    # it is pinned at 0 reloads and 0 logbook rows.
     _run(
         ha,
         baseline,
         "change_option",
+        lambda: ha.call(HK, "set_options", {"shopping_line_style": "product_only"}),
+    )
+
+
+def test_add_cost_window(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    # A new cost window adds a spend sensor, so this one still reloads.
+    _run(
+        ha,
+        baseline,
+        "add_cost_window",
         lambda: ha.call(HK, "set_options", {"cost_windows": [30, 90]}),
     )
 

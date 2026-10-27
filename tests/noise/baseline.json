@@ -272,36 +272,9 @@
         }
       }
     },
-    "change_option": {
-      "budget": {
-        "logbook_rows": 0,
-        "unavailable_flips": 0,
-        "events": 1,
-        "storage_writes": 0,
-        "entry_reloads": 0
-      },
-      "known": {
-        "bug": "B (#467)",
-        "reason": "each options change reloads the entry, so every entity goes unavailable and back",
-        "counters": {
-          "entry_reloads": {
-            "target": 0,
-            "now": 1
-          },
-          "unavailable_flips": {
-            "target": 0,
-            "now": 71
-          },
-          "logbook_rows": {
-            "target": 0,
-            "now": 62
-          }
-        }
-      }
-    },
     "problem_sync_off": {
       "budget": {
-        "logbook_rows": 62,
+        "logbook_rows": 63,
         "unavailable_flips": 72,
         "events": 2,
         "storage_writes": 1,
@@ -310,7 +283,7 @@
     },
     "problem_sync_on": {
       "budget": {
-        "logbook_rows": 64,
+        "logbook_rows": 65,
         "unavailable_flips": 72,
         "events": 3,
         "storage_writes": 1,
@@ -319,20 +292,20 @@
     },
     "shopping_sync_on": {
       "budget": {
-        "logbook_rows": 62,
-        "unavailable_flips": 72,
-        "events": 1,
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
         "storage_writes": 0,
-        "entry_reloads": 1
+        "entry_reloads": 0
       }
     },
     "shopping_sync_off": {
       "budget": {
-        "logbook_rows": 62,
-        "unavailable_flips": 72,
-        "events": 1,
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
         "storage_writes": 0,
-        "entry_reloads": 1
+        "entry_reloads": 0
       }
     },
     "profile_add": {
@@ -355,20 +328,20 @@
     },
     "todo_sync_on": {
       "budget": {
-        "logbook_rows": 62,
-        "unavailable_flips": 74,
-        "events": 1,
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
         "storage_writes": 2,
-        "entry_reloads": 1
+        "entry_reloads": 0
       }
     },
     "todo_sync_off": {
       "budget": {
-        "logbook_rows": 62,
-        "unavailable_flips": 74,
-        "events": 1,
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
         "storage_writes": 1,
-        "entry_reloads": 1
+        "entry_reloads": 0
       }
     },
     "profile_delete": {
@@ -460,6 +433,29 @@
         "unavailable_flips",
         "events",
         "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "add_cost_window": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 71,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 1
+      }
+    },
+    "change_option": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
         "entry_reloads"
       ]
     }
