@@ -89,8 +89,9 @@ Assistant offers device triggers only for the 1 integration a device belongs to.
 ## Events entity
 
 Home Keeper adds 1 **Events** entity, `event.home_keeper_events`, on the Home Keeper
-device. It gets all events, also for a task that has no device. The logbook and the
-history of the entity show each event.
+device. It gets all events, also for a task that has no device. The history of the entity
+shows each event. Home Assistant also puts each update of this entity in the logbook, so
+the logbook shows the Events entity next to the rows of the to-do list.
 
 ![The Home Keeper device with the Events entity](../../images/79e-device-service-events.png)
 
@@ -177,7 +178,8 @@ Each row starts with the task name. The rows show in these places:
 - the logbook of the Home Keeper to-do list
 - the Activity card on the device page of the task, if the task has a device
 
-The logbook text is in English. Created, updated and deleted tasks get no row.
+The logbook text is in English. Created, updated and deleted tasks get no row on the
+to-do list.
 
 ![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
 

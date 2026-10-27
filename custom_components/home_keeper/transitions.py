@@ -66,6 +66,17 @@ def detect_transitions(
             # New task, or its schedule moved — re-arm both announcements.
             due_soon_fired = False
             overdue_fired = False
+            if (
+                prior is not None
+                and (prior.get("due_soon_fired") or prior.get("overdue_fired"))
+                and next_due is not None
+                and task.get("enabled", True)
+                and recurrence.is_due_soon(task, window, now=now)
+            ):
+                # The old date was announced and the user moved it (a completion
+                # or a snooze). A new date that is already in the window did not
+                # enter it, so it is not announced as due soon.
+                due_soon_fired = True
 
         if task.get("enabled", True) and next_due is not None:
             parsed = recurrence._parse(next_due)

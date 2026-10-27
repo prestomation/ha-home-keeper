@@ -197,21 +197,11 @@
     },
     "complete_short_interval_task": {
       "budget": {
-        "logbook_rows": 5,
+        "logbook_rows": 3,
         "unavailable_flips": 0,
         "events": 1,
         "storage_writes": 1,
         "entry_reloads": 0
-      },
-      "known": {
-        "bug": "R4 (#467 audit)",
-        "reason": "due_soon fires at once after a completion when the interval is 3 days or less",
-        "counters": {
-          "events": {
-            "target": 1,
-            "now": 2
-          }
-        }
       }
     },
     "add_task_on_device": {
