@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b8]
+
+### Fixed
+
+- **No false due-soon event.** Completing a task that repeats every 3 days or less no
+  longer fires a "due soon" event for the new date at once. The event now fires only when a
+  date enters the 3-day window.
+
 ## [0.34.0b3]
 
 ### Fixed
