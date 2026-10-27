@@ -153,8 +153,11 @@ reload on each options change filled the logbook, and no test saw it.
   measured numbers, except pinned counters and known bugs. Commit the diff and say why
   in the PR body.
 - **A known bug is a `known` entry** with the bug id, a `target` and a `now` per counter.
-  It is a strict xfail for each counter: above `now` fails, at or below `target` fails
-  too. The PR that fixes the bug deletes the entry and sets the budget.
+  It is a strict xfail for each counter, and `now` is exact: only a count equal to `now`
+  is an expected failure. Above `now` fails. At or below `target` fails, so the PR that
+  fixes the bug deletes the entry and sets the budget.
+- **A part fix lowers `now` in the same PR.** A count between `target` and `now` fails
+  too. If `now` stays high, a later regression up to the old value is not seen.
 - **A new reload trigger, sync or listener gets a scenario** in
   `tests/noise/test_noise_budget.py` in the same PR.
 - **State the loop guard.** Code that listens to a state, a registry or a bus event and

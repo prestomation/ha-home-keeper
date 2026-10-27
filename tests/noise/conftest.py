@@ -288,9 +288,11 @@ def check(baseline: Baseline, name: str, measured: dict[str, Any]) -> None:
 
     A ``known`` entry is a bug that is in the code now. Its counters have a ``target``
     (the right number) and a ``now`` (what the bug makes). It behaves like a strict
-    xfail, but for each counter: over ``now`` fails, between ``target`` and ``now`` is
-    an expected failure, and at or below ``target`` fails too, so the PR that fixes the
-    bug must delete the entry.
+    xfail, but for each counter, and ``now`` is exact: only a count equal to ``now``
+    is an expected failure. Above ``now`` the bug got worse. Between ``target`` and
+    ``now`` the bug is fixed in part, so the entry must say the new ``now``, or a
+    later regression up to the old value would stay hidden. At or below ``target``
+    the counter is fixed, so the PR that fixes it must take it out of the entry.
     """
     counts = measured["counts"]
     if UPDATE:
@@ -306,15 +308,28 @@ def check(baseline: Baseline, name: str, measured: dict[str, Any]) -> None:
         if c not in known_counters and counts.get(c, 0) > budget.get(c, 0)
     ]
     worse = [c for c, k in known_counters.items() if counts.get(c, 0) > k["now"]]
-    fixed = [c for c, k in known_counters.items() if counts.get(c, 0) <= k["target"]]
     if over or worse:
         pytest.fail(_report(name, measured, entry, over + worse), pytrace=False)
+    fixed = [c for c, k in known_counters.items() if counts.get(c, 0) <= k["target"]]
     if fixed:
+        what = (
+            "Delete the 'known' entry of this scenario"
+            if len(fixed) == len(known_counters)
+            else f"Take {', '.join(fixed)} out of the 'known' entry of this scenario"
+        )
         pytest.fail(
             f"{known['bug']} looks fixed in '{name}': {_pairs(counts, fixed)} is at "
-            f"its target now. Delete the 'known' entry of this scenario in "
-            f"{BASELINE.name}, and set the budget to the new numbers.\n"
-            + _report(name, measured, entry, fixed),
+            f"its target now. {what} in {BASELINE.name}, and set the budget to the "
+            f"new numbers.\n" + _report(name, measured, entry, fixed),
+            pytrace=False,
+        )
+    partial = [c for c, k in known_counters.items() if counts.get(c, 0) < k["now"]]
+    if partial:
+        pytest.fail(
+            f"{known['bug']} is fixed in part in '{name}': {_pairs(counts, partial)} "
+            f"is below the 'now' value of its 'known' entry. Set 'now' to these "
+            f"numbers in {BASELINE.name}, so a later regression cannot hide below "
+            f"the old value.\n" + _report(name, measured, entry, partial),
             pytrace=False,
         )
     if known_counters:
