@@ -84,17 +84,20 @@ class ShoppingListSync(TodoSyncDriver):
         """Watch the configured list so a tick-off at the shop reaches the store.
 
         Subscriptions go through ``entry.async_on_unload``, so unload/reload tears
-        them down. There is no resubscribe path on purpose: the only thing that
-        changes the target is an options save, and that reloads the entry.
+        them down. An options save that changes the target moves the watch through
+        ``async_apply_options``, with no reload (#467).
         """
         self._entry.async_on_unload(self._async_stop)
+        self._entry.async_on_unload(self._unwatch_lists)
+        self._rewatch_lists()
+
+    def _watched_lists(self) -> list[str]:
         target = self._resolve_target()
-        if target:
-            self._entry.async_on_unload(
-                async_track_state_change_event(
-                    self._hass, [target], self._handle_state_change
-                )
-            )
+        return [target] if target else []
+
+    @callback
+    def _rewatch_lists(self) -> None:
+        self._watch_lists(async_track_state_change_event)
 
     @callback
     def async_schedule_sweep(self) -> None:

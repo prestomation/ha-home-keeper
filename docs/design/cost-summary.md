@@ -59,7 +59,8 @@ the cost of each removed entry, so the all-time total can go down.
 `cost_windows` is a list of 1 to 4 whole days in `1..3650`, default `[30, 60]`.
 `cost_summary.normalize_windows` sorts it, drops duplicates and bad items, and gives the
 default for a list with no good item. `cost_summary_panel` (default on) shows or hides the
-panel strip. Both are panel options, not in the options flow. A change reloads the entry.
+panel strip. Both are panel options, not in the options flow. A window change reloads the
+entry; a `cost_summary_panel` change applies with no reload.
 
 ### The sensors
 

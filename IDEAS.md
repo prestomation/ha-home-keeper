@@ -69,6 +69,9 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   count from the dashboard. Gate it (the dashboard control then fails for non-admins), or
   state in `docs/SECURITY.md` that the write is open by design. The panel stock stepper
   is admin-only, so the 2 paths do not agree now.
+- **Asset edits always reload.** `devices.async_apply_asset_change` reloads the entry
+  after each appliance add, edit or delete, also when no entity changes. Each reload makes
+  each entity unavailable in the logbook (#467). Reload only when the entity set changes.
 
 ## Appliances
 

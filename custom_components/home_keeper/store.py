@@ -353,8 +353,9 @@ class HomeKeeperStore:
     async def async_apply_due_time(self, due_time: time | None) -> None:
         """Set the set due time, and move the stored future floating dates to it.
 
-        Setup calls this after ``load`` on each entry load, so an options change,
-        which reloads the entry, applies at once. Each moved task fires
+        Setup calls this after ``load`` on each entry load, and
+        ``coordinator.async_apply_options`` calls it when the due time options
+        change, with no reload (#467). Each moved task fires
         ``home_keeper_task_updated`` with ``changed_fields: ["next_due"]``.
         """
         self._due_time = due_time
