@@ -31,7 +31,7 @@ from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
 from .recurrence import one_off_completed
 from .service_device import service_device_info
-from .task_entities import entity_set_key
+from .task_entities import update_needs_reload
 
 
 async def async_setup_entry(
@@ -167,7 +167,6 @@ class HomeKeeperTodoListEntity(
             updates["notes"] = new_notes
         if not updates:
             return
-        before = entity_set_key(task)
         try:
             updated = await self.coordinator.store.update_task(str(task["id"]), updates)
         except TaskValidationError as err:
@@ -176,7 +175,7 @@ class HomeKeeperTodoListEntity(
                 translation_key="invalid_task",
                 translation_placeholders={"error": str(err)},
             ) from err
-        if updated.get("device_id") and entity_set_key(updated) != before:
+        if update_needs_reload(task, updated):
             # A rename changes the names of the device-page entities, and only a
             # reload makes them again (B15-6). A task with no device has no such
             # entities. The reload removes this entity too, so it runs as a

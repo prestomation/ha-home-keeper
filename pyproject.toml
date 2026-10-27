@@ -78,6 +78,8 @@ also_copy = [
     ".github/workflows",
     "hacs.json",
     "README.md",
+    # tests/unit/test_noise_check.py loads tests/noise/conftest.py by path.
+    "tests/noise",
 ]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is

@@ -53,7 +53,11 @@ from .options import (
 )
 from .reconcile import buy_source
 from .store import HomeKeeperStore
-from .task_entities import switched_disabled_by, task_entity_unique_ids
+from .task_entities import (
+    owns_entities,
+    switched_disabled_by,
+    task_entity_unique_ids,
+)
 
 if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
@@ -112,12 +116,9 @@ def task_has_entities(task: dict[str, Any] | None) -> bool:
     Those exist only for an enabled, device-attached task. Adding or deleting a task
     that owns none needs no entry reload — a plain coordinator refresh suffices, which
     avoids flapping every entity unavailable when e.g. a companion seeds many
-    device-less tasks.
-
-    NOTE: ``store._task_owns_entities`` inlines this same rule (to avoid a
-    store→coordinator import cycle). Keep the two in sync if the rule ever changes.
+    device-less tasks. The rule is :func:`task_entities.owns_entities`.
     """
-    return bool(task and task.get("device_id") and task.get("enabled", True))
+    return owns_entities(task)
 
 
 async def async_delete_orphaned_tasks(
@@ -508,11 +509,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     def device_attached_task_ids(self) -> list[str]:
         """Enabled task ids attached to a device (so get per-task entities)."""
-        return [
-            tid
-            for tid, task in self.data.items()
-            if task.get("device_id") and task.get("enabled", True)
-        ]
+        return [tid for tid, task in self.data.items() if owns_entities(task)]
 
     def _existing_device(self, device_id: str | None) -> dr.DeviceEntry | None:
         """Resolve ``device_id`` to a registry device, or ``None``.

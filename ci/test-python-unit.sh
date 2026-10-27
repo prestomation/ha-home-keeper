@@ -7,7 +7,9 @@ set -euo pipefail
 export HK_HYPOTHESIS_PROFILE="${HK_HYPOTHESIS_PROFILE:-ci}"
 
 find custom_components -name "*.py" -exec python -m py_compile {} +
-# tests/integration and tests/upgrade both drive a real Home Assistant container:
-# the first needs one running, the second needs `bash ci/fetch-glues.sh` staged and
-# boots two of its own. Neither belongs in the unit lane.
-python -m pytest tests/ -v --ignore=tests/integration --ignore=tests/upgrade
+# tests/integration, tests/upgrade and tests/noise all drive a real Home Assistant
+# container: the first needs one running, the second needs `bash ci/fetch-glues.sh`
+# staged and boots two of its own, and the third boots its own through
+# ci/test-noise.sh. None belongs in the unit lane.
+python -m pytest tests/ -v --ignore=tests/integration --ignore=tests/upgrade \
+  --ignore=tests/noise

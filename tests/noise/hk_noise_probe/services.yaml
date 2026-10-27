@@ -1,0 +1,14 @@
+reset:
+snapshot:
+set_language:
+  fields:
+    language:
+      required: true
+      selector:
+        text:
+remove_device:
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:

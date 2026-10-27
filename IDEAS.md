@@ -60,9 +60,6 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **Entity attribute names are not checked.** `tests/unit/test_api_surface.py` does not
   compare `api_surface.ENTITY_PLATFORMS` attribute names with each platform's
   `extra_state_attributes` (see `docs/design/coordinator-entities.md`).
-- **One rule for entity ownership.** `store._task_owns_entities` repeats
-  `coordinator.task_has_entities` to avoid an import cycle. Move the rule into
-  `task_entities.py`.
 - **Per-task entities for tasks without a device.** Only a task on a device gets its
   button, sensor and binary sensor. Decide if a task without a device gets them too.
 - **Spares number entity is open to every user.** A non-admin can change a part's spare

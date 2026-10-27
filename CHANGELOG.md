@@ -6,6 +6,37 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b10]
+
+### Fixed
+
+- **Logbook row dates.** A snoozed task or a moved date now shows the day in your time zone
+  in the logbook. Before, an evening snooze could show the next day.
+
+## [0.34.0b9]
+
+### Fixed
+
+- **Fewer entity reloads.** The Home Keeper entities stay available when you rename or
+  disable a task that has no device. The same applies to an appliance edit that changes no
+  value, so the logbook stays clear.
+
+## [0.34.0b8]
+
+### Fixed
+
+- **No false due-soon event.** Completing a task that repeats every 3 days or less no
+  longer fires a "due soon" event for the new date at once. The event now fires only when a
+  date enters the 3-day window.
+
+## [0.34.0b7]
+
+### Fixed
+
+- **Steadier to-do list sync.** A synced to-do list that stores a title in another case,
+  trims the notes or gives the due date in UTC no longer gets a second copy of the item,
+  a rewrite on each pass, or a task snoozed 1 day early.
+
 ## [0.34.0b6]
 
 ### Added

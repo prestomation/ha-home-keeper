@@ -46,6 +46,7 @@ from .todo_items import (
     item_is_open,
     resolve_tracked,
 )
+from .todo_items import same_text as _same_text
 
 __all__ = [
     "LINE_STYLES",
@@ -442,10 +443,14 @@ def plan_sync(
         # A title that is neither what we last wrote nor what we write now was
         # typed by someone. One that matches the new name is a list that showed our
         # rename late, which is not a user rename.
+        # A list that stores a title in another case or space did not rename it.
         user_named = bool(entry.get("user_named")) or (
-            bool(item.get("uid")) and bool(summary) and live not in (summary, name)
+            bool(item.get("uid"))
+            and bool(summary)
+            and not _same_text(live, summary)
+            and not _same_text(live, name)
         )
-        rename = name if not user_named and live != name else None
+        rename = name if not user_named and not _same_text(live, name) else None
         current = str(item.get("description") or "")
         recorded = str(entry.get("description") or "")
         # A note that is neither what Home Keeper last wrote nor what it writes now
@@ -531,15 +536,6 @@ def plan_sync(
             added["description"] = description
         plan.tracked[key] = added
     return plan
-
-
-def _same_text(live: str, ours: str) -> bool:
-    """Whether the *live* text on a list is the text Home Keeper wrote as *ours*.
-
-    Case and white space do not count, because a list can change them when it
-    stores a line ("500 ml" can come back as "500ML").
-    """
-    return "".join(live.split()).casefold() == "".join(ours.split()).casefold()
 
 
 def lists_to_read(tracked: dict[str, dict[str, Any]], *, target: str) -> list[str]:

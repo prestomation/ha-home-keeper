@@ -17,7 +17,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 039ad72c0123
+source_hash: c5a89919e9a1
 ---
 
 # Events and API surface
@@ -68,9 +68,9 @@ reconcile and the appliance delete cascade. An update that changes no field fire
 
 `transitions.detect_transitions` is pure. It takes the previous edge state, the task map
 and an injected `now`, and returns the events plus the next state. The state per task is
-`{"next_due", "due_soon_fired", "overdue_fired"}`. The flags are separate because a task
-crosses due soon and then overdue against 1 `next_due`. A changed `next_due` clears both.
-A task with no `next_due`, or a disabled task, fires nothing. `DUE_SOON_WINDOW` is 3 days.
+`{"next_due", "due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags,
+but `due_soon_fired` stays true if the old date announced and the new one is in the window.
+No `next_due`, or disabled: nothing fires. `DUE_SOON_WINDOW` is 3 days.
 
 `coordinator._async_update_data` runs the detector on each periodic and post-mutation
 refresh. Until setup calls `coordinator.enable_transition_events`, it keeps the detected

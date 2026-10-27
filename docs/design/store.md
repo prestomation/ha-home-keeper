@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: eb65b63c3fef
+source_hash: 12e397574879
 ---
 
 # Store
@@ -127,8 +127,8 @@ save writes the full state, so a later save also carries an earlier change.
 
 The store does not import the coordinator. The caller of a mutation calls the
 coordinator's `async_request_refresh`, or reloads the entry when the per-task entity set
-changed (`coordinator.task_has_entities`, `task_entities.entity_set_key`). Reconciler
-return values and the tasks that bulk deletes return tell the caller which one to do.
+changed (`task_entities.update_needs_reload`). Reconciler return values and the tasks that
+bulk deletes return tell the caller which one to do. An edit that changes no field is not saved.
 
 ## Trade-offs
 

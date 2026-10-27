@@ -8,7 +8,8 @@ Assistant then puts the device name in front of the whole name, and makes the
 
 :func:`entity_name_prefix` picks that label. :func:`entity_set_key` says when the
 entities must be made again (an entry reload), because Home Assistant caches an
-entity's name.
+entity's name. :func:`update_needs_reload` is the 1 rule that the service, the
+websocket command, the to-do entity and the store use for that decision.
 
 The ``task_device_entities`` option disables or enables these entities in the entity
 registry (#496). :func:`task_entity_unique_ids` names them, and
@@ -114,6 +115,26 @@ def has_mark_done_button(task: dict[str, Any]) -> bool:
         and not is_completion_blocked(task)
         and completion_allowed(task, None)
     )
+
+
+def owns_entities(task: dict[str, Any] | None) -> bool:
+    """True when *task* has per-task entities: it is enabled and on a device."""
+    return bool(task and task.get("device_id") and task.get("enabled", True))
+
+
+def update_needs_reload(
+    before: dict[str, Any] | None, after: dict[str, Any] | None
+) -> bool:
+    """Whether a change of a task from *before* to *after* must reload the entry.
+
+    Only a task that has per-task entities before or after the change can need a
+    reload, and only when its :func:`entity_set_key` changed. A task with no device
+    has no such entities, so its rename or its switch to disabled is only a refresh
+    (#467 audit, R1). ``None`` is a task that does not exist.
+    """
+    if not (owns_entities(before) or owns_entities(after)):
+        return False
+    return entity_set_key(before) != entity_set_key(after)
 
 
 def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
