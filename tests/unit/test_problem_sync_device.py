@@ -112,3 +112,21 @@ def test_b18_10_other_device_events_are_ignored(entities, event, enabled):
     sync, jobs = _sync(entities, enabled=enabled)
     sync._handle_device_update(event)
     assert jobs == []
+
+
+@pytest.mark.parametrize(
+    ("state", "live"),
+    [
+        (None, False),
+        (types.SimpleNamespace(attributes={"restored": True}), False),
+        (types.SimpleNamespace(attributes={"friendly_name": "Washer Problem"}), True),
+        (types.SimpleNamespace(attributes={"restored": False}), True),
+    ],
+)
+def test_467_a_name_is_live_only_with_a_state_the_integration_wrote(state, live):
+    # At a restart the sensor has no state, or a restored placeholder, until its
+    # integration loads. Its friendly_name is not the live name then (#467).
+    hass = types.SimpleNamespace(states=types.SimpleNamespace(get=lambda _eid: state))
+    entry = types.SimpleNamespace(options={}, entry_id="e1")
+    sync = problem_sync.ProblemSensorSync(hass, entry, coordinator=None)
+    assert sync._has_live_state("binary_sensor.washer_problem") is live

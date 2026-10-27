@@ -153,6 +153,7 @@ class ProblemSensorSync:
                 "device_id": entry.device_id,
                 "area_id": area_id,
                 "is_problem": self._is_problem(entry.entity_id),
+                "name_live": self._has_live_state(entry.entity_id),
             }
         return eligible
 
@@ -164,6 +165,18 @@ class ProblemSensorSync:
             if friendly:
                 return str(friendly)
         return entry.name or entry.original_name or entry.entity_id
+
+    def _has_live_state(self, entity_id: str) -> bool:
+        """Whether *entity_id* has a state that its integration wrote (#467).
+
+        During Home Assistant start a sensor has no state until its integration loads,
+        and Home Assistant then writes a ``restored`` placeholder for a sensor that did
+        not come back. The ``friendly_name`` is not the live name then, so it must not
+        replace the name a task has. Else each restart renames the task 2 times, and
+        each rename fires ``task_updated`` and reloads the entry.
+        """
+        state = self._hass.states.get(entity_id)
+        return state is not None and not state.attributes.get("restored")
 
     def _is_problem(self, entity_id: str) -> bool | None:
         """Three-way problem state: ``True`` problem, ``False`` OK, ``None`` unknown.

@@ -315,3 +315,48 @@ def test_b18_2_a_rename_to_the_same_id_changes_nothing():
     notes = {OLD: "note"}
     assert pt.rename_problem_entity(tasks, notes, OLD, OLD) is False
     assert notes == {OLD: "note"}
+
+
+# ── a name with no live state (#467) ──────────────────────────────────────────
+def test_467_a_name_with_no_live_state_keeps_the_task_name():
+    # At a restart the sensor has no state until its integration loads, so its name
+    # comes from the registry. That name must not replace the name the task has:
+    # each restart would fire task_updated and reload the entry 2 times.
+    tasks, _, _ = _reconcile(_eligible(is_problem=True, name="Washer Problem"))
+    tid = next(iter(tasks))
+    startup = _eligible(is_problem=True, name="Problem")
+    startup["binary_sensor.washer_problem"]["name_live"] = False
+    tasks2, ops, changed = _reconcile(startup, tasks)
+    assert tasks2[tid]["name"] == "Washer Problem"
+    assert ops == []
+    assert changed is False
+
+
+def test_467_a_name_with_no_live_state_still_moves_device_and_area():
+    tasks, _, _ = _reconcile(_eligible(is_problem=True, name="Washer Problem"))
+    tid = next(iter(tasks))
+    startup = _eligible(is_problem=True, name="Problem", device_id="dev2")
+    startup["binary_sensor.washer_problem"]["name_live"] = False
+    tasks2, ops, _ = _reconcile(startup, tasks)
+    assert tasks2[tid]["name"] == "Washer Problem"
+    assert tasks2[tid]["device_id"] == "dev2"
+    assert [kind for kind, _task in ops] == ["updated"]
+
+
+def test_467_a_new_task_takes_a_name_with_no_live_state():
+    startup = _eligible(is_problem=None, name="Problem")
+    startup["binary_sensor.washer_problem"]["name_live"] = False
+    tasks, ops, _ = _reconcile(startup)
+    assert _only(tasks)["name"] == "Problem"
+    assert [kind for kind, _task in ops] == ["created"]
+
+
+def test_467_a_live_name_replaces_the_name_from_the_registry():
+    startup = _eligible(is_problem=None, name="Problem")
+    startup["binary_sensor.washer_problem"]["name_live"] = False
+    tasks, _, _ = _reconcile(startup)
+    live = _eligible(is_problem=False, name="Washer Problem")
+    live["binary_sensor.washer_problem"]["name_live"] = True
+    tasks2, ops, _ = _reconcile(live, tasks)
+    assert _only(tasks2)["name"] == "Washer Problem"
+    assert [kind for kind, _task in ops] == ["updated"]
