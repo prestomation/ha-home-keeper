@@ -290,13 +290,12 @@ def _live_date(value: Any, *, now: datetime) -> str:
     before. Each pass would then move the task 1 day back.
     """
     text = str(value or "")
-    if len(text) > 10:
-        try:
-            parsed = datetime.fromisoformat(text)
-        except ValueError:
-            return text[:10]
-        if parsed.tzinfo is not None and parsed.time() != time(0, 0):
-            return parsed.astimezone(now.tzinfo).date().isoformat()
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return text[:10]
+    if parsed.tzinfo is not None and parsed.time() != time.min:
+        return parsed.astimezone(now.tzinfo).date().isoformat()
     return text[:10]
 
 

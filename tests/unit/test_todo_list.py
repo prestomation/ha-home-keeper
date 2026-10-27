@@ -2018,3 +2018,15 @@ def test_r7_a_list_that_stores_the_date_as_utc_midnight_keeps_that_date():
     )
     assert plan.reschedule == []
     assert plan.update == []
+
+
+def test_r7_live_date_reads_each_form_of_a_due_date():
+    east = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=2)))
+    assert tm._live_date(None, now=east) == ""
+    assert tm._live_date("", now=east) == ""
+    assert tm._live_date(DUE, now=east) == DUE
+    assert tm._live_date("2026-06-13T22:00:00+00:00", now=east) == DUE
+    assert tm._live_date("2026-06-14T00:00:00+00:00", now=east) == DUE
+    assert tm._live_date("2026-06-14T23:30:00", now=east) == DUE
+    # A value that does not parse keeps its first 10 characters, as before.
+    assert tm._live_date("2026-06-14 at noon", now=east) == DUE
