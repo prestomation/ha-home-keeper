@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Aufgabentermin verschoben",
               "task_overdue": "Aufgabe wurde überfällig",
               "task_due_soon": "Aufgabe bald fällig",
+              "task_overdue_resolved": "Aufgabe nicht mehr überfällig",
               "part_low_stock": "Ersatzteil mit niedrigem Bestand",
               "part_out_of_stock": "Ersatzteil nicht vorrätig",
               "part_restocked": "Ersatzteil aufgefüllt",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Aufgabe bald fällig",
       "description": "Löst aus, wenn eine Aufgabe in 3 Tagen oder weniger fällig wird."
+    },
+    "task_overdue_resolved": {
+      "name": "Aufgabe nicht mehr überfällig",
+      "description": "Löst aus, wenn eine überfällige Aufgabe nicht mehr überfällig ist."
     },
     "part_low_stock": {
       "name": "Ersatzteil mit niedrigem Bestand",

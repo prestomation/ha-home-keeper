@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Výskyt úkolu přesunut",
               "task_overdue": "Úkol se stal po termínu",
               "task_due_soon": "Úkol brzy splatný",
+              "task_overdue_resolved": "Úkol už není po termínu",
               "part_low_stock": "Náhradní díl s nízkou zásobou",
               "part_out_of_stock": "Náhradní díl není skladem",
               "part_restocked": "Náhradní díl doplněn",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Úkol brzy splatný",
       "description": "Spustí se, když je úkol splatný do 3 dnů."
+    },
+    "task_overdue_resolved": {
+      "name": "Úkol už není po termínu",
+      "description": "Spustí se, když úkol po termínu už není po termínu."
     },
     "part_low_stock": {
       "name": "Náhradní díl s nízkou zásobou",

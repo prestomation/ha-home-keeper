@@ -18,6 +18,7 @@ from .const import (
     EVENT_TASK_DUE_TODAY_SET,
     EVENT_TASK_OCCURRENCE_MOVED,
     EVENT_TASK_OVERDUE,
+    EVENT_TASK_OVERDUE_RESOLVED,
     EVENT_TASK_SKIPPED,
     EVENT_TASK_SNOOZED,
     EVENT_TASK_TRIGGERED,
@@ -246,6 +247,7 @@ LOGBOOK_ICONS: dict[str, str] = {
     EVENT_TASK_SKIPPED: "mdi:debug-step-over",
     EVENT_TASK_SNOOZED: "mdi:alarm-snooze",
     EVENT_TASK_OVERDUE: "mdi:alert-circle-outline",
+    EVENT_TASK_OVERDUE_RESOLVED: "mdi:check-decagram-outline",
     EVENT_TASK_DUE_SOON: "mdi:clock-alert-outline",
     EVENT_TASK_TRIGGERED: "mdi:bell-ring-outline",
     EVENT_TASK_DUE_TODAY_SET: "mdi:calendar-today",
@@ -326,6 +328,9 @@ def logbook_message(
         return f"was snoozed until {_day(data.get('snoozed_until'), tz)}"
     if event_type == EVENT_TASK_OVERDUE:
         return "became overdue"
+    if event_type == EVENT_TASK_OVERDUE_RESOLVED:
+        # The word "overdue" is in both rows, so 1 text filter shows the 2 (#467).
+        return "is no longer overdue"
     if event_type == EVENT_TASK_DUE_SOON:
         hours = data.get("due_in_hours", 0)
         return f"is due in {hours:g} hour{'' if hours == 1 else 's'}"

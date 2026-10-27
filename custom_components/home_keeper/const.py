@@ -202,6 +202,10 @@ EVENT_TASK_OCCURRENCE_MOVED = f"{DOMAIN}_task_occurrence_moved"
 # transitions.detect_transitions and coordinator._async_update_data.
 EVENT_TASK_OVERDUE = f"{DOMAIN}_task_overdue"  # + ``days_overdue``
 EVENT_TASK_DUE_SOON = f"{DOMAIN}_task_due_soon"  # + ``due_in_hours``
+# The end of an announced overdue period: the task is no longer overdue because it
+# was completed, skipped, snoozed, moved, disabled or cleared by its sensor. Fired
+# once for each overdue event. Adds ``overdue_since`` and ``days_overdue``.
+EVENT_TASK_OVERDUE_RESOLVED = f"{DOMAIN}_task_overdue_resolved"
 # Stock transitions — the siblings of EVENT_PART_LOW_STOCK, edge-triggered the same
 # way (see assets.stock_transition). out_of_stock wins over low on a single step.
 EVENT_PART_OUT_OF_STOCK = f"{DOMAIN}_part_out_of_stock"

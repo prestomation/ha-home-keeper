@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 610b31ffc768
+source_hash: ec3d1ea75c4a
 ---
 
 # Store
@@ -77,7 +77,7 @@ with the caller's context ([events-api](events-api.md)) and returns the new reco
 
 Events fire after the save, so a listener that reads the store back sees saved state.
 `_changed_fields` ignores history and schedule keys, so a reschedule is not an edit, and
-an update with no changed field fires no event.
+an update with no changed field fires no event. `caller_of` gives a task's last caller.
 
 Guards that every surface must meet live here: reserved `source` namespaces in `add_task`,
 part-owned names and tags, `_check_deletable`, and the completion origin gates.

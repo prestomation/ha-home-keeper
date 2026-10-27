@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Opgaveforekomst flyttet",
               "task_overdue": "Opgave blev forsinket",
               "task_due_soon": "Opgave forfalder snart",
+              "task_overdue_resolved": "Opgave ikke længere forsinket",
               "part_low_stock": "Lavt lager af reservedel",
               "part_out_of_stock": "Reservedel udsolgt",
               "part_restocked": "Reservedel genopfyldt",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Opgave forfalder snart",
       "description": "Udløses, når en opgave forfalder om 3 dage eller mindre."
+    },
+    "task_overdue_resolved": {
+      "name": "Opgave ikke længere forsinket",
+      "description": "Udløses, når en forfalden opgave ikke længere er forfalden."
     },
     "part_low_stock": {
       "name": "Lavt lager af reservedel",

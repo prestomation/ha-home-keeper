@@ -15,7 +15,7 @@ from datetime import datetime, time
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -329,6 +329,10 @@ class HomeKeeperStore:
         # Home Assistant adds the entity. The task events carry it, so the logbook
         # shows their rows on the to-do list.
         self.todo_entity_id: str | None = None
+        # The caller of the last event of each task (``_fire``). The coordinator gives
+        # it to ``home_keeper_task_overdue_resolved``: the change that ended the
+        # overdue period is the last change to the task.
+        self._task_callers: dict[str, Context | None] = {}
 
     async def async_apply_due_time(self, due_time: time | None) -> None:
         """Set the set due time, and move the stored future floating dates to it.
@@ -445,7 +449,17 @@ class HomeKeeperStore:
         changes the data (``caller.py``). With no caller, Home Assistant gives the
         event a new context.
         """
-        self._hass.bus.async_fire(event_type, data, context=caller.current())
+        context = caller.current()
+        if (task_id := data.get("task_id")) is not None:
+            if event_type == EVENT_TASK_DELETED:
+                self._task_callers.pop(task_id, None)
+            else:
+                self._task_callers[task_id] = context
+        self._hass.bus.async_fire(event_type, data, context=context)
+
+    def caller_of(self, task_id: str) -> Context | None:
+        """The caller of the last event of the task, or None."""
+        return self._task_callers.get(task_id)
 
     def _task_event_data(
         self, task: dict[str, Any], *, extra: dict[str, Any] | None = None

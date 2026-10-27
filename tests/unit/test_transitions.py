@@ -8,7 +8,11 @@ once each, re-arms when its schedule moves, and never fires while dormant or dis
 from datetime import UTC, datetime, timedelta
 
 import hk_transitions as t
-from hk_const import EVENT_TASK_DUE_SOON, EVENT_TASK_OVERDUE
+from hk_const import (
+    EVENT_TASK_DUE_SOON,
+    EVENT_TASK_OVERDUE,
+    EVENT_TASK_OVERDUE_RESOLVED,
+)
 
 TZ = UTC
 NOW = datetime(2026, 6, 18, 12, 0, tzinfo=TZ)
@@ -71,7 +75,8 @@ def test_reschedule_rearms_announcements():
     # fires now, and a later crossing fires again.
     rescheduled = _task(next_due=NOW + timedelta(days=30))
     fired2, state2 = t.detect_transitions(state, {"t1": rescheduled}, now=NOW)
-    assert fired2 == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired2) == [EVENT_TASK_OVERDUE_RESOLVED]
     assert state2["t1"]["overdue_fired"] is False
 
 
@@ -111,7 +116,8 @@ def test_one_off_armed_fires_overdue_then_completed_goes_quiet():
 
     completed = _task("o", next_due=None, recurrence_type="one-off")
     fired2, _state2 = t.detect_transitions(state, {"o": completed}, now=NOW)
-    assert fired2 == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired2) == [EVENT_TASK_OVERDUE_RESOLVED]
 
 
 def test_triggered_task_fires_overdue_on_arm():
@@ -140,7 +146,8 @@ def test_b16_6_a_snooze_of_an_overdue_task_sends_no_due_soon_push():
     snoozed = _task(next_due=NOW + timedelta(hours=24))
     fired, _ = t.detect_transitions(state, {"t1": snoozed}, now=NOW)
     # The new date is already in the window, so no due_soon event fires for it.
-    assert fired == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
     assert t.auto_crossings(state, fired) == []
 
 
@@ -213,7 +220,8 @@ def test_completing_a_short_interval_task_fires_no_due_soon():
     _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
     completed = _task(next_due=NOW + timedelta(days=2))
     fired, state2 = t.detect_transitions(state, {"t1": completed}, now=NOW)
-    assert fired == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
     assert state2["t1"]["due_soon_fired"] is True
     assert state2["t1"]["overdue_fired"] is False
     # Later passes stay quiet until the new date is overdue.
@@ -253,7 +261,8 @@ def test_a_disabled_task_moved_into_the_window_announces_when_enabled_again():
     _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
     moved_off = _task(next_due=NOW + timedelta(days=2), enabled=False)
     fired, state2 = t.detect_transitions(state, {"t1": moved_off}, now=NOW)
-    assert fired == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
     assert state2["t1"]["due_soon_fired"] is False
     moved_on = _task(next_due=NOW + timedelta(days=2))
     fired, _ = t.detect_transitions(state2, {"t1": moved_on}, now=NOW)
@@ -273,7 +282,8 @@ def test_a_task_with_no_enabled_key_counts_as_enabled():
     fired, state2 = t.detect_transitions(
         state, {"t1": bare(NOW + timedelta(days=2))}, now=NOW
     )
-    assert fired == []
+    # The task was overdue, so its end is announced, and nothing else.
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
     assert state2["t1"]["due_soon_fired"] is True
     fired, _ = t.detect_transitions({}, {"t2": bare(NOW + timedelta(days=1))}, now=NOW)
     assert _names(fired) == [EVENT_TASK_DUE_SOON]
@@ -286,3 +296,117 @@ def test_due_in_hours_is_in_hours_with_one_decimal():
     next_due = NOW + timedelta(hours=2.34)
     fired, _ = t.detect_transitions({}, {"t1": _task(next_due=next_due)}, now=NOW)
     assert fired[0][1]["due_in_hours"] == 2.3
+
+
+# ── overdue resolved (#467) ──────────────────────────────────────────────────
+
+
+def _overdue_state(task):
+    """The edge state after *task* announced its overdue crossing."""
+    fired, state = t.detect_transitions({}, {task["id"]: task}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    return state
+
+
+def _resolved(fired):
+    return [payload for name, payload in fired if name == EVENT_TASK_OVERDUE_RESOLVED]
+
+
+DUE = NOW - timedelta(days=3)
+
+
+def _moved(next_due):
+    """The overdue task after a completion, skip, snooze or move to *next_due*."""
+    return _task(next_due=next_due)
+
+
+def test_resolved_fires_once_when_an_overdue_task_moves_to_the_future():
+    """A completion, a skip, a snooze and a moved occurrence all move next_due."""
+    state = _overdue_state(_task(next_due=DUE))
+    later = NOW + timedelta(hours=1)
+    task = _moved(NOW + timedelta(days=30))
+
+    fired, state = t.detect_transitions(state, {"t1": task}, now=later)
+
+    [payload] = _resolved(fired)
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
+    assert payload["task_id"] == "t1"
+    assert payload["overdue_since"] == DUE.isoformat()
+    assert payload["days_overdue"] == 3
+    assert state["t1"]["overdue_fired"] is False
+
+    # No second event for the same overdue period.
+    fired, _ = t.detect_transitions(state, {"t1": task}, now=later + timedelta(days=1))
+    assert _resolved(fired) == []
+
+
+def test_resolved_fires_when_an_overdue_task_is_disabled():
+    task = _task(next_due=DUE)
+    state = _overdue_state(task)
+    disabled = _task(next_due=DUE, enabled=False)
+
+    fired, state = t.detect_transitions(state, {"t1": disabled}, now=NOW)
+
+    [payload] = _resolved(fired)
+    assert payload["overdue_since"] == DUE.isoformat()
+    assert state["t1"]["overdue_fired"] is False
+    fired, state = t.detect_transitions(state, {"t1": disabled}, now=NOW)
+    assert fired == []
+
+    # Enabled again while still overdue: a new overdue period starts.
+    fired, _ = t.detect_transitions(state, {"t1": task}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+
+
+def test_resolved_fires_when_a_sensor_clear_makes_the_task_dormant():
+    state = _overdue_state(_task(next_due=DUE, recurrence_type="sensor"))
+    dormant = _task(next_due=None, recurrence_type="sensor")
+
+    fired, state = t.detect_transitions(state, {"t1": dormant}, now=NOW)
+
+    assert _names(fired) == [EVENT_TASK_OVERDUE_RESOLVED]
+    assert _resolved(fired)[0]["days_overdue"] == 3
+    assert state["t1"]["overdue_fired"] is False
+
+
+def test_resolved_does_not_fire_for_a_task_that_was_never_overdue():
+    task = _task(next_due=NOW + timedelta(days=1))
+    fired, state = t.detect_transitions({}, {"t1": task}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+    fired, _ = t.detect_transitions(
+        state, {"t1": _moved(NOW + timedelta(days=30))}, now=NOW
+    )
+    assert fired == []
+    fired, _ = t.detect_transitions(
+        state, {"t1": _task(next_due=NOW + timedelta(days=1), enabled=False)}, now=NOW
+    )
+    assert fired == []
+
+
+def test_resolved_does_not_fire_while_the_new_date_is_still_overdue():
+    """A backdated completion can leave next_due in the past: still overdue."""
+    state = _overdue_state(_task(next_due=DUE))
+    still = _moved(NOW - timedelta(days=1))
+
+    fired, state = t.detect_transitions(state, {"t1": still}, now=NOW)
+
+    assert _resolved(fired) == []
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    assert state["t1"]["overdue_fired"] is True
+
+
+def test_resolved_does_not_fire_for_a_deleted_task():
+    """A deleted task has no payload to describe; task_deleted is its record."""
+    state = _overdue_state(_task(next_due=DUE))
+    fired, state = t.detect_transitions(state, {}, now=NOW)
+    assert fired == []
+    assert state == {}
+
+
+def test_a_resolved_crossing_sends_no_automatic_notification():
+    state = _overdue_state(_task(next_due=DUE))
+    fired, _ = t.detect_transitions(
+        state, {"t1": _moved(NOW + timedelta(days=30))}, now=NOW
+    )
+    assert t.auto_crossings(state, fired) == []

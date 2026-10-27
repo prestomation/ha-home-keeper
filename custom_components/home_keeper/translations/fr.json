@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Occurrence de tâche déplacée",
               "task_overdue": "Tâche devenue en retard",
               "task_due_soon": "Tâche bientôt due",
+              "task_overdue_resolved": "Tâche plus en retard",
               "part_low_stock": "Pièce de rechange en stock bas",
               "part_out_of_stock": "Pièce de rechange en rupture de stock",
               "part_restocked": "Pièce de rechange réapprovisionnée",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Tâche bientôt due",
       "description": "Se déclenche quand une tâche devient due dans 3 jours ou moins."
+    },
+    "task_overdue_resolved": {
+      "name": "Tâche plus en retard",
+      "description": "Se déclenche quand une tâche en retard n'est plus en retard."
     },
     "part_low_stock": {
       "name": "Pièce de rechange en stock bas",

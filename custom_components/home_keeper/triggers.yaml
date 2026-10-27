@@ -51,6 +51,9 @@ task_overdue:
 task_due_soon:
   target: *target
 
+task_overdue_resolved:
+  target: *target
+
 part_low_stock:
   target: *target
 

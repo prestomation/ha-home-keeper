@@ -164,6 +164,7 @@ Home Keeper writes a logbook row for each of these task events:
 | Snoozed | was snoozed until 2026-10-20 |
 | Due soon | is due in 48 hours |
 | Overdue | became overdue |
+| No longer overdue | is no longer overdue |
 | Armed | became due |
 | Due today set | was set to due today |
 | Occurrence moved | has its occurrence on 2026-11-01 moved to 2026-11-03 |
@@ -191,6 +192,9 @@ A row also shows who made the change:
 | An automation or a script | That automation or script |
 | Home Keeper on its own, such as **became overdue** | No user |
 
+The **is no longer overdue** row names the user of the change that ended the overdue
+period, such as the user who completed the task.
+
 The event has the same context. An automation can read the user from
 `trigger.event.context.user_id`. For a tag scan, the context has the user of the scan.
 Its parent is the scan. A change that Home Keeper makes on its own has a new context with
@@ -217,8 +221,20 @@ sources:
 
 All task rows are on 1 entity, the to-do list, so 1 source gets the rows of all tasks.
 The logbook can filter rows only by entity. To show 1 kind of row, filter on the text of
-the row. The Chronicle Card `search` filter keeps the rows that contain the text. This card
-shows only the tasks that became overdue:
+the row. The Chronicle Card `search` filter keeps the rows that contain the text.
+
+A task that becomes overdue gets a **became overdue** row. When it stops being overdue,
+it gets an **is no longer overdue** row. These changes end the overdue period:
+
+- a completion
+- a skip
+- a snooze
+- a move of its date to the future
+- a disable of the task
+- a clear by its sensor
+
+Both rows contain the word "overdue". So this card shows when each task became overdue
+and when it stopped:
 
 ```yaml
 type: custom:chronicle-card
@@ -229,12 +245,11 @@ sources:
     entities:
       - todo.home_keeper_tasks
 filters:
-  search: became overdue
+  search: overdue
 ```
 
 Use `search: was completed` for the completions. `search` takes 1 text, so use 1 card for
-each kind of row. To show when each task was overdue as a time span, use the `history`
-source with the **Overdue** binary sensor of each task.
+each kind of row.
 
 The logbook keeps the rows for as long as the recorder keeps its data. The default is
 10 days. To keep the rows longer, set `purge_keep_days`:

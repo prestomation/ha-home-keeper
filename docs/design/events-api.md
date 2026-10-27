@@ -18,7 +18,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 901ed9dcb0e9
+source_hash: eab726e4e48e
 ---
 
 # Events and API surface
@@ -28,8 +28,7 @@ Services (`home_keeper.*` actions) change or export data. Bus events
 commands, which call the same store methods. `api_surface.py` declares all of these
 surfaces, and tests compare that model with the source.
 
-Payloads: [EVENTS.md](../EVENTS.md). Integration contract: [INTEGRATING.md](../INTEGRATING.md).
-Privileges: [SECURITY.md](../SECURITY.md).
+Payloads: [EVENTS.md](../EVENTS.md). Contract: [INTEGRATING.md](../INTEGRATING.md).
 
 ## Goals
 
@@ -61,10 +60,9 @@ Per-event keys (`changed_fields`, `days_overdue`) merge on top through `extra`.
 
 `store.py` fires through `_fire` at each mutation point, never in a handler, also on the
 wear-part reconcile and the appliance delete cascade. An update that changes no field fires
-no event. `_fire` gives the event the context of `caller.current()`: the service call,
-websocket command, upload or entity action that made the change, so the logbook names the user.
-A change that Home Keeper makes on its own gets a new context. Entry setup runs with no caller,
-so the timers of a reload that a service started do not keep its user.
+no event. `_fire` gives the event the context of `caller.current()` (a service call, websocket
+command, upload or entity action), so the logbook names the user, and keeps it per task for
+`store.caller_of`. Home Keeper's own changes and entry setup run with no caller.
 `transfer_runner.py` fires the export and import summary events ([transfer](transfer.md)).
 `logbook.py` describes each event in `events.LOGBOOK_EVENTS`. It matches the spine `entity_id`
 (the to-do list) and `device_id`. A completion row names its day if the row fired on another day.
@@ -75,7 +73,9 @@ so the timers of a reload that a service started do not keep its user.
 and an injected `now`, and returns the events plus the next state. The state per task is
 `{"next_due", "due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags,
 but `due_soon_fired` stays true if the old date announced and the new one is in the window.
-No `next_due`, or disabled: nothing fires. `DUE_SOON_WINDOW` is 3 days.
+No `next_due`, or disabled: no crossing fires. `DUE_SOON_WINDOW` is 3 days. A task with
+`overdue_fired` that is not overdue now fires `overdue_resolved` once and clears the flag. A
+deleted task fires nothing. Its context is `store.caller_of`, the change that ended the period.
 `coordinator._async_update_data` runs the detector on each periodic and post-mutation
 refresh. Until setup calls `coordinator.enable_transition_events`, it keeps the detected
 state as a silent baseline. The edge state lives in `hass.data` per config entry, so a
@@ -107,7 +107,7 @@ With no loaded entry, a handler raises `integration_not_loaded`. Read services u
 translation. Each `WebsocketSpec` names its service twin, except the panel tab list and the
 reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of photos.
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
-`await _verify_admin(call)` first in the service handler. A call with no user is trusted.
+`await _verify_admin(call)` first. A call with no user is trusted ([SECURITY.md](../SECURITY.md)).
 
 ### Name or id, and errors
 

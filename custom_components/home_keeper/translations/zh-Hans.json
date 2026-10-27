@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "任务时间已移动",
               "task_overdue": "任务已逾期",
               "task_due_soon": "任务即将到期",
+              "task_overdue_resolved": "任务不再逾期",
               "part_low_stock": "备件库存不足",
               "part_out_of_stock": "备件缺货",
               "part_restocked": "备件已补货",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "任务即将到期",
       "description": "在任务将于 3 天内到期时触发。"
+    },
+    "task_overdue_resolved": {
+      "name": "任务不再逾期",
+      "description": "在逾期任务不再逾期时触发。"
     },
     "part_low_stock": {
       "name": "备件库存不足",

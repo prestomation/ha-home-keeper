@@ -304,3 +304,26 @@ def test_entry_setup_runs_with_no_caller():
     assert ast.unparse(statement.body[0]) == (
         "return await _async_setup_entry(hass, entry)"
     )
+
+
+def test_the_store_keeps_the_caller_of_the_last_change_to_each_task(store):
+    task = _task(store)
+    ctx = _Ctx("ann")
+
+    async def _complete():
+        with caller.caller(ctx):
+            await store.complete_task(task["id"])
+
+    _run(_complete())
+    assert store.caller_of(task["id"]) is ctx
+
+    _run(store.skip_task(task["id"]))
+    assert store.caller_of(task["id"]) is None
+
+    async def _delete():
+        with caller.caller(ctx):
+            await store.delete_task(task["id"])
+
+    _run(_delete())
+    assert task["id"] not in store._task_callers
+    assert store.caller_of("unknown") is None

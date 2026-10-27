@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: d62ba95067b5
+source_hash: 1ad1d5c807d9
 ---
 
 # Coordinator and entities

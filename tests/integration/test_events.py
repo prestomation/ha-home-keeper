@@ -267,6 +267,108 @@ def test_task_events_carry_the_context_of_the_caller(ha, ha_token):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
+async def _overdue_events(token, setup, finish, *, timeout=20):
+    """Run *setup* then *finish*; return the user id and the overdue events.
+
+    Each event is ``(event_type, data, context)``, in arrival order.
+    """
+    events = []
+    types = ("home_keeper_task_overdue", "home_keeper_task_overdue_resolved")
+    async with websockets.connect(WS_URL, max_size=None) as ws:
+        assert json.loads(await ws.recv())["type"] == "auth_required"
+        await ws.send(json.dumps({"type": "auth", "access_token": token}))
+        assert json.loads(await ws.recv())["type"] == "auth_ok"
+        await ws.send(json.dumps({"id": 1, "type": "auth/current_user"}))
+        user_id = json.loads(await ws.recv())["result"]["id"]
+        for msg_id, event_type in enumerate(types, start=2):
+            await ws.send(
+                json.dumps(
+                    {"id": msg_id, "type": "subscribe_events", "event_type": event_type}
+                )
+            )
+            assert json.loads(await ws.recv())["success"]
+        loop = asyncio.get_event_loop()
+
+        async def _drain(count):
+            while len(events) < count:
+                msg = json.loads(await ws.recv())
+                if msg.get("type") == "event":
+                    ev = msg["event"]
+                    events.append((ev["event_type"], ev["data"], ev["context"]))
+
+        await loop.run_in_executor(None, setup)
+        await asyncio.wait_for(_drain(1), timeout=timeout)
+        await loop.run_in_executor(None, finish)
+        try:
+            await asyncio.wait_for(_drain(2), timeout=timeout)
+        except TimeoutError:
+            pass
+    return user_id, events
+
+
+def test_an_overdue_period_ends_with_a_resolved_event(ha, ha_token):
+    """Became overdue, then is no longer overdue, with the user who ended it (#467)."""
+    start = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(time.time() - 5))
+    task: dict = {}
+
+    def setup():
+        # Done 10 days ago, every 2 days: the task is overdue at once.
+        done = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 10 * 86400))
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": "Overdue period task",
+                "interval": 2,
+                "unit": "days",
+                "last_completed": done,
+            },
+            return_response=True,
+        )
+        task["id"] = resp.get("service_response", resp)["task_id"]
+
+    def finish():
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task["id"]})
+
+    try:
+        user_id, events = asyncio.run(_overdue_events(ha_token, setup, finish))
+        mine = [e for e in events if e[1]["task_id"] == task["id"]]
+        assert [e[0] for e in mine] == [
+            "home_keeper_task_overdue",
+            "home_keeper_task_overdue_resolved",
+        ], events
+        resolved = mine[1]
+        assert resolved[1]["entity_id"] == "todo.home_keeper_tasks"
+        assert resolved[1]["days_overdue"] >= 7
+        assert resolved[1]["overdue_since"]
+        assert resolved[2]["user_id"] == user_id
+        rows: list[dict] = []
+        for _ in range(20):
+            r = ha.get(
+                f"{ha.base_url}/api/logbook/{start}",
+                params={"entity": "todo.home_keeper_tasks"},
+            )
+            r.raise_for_status()
+            rows = [
+                row
+                for row in r.json()
+                if row.get("name") == "Overdue period task"
+                and "overdue" in row.get("message", "")
+            ]
+            if len(rows) >= 2:
+                break
+            time.sleep(0.5)
+        assert [row["message"] for row in rows] == [
+            "became overdue",
+            "is no longer overdue",
+        ], rows
+        assert rows[1].get("context_user_id") == user_id, rows
+    finally:
+        if task:
+            call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
 def test_uncompleted_event_names_the_completion_and_origin(ha, ha_token):
     """Undo carries the removed ``ts`` and the caller's ``origin``.
 
