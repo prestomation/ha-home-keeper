@@ -96,11 +96,12 @@ jobs:
     # The noise budget (tests/noise): how many logbook rows, unavailable flips,
     # events, store writes and reloads each action makes, against
     # tests/noise/baseline.json. Issue #467 filled users' logbooks and no test saw it.
-    # It runs in parallel with `integration` on its own Home Assistant, about 8
-    # minutes of scenarios. It needs no panel build: it reads no frontend.
+    # It runs in parallel with `integration` on its own Home Assistant. The 34
+    # scenarios take about 12 minutes, most of it the 11 s quiet wait after each one
+    # (tests/noise/conftest.py). It needs no panel build: it reads no frontend.
     name: Noise budget
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
