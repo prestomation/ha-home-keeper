@@ -92,6 +92,11 @@ export class DeferMenus {
   private _open: { caret: HTMLElement; menu: HTMLElement } | null = null;
   private _onKey: ((e: KeyboardEvent) => void) | null = null;
   private _onClick: ((e: Event) => void) | null = null;
+  /** A scroll or resize moves the button, but not the menu in the top layer. */
+  private readonly _onMove = (): void => {
+    if (this._split && this._open) placeMenu(this._split, this._open.menu);
+  };
+  private _split: HTMLElement | null = null;
 
   constructor(private readonly host: DeferMenuHost) {}
 
@@ -118,8 +123,18 @@ export class DeferMenus {
       document.removeEventListener('click', this._onClick);
       this._onClick = null;
     }
+    window.removeEventListener('scroll', this._onMove, true);
+    window.removeEventListener('resize', this._onMove);
     if (!this._open) return;
+    this._split = null;
     this._open.menu.hidden = true;
+    if (typeof this._open.menu.hidePopover === 'function') {
+      try {
+        this._open.menu.hidePopover();
+      } catch {
+        /* not shown: the menu opened without the top layer */
+      }
+    }
     this._open.caret.setAttribute('aria-expanded', 'false');
     this._open = null;
   }
@@ -167,6 +182,13 @@ export class DeferMenus {
   private _openMenu(split: HTMLElement, caret: HTMLElement, menu: HTMLElement): void {
     this.close();
     menu.hidden = false;
+    // The top layer is outside every card, so no theme can clip or cover the menu.
+    // A browser without the Popover API keeps the menu in the card, where CSS places it.
+    if (typeof menu.showPopover === 'function') {
+      menu.setAttribute('popover', 'manual');
+      menu.showPopover();
+      placeMenu(split, menu);
+    }
     caret.setAttribute('aria-expanded', 'true');
     // The menu pattern (X11-5): focus goes to the first item on open, the arrow
     // keys, Home and End move it, and Escape puts it back on the caret. Without
@@ -194,8 +216,37 @@ export class DeferMenus {
     };
     document.addEventListener('keydown', this._onKey);
     document.addEventListener('click', this._onClick);
+    window.addEventListener('scroll', this._onMove, true);
+    window.addEventListener('resize', this._onMove);
+    this._split = split;
     this._open = { caret, menu };
   }
+}
+
+/** The gap, in px, between the split button and its menu, and to the viewport edge. */
+const MENU_GAP = 6;
+const MENU_MARGIN = 12;
+
+/**
+ * Put an open top-layer menu under its split button.
+ *
+ * A top-layer element is placed against the viewport, so the position comes from the
+ * button's box. A list row keeps its actions at the right margin, so its menu lines
+ * up with the right edge of the button. The task page lines up with the left edge. The
+ * menu stays inside the viewport, and opens above the button when there is no room
+ * below.
+ */
+export function placeMenu(split: HTMLElement, menu: HTMLElement): void {
+  const at = split.getBoundingClientRect();
+  const { width, height } = menu.getBoundingClientRect();
+  const rightEdge = split.closest('.hk-card-actions') !== null;
+  const wanted = rightEdge ? at.right - width : at.left;
+  const left = Math.max(MENU_MARGIN, Math.min(wanted, window.innerWidth - width - MENU_MARGIN));
+  const below = at.bottom + MENU_GAP;
+  const above = at.top - MENU_GAP - height;
+  const top = below + height > window.innerHeight - MENU_GAP && above >= MENU_GAP ? above : below;
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
 /**

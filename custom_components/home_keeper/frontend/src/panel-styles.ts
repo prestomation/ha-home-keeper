@@ -1918,6 +1918,13 @@ export const STYLES = `
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   }
   .hk-card-actions .hk-defer-menu { left: auto; right: 0; }
+  /* Open in the top layer (popover="manual"). The UA rules for a popover centre it
+     with an inset, a margin and a border; placeMenu() sets the left and top. */
+  .hk-defer-menu:popover-open {
+    position: fixed; inset: auto; margin: 0; z-index: auto;
+    width: max-content; height: auto; overflow: visible;
+    color: var(--primary-text-color);
+  }
   .hk-defer-menu button {
     display: flex; align-items: flex-start; gap: 10px; width: 100%;
     padding: 9px 10px; border: 0; border-radius: 6px;

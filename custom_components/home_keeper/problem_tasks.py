@@ -132,8 +132,10 @@ def reconcile_problem_tasks(
     """Compute the task map mirroring the eligible problem sensors.
 
     *eligible* maps ``entity_id`` -> ``{"name", "device_id", "area_id",
-    "is_problem"}`` for every sensor that should be synced (already filtered for the
-    option being on, exclusions, and Home Keeper's own entities by the caller).
+    "is_problem", "name_live"}`` for every sensor that should be synced (already
+    filtered for the option being on, exclusions, and Home Keeper's own entities by
+    the caller). ``name_live`` is false when the sensor has no live state, so its name
+    comes from the registry. A new task takes that name, but a task keeps its name.
 
     *notes_by_entity* maps ``entity_id`` -> the durable free-text note the user last
     saved for that sensor. A freshly created task seeds its ``notes`` from it, so a
@@ -189,8 +191,10 @@ def reconcile_problem_tasks(
         # device/area). It is an update like any other: the store fires
         # ``task_updated`` and reloads when the device-page entities change (B18-4).
         managed_by = build_managed_by(entity_id, config_entry_id, lang=lang)
+        # A name read with no live state comes from the registry, not from the
+        # sensor, so the task keeps its name (#467).
         owned = (
-            ("name", meta["name"]),
+            *((("name", meta["name"]),) if meta.get("name_live", True) else ()),
             ("device_id", meta.get("device_id")),
             ("area_id", meta.get("area_id")),
             ("managed_by", managed_by),
