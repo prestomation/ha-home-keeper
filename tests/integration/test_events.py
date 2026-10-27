@@ -267,10 +267,12 @@ def test_task_events_carry_the_context_of_the_caller(ha, ha_token):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 
 
-async def _overdue_events(token, setup, finish, *, timeout=20):
-    """Run *setup* then *finish*; return the user id and the overdue events.
+async def _overdue_events(token, setup, finish, task, *, timeout=20):
+    """Run *setup* then *finish*; return the user id and the overdue events of *task*.
 
-    Each event is ``(event_type, data, context)``, in arrival order.
+    *setup* puts the new task id in *task*. Other tasks can fire the same events in
+    the same time, so only the events of this task count. Each event is
+    ``(event_type, data, context)``, in arrival order.
     """
     events = []
     types = ("home_keeper_task_overdue", "home_keeper_task_overdue_resolved")
@@ -292,8 +294,10 @@ async def _overdue_events(token, setup, finish, *, timeout=20):
         async def _drain(count):
             while len(events) < count:
                 msg = json.loads(await ws.recv())
-                if msg.get("type") == "event":
-                    ev = msg["event"]
+                if msg.get("type") != "event":
+                    continue
+                ev = msg["event"]
+                if ev["data"].get("task_id") == task.get("id"):
                     events.append((ev["event_type"], ev["data"], ev["context"]))
 
         await loop.run_in_executor(None, setup)
@@ -332,12 +336,11 @@ def test_an_overdue_period_ends_with_a_resolved_event(ha, ha_token):
         call_service(ha, "home_keeper", "complete_task", {"task_id": task["id"]})
 
     try:
-        user_id, events = asyncio.run(_overdue_events(ha_token, setup, finish))
-        mine = [e for e in events if e[1]["task_id"] == task["id"]]
+        user_id, mine = asyncio.run(_overdue_events(ha_token, setup, finish, task))
         assert [e[0] for e in mine] == [
             "home_keeper_task_overdue",
             "home_keeper_task_overdue_resolved",
-        ], events
+        ], mine
         resolved = mine[1]
         assert resolved[1]["entity_id"] == "todo.home_keeper_tasks"
         assert resolved[1]["days_overdue"] >= 7
