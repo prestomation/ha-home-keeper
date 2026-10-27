@@ -176,6 +176,23 @@ def test_the_all_tasks_count_has_no_profile(monkeypatch) -> None:
 # ── cost sensors (#460) ──────────────────────────────────────────────────────
 
 
+def test_count_entities_give_each_profile_sensor_its_profile(monkeypatch) -> None:
+    """The live filter (#467) needs the profile id on each profile sensor."""
+    stored = [
+        {"id": "p1", "name": "Chores", "filter": {"status": "overdue"}},
+        {"id": "p2", "name": "Garden", "filter": {"status": "all"}},
+    ]
+    monkeypatch.setattr(sensor, "current_options", lambda entry: {"profiles": stored})
+    entities, live = sensor._count_entities(
+        types.SimpleNamespace(entry="the-entry"), "the-entry"
+    )
+    by_uid = {e.unique_id: e for e in entities}
+    assert set(by_uid) == live
+    assert by_uid["home_keeper_tasks"]._profile_id is None
+    assert by_uid["home_keeper_profile_p1_tasks"]._profile_id == "p1"
+    assert by_uid["home_keeper_profile_p2_tasks"]._profile_id == "p2"
+
+
 def _coordinator(tasks: dict, assets: list) -> types.SimpleNamespace:
     return types.SimpleNamespace(
         data=tasks, store=types.SimpleNamespace(list_assets=lambda: assets)
