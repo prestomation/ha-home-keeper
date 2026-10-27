@@ -410,3 +410,14 @@ def test_a_resolved_crossing_sends_no_automatic_notification():
         state, {"t1": _moved(NOW + timedelta(days=30))}, now=NOW
     )
     assert t.auto_crossings(state, fired) == []
+
+
+def test_a_task_with_no_enabled_key_that_stays_overdue_does_not_resolve():
+    """A missing ``enabled`` key means enabled, so the task is still overdue."""
+    bare = _task(next_due=DUE)
+    del bare["enabled"]
+    fired, state = t.detect_transitions({}, {"t1": bare}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    fired, state = t.detect_transitions(state, {"t1": bare}, now=NOW)
+    assert fired == []
+    assert state["t1"]["overdue_fired"] is True
