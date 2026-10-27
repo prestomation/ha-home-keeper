@@ -6,80 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.34.0b10]
-
-### Fixed
-
-- **Logbook row dates.** A snoozed task or a moved date now shows the day in your time zone
-  in the logbook. Before, an evening snooze could show the next day.
-
-## [0.34.0b9]
-
-### Fixed
-
-- **Fewer entity reloads.** The Home Keeper entities stay available when you rename or
-  disable a task that has no device. The same applies to an appliance edit that changes no
-  value, so the logbook stays clear.
-
-## [0.34.0b8]
-
-### Fixed
-
-- **No false due-soon event.** Completing a task that repeats every 3 days or less no
-  longer fires a "due soon" event for the new date at once. The event now fires only when a
-  date enters the 3-day window.
-
-## [0.34.0b7]
-
-### Fixed
-
-- **Steadier to-do list sync.** A synced to-do list that stores a title in another case,
-  trims the notes or gives the due date in UTC no longer gets a second copy of the item,
-  a rewrite on each pass, or a task snoozed 1 day early.
-
-## [0.34.0b6]
-
-### Added
-
-- **[Optional device task entities](https://prestomation.github.io/ha-home-keeper/docs/guide/device-entities).**
-  A new setting disables the button and sensors that each task adds to its device page.
-  Their entity ids stay, so your dashboards find them again when you turn the setting
-  back on. (Fixes #496)
-
-## [0.34.0b5]
-
-### Fixed
-
-- **Settings apply without a reload.** A change in Settings or in the Configure dialog no
-  longer makes each Home Keeper entity unavailable for a moment, so the logbook stays clear.
-  Home Keeper reloads only for a change that adds, removes or renames an entity, such as a
-  new profile or spend period. (Fixes #467)
-
-## [0.34.0b4]
-
-### Added
-
-- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
-  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
-  the unit reports a filter alarm.
-
-## [0.34.0b3]
-
-### Fixed
-
-- **Fewer reloads after a restart.** With problem sensor sync on, a restart no longer
-  renames each problem sensor task 2 times and reloads Home Keeper. So the logbook no
-  longer shows each Home Keeper entity go unavailable and back, and a "Task updated" event
-  for each problem sensor task, after each restart. (Fixes #467)
-
-## [0.34.0b2]
-
-### Fixed
-
-- **Done menu with custom themes.** The Done menu on the task list and on the task page
-  now shows in full under themes with glass cards, such as Liquid Glass Tinted. (Fixes #497)
-
-## [0.34.0b1]
+## [0.34.0] - 2026-10-27
 
 ### Added
 
@@ -87,6 +14,31 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Completions, skips, snoozes and overdue tasks show as rows in the Home Assistant
   logbook, with the task name. The rows show on the Home Keeper to-do list and on the
   device page of the task, and timeline cards such as Chronicle Card can show them. (Fixes #467)
+- **[Optional device task entities](https://prestomation.github.io/ha-home-keeper/docs/guide/device-entities).**
+  A new setting disables the button and sensors that each task adds to its device page.
+  Their entity ids stay, so your dashboards find them again when you turn the setting
+  back on. (Fixes #496)
+- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
+  the unit reports a filter alarm.
+
+### Fixed
+
+- **Fewer entity reloads.** Home Keeper entities stay available through a Settings change,
+  or a task or appliance edit that keeps the same entities, so the logbook stays clear.
+  Home Keeper reloads only for a change that adds, removes or renames an entity, such as a
+  new profile or spend period. (Fixes #467)
+- **Quieter restarts.** With problem sensor sync on, a restart no longer renames each
+  problem sensor task 2 times and reloads Home Keeper. So the logbook no longer fills with
+  rows for each Home Keeper entity and each problem sensor task after a restart. (Fixes #467)
+- **Done menu with custom themes.** The Done menu on the task list and on the task page
+  now shows in full under themes with glass cards, such as Liquid Glass Tinted. (Fixes #497)
+- **Steadier to-do list sync.** A synced to-do list that stores a title in another case,
+  trims the notes or gives the due date in UTC no longer gets a second copy of the item,
+  a rewrite on each pass, or a task snoozed 1 day early.
+- **No false due-soon event.** Completing a task that repeats every 3 days or less no
+  longer fires a "due soon" event for the new date at once. The event now fires only when a
+  date enters the 3-day window.
 
 ## [0.33.0] - 2026-10-26
 
