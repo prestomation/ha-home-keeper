@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Afficher les dépenses dans le panneau",
           "description": "Affiche les totaux de dépenses au-dessus de la liste des tâches dans le panneau."
+        },
+        "task_device_entities": {
+          "name": "Activer les entités de tâche sur les pages d'appareil",
+          "description": "Active le bouton Marquer comme fait et les capteurs d'échéance et de retard que chaque tâche ajoute à la page de son appareil. Désactivé, ils sont désactivés et gardent leurs identifiants d'entité."
         }
       }
     },

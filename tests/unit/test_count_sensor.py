@@ -123,6 +123,56 @@ def test_x08_4_the_first_write_has_counts() -> None:
     assert len(calls) == 1
 
 
+# ── a live profile filter (#467) ─────────────────────────────────────────────
+def _profile_sensor(monkeypatch, stored_profiles: list[dict]) -> object:
+    entity = sensor.HomeKeeperTaskCountSensor(
+        types.SimpleNamespace(entry="the-entry"),
+        unique_id="home_keeper_profile_p1_tasks",
+        translation_key="profile_tasks",
+        placeholders={"profile": "Chores"},
+        task_filter={"status": "overdue"},
+        profile_id="p1",
+    )
+    monkeypatch.setattr(
+        sensor,
+        "current_options",
+        lambda entry: {"profiles": stored_profiles} if entry == "the-entry" else {},
+    )
+    return entity
+
+
+def test_a_profile_count_reads_the_filter_the_options_hold_now(monkeypatch) -> None:
+    """An options change that keeps the profiles does not reload the entry."""
+    entity = _profile_sensor(
+        monkeypatch,
+        [
+            {"id": "p0", "filter": {"status": "due_soon"}},
+            {"id": "p1", "filter": {"status": "all"}},
+        ],
+    )
+    assert entity._task_filter() == {"status": "all"}
+
+
+def test_a_profile_count_keeps_its_filter_when_the_profile_is_gone(monkeypatch) -> None:
+    """Between the save and the reload that removes the sensor."""
+    entity = _profile_sensor(monkeypatch, [{"id": "p0", "filter": {"status": "all"}}])
+    assert entity._task_filter() == {"status": "overdue"}
+
+
+def test_the_all_tasks_count_has_no_profile(monkeypatch) -> None:
+    entity = sensor.HomeKeeperTaskCountSensor(
+        types.SimpleNamespace(entry="the-entry"),
+        unique_id="home_keeper_tasks",
+        translation_key="all_tasks",
+        placeholders={},
+        task_filter={"status": "overdue"},
+    )
+    monkeypatch.setattr(
+        sensor, "current_options", lambda entry: pytest.fail("no options read")
+    )
+    assert entity._task_filter() == {"status": "overdue"}
+
+
 # ── cost sensors (#460) ──────────────────────────────────────────────────────
 
 

@@ -592,6 +592,8 @@
   "settings.heading": "Synkronisering av problemsensorer",
   "settings.help": "Synkronisera binärsensorer med enhetsklassen ”problem” som uppgifter. En synkroniserad uppgift förblir aktiv så länge sensorn rapporterar ett problem och rensas automatiskt när källintegrationen löser det; den kan inte slutföras i Home Keeper. Uteslut specifika sensorer, enheter, områden eller etiketter nedan.",
   "settings.one_off_retention_days": "Ta bort slutförda engångsuppgifter efter (dagar, 0 = aldrig)",
+  "settings.task_device_entities": "Aktivera uppgiftsentiteter på enhetssidor",
+  "settings.task_device_entities_help": "Varje uppgift på en enhet lägger till en knapp Markera som klar och sensorer för förfallodatum och försening på enhetssidan. Av inaktiverar dem. Händelser, aviseringar och räknesensorerna fungerar fortfarande, och du kan aktivera en enskild entitet igen på dess enhetssida.",
   "settings.problem_sensor_exclude_areas": "Uteslutna områden",
   "settings.problem_sensor_exclude_devices": "Exkluderade enheter",
   "settings.problem_sensor_exclude_entities": "Uteslutna sensorer",

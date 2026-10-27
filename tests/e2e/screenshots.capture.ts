@@ -2142,6 +2142,16 @@ test('capture Settings and the usage surfaces', async () => {
   });
   await setDueTimeMode(panel, 'At the time of completion');
 
+  // 45h. The General card with the switch for the task entities on device pages (#496).
+  await panel.locator('#hk-settings-general').scrollIntoViewIfNeeded();
+  await expect(panel.locator('#hk-settings-general')).toContainText(
+    'Enable task entities on device pages',
+  );
+  await page.waitForTimeout(400);
+  await panel
+    .locator('#hk-settings-general')
+    .screenshot({ path: `${OUT}/45h-panel-settings-general.png` });
+
   // 72b. The Cost tracking card (#460): the spend periods and the panel switch.
   await panel.locator('#hk-settings-cost').scrollIntoViewIfNeeded();
   await page.waitForTimeout(400);
@@ -2836,6 +2846,16 @@ test('capture the phone layout', async () => {
   await setDueTimeMode(panel, 'At a set time');
   await page.screenshot({ path: `${OUT}/45g-panel-mobile-settings-duetime.png` });
   await setDueTimeMode(panel, 'At the time of completion');
+
+  // 45i. The General section on a phone, with the task entities switch (#496).
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="general"]').click();
+  await expect(panel.locator('#hk-settings-general')).toContainText(
+    'Enable task entities on device pages',
+  );
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/45i-panel-mobile-settings-general.png` });
 
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and

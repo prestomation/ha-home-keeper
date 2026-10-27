@@ -38,6 +38,7 @@ ha_bosch_ebike_life_low
 ha_comfoconnectpro_life_low
 hass_dyson_life_low
 hass_dyson_percent_low
+helty_cloud_alert_binary_sensor_on
 home_connect_alert_present
 homeconnect_ws_reading_high
 homeconnect_ws_reading_low

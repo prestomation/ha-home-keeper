@@ -575,3 +575,45 @@ def test_b11_4_a_failed_remove_keeps_the_old_line_and_adds_nothing(add_fails):
     _sync(hass, store)
     assert _services(hass, "add_item") == []
     assert store.get_shopping_items() == old
+
+
+# ── a live options change (#467) ─────────────────────────────────────────────
+def test_an_options_change_moves_the_watch_to_the_new_list(monkeypatch):
+    """With no reload, the target listener must follow the new list."""
+    watched: list[list[str]] = []
+    stopped: list[list[str]] = []
+
+    def _track(_hass, entity_ids, _handler):
+        ids = list(entity_ids)
+        watched.append(ids)
+        return lambda: stopped.append(ids)
+
+    monkeypatch.setattr(shopping_sync, "async_track_state_change_event", _track)
+    other = "todo.groceries"
+    hass = _FakeHass({TARGET: [], other: []})
+    entry = types.SimpleNamespace(
+        options={"shopping_list_entity": TARGET}, async_on_unload=lambda _cb: None
+    )
+    sync = shopping_sync.ShoppingListSync(
+        hass, entry, FakeSyncCoordinator(_FakeStore())
+    )
+    sync.async_start_listeners()
+    sync._started = True
+    forced: list[bool] = []
+
+    async def _record(*, force=False):
+        forced.append(force)
+
+    sync.async_sync = _record
+    entry.options = {"shopping_list_entity": other}
+    asyncio.run(sync.async_apply_options())
+
+    assert watched == [[TARGET], [other]]
+    assert stopped == [[TARGET]]
+    assert forced == [True]
+
+    # A cleared picker turns the mirror off and stops the watch.
+    entry.options = {"shopping_list_entity": ""}
+    asyncio.run(sync.async_apply_options())
+    assert stopped == [[TARGET], [other]]
+    assert watched == [[TARGET], [other]]

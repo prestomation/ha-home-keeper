@@ -1049,6 +1049,7 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_ALLOW_SNOOZE, in_flow=False),
     OptionSpec(const.OPTION_ALLOW_SKIP, in_flow=False),
     OptionSpec(const.OPTION_ALLOW_DUE_TODAY, in_flow=False),
+    OptionSpec(const.OPTION_TASK_DEVICE_ENTITIES, in_flow=False),
     OptionSpec(const.OPTION_DUE_TIME_MODE, in_flow=True),
     OptionSpec(const.OPTION_DUE_TIME, in_flow=True),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),

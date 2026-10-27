@@ -391,6 +391,10 @@ OPTION_HIDDEN_PANEL_TABS = "hidden_panel_tabs"
 OPTION_COST_WINDOWS = "cost_windows"
 # Whether the panel shows the spend totals above the task list. bool, default True.
 OPTION_COST_SUMMARY_PANEL = "cost_summary_panel"
+# Whether the per-task entities on device pages are enabled (#496). bool, default
+# True. Off disables them in the entity registry and keeps their ids. See
+# task_entities.switched_disabled_by.
+OPTION_TASK_DEVICE_ENTITIES = "task_device_entities"
 # Profiles: named, reusable task filters (status + label/area/device). Standalone and
 # notification-agnostic — consumed by notifications, the panel's admin list filter, and
 # the Lovelace card. A list of ``{id, name, filter, sync}``, where ``sync`` pairs the

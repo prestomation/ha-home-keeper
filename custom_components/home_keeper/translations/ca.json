@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Mostra la despesa al panell",
           "description": "Mostra els totals de despesa sobre la llista de tasques al panell."
+        },
+        "task_device_entities": {
+          "name": "Activa les entitats de tasca a les pàgines de dispositiu",
+          "description": "Activa el botó Marca com a feta i els sensors de venciment i de retard que cada tasca afegeix a la pàgina del seu dispositiu. Desactivat, els inhabilita i en conserva els ID d'entitat."
         }
       }
     },

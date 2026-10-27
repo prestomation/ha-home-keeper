@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/problem_tasks.py
   - custom_components/home_keeper/problem_sync.py
 related: [recurrence, store, coordinator-entities, completions, companions-presets, events-api]
-source_hash: 4ca8636dad6d
+source_hash: db751f3d5e8e
 ---
 
 # Sensor tasks and problem sensors
@@ -130,7 +130,7 @@ ordered ops (`created`, `deleted`, `updated`, `armed`, `cleared`) and a changed 
 from users; snooze is allowed. `notes` stays editable and is kept by entity id in
 `problem_notes`, so a mirror made again gets its note back.
 `problem_tasks.rename_problem_entity` moves a mirror to a renamed id. A created or deleted
-mirror, or a new name or device, reloads the entry once; other changes refresh.
+mirror, or a new name or device, reloads once (also after an options change); else refresh.
 
 ## Trade-offs
 

@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 93d81fdbb58a
+source_hash: 7f464e19b4ab
 ---
 
 # To-do, calendar and list sync
@@ -73,14 +73,13 @@ No driver syncs onto Home Keeper's own entity (`shopping_sync.own_todo_entity_id
 ### Item matching and the hold
 
 `todo_items.resolve_tracked` finds the item of an entry by `uid` first, then by summary,
-an open item before a ticked one. Text compares by `todo_items.same_text`, which ignores
-case and white space, because a list can store them in another form. An exact text wins. A
-`claimed` set spans the whole plan, so 2 entries never share 1 item. A planner adopts an
-open item with the same text (`todo_items.find_open`) before it adds one, and marks the
-entry `adopted: True`. Home Keeper changes only items it added: a tick on an adopted item
-still counts, but it is never removed, ticked off, renamed or rewritten, and its date is
-never a move. When the item is not needed, the entry goes and the item stays. Due date and
-description (by `same_text`) are written and compared only when the list supports them
+an open item before a ticked one. Text compares by `todo_items.same_text`, which ignores case
+and white space, and an exact text wins. A `claimed` set spans the whole plan, so 2 entries never
+share 1 item. A planner adopts an open item with the same text (`todo_items.find_open`) before it
+adds one, and marks the entry `adopted: True`. Home Keeper changes only items it added: a tick on
+an adopted item still counts, but it is never removed, ticked off, renamed or rewritten, and its
+date is never a move. When the item is not needed, the entry goes and the item stays. Due date
+and description (by `same_text`) are written and compared only when the list supports them
 (`CAP_DUE_DATE`, `CAP_DESCRIPTION`), or each pass rewrites them.
 
 The `add_item` service returns no uid, so a new entry has `uid: None` and `added_at`. The
@@ -131,6 +130,7 @@ runs the mirror before and after the reconcile. `shopping-preview.ts` is the pan
 The first pass waits for Home Assistant to start. After a task event or a settle, a pass
 reads the lists only if `needs_pass` finds drift. A list state change and the 5-minute
 sweep force a read; only the sweep sees a task fall due or a hold end.
+An options change moves the list listener (`TodoSyncDriver._watch_lists`), then forces a pass.
 
 ## Trade-offs
 

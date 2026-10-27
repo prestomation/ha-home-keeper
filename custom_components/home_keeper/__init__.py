@@ -80,6 +80,7 @@ from .const import (
     OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
+    OPTION_TASK_DEVICE_ENTITIES,
     PLATFORMS,
     SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
@@ -88,6 +89,7 @@ from .const import (
 )
 from .coordinator import (
     HomeKeeperCoordinator,
+    async_apply_entry_options,
     async_delete_orphaned_tasks,
     discard_edge_state,
     discard_edge_state_if_disabled,
@@ -845,6 +847,7 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
+        vol.Optional(OPTION_TASK_DEVICE_ENTITIES): cv.boolean,
         # Cost tracking (#460): the spend windows in days, and the panel totals.
         # Duplicates are dropped before the length check, so [30, 30, 60] is 2
         # windows. ``cost_summary.normalize_windows`` then sorts them.
@@ -935,8 +938,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     store = HomeKeeperStore(hass)
     await store.load()
-    # Before anything reads a due date. An options change reloads the entry, so a
-    # new set due time moves the stored future floating dates here (#438).
+    # Before anything reads a due date. A later due time change moves the dates in
+    # ``coordinator.async_apply_options``, with no reload (#438, #467).
     await store.async_apply_due_time(
         options.due_time_of(options.current_options(entry))
     )
@@ -1014,8 +1017,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # themselves and run a catalog-detection pass. Companions that set up before Home
     # Keeper listen for this ping; those that set up after register at their own setup.
     companions.async_request_registration(hass)
-    # React to options-flow changes (e.g. toggling problem-sensor syncing) by
-    # reloading the entry, which re-runs this setup with the new options.
+    # React to options-flow changes (e.g. toggling problem-sensor syncing). The
+    # coordinator applies a change live, and reloads only for a change of entities.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     # Relocalize reconciler-generated task names when the HA language changes. The
     # generated wear-part name is baked into storage in the configured language at
@@ -1102,16 +1105,18 @@ def _async_companions_go_live(hass: HomeAssistant) -> None:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry when its options change.
+    """Apply the entry's options when they change.
 
-    The options *flow* updates the entry directly, so this listener performs the
-    reload. The service / panel path goes through ``options.async_set_options``,
-    which awaits its own reload so the caller observes the reconciled task set — it
-    flags the entry while doing so, so we don't fire a second, overlapping reload.
+    The options *flow* updates the entry directly, so this listener applies the
+    change. The coordinator applies it live, or reloads the entry when entities must
+    come or go (#467). The service / panel path goes through
+    ``options.async_set_options``, which awaits its own apply so the caller observes
+    the reconciled task set — it flags the entry while doing so, so we don't apply
+    the same change a second time.
     """
-    if options.caller_is_reloading(entry.entry_id):
+    if options.caller_is_applying(entry.entry_id):
         return
-    await hass.config_entries.async_reload(entry.entry_id)
+    await async_apply_entry_options(hass, entry)
 
 
 def _instance_base_url(hass: HomeAssistant) -> str:

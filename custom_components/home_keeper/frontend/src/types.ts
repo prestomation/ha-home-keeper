@@ -673,6 +673,9 @@ export interface HomeKeeperOptions {
   problem_sensor_exclude_labels: string[];
   // Auto-delete a completed one-off this many days after completion; 0 = keep forever.
   one_off_retention_days: number;
+  // Whether the per-task entities on device pages are enabled (#496). Absent reads
+  // as true: each install had them before the switch.
+  task_device_entities?: boolean;
   // The to-do list auto-buy reminders are mirrored onto; '' = mirror off.
   shopping_list_entity: string;
   // How a mirrored reminder's line reads on that list: the reminder's own name, or the

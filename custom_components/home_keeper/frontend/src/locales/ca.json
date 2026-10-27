@@ -609,6 +609,8 @@
   "settings.heading": "Sincronització de sensors de problema",
   "settings.help": "Sincronitza els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, dispositius, àrees o etiquetes concrets.",
   "settings.one_off_retention_days": "Elimina les tasques úniques completades després de (dies, 0 = mai)",
+  "settings.task_device_entities": "Activa les entitats de tasca a les pàgines de dispositiu",
+  "settings.task_device_entities_help": "Cada tasca d'un dispositiu afegeix un botó Marca com a feta i sensors de venciment i de retard a la pàgina del dispositiu. Desactivat, s'inhabiliten. Els esdeveniments, les notificacions i els sensors de recompte continuen funcionant, i pots tornar a habilitar una entitat a la pàgina del seu dispositiu.",
   "settings.problem_sensor_exclude_areas": "Àrees excloses",
   "settings.problem_sensor_exclude_devices": "Dispositius exclosos",
   "settings.problem_sensor_exclude_entities": "Sensors exclosos",

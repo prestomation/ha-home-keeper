@@ -801,6 +801,10 @@
         "cost_summary_panel": {
           "name": "Mostra la spesa nel pannello",
           "description": "Mostra i totali di spesa sopra l'elenco delle attività nel pannello."
+        },
+        "task_device_entities": {
+          "name": "Abilita le entità delle attività nelle pagine dei dispositivi",
+          "description": "Abilita il pulsante Segna come fatto e i sensori di scadenza e di ritardo che ogni attività aggiunge alla pagina del suo dispositivo. Disattivato, li disabilita e mantiene i loro ID entità."
         }
       }
     },

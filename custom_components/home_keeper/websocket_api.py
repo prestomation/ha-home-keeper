@@ -1536,8 +1536,9 @@ async def ws_set_options(
 ) -> None:
     """Persist options from the Settings tab (delegates to the shared service path).
 
-    ``async_set_options`` updates the entry, which reloads it and re-runs the
-    problem-sensor sync. Mirrors the ``home_keeper.set_options`` service. Admin-only:
+    ``async_set_options`` updates the entry, then applies the change live (the
+    problem-sensor sync among it) or reloads it for a change of entities. Mirrors
+    the ``home_keeper.set_options`` service. Admin-only:
     mutating config-entry options (profiles, notification targets, problem-sensor
     exclusions) is administration, which HA core reserves for admins — a non-admin
     could otherwise wipe another user's saved settings.

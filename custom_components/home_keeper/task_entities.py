@@ -9,6 +9,10 @@ Assistant then puts the device name in front of the whole name, and makes the
 :func:`entity_name_prefix` picks that label. :func:`entity_set_key` says when the
 entities must be made again (an entry reload), because Home Assistant caches an
 entity's name.
+
+The ``task_device_entities`` option disables or enables these entities in the entity
+registry (#496). :func:`task_entity_unique_ids` names them, and
+:func:`switched_disabled_by` says what each registry entry becomes.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from .const import DOMAIN
 from .declarative_companions import declarative_source
 from .notifications import is_completion_blocked
 from .problem_tasks import problem_source
@@ -136,3 +141,40 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
         is_completion_blocked(task),
         bool(task.get("require_tag_scan")),
     )
+
+
+# The suffix of each per-task unique id, one for each platform. The unique id shapes
+# are a one-way door (the coordinator-entities design doc).
+TASK_ENTITY_DONE = "done"
+TASK_ENTITY_NEXT_DUE = "next_due"
+TASK_ENTITY_OVERDUE = "overdue"
+TASK_ENTITY_KINDS = (TASK_ENTITY_DONE, TASK_ENTITY_NEXT_DUE, TASK_ENTITY_OVERDUE)
+
+# The ``disabled_by`` value that the switch writes. It is the value of Home
+# Assistant's ``RegistryEntryDisabler.INTEGRATION``.
+DISABLED_BY_INTEGRATION = "integration"
+
+
+def task_entity_unique_id(task_id: str, kind: str) -> str:
+    """The unique id of the *kind* entity of the task *task_id*."""
+    return f"{DOMAIN}_{task_id}_{kind}"
+
+
+def task_entity_unique_ids(task_ids: Iterable[str]) -> set[str]:
+    """The unique ids of every per-task entity that the tasks *task_ids* can have."""
+    return {
+        task_entity_unique_id(task_id, kind)
+        for task_id in task_ids
+        for kind in TASK_ENTITY_KINDS
+    }
+
+
+def switched_disabled_by(current: str | None, *, enabled: bool) -> str | None:
+    """The ``disabled_by`` of a per-task entity after the switch goes to *enabled*.
+
+    Off disables each enabled entity as the integration. On enables only the entities
+    that the integration disabled. A user's choice, and each other disabler, stays.
+    """
+    if enabled:
+        return None if current == DISABLED_BY_INTEGRATION else current
+    return DISABLED_BY_INTEGRATION if current is None else current

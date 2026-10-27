@@ -1879,6 +1879,13 @@ export function generalSchema(): FormField[] {
   ];
 }
 
+/** The switch for the per-task entities on device pages (#496), in the General card.
+ *  Off disables them in the entity registry and keeps their ids. It saves on each
+ *  change, so it is not in `generalSchema`, whose number box saves on leave. */
+export function deviceEntitiesSchema(): FormField[] {
+  return [{ name: 'task_device_entities', selector: selBool() }];
+}
+
 /** The spend windows a new install has, in days (the backend `DEFAULT_WINDOWS`). */
 export const DEFAULT_COST_WINDOWS = [30, 60];
 /** How many windows a user can set, and the longest one (the backend limits). */

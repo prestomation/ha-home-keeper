@@ -14,6 +14,32 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   trims the notes or gives the due date in UTC no longer gets a second copy of the item,
   a rewrite on each pass, or a task snoozed 1 day early.
 
+## [0.34.0b6]
+
+### Added
+
+- **[Optional device task entities](https://prestomation.github.io/ha-home-keeper/docs/guide/device-entities).**
+  A new setting disables the button and sensors that each task adds to its device page.
+  Their entity ids stay, so your dashboards find them again when you turn the setting
+  back on. (Fixes #496)
+
+## [0.34.0b5]
+
+### Fixed
+
+- **Settings apply without a reload.** A change in Settings or in the Configure dialog no
+  longer makes each Home Keeper entity unavailable for a moment, so the logbook stays clear.
+  Home Keeper reloads only for a change that adds, removes or renames an entity, such as a
+  new profile or spend period. (Fixes #467)
+
+## [0.34.0b4]
+
+### Added
+
+- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
+  the unit reports a filter alarm.
+
 ## [0.34.0b3]
 
 ### Fixed

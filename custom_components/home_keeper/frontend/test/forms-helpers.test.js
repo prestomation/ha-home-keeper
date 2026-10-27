@@ -22,6 +22,7 @@ import {
   profileSchema,
   skipSnoozeFlags,
   skipSnoozeSchema,
+  deviceEntitiesSchema,
   seasonCount,
   seasonEnabled,
   seasonFieldLabelKey,
@@ -672,6 +673,14 @@ describe('skipSnoozeSchema', () => {
       { name: 'allow_snooze', selector: { boolean: {} } },
       { name: 'allow_skip', selector: { boolean: {} } },
       { name: 'allow_due_today', selector: { boolean: {} } },
+    ]);
+  });
+});
+
+describe('deviceEntitiesSchema', () => {
+  it('renders the switch for the task entities on device pages (#496)', () => {
+    expect(deviceEntitiesSchema()).toEqual([
+      { name: 'task_device_entities', selector: { boolean: {} } },
     ]);
   });
 });
