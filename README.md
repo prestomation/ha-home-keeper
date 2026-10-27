@@ -44,9 +44,9 @@
 | custom\_components/home\_keeper/panel\_tabs.py                   |      145 |        0 |       64 |        0 |    100% |           |
 | custom\_components/home\_keeper/photo\_thumbs.py                 |       38 |        0 |        8 |        0 |    100% |           |
 | custom\_components/home\_keeper/problem\_sync.py                 |      141 |       66 |       48 |        3 |     46% |68, 90-103, 107-109, 114-120, 132-169, 173-178, 201-208, 214, 226, 289-291, 296-299 |
-| custom\_components/home\_keeper/problem\_tasks.py                |       76 |        0 |       30 |        0 |    100% |           |
+| custom\_components/home\_keeper/problem\_tasks.py                |       77 |        0 |       30 |        0 |    100% |           |
 | custom\_components/home\_keeper/profiles.py                      |      106 |        1 |       50 |        1 |     99% |       132 |
-| custom\_components/home\_keeper/reconcile.py                     |      374 |        5 |      210 |        8 |     98% |190, 210, 316, 318, 319-\>322, 395, 790-\>798, 955-\>953 |
+| custom\_components/home\_keeper/reconcile.py                     |      374 |        5 |      210 |        7 |     98% |190, 210, 316, 318, 319-\>322, 395, 790-\>798 |
 | custom\_components/home\_keeper/recurrence.py                    |      668 |        6 |      300 |        7 |     99% |385, 578-579, 634-\>643, 785-\>797, 1010, 1193, 1583-\>1585, 1669 |
 | custom\_components/home\_keeper/resolve.py                       |       62 |        0 |       18 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                        |      243 |      109 |       54 |        0 |     48% |74, 79, 92-145, 182-207, 228-229, 233-234, 238-261, 272-307, 384-387, 432-442, 445-449, 453-460, 483, 487-488 |
@@ -54,7 +54,7 @@
 | custom\_components/home\_keeper/sensor\_watcher.py               |      368 |       71 |      158 |       30 |     77% |96, 103, 143, 146, 198, 201, 209-211, 271-287, 302-310, 429, 490-493, 501, 538, 546, 572-573, 579, 585-\>exit, 630, 632-\>626, 634-\>exit, 691, 704, 707, 738-750, 758, 760, 768, 774, 776, 778, 780, 818-819, 838-839, 844-845, 934-935, 967-968 |
 | custom\_components/home\_keeper/service\_device.py               |        5 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/service\_errors.py               |       44 |        0 |       14 |        0 |    100% |           |
-| custom\_components/home\_keeper/shopping.py                      |      226 |        1 |      104 |        1 |     99% |       487 |
+| custom\_components/home\_keeper/shopping.py                      |      225 |        1 |      104 |        1 |     99% |       492 |
 | custom\_components/home\_keeper/shopping\_sync.py                |      111 |        6 |       38 |        8 |     91% |119, 144, 156, 197-\>187, 244, 246, 247-\>249, 256 |
 | custom\_components/home\_keeper/store.py                         |     1335 |      336 |      602 |      109 |     71% |128, 202-203, 226, 262, 388, 408-417, 430-433, 435, 447, 449, 541, 545, 560-564, 589, 592, 608-614, 641-646, 655, 660, 687, 695-699, 746, 753, 777, 782, 784, 828, 830, 867, 872, 983, 988, 1030, 1051-1055, 1099, 1100-\>1109, 1104-\>1109, 1113-\>1115, 1115-\>exit, 1225, 1253-1267, 1272, 1278, 1296, 1377-\>1365, 1390, 1402, 1403-\>1386, 1534-1545, 1558-1563, 1574-1586, 1598-1604, 1617-1623, 1634-1648, 1684, 1696, 1705-1707, 1737, 1738-\>1735, 1741-\>1735, 1795-1804, 1885, 1899, 1932-\>1942, 1936-\>1935, 1967-1970, 2051-\>2062, 2064, 2072-2073, 2076, 2087, 2093-2094, 2102, 2119-2125, 2129-2135, 2167, 2175-2176, 2185, 2189-\>2188, 2198, 2220-2249, 2274, 2299-2304, 2336, 2367, 2370-\>2345, 2380, 2383, 2400-2420, 2432-2464, 2478, 2485-\>2484, 2491-\>2490, 2495-\>2490, 2513-2525, 2582, 2599, 2604-\>2592, 2611-2617, 2621-2626, 2627-\>2592, 2641, 2679, 2689, 2701-2705, 2720-\>2723, 2775, 2786-2787, 2795, 2818-2832, 2855, 2866, 2882-2884, 2918, 2933-2934, 2935-\>2937, 2944, 2983, 2994-2995, 3001, 3016-3028, 3045-3072, 3085-3101, 3110-3123, 3144-3147, 3167, 3172, 3180, 3183, 3197-\>exit, 3199-\>3203, 3233, 3238-\>exit, 3285, 3310, 3313, 3316-\>exit, 3324-\>exit, 3363, 3366 |
 | custom\_components/home\_keeper/tag\_listener.py                 |       38 |        4 |       12 |        2 |     88% |46-55, 57-\>exit, 77 |
@@ -64,8 +64,8 @@
 | custom\_components/home\_keeper/task\_photos.py                  |       92 |        0 |       32 |        0 |    100% |           |
 | custom\_components/home\_keeper/template\_context.py             |       50 |       10 |       18 |        4 |     74% |109, 149-151, 155-157, 160-162 |
 | custom\_components/home\_keeper/todo.py                          |       78 |        6 |       22 |        0 |     94% |43-44, 71-72, 173-174 |
-| custom\_components/home\_keeper/todo\_items.py                   |       51 |        0 |       22 |        0 |    100% |           |
-| custom\_components/home\_keeper/todo\_list.py                    |      269 |        0 |      112 |        0 |    100% |           |
+| custom\_components/home\_keeper/todo\_items.py                   |       53 |        0 |       16 |        0 |    100% |           |
+| custom\_components/home\_keeper/todo\_list.py                    |      278 |        0 |      114 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list\_sync.py              |      147 |        2 |       54 |        2 |     98% |  199, 214 |
 | custom\_components/home\_keeper/todo\_sync\_driver.py            |      135 |        3 |       34 |        2 |     97% |282-283, 344 |
 | custom\_components/home\_keeper/transfer.py                      |      732 |        2 |      296 |        3 |     99% |891, 910, 1617-\>1616 |
@@ -76,7 +76,7 @@
 | custom\_components/home\_keeper/trigger.py                       |       58 |       58 |        8 |        0 |      0% |    21-143 |
 | custom\_components/home\_keeper/trigger\_targets.py              |       47 |        0 |       12 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      708 |      708 |      100 |        0 |      0% |    8-1961 |
-| **TOTAL**                                                        | **13702** | **2872** | **4894** |  **309** | **80%** |           |
+| **TOTAL**                                                        | **13713** | **2872** | **4890** |  **308** | **80%** |           |
 
 
 ## Setup coverage badge
