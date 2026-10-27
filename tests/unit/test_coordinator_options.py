@@ -38,6 +38,7 @@ class _FakeEntry:
     def __init__(self, options: dict[str, Any]) -> None:
         self.entry_id = "entry-1"
         self.options = options
+        self.state = coordinator.ConfigEntryState.LOADED
 
 
 class _FakeStore:
@@ -70,6 +71,7 @@ def _doc(**updates: Any) -> dict[str, Any]:
 def _make(old: dict[str, Any], new: dict[str, Any], *, problem_result: bool = False):
     coord = object.__new__(coordinator.HomeKeeperCoordinator)
     coord.config_entry = _FakeEntry(new)
+    coord.config_entry.runtime_data = coord
     coord.hass = _FakeHass()
     coord.store = _FakeStore()
     coord.problem_sync = _FakeSync(problem_result)
@@ -198,3 +200,43 @@ def test_a_second_change_compares_with_the_first() -> None:
     coord.config_entry.options = first
     _apply(coord)
     assert coord.refreshes == [True]
+
+
+# ── an entry that is not loaded, or a coordinator that is stale ─────────────────
+def test_a_coordinator_of_an_entry_that_is_not_loaded_reloads() -> None:
+    """A failed setup keeps ``runtime_data``, and an unload runs first and drops it.
+
+    Its syncs and store are closed, so a live step would act on dead objects. The
+    reload sets the entry up with the new options, as before #467.
+    """
+    coord = _make(_doc(), _doc(allow_snooze=False))
+    coord.config_entry.state = coordinator.ConfigEntryState.SETUP_ERROR
+    _apply(coord)
+    assert coord.hass.config_entries.reloaded == ["entry-1"]
+    assert coord.refreshes == []
+
+
+def test_a_coordinator_that_a_reload_replaced_reloads() -> None:
+    coord = _make(_doc(), _doc(allow_snooze=False))
+    coord.config_entry.runtime_data = object()
+    _apply(coord)
+    assert coord.hass.config_entries.reloaded == ["entry-1"]
+    assert coord.refreshes == []
+
+
+def test_the_listener_applies_through_the_loaded_coordinator() -> None:
+    coord = _make(_doc(), _doc(allow_snooze=False))
+    asyncio.run(coordinator.async_apply_entry_options(coord.hass, coord.config_entry))
+    assert coord.refreshes == [True]
+    assert coord.hass.config_entries.reloaded == []
+
+
+def test_the_listener_reloads_an_entry_with_no_coordinator() -> None:
+    """The update listener runs as a task, so the entry can unload before it runs.
+
+    The unload deletes ``runtime_data``. A reload keeps the change, where a bare
+    ``entry.runtime_data`` raised ``AttributeError``.
+    """
+    hass, entry = _FakeHass(), _FakeEntry(_doc(allow_snooze=False))
+    asyncio.run(coordinator.async_apply_entry_options(hass, entry))
+    assert hass.config_entries.reloaded == ["entry-1"]

@@ -88,6 +88,7 @@ from .const import (
 )
 from .coordinator import (
     HomeKeeperCoordinator,
+    async_apply_entry_options,
     async_delete_orphaned_tasks,
     discard_edge_state,
     discard_edge_state_if_disabled,
@@ -1113,7 +1114,7 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
     """
     if options.caller_is_applying(entry.entry_id):
         return
-    await entry.runtime_data.async_apply_options()
+    await async_apply_entry_options(hass, entry)
 
 
 def _instance_base_url(hass: HomeAssistant) -> str:

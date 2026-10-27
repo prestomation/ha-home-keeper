@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: b126e1d267e9
+source_hash: 4e22b757e510
 ---
 
 # Coordinator and entities
@@ -83,7 +83,7 @@ the entity set therefore needs an entry reload:
   not torn down mid-call and several changes start 1 reload.
 - Without a reload, it sends `SIGNAL_PART_STOCK_CHANGED`. Only part entities listen, so a
   new count shows before the debounced refresh.
-- An options change reloads only for a new `options.options_entity_key`; else it is live.
+- An options change reloads only for a new `options.options_entity_key` or an unloaded entry.
 
 ### Per-task entities and device links
 

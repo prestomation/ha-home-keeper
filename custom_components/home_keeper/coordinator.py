@@ -308,7 +308,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             old = self.applied_options
             if new == old:
                 return
-            if not reload_needed(old, new):
+            # A failed setup keeps ``runtime_data``, so this coordinator can be one
+            # whose syncs and store are closed. Only a reload applies options then.
+            loaded = (
+                self.entry.state is ConfigEntryState.LOADED
+                and getattr(self.entry, "runtime_data", None) is self
+            )
+            if loaded and not reload_needed(old, new):
                 try:
                     live = await self._async_apply_live(old, new)
                 except Exception:
@@ -626,3 +632,17 @@ def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
         if isinstance(coord, HomeKeeperCoordinator):
             return coord
     return None
+
+
+async def async_apply_entry_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply *entry*'s options, from the config-entry update listener (#467).
+
+    Home Assistant runs the listener as a task, so the entry can unload before the
+    task runs, and the unload deletes ``runtime_data``. Such an entry is reloaded,
+    which sets it up with the new options.
+    """
+    coordinator = getattr(entry, "runtime_data", None)
+    if isinstance(coordinator, HomeKeeperCoordinator):
+        await coordinator.async_apply_options()
+    else:
+        await hass.config_entries.async_reload(entry.entry_id)
