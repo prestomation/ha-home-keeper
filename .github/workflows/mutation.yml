@@ -56,7 +56,8 @@ jobs:
         # harness — installing one would only slow every mutant down.
         run: |
           pip install -r requirements-test.txt
-          pip install mutmut==3.7.0
+          # mutmut 3.7.0 and 3.8.0 read item._nodeid, which pytest 9.2 removed.
+          pip install mutmut==3.7.0 "pytest<9.2"
       - name: Mutation test
         env:
           MUTATION_BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
