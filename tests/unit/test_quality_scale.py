@@ -44,7 +44,7 @@ def test_b20_4_setup_warms_the_decimal_mark_in_the_executor():
     setup = next(
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_entry"
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_setup_entry"
     )
     calls = [
         ast.unparse(node) for node in ast.walk(setup) if isinstance(node, ast.Await)

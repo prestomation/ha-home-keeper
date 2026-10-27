@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.35.0b1]
+
+### Added
+
+- **[Logbook user attribution](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
+  Home Keeper logbook rows and events now name the user, automation or script that made the
+  change, such as the person who completed a task. The guide shows how to filter the
+  logbook rows by kind in Chronicle Card. (Fixes #467)
+
 ## [0.34.0] - 2026-10-27
 
 ### Added

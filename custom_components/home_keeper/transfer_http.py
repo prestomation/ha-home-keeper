@@ -25,7 +25,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
-from . import documents, transfer_bundle, transfer_runner
+from . import caller, documents, transfer_bundle, transfer_runner
 from .backend_i18n import resolve_exception
 from .const import (
     BUNDLE_EXPORT_URL,
@@ -253,9 +253,11 @@ class HomeKeeperImportUploadView(HomeAssistantView):
                 data["match"] = "auto"
             context = _context(request)
             if transfer_bundle.is_zip_header(header):
-                report = await transfer_runner.async_import_bundle(
-                    hass, coord, upload, data, context=context
-                )
+                # The caller, so the events of the import name the user (``caller.py``).
+                with caller.caller(context):
+                    report = await transfer_runner.async_import_bundle(
+                        hass, coord, upload, data, context=context
+                    )
                 return self.json(report)
             try:
                 text = await hass.async_add_executor_job(
@@ -267,9 +269,10 @@ class HomeKeeperImportUploadView(HomeAssistantView):
                     HTTPStatus.BAD_REQUEST,
                 )
             data["document"] = text
-            report = await transfer_runner.async_import_document(
-                hass, coord, data, context=context
-            )
+            with caller.caller(context):
+                report = await transfer_runner.async_import_document(
+                    hass, coord, data, context=context
+                )
             return self.json(report)
         finally:
             await transfer_runner.async_remove_run(hass, run_dir)

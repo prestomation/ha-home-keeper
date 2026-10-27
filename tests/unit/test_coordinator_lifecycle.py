@@ -277,5 +277,5 @@ def test_b18_5_the_coordinator_has_no_interval_of_its_own():
 
 def test_b18_5_setup_starts_the_clock_for_the_entry():
     assert "entry.async_on_unload(coordinator.async_start_clock())" in _source_of(
-        "__init__.py", "async_setup_entry"
+        "__init__.py", "_async_setup_entry"
     )

@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import contextvars
 import importlib.util
 import sys
 import types
 from pathlib import Path
 
+import hk_caller as caller
 from ha_stubs import install_ha_stubs
 from notifier_harness import load_notifier
 from test_coordinator_purge import coordinator
@@ -114,12 +116,15 @@ class _Hass:
         self.pending: list = []
 
     def async_create_task(self, coro):
-        self.pending.append(coro)
+        # A task gets a copy of the context variables, as in Home Assistant.
+        self.pending.append((coro, contextvars.copy_context()))
 
     def run_pending(self) -> None:
         async def _run():
+            loop = asyncio.get_running_loop()
             while self.pending:
-                await self.pending.pop(0)
+                coro, context = self.pending.pop(0)
+                await loop.create_task(coro, context=context)
 
         asyncio.run(_run())
 
@@ -164,12 +169,14 @@ tag_listener = _load_tag_listener()
 class _TagStore:
     def __init__(self) -> None:
         self.completed: list[str] = []
+        self.callers: list = []
 
     def list_tasks(self):
         return [{"id": "t1", "name": "Filter", "tag_id": "tag-1", "enabled": True}]
 
     async def complete_task(self, task_id, *, origin=None):
         self.completed.append(task_id)
+        self.callers.append(caller.current())
 
 
 class _TagCoord:
@@ -207,10 +214,13 @@ def _start_tag_listener(hass, *, now, later):
     return waited
 
 
+def _scan_event(tag_id="tag-1"):
+    context = types.SimpleNamespace(id="scan-ctx", user_id="ann")
+    return types.SimpleNamespace(data={"tag_id": tag_id}, context=context)
+
+
 def _scan(hass, tag_id="tag-1"):
-    hass.bus.listeners[tag_listener.EVENT_HA_TAG_SCANNED](
-        types.SimpleNamespace(data={"tag_id": tag_id})
-    )
+    hass.bus.listeners[tag_listener.EVENT_HA_TAG_SCANNED](_scan_event(tag_id))
     hass.run_pending()
 
 
@@ -244,9 +254,7 @@ def test_x02_5_an_unbound_tag_makes_no_task(monkeypatch):
     coord = _TagCoord()
     monkeypatch.setattr(tag_listener.tags, "tasks_for_tag", lambda tasks, tag_id: [])
     _start_tag_listener(hass, now=coord, later=None)
-    hass.bus.listeners[tag_listener.EVENT_HA_TAG_SCANNED](
-        types.SimpleNamespace(data={"tag_id": "other"})
-    )
+    hass.bus.listeners[tag_listener.EVENT_HA_TAG_SCANNED](_scan_event("other"))
     assert hass.pending == []
 
 
@@ -276,6 +284,21 @@ def test_x02_5_the_listeners_start_once_for_the_run():
     setup = _function_source("async_setup")
     assert "notifier.async_setup_notifications(hass)" in setup
     assert "tag_listener.async_setup_tag_listener(hass)" in setup
-    entry_setup = _function_source("async_setup_entry")
+    entry_setup = _function_source("_async_setup_entry")
     assert "async_setup_notifications" not in entry_setup
     assert "async_setup_tag_listener" not in entry_setup
+
+
+def test_a_scan_completes_with_a_child_of_the_scan_context(monkeypatch):
+    """The completion has the user of the scan, and the scan as its parent (#467)."""
+    for now, later in ((None, _TagCoord()), (_TagCoord(), None)):
+        hass = _Hass()
+        coord = later or now
+        monkeypatch.setattr(
+            tag_listener.tags, "tasks_for_tag", lambda tasks, tag_id: list(tasks)
+        )
+        _start_tag_listener(hass, now=now, later=later)
+        _scan(hass)
+        [context] = coord.store.callers
+        assert (context.user_id, context.parent_id) == ("ann", "scan-ctx")
+        assert caller.current() is None

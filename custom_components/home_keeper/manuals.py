@@ -25,21 +25,22 @@ import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Coroutine
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import wraps
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any
+from typing import Any, Concatenate
 
 from aiohttp import BodyPartReader, hdrs, web
 from homeassistant.components.http import HomeAssistantView, require_admin
 from homeassistant.components.http.auth import async_sign_path
 from homeassistant.components.http.const import KEY_HASS_USER
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
-from . import documents, task_photos
+from . import caller, documents, task_photos
 from .assets import AssetValidationError, find_part
 from .backend_i18n import resolve_exception
 from .const import (
@@ -492,6 +493,29 @@ def _uploader_is_a_real_user(request: web.Request) -> bool:
     return user is not None and not user.system_generated
 
 
+type _Post[V: HomeAssistantView, **P] = Callable[
+    Concatenate[V, web.Request, P], Coroutine[Any, Any, web.Response]
+]
+
+
+def _as_caller[V: HomeAssistantView, **P](post: _Post[V, P]) -> _Post[V, P]:
+    """*post*, run with the user of the request as the caller (``caller.py``).
+
+    An upload changes the store, so its event names the user who sent the file.
+    """
+
+    @wraps(post)
+    async def _post(
+        view: V, request: web.Request, *args: P.args, **kwargs: P.kwargs
+    ) -> web.Response:
+        user = request.get(KEY_HASS_USER)
+        context = Context(user_id=user.id if user is not None else None)
+        with caller.caller(context):
+            return await post(view, request, *args, **kwargs)
+
+    return _post
+
+
 def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | None:
     for document in (asset or {}).get("documents", []):
         if document.get("id") == document_id and document.get("kind") == "file":
@@ -813,6 +837,7 @@ class HomeKeeperDocumentView(HomeAssistantView):
     # Uploads are admin-only, like the ``add_asset_document`` service: a write
     # changes an appliance, and the reply carries the full, unprojected asset.
     @require_admin
+    @_as_caller
     async def post(
         self, request: web.Request, asset_id: str, document_id: str
     ) -> web.Response:
@@ -939,6 +964,7 @@ class HomeKeeperPartFileView(HomeAssistantView):
 
     # Admin-only for the same reasons as a document upload.
     @require_admin
+    @_as_caller
     async def post(
         self, request: web.Request, asset_id: str, part_id: str
     ) -> web.Response:
@@ -1072,6 +1098,7 @@ class HomeKeeperTaskPhotoView(HomeAssistantView):
 
     # Open, like ``add_task``: a photo is task data, and the reply is the task, which
     # any user can already read. The real-user check below still stops a signed URL.
+    @_as_caller
     async def post(
         self, request: web.Request, task_id: str, photo_id: str
     ) -> web.Response:

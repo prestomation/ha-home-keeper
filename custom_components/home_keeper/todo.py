@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from . import caller
 from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
@@ -131,6 +132,13 @@ class HomeKeeperTodoListEntity(
           rather than silently revert on the next render. A rename that comes in the
           same save as the check-off is applied after the completion (X07-3).
         """
+        # Home Assistant sets the context of the service call on the entity first,
+        # so the events of the change name the user (``caller.py``).
+        with caller.caller(self._context):
+            await self._async_update_item(item)
+
+    async def _async_update_item(self, item: TodoItem) -> None:
+        """Apply *item*, as ``async_update_todo_item`` describes."""
         if not item.uid:
             return
         task = self.coordinator.store.get_task(item.uid)

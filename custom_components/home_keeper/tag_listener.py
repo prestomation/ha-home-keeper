@@ -14,9 +14,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Context, Event, HomeAssistant, callback
 
-from . import models, tags
+from . import caller, models, tags
 from .const import EVENT_HA_TAG_SCANNED, ORIGIN_TAG_SCAN
 
 if TYPE_CHECKING:
@@ -75,12 +75,17 @@ def async_setup_tag_listener(hass: HomeAssistant) -> CALLBACK_TYPE:
         tag_id = event.data.get("tag_id")
         if not tag_id or not isinstance(tag_id, str):
             return
-        coord = find_coordinator(hass)
-        if coord is None:
-            # The entry reloads: wait for it, so the scan is not lost.
-            hass.async_create_task(_after_setup(tag_id))
-            return
-        if matched := _match(coord, tag_id):
-            hass.async_create_task(_complete(coord, matched))
+        # The completion is a child of the scan and has the user of the scan, so the
+        # logbook shows who scanned the tag (``caller.py``). A task that starts in
+        # the block keeps the caller.
+        context = Context(user_id=event.context.user_id, parent_id=event.context.id)
+        with caller.caller(context):
+            coord = find_coordinator(hass)
+            if coord is None:
+                # The entry reloads: wait for it, so the scan is not lost.
+                hass.async_create_task(_after_setup(tag_id))
+                return
+            if matched := _match(coord, tag_id):
+                hass.async_create_task(_complete(coord, matched))
 
     return hass.bus.async_listen(EVENT_HA_TAG_SCANNED, _on_tag_scanned)

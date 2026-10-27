@@ -181,6 +181,11 @@ Each row starts with the task name. The rows show in these places:
 The logbook text is in English. Created, updated and deleted tasks get no row on the
 to-do list.
 
+A row also shows who made the change: the user who completed the task in the panel, on
+the to-do list, with the **Complete** button, with a tag scan or with an action. If an
+automation or a script called the action, the row shows that automation or script. A row
+that Home Keeper writes on its own, such as **became overdue**, shows no user.
+
 ![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
 
 ![The Activity card on the device page of a water heater, with the completion of its task](../../images/logbook-after-device.png)
@@ -199,6 +204,27 @@ sources:
     entities:
       - todo.home_keeper_tasks
 ```
+
+All task rows are on 1 entity, the to-do list, so 1 source gets the rows of all tasks.
+The logbook can filter rows only by entity. To show 1 kind of row, filter on the text of
+the row. The Chronicle Card `search` filter keeps the rows that contain the text. This card
+shows only the tasks that became overdue:
+
+```yaml
+type: custom:chronicle-card
+title: Overdue tasks
+days_back: 30
+sources:
+  - type: logbook
+    entities:
+      - todo.home_keeper_tasks
+filters:
+  search: became overdue
+```
+
+Use `search: was completed` for the completions. `search` takes 1 text, so use 1 card for
+each kind of row. To show when each task was overdue as a time span, use the `history`
+source with the **Overdue** binary sensor of each task.
 
 The logbook keeps the rows for as long as the recorder keeps its data. The default is
 10 days. To keep the rows longer, set `purge_keep_days`:

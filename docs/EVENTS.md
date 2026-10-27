@@ -297,3 +297,10 @@ trigger variable holds the bus event, the same as for a `platform: event` trigge
   `home_keeper_task_created` or `home_keeper_task_updated`. An update that only adds history
   still fires, with `completions` in its `changed_fields`. To mirror completions, read the
   task history on that event. Do not count completion events.
+- **The context of an event names the caller.** An event that a service call, a
+  websocket command, an upload, a to-do item, a **Complete** button or a tag scan causes
+  has the context of that call, so `trigger.event.context.user_id` is the user. A service
+  call from an automation or a script has the context of that run. A tag scan gives a
+  child context of the `tag_scanned` event, with the user of the scan. An event that Home
+  Keeper fires on its own, such as an overdue or due-soon crossing or a change from a
+  sensor, has a new context with no user.
