@@ -120,7 +120,7 @@ from .service_errors import (
 )
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
-from .task_entities import entity_set_key
+from .task_entities import update_needs_reload
 from .todo_list_sync import TodoListSync
 from .transfer_runner import (
     async_cleanup_runs,
@@ -1309,12 +1309,11 @@ def _register_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         task_id = _task_ref(coord, data.pop("task_id"))
         existing = coord.store.get_task(task_id)
-        before = entity_set_key(existing)
         with _store_errors(task_id=task_id):
             updated = await coord.store.update_task(task_id, data)
-        # Only changes that alter which per-task entities exist (device link or
-        # enabled state) need a full entry reload; otherwise a refresh suffices.
-        if entity_set_key(updated) != before:
+        # Only a change of the per-task entities of a task on a device needs a full
+        # entry reload; otherwise a refresh suffices.
+        if update_needs_reload(existing, updated):
             await hass.config_entries.async_reload(coord.entry.entry_id)
         else:
             await coord.async_request_refresh()
@@ -1592,8 +1591,13 @@ def _register_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         asset_id = _asset_ref(coord, data.pop("asset_id"))
         _with_parent_ref(coord, data)
+        before = dict(coord.store.get_asset(asset_id) or {})
         with _store_errors(asset_id=asset_id):
-            await coord.store.update_asset(asset_id, data)
+            updated = await coord.store.update_asset(asset_id, data)
+        if updated == before:
+            # The call restated what is stored. The follow-up below reloads the
+            # config entry, so a no-op edit must stay one (#467 audit, R2).
+            return
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
     async def handle_update_managed_asset(call: ServiceCall) -> None:

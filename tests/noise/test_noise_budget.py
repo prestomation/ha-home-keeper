@@ -292,6 +292,33 @@ def test_import_own_export(ha: HomeAssistantClient, baseline: Baseline) -> None:
     )
 
 
+def test_asset_device_repoint(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    # S5 of the #467 audit: an appliance edit that gives a removed appliance device a
+    # new id moves the options that name the old id. That options write must not
+    # start a 2nd reload next to the reload of the edit.
+    ha.call(HK, "add_asset", {"name": "Noise repoint"})
+    ha.settle()
+    asset = next(
+        a
+        for a in ha.call(HK, "list_assets", {})["assets"]
+        if a["name"] == "Noise repoint"
+    )
+    old_device = asset["device_id"]
+    ha.call(HK, "set_options", {"problem_sensor_exclude_devices": [old_device]})
+    ha.call("hk_noise_probe", "remove_device", {"device_id": old_device})
+    ha.settle()
+    data = {"asset_id": asset["id"], "notes": "Repointed"}
+    _run(
+        ha, baseline, "asset_device_repoint", lambda: ha.call(HK, "update_asset", data)
+    )
+    moved = ha.call(HK, "list_assets", {})["assets"]
+    new_device = next(a for a in moved if a["id"] == asset["id"])["device_id"]
+    assert new_device != old_device
+    # The options moved with the appliance, so the options write did happen.
+    options = ha.ws({"type": "home_keeper/get_options"})["options"]
+    assert options["problem_sensor_exclude_devices"] == [new_device]
+
+
 # --- Scale ---------------------------------------------------------------------------
 
 

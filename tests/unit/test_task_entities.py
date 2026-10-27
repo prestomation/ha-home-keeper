@@ -222,6 +222,75 @@ def test_b15_2_entity_set_key_changes_on_require_tag_scan() -> None:
     assert te.entity_set_key(plain) != te.entity_set_key(scan)
 
 
+# ── owns_entities and update_needs_reload (#467 audit, R1) ─────────────────────
+
+
+@pytest.mark.parametrize(
+    ("task", "owns"),
+    [
+        (None, False),
+        ({}, False),
+        ({"id": "x", "name": "N"}, False),
+        ({"id": "x", "device_id": "", "enabled": True}, False),
+        ({"id": "x", "device_id": "dev1"}, True),
+        ({"id": "x", "device_id": "dev1", "enabled": True}, True),
+        ({"id": "x", "device_id": "dev1", "enabled": False}, False),
+    ],
+)
+def test_owns_entities(task: dict[str, Any] | None, owns: bool) -> None:
+    assert te.owns_entities(task) is owns
+
+
+def _loose(**fields: Any) -> dict[str, Any]:
+    return {"id": "t3", "name": "Clean the filter", "enabled": True, **fields}
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "reload"),
+    [
+        # A task with no device has no per-task entities: a refresh is enough.
+        (_loose(), _loose(name="Clean the hood filter"), False),
+        (_loose(), _loose(enabled=False), False),
+        (_loose(enabled=False), _loose(), False),
+        (_loose(), _loose(require_tag_scan=True), False),
+        # A task on a device: a rename or a new button set reloads.
+        (_task("Refill salt"), _task("Refill the salt"), True),
+        (
+            _task("Refill salt"),
+            {**_task("Refill salt"), "require_tag_scan": True},
+            True,
+        ),
+        # Enabled or disabled on a device: the entities come or go.
+        (_task("Refill salt"), {**_task("Refill salt"), "enabled": False}, True),
+        ({**_task("Refill salt"), "enabled": False}, _task("Refill salt"), True),
+        # A disabled task on a device has no entities, so a rename reloads nothing.
+        (
+            {**_task("Refill salt"), "enabled": False},
+            {**_task("Refill the salt"), "enabled": False},
+            False,
+        ),
+        # A device added or removed.
+        (_loose(), _loose(device_id="dev1"), True),
+        (_loose(device_id="dev1"), _loose(), True),
+        # No change of the key: no reload.
+        (
+            _task("Refill salt"),
+            {**_task("Refill salt"), "notes": "Use coarse salt"},
+            False,
+        ),
+        (_task("Refill salt"), _task("Refill salt"), False),
+        # A new task or a deleted one.
+        (None, _task("Refill salt"), True),
+        (_task("Refill salt"), None, True),
+        (None, _loose(), False),
+    ],
+)
+def test_update_needs_reload(
+    before: dict[str, Any] | None, after: dict[str, Any] | None, reload: bool
+) -> None:
+    assert te.update_needs_reload(before, after) is reload
+
+
 @pytest.mark.parametrize(
     ("over", "expected"),
     [

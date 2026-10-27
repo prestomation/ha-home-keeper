@@ -49,7 +49,7 @@ from .coordinator import (
 )
 from .models import TaskValidationError
 from .shopping_sync import own_todo_entity_ids
-from .task_entities import entity_set_key
+from .task_entities import update_needs_reload
 from .transfer_runner import (
     async_export_document,
     async_import_document,
@@ -328,11 +328,11 @@ async def ws_update_task(
     _check_template_binding(connection, msg["updates"])
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
-    before = entity_set_key(coord.store.get_task(msg["task_id"]))
+    before = coord.store.get_task(msg["task_id"])
     task = await coord.store.update_task(msg["task_id"], msg["updates"])
-    # Only changes that alter which per-task entities exist (device link or
-    # enabled state) need a reload; otherwise a coordinator refresh is enough.
-    if entity_set_key(task) != before:
+    # Only a change of the per-task entities of a task on a device needs a
+    # reload; otherwise a coordinator refresh is enough.
+    if update_needs_reload(before, task):
         await hass.config_entries.async_reload(coord.entry.entry_id)
     else:
         await coord.async_request_refresh()
@@ -919,8 +919,11 @@ async def ws_update_asset(
 ) -> None:
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
+    before = dict(coord.store.get_asset(msg["asset_id"]) or {})
     asset = await coord.store.update_asset(msg["asset_id"], msg["updates"])
-    await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+    # A no-op edit must not reload the config entry (#467 audit, R2).
+    if asset != before:
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
     connection.send_result(
         msg["id"], {"asset": coord.store.get_asset(asset["id"]) or asset}
     )

@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b9]
+
+### Fixed
+
+- **Fewer entity reloads.** The Home Keeper entities stay available when you rename or
+  disable a task that has no device. The same applies to an appliance edit that changes no
+  value, so the logbook stays clear.
+
 ## [0.34.0b8]
 
 ### Fixed

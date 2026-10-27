@@ -32,51 +32,59 @@ def test_the_same_options_need_no_reload() -> None:
     assert opts.reload_needed(_doc(), _doc()) is False
 
 
+# Each option key, a changed value, and whether that change reloads the entry. Only
+# the cost windows and the (id, name) of a profile name an entity. A new option fails
+# ``test_every_option_key_has_a_reload_row`` until it has a row here.
+_RELOAD_TABLE: dict[str, tuple[Any, bool]] = {
+    const.OPTION_SYNC_PROBLEM_SENSORS: (True, False),
+    const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: (["binary_sensor.a"], False),
+    const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: (["dev1"], False),
+    const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: (["kitchen"], False),
+    const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: (["lbl"], False),
+    const.OPTION_ALLOW_SNOOZE: (False, False),
+    const.OPTION_ALLOW_SKIP: (False, False),
+    const.OPTION_ALLOW_DUE_TODAY: (False, False),
+    const.OPTION_DUE_TIME_MODE: (const.DUE_TIME_MODE_SET_TIME, False),
+    const.OPTION_DUE_TIME: ("09:30", False),
+    const.OPTION_ONE_OFF_RETENTION_DAYS: (30, False),
+    const.OPTION_SHOPPING_LIST_ENTITY: ("todo.shopping", False),
+    const.OPTION_SHOPPING_LINE_STYLE: ("product_only", False),
+    const.OPTION_COST_SUMMARY_PANEL: (False, False),
+    const.OPTION_TASK_DEVICE_ENTITIES: (False, False),
+    const.OPTION_DISMISSED_COMPANIONS: (["hue"], False),
+    const.OPTION_HIDDEN_PANEL_TABS: (["spend"], False),
+    const.OPTION_NOTIFICATIONS: (
+        [{"id": "n1", "name": "Walk", "profile_id": None, "targets": []}],
+        False,
+    ),
+    # 1 spend sensor for each window.
+    const.OPTION_COST_WINDOWS: ([30, 60, 90], True),
+    # 1 count sensor for each profile, with the profile name in its name.
+    const.OPTION_PROFILES: ([_P1], True),
+}
+
+
+def test_every_option_key_has_a_reload_row() -> None:
+    """A new option fails here until its row says if a change to it reloads."""
+    assert set(_RELOAD_TABLE) == set(opts.ALL_OPTIONS)
+
+
 @pytest.mark.parametrize(
-    ("key", "value"),
-    [
-        (const.OPTION_SYNC_PROBLEM_SENSORS, True),
-        (const.OPTION_ALLOW_SNOOZE, False),
-        (const.OPTION_ALLOW_SKIP, False),
-        (const.OPTION_ALLOW_DUE_TODAY, False),
-        (const.OPTION_DUE_TIME_MODE, const.DUE_TIME_MODE_SET_TIME),
-        (const.OPTION_DUE_TIME, "09:30"),
-        (const.OPTION_ONE_OFF_RETENTION_DAYS, 30),
-        (const.OPTION_SHOPPING_LIST_ENTITY, "todo.shopping"),
-        (const.OPTION_SHOPPING_LINE_STYLE, "product_only"),
-        (const.OPTION_COST_SUMMARY_PANEL, False),
-        (const.OPTION_TASK_DEVICE_ENTITIES, False),
-        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, ["binary_sensor.a"]),
-        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES, ["dev1"]),
-        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS, ["kitchen"]),
-        (const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS, ["lbl"]),
-        (const.OPTION_DISMISSED_COMPANIONS, ["hue"]),
-        (const.OPTION_HIDDEN_PANEL_TABS, ["spend"]),
-        (
-            const.OPTION_NOTIFICATIONS,
-            [{"id": "n1", "name": "Walk", "profile_id": None, "targets": []}],
-        ),
-    ],
+    ("key", "value", "reloads"),
+    [(key, value, reloads) for key, (value, reloads) in _RELOAD_TABLE.items()],
 )
-def test_an_option_that_makes_no_entity_needs_no_reload(key: str, value: Any) -> None:
+def test_a_change_of_each_option_reloads_as_the_table_says(
+    key: str, value: Any, reloads: bool
+) -> None:
     new = _doc(**{key: value})
     assert new != _doc()  # the value really changed
-    assert opts.reload_needed(_doc(), new) is False
-
-
-def test_a_new_cost_window_reloads() -> None:
-    """1 spend sensor exists for each window."""
-    assert opts.reload_needed(_doc(), _doc(cost_windows=[30, 60, 90])) is True
+    assert opts.reload_needed(_doc(), new) is reloads
+    assert opts.reload_needed(new, _doc()) is reloads
 
 
 def test_cost_windows_in_another_order_do_not_reload() -> None:
     old = _doc(cost_windows=[30, 60])
     assert opts.reload_needed(old, _doc(cost_windows=[60, 30])) is False
-
-
-def test_a_new_profile_reloads() -> None:
-    """1 count sensor exists for each profile."""
-    assert opts.reload_needed(_doc(), _doc(profiles=[_P1])) is True
 
 
 def test_a_removed_profile_reloads() -> None:
