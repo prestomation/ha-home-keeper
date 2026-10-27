@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 import requests
+from websockets.exceptions import ConnectionClosed
 from websockets.sync.client import connect
 
 HA_URL = "http://localhost:8123"
@@ -97,17 +98,24 @@ class HomeAssistantClient:
 
     def ws(self, message: dict[str, Any]) -> Any:
         """Send 1 websocket command and return its result."""
-        with connect(f"{HA_URL.replace('http', 'ws')}/api/websocket") as sock:
-            sock.recv()
-            sock.send(json.dumps({"type": "auth", "access_token": self.token}))
-            sock.recv()
-            sock.send(json.dumps({"id": 1, **message}))
-            while True:
-                reply = json.loads(sock.recv())
-                if reply.get("id") == 1 and reply.get("type") == "result":
-                    if not reply.get("success"):
-                        raise AssertionError(f"{message['type']}: {reply.get('error')}")
-                    return reply.get("result")
+        url = f"{HA_URL.replace('http', 'ws')}/api/websocket"
+        try:
+            with connect(url, open_timeout=10) as sock:
+                sock.recv(timeout=10)
+                sock.send(json.dumps({"type": "auth", "access_token": self.token}))
+                sock.recv(timeout=10)
+                sock.send(json.dumps({"id": 1, **message}))
+                while True:
+                    reply = json.loads(sock.recv(timeout=120))
+                    if reply.get("id") == 1 and reply.get("type") == "result":
+                        break
+        except (OSError, TimeoutError, ValueError, ConnectionClosed) as err:
+            raise AssertionError(
+                f"websocket {message['type']} failed: {err!r}"
+            ) from err
+        if not reply.get("success"):
+            raise AssertionError(f"{message['type']}: {reply.get('error')}")
+        return reply.get("result")
 
     def snapshot(self) -> dict[str, Any]:
         return self.call("hk_noise_probe", "snapshot")

@@ -113,8 +113,21 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements-test.txt
 
+      # KEEP_UP=1 leaves the container up when the script ends, so the log step
+      # below can still read it. The cleanup step stops it.
       - name: Run the noise-budget scenarios
+        env:
+          KEEP_UP: "1"
         run: bash ci/test-noise.sh
+
+      # The project name and compose file are the ones ci/test-noise.sh uses.
+      - name: Dump Home Assistant logs on failure
+        if: failure()
+        run: docker compose --project-name hk-noise -f tests/integration/docker-compose.yml logs homeassistant
+
+      - name: Cleanup
+        if: always()
+        run: docker compose --project-name hk-noise -f tests/integration/docker-compose.yml down -v
 
   upgrade:
     # The upgrade suite boots a pre-split Home Assistant (2026.7) with the last
