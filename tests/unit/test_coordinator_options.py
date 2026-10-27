@@ -202,6 +202,51 @@ def test_a_second_change_compares_with_the_first() -> None:
     assert coord.refreshes == [True]
 
 
+def test_a_change_written_during_an_apply_is_applied_too() -> None:
+    """A 2nd write while a step awaits must not be lost.
+
+    ``async_set_options`` flags the entry while it applies, so the update listener
+    of a write that lands during the apply (an options flow) does nothing. The
+    apply reads the options again when its steps are done, and applies the rest.
+    """
+    first = _doc(shopping_list_entity="todo.shopping")
+    second = _doc(
+        shopping_list_entity="todo.shopping",
+        due_time_mode=const.DUE_TIME_MODE_SET_TIME,
+        due_time="09:30",
+    )
+    coord = _make(_doc(), first)
+
+    class _WriteDuringStep(_FakeSync):
+        async def async_apply_options(self) -> Any:
+            coord.config_entry.options = second
+            return await super().async_apply_options()
+
+    coord.shopping_sync = _WriteDuringStep()
+    _apply(coord)
+    assert coord.store.due_times == [time(9, 30)]
+    assert coord.shopping_sync.calls == 1
+    assert coord.applied_options == second
+    assert coord.refreshes == [True]
+    assert coord.hass.config_entries.reloaded == []
+
+
+def test_a_change_written_during_an_apply_can_reload() -> None:
+    first = _doc(shopping_list_entity="todo.shopping")
+    second = _doc(shopping_list_entity="todo.shopping", cost_windows=[7, 30])
+    coord = _make(_doc(), first)
+
+    class _WriteDuringStep(_FakeSync):
+        async def async_apply_options(self) -> Any:
+            coord.config_entry.options = second
+            return await super().async_apply_options()
+
+    coord.shopping_sync = _WriteDuringStep()
+    _apply(coord)
+    assert coord.hass.config_entries.reloaded == ["entry-1"]
+    assert coord.refreshes == []
+
+
 # ── an entry that is not loaded, or a coordinator that is stale ─────────────────
 def test_a_coordinator_of_an_entry_that_is_not_loaded_reloads() -> None:
     """A failed setup keeps ``runtime_data``, and an unload runs first and drops it.
