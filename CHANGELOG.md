@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.34.0b5]
+
+### Fixed
+
+- **Settings apply without a reload.** A change in Settings or in the Configure dialog no
+  longer makes each Home Keeper entity unavailable for a moment, so the logbook stays clear.
+  Home Keeper reloads only for a change that adds, removes or renames an entity, such as a
+  new profile or spend period. (Fixes #467)
+
+## [0.34.0b4]
+
+### Added
+
+- **[Helty Flow filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Helty Flow ventilation units now have a preset that adds a filter cleaning task when
+  the unit reports a filter alarm.
+
 ## [0.34.0b3]
 
 ### Fixed

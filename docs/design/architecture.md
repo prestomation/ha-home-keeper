@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: c88bc56ec8bc
+source_hash: 0fe1ecdf8edf
 ---
 
 # Architecture
@@ -80,7 +80,7 @@ Each websocket command calls the same store method as its service twin.
    companions, so the tasks exist before the platforms read them.
 4. Register the panel, the card, the HTTP views and the websocket commands. Remove stale
    photo and import folders. Forward `const.PLATFORMS` and prune devices with no entities.
-5. Ask companions to register again. Add the options and language listeners, which reload.
+5. Ask companions to register again. Add the options listener and the language listener.
 6. Start the sensor watcher. Start the list syncs when the Home Assistant start is done.
 7. Enable transition events, start the 5-minute clock, refresh 1 more time, and set the
    companion registry live after start.
@@ -102,7 +102,8 @@ and default (`options.ALL_OPTIONS`). The options flow, `set_options` and Setting
 
 - `set_options` and the panel send a partial update to `options.async_set_options`. It merges,
   ignores a list option sent as a value that is not a list, refuses a save that strands a
-  notification (`options.ProfileInUseError`), writes, and waits for a reload the listener skips.
+  notification (`options.ProfileInUseError`), writes, and waits for
+  `async_apply_options` ([rules](coordinator-entities.md#reload-or-refresh)), as the listener does.
 - Home Assistant stores an options flow result as the whole options object. The form
   shows only `options.FLOW_OPTIONS`, so the flow returns `options.merge_flow_input`: a
   cleared form key resets, and a key outside the form keeps its value.
@@ -139,12 +140,11 @@ keys in `diagnostics.TO_REDACT`, because users attach dumps to public issues.
   full-page activity with forms and pickers, and native cards already do usage well.
 - **Services registered in `async_setup`** over **per-entry services**: a call during a
   reload gets a clear error, not "action not found".
-- **A reload on each options change** over **live updates in each consumer**: 1 setup
-  path applies every option, at the cost of a short reload.
+- **A live apply when the entity set stays** over **a reload on each options change**: a
+  reload makes each entity unavailable in the logbook. Cost: `options._APPLY_STEPS`.
 
 ## One-way doors
 
 - The domain `home_keeper`, the panel path `/home-keeper`, and the option keys in
   `entry.options` (`const.OPTION_*`). Automations call `home_keeper.set_options` by key.
-- The service names and fields. The API surface model lists them
-  ([INTEGRATING.md](../INTEGRATING.md)).
+- Service names and fields, in the API surface model ([INTEGRATING.md](../INTEGRATING.md)).

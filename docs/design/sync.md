@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: aa1747466c06
+source_hash: 32862395fd23
 ---
 
 # To-do, calendar and list sync
@@ -130,6 +130,7 @@ runs the mirror before and after the reconcile. `shopping-preview.ts` is the pan
 The first pass waits for Home Assistant to start. After a task event or a settle, a pass
 reads the lists only if `needs_pass` finds drift. A list state change and the 5-minute
 sweep force a read; only the sweep sees a task fall due or a hold end.
+An options change moves the list listener (`TodoSyncDriver._watch_lists`), then forces a pass.
 
 ## Trade-offs
 

@@ -89,6 +89,12 @@
       ],
       "reason": "added"
     },
+    "core:dremel_3d_printer": {
+      "keys": [
+        "sensor.hours_used"
+      ],
+      "reason": "hours counter, not a duty"
+    },
     "core:ecoforest": {
       "keys": [
         "sensor.working_hours"
@@ -110,6 +116,18 @@
       ],
       "reason": "filter status is an enum, no clear limit"
     },
+    "core:fritz": {
+      "keys": [
+        "button.cleanup"
+      ],
+      "reason": "cleanup button is an action"
+    },
+    "core:fully_kiosk": {
+      "keys": [
+        "switch.maintenance"
+      ],
+      "reason": "maintenance mode switch"
+    },
     "core:guntamatic": {
       "keys": [
         "sensor.service_date"
@@ -122,12 +140,29 @@
       ],
       "reason": "only a reset button, not a duty reading"
     },
+    "core:helty_cloud": {
+      "keys": [
+        "binary_sensor.filter",
+        "sensor.filter_volume"
+      ],
+      "reason": "added"
+    },
     "core:homee": {
       "keys": [
         "binary_sensor.replace_filter",
         "sensor.operating_hours"
       ],
       "reason": "added"
+    },
+    "core:hp_printer": {
+      "keys": [
+        "sensor.black_pages_remaining",
+        "sensor.cyan_pages_remaining",
+        "sensor.magenta_pages_remaining",
+        "sensor.tri_color_pages_remaining",
+        "sensor.yellow_pages_remaining"
+      ],
+      "reason": "pages remaining is a forecast, hpprinter covers ink"
     },
     "core:intelliclima": {
       "keys": [
@@ -141,6 +176,24 @@
       ],
       "reason": "an error flag, not a duty"
     },
+    "core:lamarzocco": {
+      "keys": [
+        "sensor.last_cleaning_time"
+      ],
+      "reason": "last cleaning time is a timestamp, no duty limit"
+    },
+    "core:lg_infrared": {
+      "keys": [
+        "switch.auto_clean"
+      ],
+      "reason": "auto clean setting"
+    },
+    "core:lifx": {
+      "keys": [
+        "binary_sensor.clean_cycle"
+      ],
+      "reason": "clean cycle is a mode"
+    },
     "core:neopool": {
       "keys": [
         "sensor.cell_runtime_part",
@@ -148,9 +201,18 @@
         "sensor.cell_runtime_pola",
         "sensor.cell_runtime_polb",
         "sensor.cell_runtime_total",
+        "sensor.filtration_remaining",
         "sensor.filtvalve_remaining"
       ],
-      "reason": "runtime counters and settings, not a duty"
+      "reason": "filtration time, not a duty"
+    },
+    "core:nut": {
+      "keys": [
+        "sensor.battery_runtime",
+        "sensor.battery_runtime_low",
+        "sensor.battery_runtime_restart"
+      ],
+      "reason": "battery runtime is a reading, not a duty"
     },
     "core:sensibo": {
       "keys": [

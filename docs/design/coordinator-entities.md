@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: c42abf7e28d9
+source_hash: 4e22b757e510
 ---
 
 # Coordinator and entities
@@ -83,6 +83,7 @@ the entity set therefore needs an entry reload:
   not torn down mid-call and several changes start 1 reload.
 - Without a reload, it sends `SIGNAL_PART_STOCK_CHANGED`. Only part entities listen, so a
   new count shows before the debounced refresh.
+- An options change reloads only for a new `options.options_entity_key` or an unloaded entry.
 
 ### Per-task entities and device links
 
@@ -124,12 +125,11 @@ state with the profile status filter, and the attributes over the scope with sta
 `total`, `overdue`, `due_soon` (in the window, not overdue), `due_today` (local calendar date),
 `next_due`, `next_task_name`, `next_task_id` and `most_overdue_days`. Tasks first pass through
 `notifier.effective_filter_tasks`, so inherited labels and areas count. The state class is
-`MEASUREMENT` with no unit.
+`MEASUREMENT` with no unit. A profile sensor reads its filter from the options on each update.
 
 `service_device.service_device_info` describes 1 `SERVICE` device for counts, the to-do list
 and the calendar. Home Assistant creates it from `device_info`, and the all-tasks sensor always
-exists, so the device always has an entity. The cost sensors are on it too
-([cost-summary](cost-summary.md)).
+exists, so the device always has an entity. It has the [cost](cost-summary.md) sensors too.
 
 ## Trade-offs
 
