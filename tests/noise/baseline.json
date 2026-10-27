@@ -1,0 +1,463 @@
+{
+  "_readme": [
+    "Budgets for tests/noise. Read .amazonq/rules/testing.md, section Noise budget.",
+    "budget: the maximum per counter. pinned: counters that stay at their value, changed only by hand.",
+    "known: a bug in the code now. Per counter, target is the right number and now is what the bug makes.",
+    "Update with HK_NOISE_UPDATE=1 bash ci/test-noise.sh. It leaves pinned and known counters alone."
+  ],
+  "scenarios": {
+    "cold_start": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 5,
+        "storage_writes": 6,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "entry_reloads"
+      ]
+    },
+    "idle_tick": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "noop_set_options": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "add_task": {
+      "budget": {
+        "logbook_rows": 5,
+        "unavailable_flips": 0,
+        "events": 2,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "update_task_notes": {
+      "budget": {
+        "logbook_rows": 1,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "noop_update_task": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "entry_reloads"
+      ],
+      "known": {
+        "bug": "S3 (#467 audit)",
+        "reason": "update_task saves the store when nothing changed",
+        "counters": {
+          "storage_writes": {
+            "target": 0,
+            "now": 1
+          }
+        }
+      }
+    },
+    "rename_task_without_device": {
+      "budget": {
+        "logbook_rows": 1,
+        "unavailable_flips": 0,
+        "events": 2,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      },
+      "known": {
+        "bug": "R1 (#467 audit)",
+        "reason": "renaming a task with no device reloads the entry; entity_set_key is compared without task_has_entities",
+        "counters": {
+          "entry_reloads": {
+            "target": 0,
+            "now": 1
+          },
+          "unavailable_flips": {
+            "target": 0,
+            "now": 72
+          },
+          "logbook_rows": {
+            "target": 1,
+            "now": 63
+          }
+        }
+      }
+    },
+    "disable_task_without_device": {
+      "budget": {
+        "logbook_rows": 2,
+        "unavailable_flips": 0,
+        "events": 2,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      },
+      "known": {
+        "bug": "R1 (#467 audit)",
+        "reason": "disabling a task with no device reloads the entry; entity_set_key is compared without task_has_entities",
+        "counters": {
+          "entry_reloads": {
+            "target": 0,
+            "now": 1
+          },
+          "unavailable_flips": {
+            "target": 0,
+            "now": 72
+          },
+          "logbook_rows": {
+            "target": 2,
+            "now": 63
+          }
+        }
+      }
+    },
+    "complete_task": {
+      "budget": {
+        "logbook_rows": 3,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "skip_task": {
+      "budget": {
+        "logbook_rows": 1,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      },
+      "known": {
+        "bug": "R3 (#467 audit)",
+        "reason": "the global event entity writes a second logbook row for each event",
+        "counters": {
+          "logbook_rows": {
+            "target": 1,
+            "now": 2
+          }
+        }
+      }
+    },
+    "snooze_task": {
+      "budget": {
+        "logbook_rows": 2,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "delete_task": {
+      "budget": {
+        "logbook_rows": 2,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "complete_short_interval_task": {
+      "budget": {
+        "logbook_rows": 5,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      },
+      "known": {
+        "bug": "R4 (#467 audit)",
+        "reason": "due_soon fires at once after a completion when the interval is 3 days or less",
+        "counters": {
+          "events": {
+            "target": 1,
+            "now": 2
+          }
+        }
+      }
+    },
+    "add_task_on_device": {
+      "budget": {
+        "logbook_rows": 65,
+        "unavailable_flips": 72,
+        "events": 3,
+        "storage_writes": 1,
+        "entry_reloads": 1
+      }
+    },
+    "complete_task_on_device": {
+      "budget": {
+        "logbook_rows": 5,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "delete_task_on_device": {
+      "budget": {
+        "logbook_rows": 63,
+        "unavailable_flips": 75,
+        "events": 2,
+        "storage_writes": 1,
+        "entry_reloads": 1
+      }
+    },
+    "noop_update_asset": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "known": {
+        "bug": "R2 (#467 audit)",
+        "reason": "update_asset with no change reloads the entry and saves the store (devices.py async_apply_asset_change)",
+        "counters": {
+          "entry_reloads": {
+            "target": 0,
+            "now": 1
+          },
+          "unavailable_flips": {
+            "target": 0,
+            "now": 72
+          },
+          "logbook_rows": {
+            "target": 0,
+            "now": 62
+          },
+          "storage_writes": {
+            "target": 0,
+            "now": 1
+          }
+        }
+      }
+    },
+    "problem_sync_off": {
+      "budget": {
+        "logbook_rows": 63,
+        "unavailable_flips": 72,
+        "events": 2,
+        "storage_writes": 1,
+        "entry_reloads": 1
+      }
+    },
+    "problem_sync_on": {
+      "budget": {
+        "logbook_rows": 65,
+        "unavailable_flips": 72,
+        "events": 3,
+        "storage_writes": 1,
+        "entry_reloads": 1
+      }
+    },
+    "shopping_sync_on": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      }
+    },
+    "shopping_sync_off": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      }
+    },
+    "profile_add": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 72,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 1
+      }
+    },
+    "profile_edit": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 74,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 1
+      }
+    },
+    "todo_sync_on": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 2,
+        "entry_reloads": 0
+      }
+    },
+    "todo_sync_off": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 1,
+        "entry_reloads": 0
+      }
+    },
+    "profile_delete": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 73,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 1
+      }
+    },
+    "language_de": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 72,
+        "events": 2,
+        "storage_writes": 2,
+        "entry_reloads": 1
+      }
+    },
+    "language_en": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 72,
+        "events": 2,
+        "storage_writes": 2,
+        "entry_reloads": 1
+      }
+    },
+    "import_same_document": {
+      "budget": {
+        "logbook_rows": 63,
+        "unavailable_flips": 72,
+        "events": 2,
+        "storage_writes": 2,
+        "entry_reloads": 1
+      }
+    },
+    "add_100_tasks": {
+      "budget": {
+        "logbook_rows": 303,
+        "unavailable_flips": 0,
+        "events": 200,
+        "storage_writes": 100,
+        "entry_reloads": 0
+      }
+    },
+    "idle_tick_100_tasks": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "restart": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "idle_tick_after_restart": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "add_cost_window": {
+      "budget": {
+        "logbook_rows": 62,
+        "unavailable_flips": 71,
+        "events": 1,
+        "storage_writes": 0,
+        "entry_reloads": 1
+      }
+    },
+    "change_option": {
+      "budget": {
+        "logbook_rows": 0,
+        "unavailable_flips": 0,
+        "events": 0,
+        "storage_writes": 0,
+        "entry_reloads": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "entry_reloads"
+      ]
+    }
+  }
+}
