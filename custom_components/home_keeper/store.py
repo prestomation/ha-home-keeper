@@ -98,7 +98,7 @@ from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
 from .reconcile import stray_part_tags as _stray_part_tags
-from .task_entities import entity_set_key
+from .task_entities import owns_entities, update_needs_reload
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -151,27 +151,6 @@ _RESERVED_SOURCE_NAMESPACES = frozenset(
 # helpers use to mean "no such sub-record", an error rather than a no-op.
 _AssetOp = Callable[[dict[str, Any]], Awaitable[Any]]
 _UNCHANGED: Final = object()
-
-
-def _task_owns_entities(task: dict[str, Any]) -> bool:
-    """True when a task owns per-task device-page entities (button/sensor/…).
-
-    Mirrors ``coordinator.task_has_entities`` (an enabled, device-attached task),
-    inlined here to avoid a store→coordinator import cycle. Used to decide whether
-    creating/removing a reconciler-owned task needs a full entry reload.
-    """
-    return bool(task.get("device_id")) and bool(task.get("enabled", True))
-
-
-def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    """Whether a reconciler update from *before* to *after* needs an entry reload.
-
-    Only a task that owns per-task entities before or after the update can need
-    one, and only when its :func:`task_entities.entity_set_key` moved: a new name,
-    device or button changes what is on the device page.
-    """
-    owns = _task_owns_entities(before) or _task_owns_entities(after)
-    return owns and entity_set_key(before) != entity_set_key(after)
 
 
 def _refuse_moves(data: dict[str, Any]) -> None:
@@ -685,11 +664,11 @@ class HomeKeeperStore:
             merged["source"] = source
         if "sensor" in updates:
             self._check_template_syntax(merged)
-        self._tasks[task_id] = merged
         # Mirror a problem-sensor task's note into the durable, entity-keyed side-store
         # so it outlives the task (the mirror is deleted/recreated as the sensor is
         # excluded or the sync is toggled). Locked fields keep name/schedule owned by
         # the sync, but ``notes`` is intentionally user-editable on these tasks.
+        notes_before = dict(self._problem_notes)
         entity_id = _problem_entity(merged)
         if entity_id is not None:
             note = merged.get("notes") or ""
@@ -697,6 +676,11 @@ class HomeKeeperStore:
                 self._problem_notes[entity_id] = note
             else:
                 self._problem_notes.pop(entity_id, None)
+        if merged == existing and self._problem_notes == notes_before:
+            # An edit that changes no field writes nothing and announces nothing.
+            # Each save writes the whole document (#467 audit, S3).
+            return existing
+        self._tasks[task_id] = merged
         await self._save()
         # Fire only on a real change; carry which fields moved so automations can react
         # selectively (e.g. a rename vs. a schedule change).
@@ -1304,6 +1288,10 @@ class HomeKeeperStore:
         )
         now = dt_util.now()
         merged = assets.merge_update(existing, updates, now=now)
+        if merged == existing:
+            # An edit that changes no field writes nothing and announces nothing
+            # (#467 audit, R2). Nothing moved, so no part task moves.
+            return existing
         self._assets[asset_id] = merged
         # An edit of a wear part's "Last replaced" date moves its task (B09-3).
         reanchored = _reanchor_edited_parts(existing, merged, self._tasks, now=now)
@@ -2237,14 +2225,14 @@ class HomeKeeperStore:
         entity_set_changed = False
         for task in removed:
             self._hass.bus.async_fire(EVENT_TASK_DELETED, self._task_event_data(task))
-            if _task_owns_entities(task):
+            if owns_entities(task):
                 entity_set_changed = True
         for tid, task in new_tasks.items():
             if tid not in old_tasks:
                 self._hass.bus.async_fire(
                     EVENT_TASK_CREATED, self._task_event_data(task)
                 )
-                if _task_owns_entities(task):
+                if owns_entities(task):
                     entity_set_changed = True
         return entity_set_changed
 
@@ -2361,7 +2349,7 @@ class HomeKeeperStore:
                         task, extra={"changed_fields": _changed_fields(old, task)}
                     ),
                 )
-                if _reload_for_update(old, task):
+                if update_needs_reload(old, task):
                     entity_set_changed = True
             elif kind == "armed":
                 self._hass.bus.async_fire(
@@ -2492,7 +2480,7 @@ class HomeKeeperStore:
                 self._hass.bus.async_fire(
                     EVENT_TASK_DELETED, self._task_event_data(task)
                 )
-                if _task_owns_entities(task):
+                if owns_entities(task):
                     entity_set_changed = True
         self._hass.bus.async_fire(
             EVENT_DECLARATIVE_COMPANION_REMOVED,
@@ -2595,13 +2583,13 @@ class HomeKeeperStore:
                 self._hass.bus.async_fire(
                     EVENT_TASK_CREATED, self._task_event_data(task)
                 )
-                if _task_owns_entities(task):
+                if owns_entities(task):
                     entity_set_changed = True
             elif kind == "deleted":
                 self._hass.bus.async_fire(
                     EVENT_TASK_DELETED, self._task_event_data(task)
                 )
-                if _task_owns_entities(task):
+                if owns_entities(task):
                     entity_set_changed = True
             elif kind == "resumed":
                 # The companion that had paused this task is on again. It is an update
@@ -2613,7 +2601,7 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
-                if _task_owns_entities(task):
+                if owns_entities(task):
                     entity_set_changed = True
             elif kind == "paused":
                 # The entity of this task is disabled (B12-1). The task stays, with
@@ -2622,7 +2610,7 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
-                if _task_owns_entities(before.get(task["id"], {})):
+                if owns_entities(before.get(task["id"], {})):
                     entity_set_changed = True
             elif kind == "updated":
                 # The fields the pass really changed (B12-4). An automation that
@@ -2637,7 +2625,7 @@ class HomeKeeperStore:
                 # A new rendered name, a companion rename or a new ``clear_on_recover``
                 # changes the names or the button on the device page, which only an
                 # entry reload makes again.
-                if _reload_for_update(old, task):
+                if update_needs_reload(old, task):
                     entity_set_changed = True
         return entity_set_changed, created_ids
 

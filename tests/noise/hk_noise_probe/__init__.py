@@ -35,6 +35,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import storage
 from homeassistant.helpers.typing import ConfigType
@@ -199,6 +200,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, "snapshot", _snap, supports_response=SupportsResponse.ONLY
     )
+
+    async def _remove_device(call: ServiceCall) -> None:
+        # Home Keeper offers no removal of its devices. A removed appliance device is
+        # how Home Assistant gives an appliance a new device id (#467 audit, S5).
+        dr.async_get(hass).async_remove_device(call.data["device_id"])
+
     hass.services.async_register(DOMAIN, "set_language", _set_language)
+    hass.services.async_register(DOMAIN, "remove_device", _remove_device)
     _LOGGER.info("Noise probe is counting Home Keeper writes")
     return True

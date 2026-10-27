@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: d2c7deab269e
+source_hash: d531c76ba3dc
 ---
 
 # Coordinator and entities
@@ -65,18 +65,18 @@ state, so a crossing during the reload fires after setup. When the user disables
 
 ### Reload or refresh
 
-Home Assistant caches entity names, and platforms add entities only at setup, so a change to
-the entity set reloads the entry:
+Platforms add entities only at setup, and Home Assistant caches names. So these reload:
 
-- `coordinator.task_has_entities`: an enabled task with a `device_id` owns entities. An add
-  or delete of such a task reloads. `store._task_owns_entities` repeats this rule.
-- `task_entities.entity_set_key`: on update, the key holds `device_id`, `enabled`, the name,
-  the companion name, `completion_blocked` and `require_tag_scan`. A changed key reloads.
+- `task_entities.owns_entities`: an enabled task with a `device_id` owns entities. An add
+  or delete of such a task reloads. `task_entities.update_needs_reload`: an update reloads
+  only if the task owns entities before or after it and `entity_set_key` changed. The key
+  holds `device_id`, `enabled`, the names, `completion_blocked` and `require_tag_scan`.
 - `coordinator.async_settle_buy_tasks` reloads when a buy task with entities comes or goes,
   or a part gains or loses stock entities (`coordinator.part_entity_kinds`). An
   `async_create_task` and a guard flag defer it, so several changes start 1 reload. Else it
   sends `SIGNAL_PART_STOCK_CHANGED`, so part entities show a new count before the refresh.
 - An options change reloads only for a new `options.options_entity_key` or an unloaded entry.
+  An `update_task` or `update_asset` that changes no field does not save, fire or reload.
 
 ### Per-task entities and device links
 
