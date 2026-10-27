@@ -82,72 +82,35 @@
         "logbook_rows",
         "unavailable_flips",
         "events",
+        "storage_writes",
         "entry_reloads"
-      ],
-      "known": {
-        "bug": "S3 (#467 audit)",
-        "reason": "update_task saves the store when nothing changed",
-        "counters": {
-          "storage_writes": {
-            "target": 0,
-            "now": 1
-          }
-        }
-      }
+      ]
     },
     "rename_task_without_device": {
       "budget": {
         "logbook_rows": 1,
         "unavailable_flips": 0,
-        "events": 2,
+        "events": 1,
         "storage_writes": 1,
         "entry_reloads": 0
       },
-      "known": {
-        "bug": "R1 (#467 audit)",
-        "reason": "renaming a task with no device reloads the entry; entity_set_key is compared without task_has_entities",
-        "counters": {
-          "entry_reloads": {
-            "target": 0,
-            "now": 1
-          },
-          "unavailable_flips": {
-            "target": 0,
-            "now": 72
-          },
-          "logbook_rows": {
-            "target": 1,
-            "now": 63
-          }
-        }
-      }
+      "pinned": [
+        "unavailable_flips",
+        "entry_reloads"
+      ]
     },
     "disable_task_without_device": {
       "budget": {
-        "logbook_rows": 2,
+        "logbook_rows": 3,
         "unavailable_flips": 0,
-        "events": 2,
+        "events": 1,
         "storage_writes": 1,
         "entry_reloads": 0
       },
-      "known": {
-        "bug": "R1 (#467 audit)",
-        "reason": "disabling a task with no device reloads the entry; entity_set_key is compared without task_has_entities",
-        "counters": {
-          "entry_reloads": {
-            "target": 0,
-            "now": 1
-          },
-          "unavailable_flips": {
-            "target": 0,
-            "now": 72
-          },
-          "logbook_rows": {
-            "target": 2,
-            "now": 63
-          }
-        }
-      }
+      "pinned": [
+        "unavailable_flips",
+        "entry_reloads"
+      ]
     },
     "complete_task": {
       "budget": {
@@ -245,32 +208,17 @@
       "budget": {
         "logbook_rows": 0,
         "unavailable_flips": 0,
-        "events": 1,
+        "events": 0,
         "storage_writes": 0,
         "entry_reloads": 0
       },
-      "known": {
-        "bug": "R2 (#467 audit)",
-        "reason": "update_asset with no change reloads the entry and saves the store (devices.py async_apply_asset_change)",
-        "counters": {
-          "entry_reloads": {
-            "target": 0,
-            "now": 1
-          },
-          "unavailable_flips": {
-            "target": 0,
-            "now": 72
-          },
-          "logbook_rows": {
-            "target": 0,
-            "now": 62
-          },
-          "storage_writes": {
-            "target": 0,
-            "now": 1
-          }
-        }
-      }
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "events",
+        "storage_writes",
+        "entry_reloads"
+      ]
     },
     "problem_sync_off": {
       "budget": {
@@ -379,6 +327,18 @@
         "storage_writes": 2,
         "entry_reloads": 1
       }
+    },
+    "asset_device_repoint": {
+      "budget": {
+        "logbook_rows": 63,
+        "unavailable_flips": 72,
+        "events": 2,
+        "storage_writes": 2,
+        "entry_reloads": 1
+      },
+      "pinned": [
+        "entry_reloads"
+      ]
     },
     "add_100_tasks": {
       "budget": {

@@ -314,6 +314,9 @@ def test_asset_device_repoint(ha: HomeAssistantClient, baseline: Baseline) -> No
     moved = ha.call(HK, "list_assets", {})["assets"]
     new_device = next(a for a in moved if a["id"] == asset["id"])["device_id"]
     assert new_device != old_device
+    # The options moved with the appliance, so the options write did happen.
+    options = ha.ws({"type": "home_keeper/get_options"})["options"]
+    assert options["problem_sensor_exclude_devices"] == [new_device]
 
 
 # --- Scale ---------------------------------------------------------------------------
