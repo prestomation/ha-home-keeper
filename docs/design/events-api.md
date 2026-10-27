@@ -68,11 +68,10 @@ reconcile and the appliance delete cascade. An update that changes no field fire
 
 `transitions.detect_transitions` is pure. It takes the previous edge state, the task map
 and an injected `now`, and returns the events plus the next state. The state per task is
-`{"next_due", "due_soon_fired", "overdue_fired"}`. The flags are separate because a task
-crosses due soon and then overdue against 1 `next_due`. A changed `next_due` clears both.
-But if the old date had announced and the new date is in the window (a completion or a
-snooze), `due_soon_fired` stays true. A task with no `next_due`, or a disabled task, fires
-nothing. `DUE_SOON_WINDOW` is 3 days.
+`{"next_due", "due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags,
+but `due_soon_fired` stays true if the old date announced and the new one is in the window.
+No `next_due`, or disabled: nothing fires. `DUE_SOON_WINDOW` is 3 days.
+
 `coordinator._async_update_data` runs the detector on each periodic and post-mutation
 refresh. Until setup calls `coordinator.enable_transition_events`, it keeps the detected
 state as a silent baseline. The edge state lives in `hass.data` per config entry, so a
