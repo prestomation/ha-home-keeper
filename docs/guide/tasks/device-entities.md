@@ -34,7 +34,7 @@ When the switch is off:
 - [Events](../automation/events.md), the logbook rows on the device page, the task count
   sensors and the notifications keep working. They do not use these entities.
 
-<img src="../../images/96c-device-entities-off.png" alt="The same device page with the task entities folded into a disabled entities link, and the Activity card still showing task events" width="820">
+<img src="../../images/96c-device-entities-off.png" alt="The same device page with the task entities folded into disabled entities links" width="820">
 
 <img src="../../images/96d-device-mobile-entities-off.png" alt="The device page on a phone with the task entities disabled" width="390">
 

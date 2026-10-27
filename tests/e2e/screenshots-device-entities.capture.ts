@@ -9,7 +9,7 @@
  *  - the device page with the task entities enabled (the default),
  *  - the General card of Settings with the switch off,
  *  - the device page with the switch off: the task entities fold into "+N disabled
- *    entities", and the Activity card still shows the task events.
+ *    entities".
  * It puts the switch back on and deletes the 3 tasks at the end.
  */
 import { test, expect, type Page } from '@playwright/test';

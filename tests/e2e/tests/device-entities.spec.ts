@@ -60,8 +60,13 @@ test.describe('Home Keeper panel — task entities on device pages', { tag: '@re
       });
     expect(await readOption()).toBe(true);
 
-    await card.locator('ha-switch').click();
-    await expect(card.locator('.hk-save-status.saved')).toBeVisible({ timeout: 30_000 });
+    // The card draws again when the options load, which can drop a click on the old
+    // switch. Click again only while the stored value is still on, and give each save
+    // time to land, so a retry cannot turn the switch back on.
+    await expect(async () => {
+      if ((await readOption()) === true) await card.locator('ha-switch').click();
+      expect(await readOption()).toBe(false);
+    }).toPass({ intervals: [3_000], timeout: 30_000 });
     // The entities are disabled in the registry, so their states go.
     await expect.poll(taskStates, { timeout: 30_000 }).toBe(0);
     expect(await readOption()).toBe(false);

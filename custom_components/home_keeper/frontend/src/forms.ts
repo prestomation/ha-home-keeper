@@ -1876,10 +1876,14 @@ export function generalSchema(): FormField[] {
       name: 'one_off_retention_days',
       selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
     },
-    // The per-task entities on device pages (#496). Off disables them in the entity
-    // registry and keeps their ids.
-    { name: 'task_device_entities', selector: selBool() },
   ];
+}
+
+/** The switch for the per-task entities on device pages (#496), in the General card.
+ *  Off disables them in the entity registry and keeps their ids. It saves on each
+ *  change, so it is not in `generalSchema`, whose number box saves on leave. */
+export function deviceEntitiesSchema(): FormField[] {
+  return [{ name: 'task_device_entities', selector: selBool() }];
 }
 
 /** The spend windows a new install has, in days (the backend `DEFAULT_WINDOWS`). */
