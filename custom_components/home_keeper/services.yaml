@@ -952,7 +952,7 @@ set_task_consumable:
   description: >-
     Link a task to 1 or more appliance consumables or parts. Each completion takes
     the amount of each part from its stock. A part that drops to its reorder
-    threshold fires a low-stock event. Use parts for a list, or asset_id and
+    threshold fires a low-stock event. Use parts for a list. Use asset_id and
     part_id for 1 part. Send no part fields to clear the links.
   fields:
     task_id:
@@ -984,8 +984,8 @@ set_task_consumable:
     parts:
       name: Parts
       description: >-
-        The full list of parts that the task takes. Each item has asset_id,
-        part_id and an optional quantity. The list replaces the
+        The full list of parts that the task takes. Each item has asset_id and
+        part_id. A quantity is optional. The list replaces the
         links of the task. Do not use it together with asset_id and part_id.
       example: '[{"asset_id": "Water system", "part_id": "Sediment filter", "quantity": 2}]'
       selector:

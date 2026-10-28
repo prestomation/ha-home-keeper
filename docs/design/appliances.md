@@ -47,7 +47,7 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
 - `manufacturer`, `model`, `serial_number` are first-class; `notes` is Markdown; `cost`
   feeds the report. `metadata` is a list of `{id, type, label, value}` (`text`, `link`,
   `date`). A `date` entry with `track: true` becomes a `date` sensor.
-- `parent_asset_id` (virtual only) nests a device; `assets.would_create_cycle` stops loops.
+- `parent_asset_id` (virtual only) nests a device. `assets.would_create_cycle` stops loops.
 - `managed_by` and `source` are create-only. An update with `managed_by: null` hands the
   appliance back to the user. `task_history` keeps completions of deleted tasks.
 
