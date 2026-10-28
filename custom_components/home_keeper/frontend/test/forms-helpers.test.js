@@ -967,6 +967,20 @@ describe('consumableOptionsFor — the picker lists every linked part (#493)', (
     ]);
   });
 
+  it('skips a link to an appliance that has no parts list', () => {
+    const bare = { id: 'a-bare', name: 'Bare' };
+    expect(consumableOptionsFor([], [bare], [{ asset_id: 'a-bare', part_id: 'p-x' }])).toEqual([]);
+  });
+
+  it('sorts the extra links in among the device parts by label', () => {
+    const zeo = { id: 'a-z', name: 'Softener', parts: [{ id: 'p-z', name: 'Zeolite', type: 'consumable' }] };
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }];
+    expect(consumableOptionsFor([zeo], [zeo, SHELF], links).map((o) => o.label)).toEqual([
+      'Salt · Shelf',
+      'Zeolite',
+    ]);
+  });
+
   it('offers a linked wear item of another appliance too', () => {
     const links = [{ asset_id: 'a-fr', part_id: 'p-door' }];
     expect(consumableOptionsFor([], [FRIDGE], links)).toEqual([
