@@ -798,6 +798,12 @@ def test_b09_3_skipped_tasks_and_parts_before_the_edited_one_do_not_stop_it():
             "id": "manual",
             "source": {"part": {**link, "manual": True}},
         },
+        # A hand link after the load (#493): it names the part in ``parts``.
+        "linked": {
+            **target,
+            "id": "linked",
+            "source": {"parts": [{"asset_id": link["asset_id"], "part_id": "p1"}]},
+        },
         "elsewhere": {
             **target,
             "id": "elsewhere",
@@ -843,13 +849,19 @@ def test_b09_3_only_the_edited_parts_own_replace_task_moves():
     before = _asset(parts=[_wear_part(), other])
     after = _asset(parts=[_wear_part(last_replaced="2026-05-01"), other])
     tasks, _ = _reconcile({"a1": before})
-    # A manual link to the same part, a task of another appliance with the same
-    # part id, and a plain task all stay as they are.
+    # A hand link to the same part (old and new shape), a task of another appliance
+    # with the same part id, and a plain task all stay as they are.
     tasks["manual"] = {
         "id": "manual",
         "recurrence_type": "floating",
         "last_completed": None,
         "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+    }
+    tasks["linked"] = {
+        "id": "linked",
+        "recurrence_type": "floating",
+        "last_completed": None,
+        "source": {"parts": [{"asset_id": "a1", "part_id": "p1"}]},
     }
     tasks["elsewhere"] = {
         "id": "elsewhere",

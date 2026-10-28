@@ -49,7 +49,7 @@ from .coordinator import (
     task_has_entities,
 )
 from .models import TaskValidationError
-from .reconcile import refuse_mixed_link_forms
+from .reconcile import has_link_form, refuse_mixed_link_forms
 from .shopping_sync import own_todo_entity_ids
 from .task_entities import update_needs_reload
 from .transfer_runner import (
@@ -387,7 +387,8 @@ async def ws_delete_orphaned_tasks(
     {
         vol.Required("type"): "home_keeper/set_task_consumable",
         vol.Required("task_id"): str,
-        # Both null clears the links; both set links the task to that 1 part.
+        # Both null clears the links; both set links the task to that 1 part. Send
+        # both keys, or `parts` (`has_link_form`).
         vol.Optional("asset_id"): vol.Any(str, None),
         vol.Optional("part_id"): vol.Any(str, None),
         # What this one task takes; absent, the part's own per-use amount decides.
@@ -410,6 +411,10 @@ async def ws_set_task_consumable(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    # Before the store: a refused message changes nothing. Home Assistant answers a
+    # vol.Invalid with invalid_format, the code the old schema gave.
+    if not has_link_form(msg):
+        raise vol.Invalid("send parts, or both asset_id and part_id")
     deprecations.warn_single_consumable_link(
         msg, deprecations.WS_SINGLE_CONSUMABLE_LINK
     )

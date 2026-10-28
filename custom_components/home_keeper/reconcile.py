@@ -104,12 +104,11 @@ _DEFAULT_USE_NAME_TEMPLATE = USE_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
     """Return a task's ``{asset_id, part_id}`` part provenance, or None.
 
-    Covers both reconciler-derived tasks (auto-generated from a wear part's
-    ``replace_interval``) and tasks a user *manually linked* to a consumable — both
-    carry ``source = {"part": {"asset_id", "part_id", ...}}`` so completion consumes
-    one spare from the part's stock. A manual link additionally carries
-    ``"manual": True`` inside the part dict; use :func:`is_manual_part_link` to tell
-    them apart where ownership matters (the reconciler must not own manual links).
+    This is a reconciler-derived task (from a wear part). A task that a user linked
+    by hand keeps its links in ``source.parts`` (#493). Only a document that the load
+    has not migrated yet still holds such a link here, with ``"manual": True`` in the
+    part dict; :func:`is_manual_part_link` tells the two apart where ownership matters
+    (the reconciler must not own a hand link).
     """
     source = task.get("source")
     if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
@@ -244,6 +243,17 @@ def refuse_mixed_link_forms(data: Mapping[str, Any]) -> None:
         raise models.TaskValidationError(
             f"send parts, or {', '.join(single)}, not both"
         )
+
+
+def has_link_form(data: Mapping[str, Any]) -> bool:
+    """Whether a link request names its form: ``parts``, or both 1-link keys.
+
+    The websocket command refuses a message without a form. Before #493 its schema
+    required ``asset_id`` and ``part_id``, and a message without them was an error. A
+    message that only names the task must not clear the links in silence. A null value
+    still counts as present: ``asset_id: null, part_id: null`` is the old way to clear.
+    """
+    return "parts" in data or ("asset_id" in data and "part_id" in data)
 
 
 def buy_source(task: dict[str, Any]) -> dict[str, Any] | None:

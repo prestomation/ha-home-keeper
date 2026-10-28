@@ -1118,6 +1118,21 @@ def test_493_the_websocket_command_sets_a_list(ha):
             },
         )
         assert not refused.get("success"), refused
+        # A message that names no form is a schema error, and the links stay: a
+        # client that forgot the fields must not lose them.
+        for partial in ({}, {"asset_id": asset["id"]}, {"part_id": sediment["id"]}):
+            bare = ws_send(
+                token,
+                {
+                    "type": "home_keeper/set_task_consumable",
+                    "task_id": task_id,
+                    **partial,
+                },
+            )
+            assert not bare.get("success"), bare
+            assert bare["error"]["code"] == "invalid_format", bare
+        kept = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert len(kept["source"]["parts"]) == 2, "a refused message must not clear"
         # The 1-link form with no ids still clears the list.
         cleared = ws_send(
             token,

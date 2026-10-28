@@ -9,9 +9,22 @@ reconciler treats it like ``device_id``: created from it, re-derived on drift.
 from datetime import datetime, timedelta, timezone
 
 import hk_reconcile as rc
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
+
+
+# A hand-linked task: the old shape that only an unmigrated document holds, and the
+# shape that every hand link has after the load (#493).
+HAND_LINKS = pytest.mark.parametrize(
+    "hand_link",
+    [
+        {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        {"parts": [{"asset_id": "a1", "part_id": "p1"}]},
+    ],
+    ids=["old-part", "parts"],
+)
 
 
 def _asset(aid="a1", name="Heater", parts=None, **extra):
@@ -196,7 +209,8 @@ def test_switching_back_to_months_moves_the_tag_back():
     assert _binding(task) == ("jacket-tag", True)
 
 
-def test_a_manual_link_keeps_its_own_binding():
+@HAND_LINKS
+def test_a_manual_link_keeps_its_own_binding(hand_link):
     """A user-owned task that merely consumes the part's stock is not the reconciler's
     to rebind — its tag is edited in the task form, as before."""
     manual = {
@@ -208,7 +222,7 @@ def test_a_manual_link_keeps_its_own_binding():
         "enabled": True,
         "tag_id": "my-own-tag",
         "require_tag_scan": True,
-        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        "source": hand_link,
     }
     asset = _asset(parts=[_wear_part(tag_id="anode-tag")])
     tasks, _ = _reconcile({"a1": asset}, {"t-manual": manual})
@@ -278,13 +292,14 @@ def test_ignores_a_task_wearing_a_blank_tag():
     assert rc.adopt_part_tags({"a1": asset}, tasks) is False
 
 
-def test_ignores_a_manual_link():
+@HAND_LINKS
+def test_ignores_a_manual_link(hand_link):
     part = _wear_part()
     asset = _asset(parts=[part])
     manual = {
         "id": "t-manual",
         "tag_id": "my-own-tag",
-        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        "source": hand_link,
     }
     assert rc.adopt_part_tags({"a1": asset}, {"t-manual": manual}) is False
     assert "tag_id" not in part
@@ -385,14 +400,15 @@ def test_names_nothing_once_the_part_holds_the_tag():
     assert rc.stray_part_tags({"a1": asset}, tasks) == []
 
 
-def test_names_no_manual_link_no_untagged_task_and_no_orphan():
+@HAND_LINKS
+def test_names_no_manual_link_no_untagged_task_and_no_orphan(hand_link):
     part = _wear_part()
     asset = _asset(parts=[part])
     tasks = _derived(asset, part)
     tasks["t-manual"] = {
         "id": "t-manual",
         "tag_id": "my-own-tag",
-        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        "source": hand_link,
     }
     tasks["t-orphan"] = {
         "id": "t-orphan",
@@ -430,11 +446,12 @@ def test_an_update_without_tag_keys_is_not_refused():
     assert rc.is_part_owned_tag_update(_tagged_task(), {"notes": "x"}) is False
 
 
-def test_a_manual_link_and_a_plain_task_keep_their_own_tag():
+@HAND_LINKS
+def test_a_manual_link_and_a_plain_task_keep_their_own_tag(hand_link):
     manual = {
         "id": "t-manual",
         "tag_id": None,
-        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        "source": hand_link,
     }
     assert rc.is_part_owned_tag_update(manual, {"tag_id": "x"}) is False
     assert rc.is_part_owned_tag_update({"id": "t"}, {"tag_id": "x"}) is False
@@ -459,11 +476,12 @@ def test_b09_5_sending_the_current_name_back_is_not_a_change():
     assert rc.is_part_owned_name_update(task, {"notes": "x"}) is False
 
 
-def test_b09_5_a_manual_link_and_a_plain_task_keep_their_own_name():
+@HAND_LINKS
+def test_b09_5_a_manual_link_and_a_plain_task_keep_their_own_name(hand_link):
     manual = {
         "id": "t-manual",
         "name": "Mine",
-        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        "source": hand_link,
     }
     assert rc.is_part_owned_name_update(manual, {"name": "New"}) is False
     plain = {"id": "t", "name": "a"}

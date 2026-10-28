@@ -218,6 +218,36 @@ def test_a_list_beside_a_single_field_is_refused(extra, named):
     assert str(err.value) == f"send parts, or {named}, not both"
 
 
+# ── has_link_form: the websocket command names its form ─────────────────────
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"task_id": "t", "parts": []},
+        {"task_id": "t", "parts": [LINK_A]},
+        {"task_id": "t", "asset_id": "a", "part_id": "p"},
+        # Both keys with null values: the old way to clear.
+        {"task_id": "t", "asset_id": None, "part_id": None},
+    ],
+)
+def test_a_list_or_both_single_keys_name_a_form(data):
+    assert rc.has_link_form(data) is True
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"task_id": "t"},
+        {"task_id": "t", "asset_id": "a"},
+        {"task_id": "t", "part_id": "p"},
+        {"task_id": "t", "quantity": 2},
+    ],
+)
+def test_no_list_and_not_both_single_keys_name_no_form(data):
+    assert rc.has_link_form(data) is False
+
+
 # ── ids that are not text (review item 7) ────────────────────────────────────
 
 
