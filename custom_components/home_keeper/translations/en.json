@@ -451,19 +451,19 @@
         },
         "asset_id": {
           "name": "Appliance name or ID (deprecated)",
-          "description": "Deprecated. Use parts. This field will be removed in a later release. The appliance of the 1 part to link, by id or name."
+          "description": "The appliance of the 1 part to link. An id or a name works. This field is deprecated and will be removed in a later release. Use parts instead."
         },
         "part_id": {
           "name": "Part name or ID (deprecated)",
-          "description": "Deprecated. Use parts. This field will be removed in a later release. The 1 part to link, by id or name."
+          "description": "The 1 part to link. Its name works too. Use parts in its place. This deprecated field goes away in a later release."
         },
         "quantity": {
           "name": "Quantity (deprecated)",
-          "description": "Deprecated. Use the quantity in parts. This field will be removed in a later release. How much of the part 1 completion takes."
+          "description": "How much of the part 1 completion takes. A later release removes this deprecated field. Put the quantity in parts instead."
         },
         "parts": {
           "name": "Parts",
-          "description": "The full list of parts that the task takes. Each item has asset_id and part_id, by id or name. A quantity is optional. The list replaces the links of the task. An empty list clears them."
+          "description": "The full list of parts that the task takes. Each item has asset_id and part_id, and can have a quantity. An id or a name works for both. The list replaces the links of the task. An empty list clears them."
         }
       }
     },
