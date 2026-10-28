@@ -344,19 +344,28 @@ describe('the stock chip on a task that spends spares', () => {
     expect(chip.getAttribute('title')).toBe('Takes 2 AAA\nTakes 1 9V');
   });
 
-  it('leads the row with the stock chip alone, and folds the rest behind +n', async () => {
+  it('leads the row with the stock chip, and folds the third chip behind +n', async () => {
     const tagged = { ...TWO, task_chips: [{ label: 'Kitchen' }, { label: 'Monthly' }] };
     const panel = await mountList('/tasks', makeHass({ tasks: [tagged], assets: [batteries()] }));
     await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
     const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
-    expect(strip.classList.contains('hk-chips-stock')).toBe(true);
     expect(strip.firstElementChild.classList.contains('hk-part-chip')).toBe(true);
     const more = strip.querySelector('.hk-chip-more');
-    expect(more.textContent).toBe('+2');
+    expect(more.textContent).toBe('+1');
     more.click();
     expect(more.textContent).toBe('−');
     more.click();
-    expect(more.textContent).toBe('+2');
+    expect(more.textContent).toBe('+1');
+  });
+
+  it('keeps a tag chip in view beside the stock chip', async () => {
+    const tagged = { ...REPLACE_TASK, tag_id: 'door-tag', device_id: 'dev-door' };
+    const panel = await mountList('/tasks', makeHass({ tasks: [tagged], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
+    const kids = [...strip.children];
+    expect(kids[0].classList.contains('hk-part-chip')).toBe(true);
+    expect(kids[1].classList.contains('hk-tag')).toBe(true);
   });
 
   it('keeps 2 chips before +n on a row with no stock chip', async () => {
@@ -364,7 +373,6 @@ describe('the stock chip on a task that spends spares', () => {
     const panel = await mountList('/tasks', makeHass({ tasks: [plain], assets: [batteries()] }));
     await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
     const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
-    expect(strip.classList.contains('hk-chips-stock')).toBe(false);
     const more = strip.querySelector('.hk-chip-more');
     expect(more.textContent).toBe('+1');
     more.click();

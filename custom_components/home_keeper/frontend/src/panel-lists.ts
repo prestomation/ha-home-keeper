@@ -373,12 +373,13 @@ function taskCard(p: PanelHost, task: Task): string {
   // The stock chip sits with them: "AAA · 2 left" is what this task is about as
   // much as the device it is on, and it is read right where the Done button that
   // spends those spares is. A task that takes several parts shows 1 short chip.
-  // The stock chip goes first and alone (#493): the column holds 1 chip of that
-  // length whole, and a second chip beside it was cut off mid-word. The rest stay
-  // 1 click away behind "+n".
-  const stockChip = consumableRowChip(p, task);
-  const inlineChips = [stockChip, dev, tag, ...taskChipsList(task), managed].filter(Boolean);
-  const hiddenChips = Math.max(0, inlineChips.length - inlineChipSlots(Boolean(stockChip)));
+  // The stock chip goes first (#493): the column clips what does not fit at its
+  // end, and a stock chip placed after the device chip was cut off mid-word. The
+  // tag chip comes next, because a scan lock explains a greyed Done.
+  const stock = consumableRowChip(p, task);
+  const lead = stock ? [stock, tag, dev] : [dev, tag];
+  const inlineChips = [...lead, ...taskChipsList(task), managed].filter(Boolean);
+  const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
   const chipsOpen = !!task.id && p._chipsExpanded.has(task.id);
   const more = hiddenChips
     ? `<button class="hk-chip-more" data-chips-more="${escapeHTML(task.id)}" aria-expanded="${
@@ -403,9 +404,7 @@ function taskCard(p: PanelHost, task: Task): string {
             <div class="hk-meta">${taskMetaHtml(p, task)}</div>
             </div>
           </div>
-          <div class="hk-chips hk-chips-inline${stockChip ? ' hk-chips-stock' : ''}${
-            chipsOpen ? ' hk-chips-open' : ''
-          }">${inlineChips.join('')}${more}</div>
+          <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
@@ -866,19 +865,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
       btn.setAttribute('aria-expanded', String(open));
       btn.textContent = open
         ? '−'
-        : `+${Math.max(
-            0,
-            (chips?.children.length ?? 1) -
-              1 -
-              inlineChipSlots(Boolean(chips?.classList.contains('hk-chips-stock'))),
-          )}`;
+        : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
     }),
   );
-}
-
-/** How many chips a task-list row shows before "+n": 1 when the stock chip leads
- *  the strip, else `TASK_CARD_INLINE_CHIPS`. The CSS hide rules use the same 2
- *  numbers (`.hk-chips-stock` in `panel-styles.ts`). */
-function inlineChipSlots(hasStockChip: boolean): number {
-  return hasStockChip ? 1 : TASK_CARD_INLINE_CHIPS;
 }

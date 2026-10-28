@@ -32,9 +32,8 @@ test.describe('Home Keeper — several consumables on 1 task @responsive', () =>
     await row.scrollIntoViewIfNeeded();
     const chip = row.locator('ha-assist-chip.hk-part-chip');
     await expect(chip).toHaveAttribute('label', '2 parts · Low stock');
-    // The stock chip leads the strip alone, whole, and the device chip waits behind +1.
+    // The stock chip leads the strip, so the column never cuts it off.
     await expect(row.locator('.hk-chips-inline > :first-child')).toHaveClass(/hk-part-chip/);
-    await expect(row.locator('.hk-chip-more')).toHaveText('+1');
     const box = await chip.boundingBox();
     const strip = await row.locator('.hk-chips-inline').boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(strip!.x + strip!.width + 1);

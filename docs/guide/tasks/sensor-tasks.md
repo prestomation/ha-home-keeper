@@ -202,7 +202,7 @@ the part. That amount is 1 if the part does not set it.
 
 ![The task form with 2 linked filters on a phone](../../images/34c-panel-mobile-multi-consumable-form.png)
 
-The task page shows 1 chip for each part. The task list shows 1 short chip, such as
+The task page shows 1 chip for each part. The task list shows 1 short chip first, such as
 **2 parts · Low stock**. Click that chip to open the task.
 
 ![A task page with 1 stock chip for each linked filter](../../images/34d-panel-multi-consumable-detail.png)

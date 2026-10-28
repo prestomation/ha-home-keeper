@@ -1463,13 +1463,8 @@ export const STYLES = `
   /* Unfolded: the row wraps to hold them all rather than pushing the status pill off.
      The selector mirrors the hide rule above rather than being simpler than it — a
      plain child selector loses the specificity tie and the chips stay folded. */
-  /* A row whose strip starts with a stock chip shows that chip alone (#493). */
-  .hk-chips.hk-chips-inline.hk-chips-stock > *:nth-child(n + 2):not(.hk-chip-more) {
-    display: none;
-  }
   .hk-chips.hk-chips-inline.hk-chips-open { flex-wrap: wrap; }
-  .hk-chips.hk-chips-inline.hk-chips-open > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}),
-  .hk-chips.hk-chips-inline.hk-chips-stock.hk-chips-open > *:nth-child(n + 2) {
+  .hk-chips.hk-chips-inline.hk-chips-open > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}) {
     display: inline-flex;
   }
   /* A control, not a caption — several of the chips it hides are clickable. */
