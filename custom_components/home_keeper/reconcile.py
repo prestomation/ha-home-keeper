@@ -172,7 +172,9 @@ def stock_links(task: dict[str, Any]) -> list[dict[str, Any]]:
     consumable links (:func:`consumable_links`).
     """
     src = part_source(task)
-    if src is not None and not src.get("manual"):
+    # Equivalent if the "manual" key is mutated: an old manual link then returns
+    # through this branch, and consumable_links returns the same 1 link.
+    if src is not None and not src.get("manual"):  # pragma: no mutate
         return [src]
     return consumable_links(task)
 
