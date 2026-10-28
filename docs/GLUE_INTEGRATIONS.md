@@ -62,7 +62,7 @@ battery needs replacement. The glue maps that signal to a Home Keeper triggered 
 | battery **replaced** | `home_keeper.complete_task` (with an `origin`) | the task records a completion and goes **dormant** |
 | user ticks the task off **in Home Keeper** | (listener reacts to `home_keeper_task_completed`, `origin = None`) | glue tells Battery Notes the battery was replaced |
 | every battery type it knows about | `add_asset` once, then `update_managed_asset` | a managed **Batteries** appliance with 1 consumable part per battery type |
-| the type and count a low device takes | `set_task_consumable` with that device's `quantity` | the *"Replace battery"* task reads *"Takes 2 AAA, 2 left"* |
+| the type and count a low device takes | `set_task_consumable` with 1 `parts` item that holds that device's `quantity` | the *"Replace battery"* task reads *"Takes 2 AAA, 2 left"* |
 | battery **replaced**, from either side | (no extra call) | the completion takes 2 AAA off that part's stock |
 | stock at or below its reorder point | (no extra call) | a *"Buy AAA"* task, and a line on the shopping list |
 

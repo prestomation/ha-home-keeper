@@ -47,6 +47,8 @@ _PURE_MODULES = (
     "photo_thumbs",
     "events",
     "transitions",
+    # The deprecated input forms and their 1 warning per run (#493). Stdlib only.
+    "deprecations",
     "reconcile",
     # ``todo_items`` holds the item-matching helpers both to-do syncs share, so it
     # comes before the two planners that import it (``shopping``/``todo_list``): a

@@ -443,27 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Vincular tarefa a consumíveis",
-      "description": "Vincula uma tarefa a 1 ou mais consumíveis ou peças de um aparelho. Cada conclusão retira a quantidade de cada peça do seu estoque e dispara um evento de estoque baixo no limite de reposição. Envie parts para uma lista, ou asset_id e part_id para 1 peça. Não envie nenhum dos dois, ou envie uma lista parts vazia, para remover os vínculos.",
+      "description": "Vincula uma tarefa a 1 ou mais consumíveis ou peças de um aparelho. Cada conclusão retira a quantidade de cada peça do seu estoque. Uma peça que chega ao limite de reposição dispara um evento de estoque baixo. Envie a lista parts. Envie uma lista parts vazia para remover os vínculos.",
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
           "description": "O id da tarefa acionada a armar. O nome também funciona. O painel mostra o id."
         },
         "asset_id": {
-          "name": "Nome ou ID do ativo",
-          "description": "O id do eletrodoméstico ao qual a peça pertence. O nome também funciona. O painel mostra o id."
+          "name": "Nome ou ID do aparelho (obsoleto)",
+          "description": "Obsoleto. Use parts. Este campo será removido em uma versão futura. O aparelho da única peça a vincular, por ID ou nome."
         },
         "part_id": {
-          "name": "Nome ou ID da peça",
-          "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
+          "name": "Nome ou ID da peça (obsoleto)",
+          "description": "Obsoleto. Use parts. Este campo será removido em uma versão futura. A única peça a vincular, por ID ou nome."
         },
         "quantity": {
-          "name": "Quantidade",
-          "description": "Quanto da peça uma conclusão consome. Omita para usar a quantidade indicada pela peça."
+          "name": "Quantidade (obsoleto)",
+          "description": "Obsoleto. Use a quantidade em parts. Este campo será removido em uma versão futura. Quantidade da peça usada por 1 conclusão."
         },
         "parts": {
           "name": "Peças",
-          "description": "A lista completa de peças que a tarefa usa. Cada item é asset_id, part_id, quantity, e quantity é opcional. A lista substitui os vínculos da tarefa. Não a use junto com asset_id e part_id."
+          "description": "A lista completa de peças que a tarefa usa. Cada item tem asset_id e part_id, por ID ou nome. A quantidade é opcional. A lista substitui os vínculos da tarefa. Uma lista vazia os remove."
         }
       }
     },

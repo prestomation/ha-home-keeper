@@ -1866,6 +1866,16 @@ def build_archived_history(task: dict, *, archived_at: str) -> dict:
     part_id = None
     if isinstance(source, dict) and isinstance(source.get("part"), dict):
         part_id = source["part"].get("part_id")
+    elif isinstance(source, dict) and isinstance(source.get("parts"), list):
+        # A task linked to consumables (#493) names its first linked part.
+        part_id = next(
+            (
+                link.get("part_id")
+                for link in source["parts"]
+                if isinstance(link, dict) and link.get("part_id")
+            ),
+            None,
+        )
     return {
         "task_id": task.get("id"),
         "task_name": task.get("name"),

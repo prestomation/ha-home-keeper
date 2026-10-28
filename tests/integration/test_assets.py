@@ -1311,3 +1311,43 @@ def test_b15_5_a_stock_change_that_starts_the_count_adds_the_stock_entities(ha):
         assert float(number["state"]) == 2
     finally:
         call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_493_the_old_link_form_warns_once_per_run(ha):
+    # The asset_id/part_id form still works, and logs 1 deprecation warning per run for
+    # each surface: not 1 per call, and none for the parts form.
+    import uuid
+
+    from conftest import HA_URL
+    from ha_registry import ws_send
+
+    def warnings(surface: str) -> int:
+        log = ha.get(f"{HA_URL}/api/error_log", timeout=30).text
+        return log.count(f"fields of {surface} are deprecated")
+
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    name = f"Water system {uuid.uuid4().hex[:8]}"
+    asset = _add_water_system(ha, name)
+    part = asset["parts"][0]
+    task_id = _add_floating_task(ha, f"Replace filters {name}")
+    old = {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]}
+    try:
+        for _ in range(2):
+            call_service(ha, "home_keeper", "set_task_consumable", old)
+            msg = ws_send(token, {"type": "home_keeper/set_task_consumable", **old})
+            assert msg.get("success"), msg
+        linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert linked["source"]["parts"] == [
+            {"asset_id": asset["id"], "part_id": part["id"]}
+        ], "the old form still sets a list of 1"
+        assert warnings("home_keeper.set_task_consumable") == 1
+        assert warnings("the home_keeper/set_task_consumable websocket command") == 1
+
+        # The parts form adds no warning.
+        call_service(
+            ha, "home_keeper", "set_task_consumable", {"task_id": task_id, "parts": []}
+        )
+        assert warnings("home_keeper.set_task_consumable") == 1
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

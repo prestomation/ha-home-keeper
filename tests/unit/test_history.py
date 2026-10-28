@@ -253,3 +253,16 @@ def test_493_a_malformed_list_relates_to_nothing():
         a.task_relates_to_asset({"id": "t", "source": {"parts": None}}, _asset())
         is False
     )
+
+
+def test_493_the_archive_names_the_first_linked_part():
+    task = {
+        **_listed_task("asset1", "other"),
+        "completions": [{"ts": "2025-05-01T10:00:00-04:00"}],
+    }
+    entry = a.build_archived_history(task, archived_at="2026-01-01T00:00:00+00:00")
+    assert entry["part_id"] == "p0"
+    # A wear part's own source still wins, and a task with no part names none.
+    assert a.build_archived_history(_part_task(), archived_at="x")["part_id"] == "p1"
+    plain = {"id": "t", "name": "x", "source": {"parts": []}}
+    assert a.build_archived_history(plain, archived_at="x")["part_id"] is None

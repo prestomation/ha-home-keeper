@@ -10,9 +10,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **[Several consumables per task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks#several-consumables-on-1-task).**
-  A task can take more than 1 consumable part with its own amount for each part. Each
-  completion takes every linked part from its own stock. (Fixes #493) (Thanks @ebolly!)
+- **[Multiple consumables per task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks#several-consumables-on-1-task).**
+  A task can take more than 1 consumable part with its own amount for each part.
+  (Fixes #493) (Thanks @ebolly!)
 
 ## [0.34.0] - 2026-10-27
 

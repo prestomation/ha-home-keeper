@@ -182,6 +182,11 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
 - **Voice completion.** "I just changed the furnace filter" through Assist marks the
   task done, and "what is due this week?" reads the list. No intent platform exists.
 
+- **Remove the 1-link consumable fields.** About 2 months after 0.35.0, remove `asset_id`,
+  `part_id` and `quantity` from `home_keeper.set_task_consumable` and its websocket
+  command, and make `parts` required (#493). Remove the
+  `deprecations.SERVICE_SINGLE_CONSUMABLE_LINK` and `WS_SINGLE_CONSUMABLE_LINK` entries.
+
 ## Transfer
 
 - **Import planning on the event loop.** Parsing runs in the executor, but

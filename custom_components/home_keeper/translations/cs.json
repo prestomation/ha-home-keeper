@@ -443,27 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Propojit úkol se spotřebním materiálem",
-      "description": "Propojí úkol s 1 nebo více spotřebními díly či díly spotřebiče. Každé dokončení odebere množství každého dílu z jeho zásoby a při dosažení prahu pro doobjednání vyvolá událost nízké zásoby. Pro seznam pošlete parts, pro 1 díl asset_id a part_id. Pro zrušení propojení nepošlete nic nebo prázdný seznam parts.",
+      "description": "Propojí úkol s 1 nebo více spotřebními díly či díly spotřebiče. Každé dokončení odebere množství každého dílu z jeho zásoby. Díl, který klesne na práh pro doobjednání, vyvolá událost nízké zásoby. Pošlete seznam parts. Pro zrušení propojení pošlete prázdný seznam parts.",
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
           "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "asset_id": {
-          "name": "Název nebo ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
+          "name": "Název nebo ID spotřebiče (zastaralé)",
+          "description": "Zastaralé. Použijte parts. Toto pole bude v pozdější verzi odstraněno. Spotřebič jednoho dílu k propojení, podle ID nebo názvu."
         },
         "part_id": {
-          "name": "Název nebo ID dílu",
-          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
+          "name": "Název nebo ID dílu (zastaralé)",
+          "description": "Zastaralé. Použijte parts. Toto pole bude v pozdější verzi odstraněno. Jeden díl k propojení, podle ID nebo názvu."
         },
         "quantity": {
-          "name": "Množství",
-          "description": "Kolik dílu spotřebuje jedno dokončení. Vynechte to, chcete-li použít množství nastavené u dílu."
+          "name": "Množství (zastaralé)",
+          "description": "Zastaralé. Použijte množství v parts. Toto pole bude v pozdější verzi odstraněno. Kolik dílu spotřebuje 1 dokončení."
         },
         "parts": {
           "name": "Díly",
-          "description": "Úplný seznam dílů, které úkol spotřebuje. Každá položka je asset_id, part_id, quantity a quantity je volitelné. Seznam nahradí propojení úkolu. Nepoužívejte ho spolu s asset_id a part_id."
+          "description": "Úplný seznam dílů, které úkol spotřebuje. Každá položka má asset_id a part_id, podle ID nebo názvu. Množství je volitelné. Seznam nahradí propojení úkolu. Prázdný seznam je zruší."
         }
       }
     },

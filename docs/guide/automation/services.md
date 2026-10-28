@@ -17,8 +17,9 @@ lists all of them with their fields.
   it. `move_occurrence` moves one date of a fixed schedule and leaves the other
   dates alone. See [Fixed schedules](../tasks/fixed-schedules.md#move-one-date).
   `set_task_consumable` links a task to 1 or more
-  appliance consumables, so a completion draws down the stock of each. Omit the ids to
-  unlink. `list_tasks` returns a response. `delete_orphaned_tasks` deletes each task
+  appliance consumables in its `parts` list, so a completion draws down the stock of
+  each. An empty `parts` list unlinks. The `asset_id`, `part_id` and `quantity` fields
+  are deprecated and will be removed in a later release. `list_tasks` returns a response. `delete_orphaned_tasks` deletes each task
   whose managing integration is not loaded. It is admin-only.
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 - **Notifications**: `home_keeper.notify` sends an actionable notification for the

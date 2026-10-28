@@ -443,27 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Taak koppelen aan verbruiksartikelen",
-      "description": "Koppelt een taak aan 1 of meer verbruiksartikelen of onderdelen van een apparaat. Elke voltooiing haalt de hoeveelheid van elk onderdeel van de voorraad en vuurt een gebeurtenis voor lage voorraad af bij de bestelgrens. Stuur parts voor een lijst, of asset_id en part_id voor 1 onderdeel. Stuur geen van beide, of een lege parts-lijst, om de koppelingen te wissen.",
+      "description": "Koppelt een taak aan 1 of meer verbruiksartikelen of onderdelen van een apparaat. Elke voltooiing haalt de hoeveelheid van elk onderdeel van de voorraad. Een onderdeel dat de bestelgrens bereikt, vuurt een gebeurtenis voor lage voorraad af. Stuur de lijst parts. Stuur een lege parts-lijst om de koppelingen te wissen.",
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
           "description": "De id van de te activeren geactiveerde taak. De naam werkt ook. Het paneel toont het id."
         },
         "asset_id": {
-          "name": "Assetnaam of -ID",
-          "description": "De id van het apparaat waartoe het onderdeel behoort. De naam werkt ook. Het paneel toont het id."
+          "name": "Naam of ID van apparaat (verouderd)",
+          "description": "Verouderd. Gebruik parts. Dit veld wordt in een latere versie verwijderd. Het apparaat van het ene onderdeel om te koppelen, op ID of naam."
         },
         "part_id": {
-          "name": "Onderdeelnaam of -ID",
-          "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
+          "name": "Naam of ID van onderdeel (verouderd)",
+          "description": "Verouderd. Gebruik parts. Dit veld wordt in een latere versie verwijderd. Het ene onderdeel om te koppelen, op ID of naam."
         },
         "quantity": {
-          "name": "Hoeveelheid",
-          "description": "Hoeveel van het onderdeel één voltooiing verbruikt. Laat het weg om de hoeveelheid van het onderdeel te gebruiken."
+          "name": "Hoeveelheid (verouderd)",
+          "description": "Verouderd. Gebruik de hoeveelheid in parts. Dit veld wordt in een latere versie verwijderd. Hoeveel van het onderdeel 1 voltooiing gebruikt."
         },
         "parts": {
           "name": "Onderdelen",
-          "description": "De volledige lijst met onderdelen die de taak gebruikt. Elk item is asset_id, part_id, quantity, en quantity is optioneel. De lijst vervangt de koppelingen van de taak. Gebruik hem niet samen met asset_id en part_id."
+          "description": "De volledige lijst met onderdelen die de taak gebruikt. Elk item heeft asset_id en part_id, op ID of naam. De hoeveelheid is optioneel. De lijst vervangt de koppelingen van de taak. Een lege lijst wist ze."
         }
       }
     },

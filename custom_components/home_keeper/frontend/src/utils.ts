@@ -477,9 +477,9 @@ export function isMonitoredDormant(task: Task): boolean {
     // (`store.add_task` rejects the reserved namespaces, `models.merge_update` never
     // merges `source`, and the importer refuses them), and it writes `triggered` only
     // when the part counts uses — a time-measured part gets `floating` instead. The
-    // `manual` half is load-bearing: `store.set_task_consumable` puts that same shape
-    // on any task the user owns, including a dormant triggered one, and that task
-    // really is waiting on its owner.
+    // `manual` half is load-bearing: a consumable link stored before the `parts` list
+    // has that same shape on any task the user owns, including a dormant triggered
+    // one, and that task really is waiting on its owner.
     const part = task.source?.part;
     return !(part && !part.manual);
   }
@@ -1316,8 +1316,8 @@ export function countedProgress(
   // The replacement half: same part, and a role that is absent or `replace` — absent
   // being what every part-derived task written before counted wear items carries.
   // A **manual** link is excluded, exactly as `reconcile.counted_part_pairs` and
-  // `reconcile.reconcile_part_tasks` exclude it. `set_task_consumable` lets any task
-  // point at any part, so without this guard `find` can return a user-owned task and
+  // `reconcile.reconcile_part_tasks` exclude it. An old manual link can point any
+  // task at any part, so without this guard `find` can return a user-owned task and
   // measure the count from its completion instead — a chip that disagrees with the
   // figure the reminder arms on.
   const replaceTask = tasks?.find((candidate) => {

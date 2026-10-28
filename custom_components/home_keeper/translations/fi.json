@@ -443,27 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Linkitä tehtävä kulutustarvikkeisiin",
-      "description": "Linkittää tehtävän 1 tai useampaan laitteen kulutustarvikkeeseen tai osaan. Jokainen suoritus vähentää kunkin osan määrän sen varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Lähetä parts luettelolle tai asset_id ja part_id yhdelle osalle. Poista linkit lähettämällä kumpaakaan tai tyhjä parts-luettelo.",
+      "description": "Linkittää tehtävän 1 tai useampaan laitteen kulutustarvikkeeseen tai osaan. Jokainen suoritus vähentää kunkin osan määrän sen varastosta. Osa, joka laskee tilausrajalle, laukaisee vähäisen varaston tapahtuman. Lähetä parts-luettelo. Poista linkit lähettämällä tyhjä parts-luettelo.",
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
           "description": "Viritettävän laukaistavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         },
         "asset_id": {
-          "name": "Kohteen nimi tai tunnus",
-          "description": "Sen laitteen tunnus, johon varaosa kuuluu. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+          "name": "Laitteen nimi tai ID (vanhentunut)",
+          "description": "Vanhentunut. Käytä parts-kenttää. Tämä kenttä poistetaan myöhemmässä versiossa. Linkitettävän yhden osan laite, ID:n tai nimen mukaan."
         },
         "part_id": {
-          "name": "Varaosan nimi tai tunnus",
-          "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+          "name": "Osan nimi tai ID (vanhentunut)",
+          "description": "Vanhentunut. Käytä parts-kenttää. Tämä kenttä poistetaan myöhemmässä versiossa. Linkitettävä yksi osa, ID:n tai nimen mukaan."
         },
         "quantity": {
-          "name": "Määrä",
-          "description": "Kuinka paljon osaa yksi suoritus kuluttaa. Jätä se pois, niin käytetään osan ilmoittamaa määrää."
+          "name": "Määrä (vanhentunut)",
+          "description": "Vanhentunut. Käytä parts-kentän määrää. Tämä kenttä poistetaan myöhemmässä versiossa. Kuinka paljon osaa 1 suoritus käyttää."
         },
         "parts": {
           "name": "Osat",
-          "description": "Täydellinen luettelo osista, joita tehtävä käyttää. Jokainen kohde on asset_id, part_id, quantity, ja quantity on valinnainen. Luettelo korvaa tehtävän linkit. Älä käytä sitä yhdessä asset_id:n ja part_id:n kanssa."
+          "description": "Täydellinen luettelo osista, joita tehtävä käyttää. Jokaisella kohteella on asset_id ja part_id, ID:n tai nimen mukaan. Määrä on valinnainen. Luettelo korvaa tehtävän linkit. Tyhjä luettelo poistaa ne."
         }
       }
     },

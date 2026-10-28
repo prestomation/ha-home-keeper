@@ -13,11 +13,12 @@ implements:
   - custom_components/home_keeper/api_surface.py
   - custom_components/home_keeper/resolve.py
   - custom_components/home_keeper/service_errors.py
+  - custom_components/home_keeper/deprecations.py
   - custom_components/home_keeper/websocket_api.py
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: cc9f98aba1fe
+source_hash: 13819ff3eeda
 ---
 
 # Events and API surface
@@ -97,17 +98,16 @@ at startup, often before the entry loads. `event.py` mirrors events onto 1 event
 
 ### Services and websocket commands
 
-`__init__._register_services` runs 1 time, from `async_setup`; a reload removes no service.
-With no loaded entry, a handler raises `integration_not_loaded`. Read services use
-`SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold labels.
+`__init__._register_services` runs 1 time, from `async_setup`. Without a loaded entry, a
+handler raises `integration_not_loaded`. `services.yaml` and `strings.json` hold labels.
 
-`websocket_api._with_coordinator` finds the coordinator and maps store errors to codes.
-`backend_i18n.resolve_exception` localizes the text, as a websocket error gets no later
-translation. Each `WebsocketSpec` names its service twin, except the panel tab list and the
-reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of photos.
+`websocket_api._with_coordinator` maps store errors to codes, which
+`backend_i18n.resolve_exception` localizes. Each `WebsocketSpec` names its service twin,
+except the panel tab list, `get_options` and `get_spend`. `sign_task_photo_urls` signs photos.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
-`await _verify_admin(call)` first in the service handler. A call with no user is trusted.
+`await _verify_admin(call)` first in the service handler. A call with no user is trusted. A
+deprecated input form works and logs 1 warning per run (`deprecations.warn_once`).
 
 ### Name or id, and errors
 

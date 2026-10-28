@@ -24,6 +24,7 @@ from . import (
     cost_summary,
     declarative_companion_sync,
     declarative_presets,
+    deprecations,
     devices,
     manuals,
     models,
@@ -409,6 +410,9 @@ async def ws_set_task_consumable(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    deprecations.warn_single_consumable_link(
+        msg, deprecations.WS_SINGLE_CONSUMABLE_LINK
+    )
     if "parts" in msg:
         refuse_mixed_link_forms(msg)
         task = await coord.store.set_task_consumables(msg["task_id"], msg["parts"])

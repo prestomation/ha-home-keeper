@@ -39,6 +39,7 @@ from . import (
     card,
     companions,
     declarative_companion_sync,
+    deprecations,
     devices,
     manuals,
     notifications,
@@ -1473,6 +1474,9 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_set_task_consumable(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
+        deprecations.warn_single_consumable_link(
+            call.data, deprecations.SERVICE_SINGLE_CONSUMABLE_LINK
+        )
         with _store_errors(task_id=task_id):
             if "parts" in call.data:
                 refuse_mixed_link_forms(call.data)

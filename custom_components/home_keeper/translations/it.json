@@ -443,27 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Collega attività ai materiali di consumo",
-      "description": "Collega un'attività a 1 o più materiali di consumo o parti di un apparecchio. Ogni completamento preleva la quantità di ogni parte dalla sua scorta e genera un evento di scorta bassa alla soglia di riordino. Invia parts per un elenco, oppure asset_id e part_id per 1 parte. Non inviare nessuno dei due, o invia un elenco parts vuoto, per rimuovere i collegamenti.",
+      "description": "Collega un'attività a 1 o più materiali di consumo o parti di un apparecchio. Ogni completamento preleva la quantità di ogni parte dalla sua scorta. Una parte che scende alla soglia di riordino genera un evento di scorta bassa. Invia l'elenco parts. Invia un elenco parts vuoto per rimuovere i collegamenti.",
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
           "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "asset_id": {
-          "name": "Nome o ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
+          "name": "Nome o ID dell'apparecchio (deprecato)",
+          "description": "Deprecato. Usa parts. Questo campo sarà rimosso in una versione successiva. L'apparecchio dell'unica parte da collegare, per ID o nome."
         },
         "part_id": {
-          "name": "Nome o ID ricambio",
-          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
+          "name": "Nome o ID della parte (deprecato)",
+          "description": "Deprecato. Usa parts. Questo campo sarà rimosso in una versione successiva. L'unica parte da collegare, per ID o nome."
         },
         "quantity": {
-          "name": "Quantità",
-          "description": "Quanto consuma del componente un completamento. Omettila per usare la quantità indicata dal componente."
+          "name": "Quantità (deprecato)",
+          "description": "Deprecato. Usa la quantità in parts. Questo campo sarà rimosso in una versione successiva. Quantità della parte usata da 1 completamento."
         },
         "parts": {
           "name": "Parti",
-          "description": "L'elenco completo delle parti usate dall'attività. Ogni voce è asset_id, part_id, quantity, e quantity è facoltativo. L'elenco sostituisce i collegamenti dell'attività. Non usarlo insieme ad asset_id e part_id."
+          "description": "L'elenco completo delle parti usate dall'attività. Ogni voce ha asset_id e part_id, per ID o nome. La quantità è facoltativa. L'elenco sostituisce i collegamenti dell'attività. Un elenco vuoto li rimuove."
         }
       }
     },
