@@ -563,8 +563,8 @@ export function consumableLinksFromForm(task: Partial<Task>): PartLink[] {
     const cut = token.indexOf(':');
     if (cut < 1 || cut === token.length - 1) continue;
     const link: PartLink = { asset_id: token.slice(0, cut), part_id: token.slice(cut + 1) };
-    const raw = amounts[consumableQtyField(token)];
-    const quantity = raw === '' || raw == null ? NaN : Number(raw);
+    // A blank or cleared field reads as 0 or NaN, and only a positive amount is kept.
+    const quantity = Number(amounts[consumableQtyField(token)]);
     if (quantity > 0) link.quantity = quantity;
     links.push(link);
   }

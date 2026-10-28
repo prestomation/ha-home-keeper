@@ -1348,7 +1348,7 @@ export function consumableLinks(task: Pick<Task, 'source'>): PartLink[] {
   const source = task.source;
   if (!source) return [];
   const isLink = (x: unknown): x is PartLink =>
-    !!x && typeof x === 'object' && Boolean((x as PartLink).asset_id) && Boolean((x as PartLink).part_id);
+    !!x && Boolean((x as PartLink).asset_id) && Boolean((x as PartLink).part_id);
   if (Array.isArray(source.parts)) return source.parts.filter(isLink);
   const legacy = source.part;
   return legacy?.manual && isLink(legacy) ? [legacy] : [];
