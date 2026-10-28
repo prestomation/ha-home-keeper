@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "Ta bort {n} föräldralösa uppgifter?",
   "confirm.deleteProfile": "Ta bort \"{name}\"?",
   "confirm.deleteTask": "Ta bort \"{name}\"?",
+  "confirm.partTasks.one": "{n} uppgift använder den här delen: {tasks}. Spara tar bort länken.",
+  "confirm.partTasks.other": "{n} uppgifter använder den här delen: {tasks}. Spara tar bort länkarna.",
   "confirm.profileInUseBody": "Dessa aviseringar använder den här profilen: {notifications}. Ändra eller ta bort var och en och försök igen.",
   "confirm.profileInUseTitle": "Det går inte att ta bort \"{name}\"",
   "confirm.removeField": "Ta bort fält {n}?",

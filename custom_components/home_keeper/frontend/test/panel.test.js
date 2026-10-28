@@ -1565,6 +1565,37 @@ describe('Parts editor — folded rows, and the Parts tab as a way in (issue #29
     expect(panel._assetEdit.openPart).toBeNull();
     expect(rows(panel).map((d) => d.open)).toEqual([false, false]);
   });
+
+  // Save drops the links of a removed part, so the confirm names the tasks first.
+  it('names the tasks that take a part before it is removed (#493)', async () => {
+    const link = (id, name, parts) => ({
+      id, name, recurrence_type: 'floating', interval: 1, unit: 'months', source: { parts },
+    });
+    const tasks = [
+      link('t1', 'Flush tank', [{ asset_id: 'a1', part_id: 'p1' }]),
+      link('t2', 'Check anode', [{ asset_id: 'a1', part_id: 'p2' }, { asset_id: 'a1', part_id: 'p1' }]),
+      link('t3', 'Other', [{ asset_id: 'a1', part_id: 'p3' }]),
+    ];
+    const panel = await mountPanel(makeHassWith({ assets: [heater], tasks }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('#part-edit-0'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    rows(panel)[0].querySelector('.part-del').click();
+    const body = await waitFor(() => document.querySelector('.hk-confirm-scrim #hk-confirm-body'));
+    expect(body.textContent).toBe(
+      '2 tasks take this part: Check anode, Flush tank. Save removes the links. This cannot be undone.',
+    );
+    document.querySelector('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]').click();
+  });
+
+  it('keeps the plain confirm for a part that no task takes', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('#part-edit-0'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    rows(panel)[0].querySelector('.part-del').click();
+    const body = await waitFor(() => document.querySelector('.hk-confirm-scrim #hk-confirm-body'));
+    expect(body.textContent).toBe('This cannot be undone.');
+    document.querySelector('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]').click();
+  });
 });
 
 describe('Parts tab — the stock stepper (issue #296)', () => {

@@ -213,8 +213,8 @@ export function consumableChip(p: PanelHost, task: Task): string {
  * The 1 stock chip of a task-list row. The row has room for a short chip only, so
  * the full "Takes 2 Sediment filter · 4 left" line goes to the tooltip.
  *
- * - 1 part: the part name and what is left. A click opens the part, as on the
- *   task page.
+ * - 1 part: the part name and what is left. A long name is cut, so the count stays
+ *   in view. A click opens the part, as on the task page.
  * - More parts (#493): "2 parts", plus "Low stock" when 1 of them is at or below
  *   its reorder point. A click opens the task page, which shows 1 chip per part.
  *
@@ -228,11 +228,10 @@ export function consumableRowChip(p: PanelHost, task: Task): string {
   );
   if (links.length === 1) {
     const [{ asset, part }] = links;
-    const label =
-      part.stock != null
-        ? `${part.name} · ${t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) })}`
-        : part.name;
-    return partChip(asset.id, part.id as string, label, lines[0]);
+    const left =
+      part.stock != null ? t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }) : '';
+    const label = left ? `${rowChipName(part.name)} · ${left}` : rowChipName(part.name);
+    return partChip(asset.id, part.id as string, label, left ? `${lines[0]} · ${left}` : lines[0]);
   }
   const low = links.some(
     ({ part }) => part.stock != null && part.reorder_at != null && part.stock <= part.reorder_at,
@@ -242,6 +241,19 @@ export function consumableRowChip(p: PanelHost, task: Task): string {
   return `<ha-assist-chip class="hk-counted hk-part-chip" role="link" tabindex="0" data-open-task="${escapeHTML(
     task.id,
   )}" label="${escapeHTML(label)}" title="${escapeHTML(lines.join('\n'))}">${icon}</ha-assist-chip>`;
+}
+
+/** The longest part name a row chip shows whole. */
+const ROW_CHIP_NAME_MAX = 18;
+
+/**
+ * A part name cut to fit a row chip, with an ellipsis. The chip label has no style
+ * hook, so CSS cannot cut the name and keep the count after it.
+ */
+function rowChipName(name: string): string {
+  const chars = [...name];
+  if (chars.length <= ROW_CHIP_NAME_MAX) return name;
+  return `${chars.slice(0, ROW_CHIP_NAME_MAX - 1).join('').trimEnd()}…`;
 }
 
 /** Each part a completion of *task* draws, with what it takes, that still exists. */

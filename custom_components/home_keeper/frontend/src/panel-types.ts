@@ -54,6 +54,8 @@ export interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Set when a save fails, so the next render scrolls the error into view once. */
+  revealError?: boolean;
   /** Photos picked in the New task form. They upload after Create (#399). */
   photos?: StagedPhoto[];
 }

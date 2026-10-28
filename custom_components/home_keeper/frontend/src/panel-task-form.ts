@@ -20,6 +20,8 @@ import {
   MAX_SEASON_WINDOWS,
   cardLinkTokens,
   consumableLinkTokens,
+  consumableOptionsFor,
+  consumableQtyField,
   daysInMonth,
   formRecurrenceSummary,
   isConsumableQtyField,
@@ -40,10 +42,12 @@ import type { PanelHost } from './panel-host';
 import { formPhotosSection } from './panel-task-photos';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
+import type { HaFormElement } from './forms';
 import type { Asset, PartLink, Task } from './types';
 import {
   assetTitle,
   assetsForTask,
+  consumableLinks,
   escapeHTML,
   formatQuantity,
   safeHref,
@@ -158,28 +162,43 @@ function assetsForDevice(p: PanelHost, deviceId?: string | null): Asset[] {
 }
 
 /**
- * `asset_id:part_id` options for the task form's "Linked consumable" picker,
- * scoped to the consumables of the appliance the task is **attached to** (its
- * device). You link a task to its own appliance's consumable, not some unrelated
- * appliance's — so the list stays short and unambiguous. Empty when the task has no
- * device, or its appliance has no consumables (the picker then hides).
+ * `asset_id:part_id` options for the task form's consumable picker: the consumables
+ * of the appliance the task is attached to (its device), plus every part the task
+ * links now. So a link to another appliance shows by name, and a task with links but
+ * no device still shows the picker. Empty when there is neither (the picker hides).
  */
 export function consumableOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
-  const assets = assetsForDevice(p, task.device_id);
-  const multi = assets.length > 1; // disambiguate by appliance only when needed
-  const options: { value: string; label: string }[] = [];
-  for (const asset of assets) {
-    for (const part of asset.parts ?? []) {
-      if (part.type !== 'consumable' || !part.id) continue;
-      options.push({
-        value: `${asset.id}:${part.id}`,
-        label: multi ? `${asset.name} · ${part.name}` : part.name,
-      });
-    }
-  }
-  return options.sort((a, b) => a.label.localeCompare(b.label));
+  return consumableOptionsFor(assetsForDevice(p, task.device_id), p._assets, consumableLinks(task));
 }
 
+
+/** The form's schema key with the consumable picks left out. */
+function schemaKeyBesideLinks(task: Partial<Task>): string {
+  return taskFormSchemaKey({ ...task, consumable_links: [] });
+}
+
+/**
+ * Set the new amount fields on the form that holds the consumable picker, in place.
+ * `ha-form` keeps the element of each row that stays, so the picker keeps the focus.
+ * False when there is no such form, and the caller renders the whole drawer.
+ */
+function refreshConsumableFields(p: PanelHost): boolean {
+  const task = p._edit.task ?? {};
+  const section = taskSchemaSections(
+    task,
+    consumableOptions(p, task),
+    documentOptions(p, task),
+    p._tags,
+    { readOnly: p._readOnly() },
+  ).find((s) => s.fields.some((f) => f.name === 'consumable_links'));
+  const form = section
+    ? (p.shadowRoot?.getElementById(`hk-task-form-${section.key}`) as HaFormElement | null)
+    : null;
+  if (!section || !form) return false;
+  form.schema = section.fields;
+  form.data = pickFormData(taskFormData(task), section.fields);
+  return true;
+}
 
 /**
  * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
@@ -376,6 +395,7 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       // `taskFormSchemaKey`). Anything else, a typed character included, leaves it
       // untouched and must never reach `_render()`.
       const prevSchemaKey = taskFormSchemaKey(p._edit.task ?? {});
+      const prevOtherKey = schemaKeyBesideLinks(p._edit.task ?? {});
       const prevDevice = p._edit.task?.device_id ?? '';
       // The form is rendered as one `ha-form` per section, so an event carries only
       // the section that changed. Every rule below therefore has to ask whether the
@@ -390,16 +410,25 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
         ...seasonMonthEndFollow(p, value),
       } as Partial<Task>;
       p._edit.error = undefined;
+      // A part taken off the consumable list forgets its amount, so it does not come
+      // back if the part is added again. Null, not absent: absent reads the stored one.
+      if (has('consumable_links')) {
+        const picked = new Set(consumableLinkTokens(p._edit.task).map(consumableQtyField));
+        for (const key of Object.keys(p._edit.task)) {
+          if (isConsumableQtyField(key) && !picked.has(key)) {
+            (p._edit.task as Record<string, unknown>)[key] = null;
+          }
+        }
+      }
       // A fixed task's Repeats, Every, day buttons and rule text are views of one
       // stored rule; this keeps them in step without a re-render (see panel-rule.ts).
       applyRuleChange(p, value);
       // Refresh the notes preview in place — a re-render here would drop focus from
       // the textarea mid-word.
       if (has('notes')) p._taskNotePreview?.update(String(value.notes ?? ''));
-      // Changing the attached device re-scopes the consumable picker; drop a link
-      // to a part of the old appliance that the new one does not offer. A link that
-      // the old picker never offered (set through the service, to a part of another
-      // appliance) stays. Both sides are normalized to '' so a cleared picker (null
+      // Changing the attached device re-scopes the consumable picker; drop an unsaved
+      // pick of a part of the old appliance that the new one does not offer. A saved
+      // link stays, because the picker always offers it. Both sides are normalized to '' so a cleared picker (null
       // vs. undefined vs. absent) doesn't look like a change on an unrelated edit.
       if (has('device_id') && (value.device_id ?? '') !== prevDevice) {
         const offered = (task: Partial<Task>): Set<string> =>
@@ -446,8 +475,13 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       // control), and the attached device (which scopes the consumable picker) each
       // toggle the visible schema -> re-render. Read off the merged state, so it and
       // the "before" key above are the same shape through the same normalizer.
+      //
+      // A consumable pick changes only the amount fields under the picker. Those are
+      // set in place on the picker's own form, so the keyboard stays in the picker.
       if (taskFormSchemaKey(p._edit.task ?? {}) !== prevSchemaKey) {
-        p._render();
+        const onlyLinks = schemaKeyBesideLinks(p._edit.task ?? {}) === prevOtherKey;
+        if (!onlyLinks || !refreshConsumableFields(p)) p._render();
+        else updateFormHints(p);
       } else {
         // The edit didn't change the visible schema, so refresh the live copy in
         // place — a full re-render would drop focus from the box being typed in, and
@@ -592,6 +626,16 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     err.setAttribute('alert-type', 'error');
     err.textContent = p._edit.error;
     inner.appendChild(err);
+    // A refused save puts its alert at the foot of a long form: bring it into view,
+    // once. Guarded: jsdom has no scrollIntoView.
+    if (p._edit.revealError) {
+      p._edit.revealError = false;
+      requestAnimationFrame(() => {
+        if (typeof err.scrollIntoView === 'function') {
+          err.scrollIntoView({ block: 'center', behavior: p._scrollBehavior() });
+        }
+      });
+    }
   }
 
   card.appendChild(inner);

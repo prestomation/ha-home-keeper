@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "{n} verwaiste Aufgaben löschen?",
   "confirm.deleteProfile": "„{name}“ löschen?",
   "confirm.deleteTask": "\"{name}\" löschen?",
+  "confirm.partTasks.one": "{n} Aufgabe verwendet dieses Teil: {tasks}. Speichern entfernt die Verknüpfung.",
+  "confirm.partTasks.other": "{n} Aufgaben verwenden dieses Teil: {tasks}. Speichern entfernt die Verknüpfungen.",
   "confirm.profileInUseBody": "Diese Benachrichtigungen verwenden dieses Profil: {notifications}. Ändere oder lösche jede davon und versuche es erneut.",
   "confirm.profileInUseTitle": "„{name}“ kann nicht gelöscht werden",
   "confirm.removeField": "Feld {n} entfernen?",

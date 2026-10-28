@@ -14,6 +14,7 @@ import {
   cardLinkTokens,
   cardLinksFromTokens,
   consumableFormSeed,
+  consumableOptionsFor,
   consumableLinkTokens,
   consumableLinksFromForm,
   consumableQtyField,
@@ -911,5 +912,65 @@ describe('Home Assistant time zone (X04-7)', () => {
     const parts = zonedParts(ms, 'America/Los_Angeles');
     expect(parts).toEqual([2026, 6, 13, 9, 8, 7]);
     expect(zonedTimeToMs(parts, 'America/Los_Angeles')).toBe(ms);
+  });
+});
+
+describe('consumableOptionsFor — the picker lists every linked part (#493)', () => {
+  const FRIDGE = {
+    id: 'a-fr',
+    name: 'Fridge',
+    parts: [
+      { id: 'p-flt', name: 'Fridge filter', type: 'consumable' },
+      { id: 'p-door', name: 'Door seal', type: 'wear' },
+    ],
+  };
+  const SHELF = { id: 'a-sh', name: 'Shelf', parts: [{ id: 'p-salt', name: 'Salt', type: 'consumable' }] };
+  const SINK = { id: 'a-sk', name: 'Sink', parts: [{ id: 'p-sed', name: 'Sediment', type: 'consumable' }] };
+
+  it('offers the consumables of the device appliance by name', () => {
+    expect(consumableOptionsFor([FRIDGE], [FRIDGE, SHELF], [])).toEqual([
+      { value: 'a-fr:p-flt', label: 'Fridge filter' },
+    ]);
+  });
+
+  it('names the appliance first when the device has several appliances', () => {
+    expect(consumableOptionsFor([FRIDGE, SINK], [FRIDGE, SINK], []).map((o) => o.label)).toEqual([
+      'Fridge · Fridge filter',
+      'Sink · Sediment',
+    ]);
+  });
+
+  it('adds a linked part of another appliance as "Part · Appliance"', () => {
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }, { asset_id: 'a-fr', part_id: 'p-flt' }];
+    expect(consumableOptionsFor([FRIDGE], [FRIDGE, SHELF], links)).toEqual([
+      { value: 'a-fr:p-flt', label: 'Fridge filter' },
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('offers the links of a task with no device', () => {
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }];
+    expect(consumableOptionsFor([], [SHELF], links)).toEqual([
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('skips a link whose part or appliance is gone, and lists a link only once', () => {
+    const links = [
+      { asset_id: 'a-sh', part_id: 'p-gone' },
+      { asset_id: 'a-gone', part_id: 'p-x' },
+      { asset_id: 'a-sh', part_id: 'p-salt' },
+      { asset_id: 'a-sh', part_id: 'p-salt' },
+    ];
+    expect(consumableOptionsFor([], [SHELF], links)).toEqual([
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('offers a linked wear item of another appliance too', () => {
+    const links = [{ asset_id: 'a-fr', part_id: 'p-door' }];
+    expect(consumableOptionsFor([], [FRIDGE], links)).toEqual([
+      { value: 'a-fr:p-door', label: 'Door seal · Fridge' },
+    ]);
   });
 });

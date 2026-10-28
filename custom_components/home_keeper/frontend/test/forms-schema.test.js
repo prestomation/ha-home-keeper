@@ -3087,6 +3087,13 @@ describe('the consumable list on the task form (#493)', () => {
     expect(names(list(managed)).some((n) => n.startsWith('consumable'))).toBe(false);
   });
 
+  // The backend refuses a link on a buy reminder: completing one restocks its part,
+  // so a draw on the same completion would undo the restock.
+  it('offers no list on a buy reminder', () => {
+    const buy = { ...base, source: { buy: { asset_id: 'a', part_id: 'p1' } } };
+    expect(names(list(buy)).some((n) => n.startsWith('consumable'))).toBe(false);
+  });
+
   it('seeds the form data from the stored links', () => {
     const data = taskFormData({
       ...base,

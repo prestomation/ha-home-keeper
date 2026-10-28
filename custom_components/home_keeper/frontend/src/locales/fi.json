@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "Poistetaanko {n} orpoa tehtävää?",
   "confirm.deleteProfile": "Poistetaanko \"{name}\"?",
   "confirm.deleteTask": "Poista \"{name}\"?",
+  "confirm.partTasks.one": "{n} tehtävä käyttää tätä osaa: {tasks}. Tallennus poistaa linkin.",
+  "confirm.partTasks.other": "{n} tehtävää käyttää tätä osaa: {tasks}. Tallennus poistaa linkit.",
   "confirm.profileInUseBody": "Nämä ilmoitukset käyttävät tätä profiilia: {notifications}. Muuta tai poista jokainen niistä ja yritä uudelleen.",
   "confirm.profileInUseTitle": "Kohdetta \"{name}\" ei voi poistaa",
   "confirm.removeField": "Poistetaanko kenttä {n}?",

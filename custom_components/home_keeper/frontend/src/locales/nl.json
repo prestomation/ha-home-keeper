@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "{n} verweesde taken verwijderen?",
   "confirm.deleteProfile": "\"{name}\" verwijderen?",
   "confirm.deleteTask": "\"{name}\" verwijderen?",
+  "confirm.partTasks.one": "{n} taak gebruikt dit onderdeel: {tasks}. Opslaan verwijdert de koppeling.",
+  "confirm.partTasks.other": "{n} taken gebruiken dit onderdeel: {tasks}. Opslaan verwijdert de koppelingen.",
   "confirm.profileInUseBody": "Deze meldingen gebruiken dit profiel: {notifications}. Wijzig of verwijder elk ervan en probeer het opnieuw.",
   "confirm.profileInUseTitle": "Kan \"{name}\" niet verwijderen",
   "confirm.removeField": "Veld {n} verwijderen?",

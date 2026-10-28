@@ -316,6 +316,11 @@ function taskMetaHtml(p: PanelHost, task: Task): string {
   return `${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
 }
 
+/** How many chips a row's chip strip shows before its "+n": 1 after a stock chip. */
+function inlineChipCount(strip: Element | null): number {
+  return strip?.classList.contains('hk-chips-lead') ? 1 : TASK_CARD_INLINE_CHIPS;
+}
+
 function taskCard(p: PanelHost, task: Task): string {
   // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
@@ -376,10 +381,15 @@ function taskCard(p: PanelHost, task: Task): string {
   // The stock chip goes first (#493): the column clips what does not fit at its
   // end, and a stock chip placed after the device chip was cut off mid-word. The
   // tag chip comes next, because a scan lock explains a greyed Done.
+  //
+  // A stock chip and a second chip do not fit the column together: the second chip
+  // and the "+n" were cut off out of view. So a row that leads with a stock chip
+  // shows that chip only, and "+n" counts the rest.
   const stock = consumableRowChip(p, task);
   const lead = stock ? [stock, tag, dev] : [dev, tag];
   const inlineChips = [...lead, ...taskChipsList(task), managed].filter(Boolean);
-  const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
+  const inlineCount = stock ? 1 : TASK_CARD_INLINE_CHIPS;
+  const hiddenChips = Math.max(0, inlineChips.length - inlineCount);
   const chipsOpen = !!task.id && p._chipsExpanded.has(task.id);
   const more = hiddenChips
     ? `<button class="hk-chip-more" data-chips-more="${escapeHTML(task.id)}" aria-expanded="${
@@ -404,7 +414,7 @@ function taskCard(p: PanelHost, task: Task): string {
             <div class="hk-meta">${taskMetaHtml(p, task)}</div>
             </div>
           </div>
-          <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
+          <div class="hk-chips hk-chips-inline${stock ? ' hk-chips-lead' : ''}${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
@@ -865,7 +875,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
       btn.setAttribute('aria-expanded', String(open));
       btn.textContent = open
         ? '−'
-        : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
+        : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - inlineChipCount(chips))}`;
     }),
   );
 }

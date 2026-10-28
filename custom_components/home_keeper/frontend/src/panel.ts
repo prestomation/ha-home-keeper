@@ -1399,6 +1399,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       await this._refresh();
     } catch (err) {
       this._edit.error = String((err as { message?: string })?.message || err);
+      this._edit.revealError = true;
       this._render();
     }
   }

@@ -2811,5 +2811,18 @@ def test_493_import_refuses_the_list_namespace():
 
 def test_493_a_reconciler_source_keeps_its_own_message():
     document = tr.build_document([_task()], [], now=NOW)
-    document["tasks"][0]["source"] = {"part": {"asset_id": "a", "part_id": "p"}}
-    assert "is rebuilt from them" in _errors(_plan(document))[0]
+    document["tasks"][0]["source"] = {
+        "part": {"asset_id": "a", "part_id": "p"},
+        "parts": [],
+    }
+    plan = _plan(document)
+    assert _errors(plan) == [
+        "this task claims a source Home Keeper's own reconcilers own. Import the "
+        "appliance and its parts instead; the task is rebuilt from them."
+    ]
+    [problem] = plan.problems
+    assert (problem.section, problem.index, problem.path) == (
+        "tasks",
+        0,
+        "tasks[0].source",
+    )

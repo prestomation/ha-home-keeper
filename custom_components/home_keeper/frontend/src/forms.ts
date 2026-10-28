@@ -30,6 +30,7 @@ import {
   zonedMidnight,
   zonedTimeToMs,
   consumableLinks,
+  isBuyTask,
 } from './utils';
 import type {
   Asset,
@@ -571,6 +572,39 @@ export function consumableLinksFromForm(task: Partial<Task>): PartLink[] {
   return links;
 }
 
+/**
+ * `asset_id:part_id` options for the consumable picker (#493). It lists the
+ * consumables of the device's appliances by part name, with the appliance first when
+ * the device has more than 1. It also lists each linked part that those do not
+ * offer, as "Part · Appliance": a link to another appliance, or a wear item, that the
+ * service set. Then the picker shows that chip by name and gives it an amount field.
+ * A link to a part or appliance that is gone is not listed.
+ */
+export function consumableOptionsFor(
+  deviceAssets: Asset[],
+  allAssets: Asset[],
+  links: PartLink[],
+): { value: string; label: string }[] {
+  const multi = deviceAssets.length > 1;
+  const options = new Map<string, string>();
+  for (const asset of deviceAssets) {
+    for (const part of asset.parts ?? []) {
+      if (part.type !== 'consumable' || !part.id) continue;
+      options.set(`${asset.id}:${part.id}`, multi ? `${asset.name} · ${part.name}` : part.name);
+    }
+  }
+  for (const link of links) {
+    const token = partLinkToken(link);
+    if (options.has(token)) continue;
+    const asset = allAssets.find((a) => a.id === link.asset_id);
+    const part = asset?.parts?.find((pt) => pt.id === link.part_id);
+    if (asset && part) options.set(token, `${part.name} · ${asset.name}`);
+  }
+  return [...options]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /** A comparable key for a list of consumable links. */
 export function partLinksKey(links: PartLink[]): string {
   return JSON.stringify(links.map((l) => [l.asset_id, l.part_id, l.quantity ?? null]));
@@ -968,8 +1002,9 @@ export function taskSchemaSections(
     // Link the task to appliance consumables so completing it draws down each
     // part's stock (and fires the low-stock reorder event). Only offered when the
     // appliance has at least 1 consumable. Each chosen part gets its own amount
-    // (#493); an empty amount keeps the part's own "Used per completion".
-    ...(consumables.length && !locked.has('consumable_link')
+    // (#493); an empty amount keeps the part's own "Used per completion". A buy
+    // reminder takes no link: its completion restocks the part.
+    ...(consumables.length && !locked.has('consumable_link') && !isBuyTask(task as Task)
       ? consumableFields(task, consumables)
       : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),

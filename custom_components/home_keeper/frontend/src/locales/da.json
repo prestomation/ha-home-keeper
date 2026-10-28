@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "Slet {n} forældreløse opgaver?",
   "confirm.deleteProfile": "Slet \"{name}\"?",
   "confirm.deleteTask": "Slet \"{name}\"?",
+  "confirm.partTasks.one": "{n} opgave bruger denne del: {tasks}. Gem fjerner linket.",
+  "confirm.partTasks.other": "{n} opgaver bruger denne del: {tasks}. Gem fjerner linkene.",
   "confirm.profileInUseBody": "Disse notifikationer bruger denne profil: {notifications}. Ret eller slet hver af dem, og prøv igen.",
   "confirm.profileInUseTitle": "Kan ikke slette \"{name}\"",
   "confirm.removeField": "Fjern felt {n}?",

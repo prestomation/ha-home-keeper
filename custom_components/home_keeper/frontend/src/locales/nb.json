@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "Slette {n} foreldreløse oppgaver?",
   "confirm.deleteProfile": "Slette \"{name}\"?",
   "confirm.deleteTask": "Slett \"{name}\"?",
+  "confirm.partTasks.one": "{n} oppgave bruker denne delen: {tasks}. Lagring fjerner koblingen.",
+  "confirm.partTasks.other": "{n} oppgaver bruker denne delen: {tasks}. Lagring fjerner koblingene.",
   "confirm.profileInUseBody": "Disse varslene bruker denne profilen: {notifications}. Endre eller slett hvert av dem, og prøv igjen.",
   "confirm.profileInUseTitle": "Kan ikke slette \"{name}\"",
   "confirm.removeField": "Fjerne felt {n}?",

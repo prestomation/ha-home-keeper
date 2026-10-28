@@ -118,6 +118,8 @@
   "confirm.deleteOrphans.other": "删除 {n} 个孤立任务？",
   "confirm.deleteProfile": "要删除“{name}”吗？",
   "confirm.deleteTask": "删除\"{name}\"？",
+  "confirm.partTasks.one": "{n} 个任务使用此部件：{tasks}。保存后将移除这些链接。",
+  "confirm.partTasks.other": "{n} 个任务使用此部件：{tasks}。保存后将移除这些链接。",
   "confirm.profileInUseBody": "以下通知正在使用此配置文件：{notifications}。请更改或删除每一条，然后重试。",
   "confirm.profileInUseTitle": "无法删除“{name}”",
   "confirm.removeField": "删除字段 {n}？",
