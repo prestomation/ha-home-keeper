@@ -29,9 +29,10 @@ def test_the_list_is_read_in_order():
     assert rc.consumable_links(task) == [LINK_A, LINK_B]
 
 
-def test_an_old_manual_link_reads_as_a_list_of_1():
+def test_an_old_manual_link_is_not_read_at_run_time():
+    # The load migrates it (migrate_consumable_link), and no writer makes it again.
     legacy = {**LINK_A, "manual": True, "quantity": 3}
-    assert rc.consumable_links(_task({"part": legacy})) == [legacy]
+    assert rc.consumable_links(_task({"part": legacy})) == []
 
 
 def test_a_wear_part_source_is_no_consumable_link():
@@ -77,7 +78,7 @@ def test_a_linked_task_draws_every_link():
     assert rc.stock_links(_task({"parts": [LINK_A, LINK_B]})) == [LINK_A, LINK_B]
 
 
-def test_an_old_manual_link_draws_its_part():
+def test_a_source_part_draws_its_part_whatever_its_flags():
     legacy = {**LINK_A, "manual": True}
     assert rc.stock_links(_task({"part": legacy})) == [legacy]
 
@@ -159,9 +160,9 @@ def test_prune_with_nothing_to_drop_answers_the_same_source():
     assert rc.prune_consumable_links(plain, lambda link: False) is plain["source"]
 
 
-def test_prune_reads_an_old_link_too():
+def test_prune_leaves_an_old_link_to_the_migration():
     task = _task({"part": {**LINK_A, "manual": True}, "glue": {"x": 1}})
-    assert rc.prune_consumable_links(task, lambda link: False) == {"glue": {"x": 1}}
+    assert rc.prune_consumable_links(task, lambda link: False) is task["source"]
 
 
 def test_prune_leaves_a_wear_source():
@@ -195,8 +196,8 @@ def test_reconcile_keeps_live_links_and_reports_no_change():
 def test_a_list_alone_or_a_single_link_alone_is_accepted():
     rc.refuse_mixed_link_forms({"task_id": "t", "parts": []})
     rc.refuse_mixed_link_forms({"task_id": "t", "asset_id": "a", "part_id": "p"})
-    # Empty single fields beside a list are not a second form.
-    rc.refuse_mixed_link_forms({"parts": [LINK_A], "asset_id": "", "part_id": None})
+    # A single field that is None beside a list is not a second form.
+    rc.refuse_mixed_link_forms({"parts": [LINK_A], "asset_id": None, "part_id": None})
 
 
 @pytest.mark.parametrize(
@@ -206,9 +207,30 @@ def test_a_list_alone_or_a_single_link_alone_is_accepted():
         ({"part_id": "p"}, "part_id"),
         ({"quantity": 2}, "quantity"),
         ({"asset_id": "a", "part_id": "p"}, "asset_id, part_id"),
+        # A falsy value is still a second form: it must not be ignored in silence.
+        ({"quantity": 0}, "quantity"),
+        ({"asset_id": ""}, "asset_id"),
     ],
 )
 def test_a_list_beside_a_single_field_is_refused(extra, named):
     with pytest.raises(rc.models.TaskValidationError) as err:
         rc.refuse_mixed_link_forms({"parts": [LINK_A], **extra})
     assert str(err.value) == f"send parts, or {named}, not both"
+
+
+# ── ids that are not text (review item 7) ────────────────────────────────────
+
+
+@pytest.mark.parametrize("bad", [["a1"], {"id": "a1"}, 7, None])
+def test_a_link_with_an_id_that_is_not_text_is_skipped(bad):
+    task = _task({"parts": [{"asset_id": bad, "part_id": "p1"}, LINK_B]})
+    assert rc.consumable_links(task) == [LINK_B]
+    task = _task({"parts": [{"asset_id": "a1", "part_id": bad}, LINK_B]})
+    assert rc.consumable_links(task) == [LINK_B]
+
+
+def test_reconcile_survives_a_hand_edited_id_that_is_a_list():
+    assets = {"a1": {"id": "a1", "name": "Water", "parts": [{"id": "p2"}]}}
+    task = _task({"parts": [{"asset_id": ["a1"], "part_id": "p1"}, LINK_B]})
+    result, _changed = rc.reconcile_part_tasks(assets, {"t1": task}, now=NOW)
+    assert rc.consumable_links(result["t1"]) == [LINK_B]

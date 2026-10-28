@@ -1339,19 +1339,16 @@ export function countedProgress(
 
 /**
  * The consumable links a user set on a task, in order (#493) — the twin of
- * `reconcile.consumable_links`. The `parts` list wins, also when it is empty. A task
- * stored before the list keeps 1 manual link in `source.part`, which reads as a list
- * of 1. A wear part's own `source.part` is no consumable link, and an entry with no
- * ids is skipped.
+ * `reconcile.consumable_links`. An entry with no ids is skipped. The backend moves an
+ * old manual `source.part` link into this list when it loads, so the panel never
+ * sees that shape.
  */
 export function consumableLinks(task: Pick<Task, 'source'>): PartLink[] {
-  const source = task.source;
-  if (!source) return [];
-  const isLink = (x: unknown): x is PartLink =>
-    !!x && Boolean((x as PartLink).asset_id) && Boolean((x as PartLink).part_id);
-  if (Array.isArray(source.parts)) return source.parts.filter(isLink);
-  const legacy = source.part;
-  return legacy?.manual && isLink(legacy) ? [legacy] : [];
+  const parts = task.source?.parts;
+  if (!Array.isArray(parts)) return [];
+  return parts.filter(
+    (x): x is PartLink => !!x && Boolean(x.asset_id) && Boolean(x.part_id),
+  );
 }
 
 /**
@@ -1361,8 +1358,7 @@ export function consumableLinks(task: Pick<Task, 'source'>): PartLink[] {
  */
 export function stockLinks(task: Pick<Task, 'source'>): PartLink[] {
   const own = task.source?.part;
-  if (own && !own.manual) return [own];
-  return consumableLinks(task);
+  return own ? [own] : consumableLinks(task);
 }
 
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
@@ -2158,8 +2154,9 @@ export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
  * one a single-destination surface picks.
  *
  * Ranked, strongest first:
- *   1. the appliance whose *part* the task is (`source.part.asset_id`) — the task
- *      exists because of that appliance, so nothing beats it;
+ *   1. an appliance whose part the task is or takes (`stockLinks`: a wear part's
+ *      `source.part`, or each consumable link in `source.parts`) — the task exists
+ *      because of that appliance, so nothing beats it;
  *   2. the appliance the device belongs to (`asset.device_id`);
  *   3. an appliance that merely lists the device as related.
  * An archived appliance always ranks below a live one at the same strength: it is

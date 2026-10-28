@@ -304,6 +304,15 @@ def _manual_link_task(tid="m1", aid="a1", pid="p1"):
     }
 
 
+def _listed_task(tid="m1", aid="a1", pid="p1"):
+    """A user-owned task linked to a consumable through ``source.parts`` (#493)."""
+    return {
+        "id": tid,
+        "name": "Replace filter",
+        "source": {"parts": [{"asset_id": aid, "part_id": pid}]},
+    }
+
+
 def test_is_manual_part_link_discriminates():
     assert rc.is_manual_part_link(_manual_link_task()) is True
     # A reconciler-derived task (no manual flag) is not a manual link.
@@ -343,7 +352,7 @@ def test_manual_link_cleared_when_part_removed():
     # the manual link is cleared (task lives on as a standalone task) rather than left
     # dangling to silently no-op on completion.
     asset = _asset(parts=[{"id": "p1", "name": "Filter", "type": "consumable"}])
-    link = _manual_link_task(pid="p1")
+    link = _listed_task(pid="p1")
     _reconcile({"a1": asset}, {"m1": dict(link)})  # part present → kept (sanity)
     empty = _asset(parts=[])
     tasks, changed = _reconcile({"a1": empty}, {"m1": link})
@@ -359,7 +368,7 @@ def test_clearing_a_dangling_link_keeps_the_tasks_other_namespaces():
     # made the task stays. Setting ``source = None`` here orphaned every glue task on
     # an appliance whose part list moved.
     asset = _asset(parts=[])
-    link = _manual_link_task(pid="p1")
+    link = _listed_task(pid="p1")
     link["source"]["battery_notes"] = {"device_id": "dev1"}
     tasks, changed = _reconcile({"a1": asset}, {"m1": link})
     assert changed is True
@@ -371,7 +380,7 @@ def test_clearing_a_dangling_link_keeps_the_tasks_other_namespaces():
 
 def test_manual_link_cleared_when_whole_asset_gone():
     # The linked asset no longer exists at all (e.g. mid-reconcile) → link cleared.
-    link = _manual_link_task(aid="ghost", pid="p1")
+    link = _listed_task(aid="ghost", pid="p1")
     tasks, changed = _reconcile({}, {"m1": link})
     assert changed is True
     assert tasks["m1"]["source"] is None

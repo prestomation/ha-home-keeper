@@ -140,29 +140,31 @@ def is_manual_part_link(task: dict[str, Any]) -> bool:
 
 
 def _is_link(value: Any) -> TypeGuard[dict[str, Any]]:
-    """True when *value* names a part: a dict with ``asset_id`` and ``part_id``."""
-    return isinstance(value, dict) and "asset_id" in value and "part_id" in value
+    """True when *value* names a part: a dict with a text ``asset_id`` and ``part_id``.
+
+    A hand-edited id that is a list or a dict could not be a dict key or a set member,
+    so a check here keeps it from raising ``TypeError`` in a reconcile pass.
+    """
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("asset_id"), str)
+        and isinstance(value.get("part_id"), str)
+    )
 
 
 def consumable_links(task: dict[str, Any]) -> list[dict[str, Any]]:
-    """The consumable links that a user set on *task*, in order (#493).
+    """The consumable links that a user set on *task*, in ``source.parts`` (#493).
 
-    The list in ``source.parts`` wins, also when it is empty. A task stored before
-    the list existed has 1 manual link in ``source.part``, which reads as a list of
-    1. A wear part's own ``source.part`` is not a consumable link. An entry with no
-    ``asset_id`` or ``part_id`` is skipped, so a hand-edited document cannot crash a
-    completion.
+    An entry with no text ``asset_id`` or ``part_id`` is skipped, so a hand-edited
+    document cannot crash a completion. An old manual link in ``source.part`` is not
+    read here: :func:`migrate_consumable_link` moves it into the list on load, and
+    ``add_task``, ``update_task`` and import refuse both namespaces.
     """
     source = task.get("source")
-    if not isinstance(source, dict):
+    links = source.get(TASK_SOURCE_PARTS) if isinstance(source, dict) else None
+    if not isinstance(links, list):
         return []
-    links = source.get(TASK_SOURCE_PARTS)
-    if isinstance(links, list):
-        return [link for link in links if _is_link(link)]
-    legacy = source.get(TASK_SOURCE_PART)
-    if _is_link(legacy) and legacy.get("manual"):
-        return [legacy]
-    return []
+    return [link for link in links if _is_link(link)]
 
 
 def stock_links(task: dict[str, Any]) -> list[dict[str, Any]]:
@@ -172,9 +174,7 @@ def stock_links(task: dict[str, Any]) -> list[dict[str, Any]]:
     consumable links (:func:`consumable_links`).
     """
     src = part_source(task)
-    # Equivalent if the "manual" key is mutated: an old manual link then returns
-    # through this branch, and consumable_links returns the same 1 link.
-    if src is not None and not src.get("manual"):  # pragma: no mutate
+    if src is not None:
         return [src]
     return consumable_links(task)
 
@@ -223,12 +223,7 @@ def prune_consumable_links(
     kept = [link for link in links if keep(link)]
     if len(kept) == len(links):
         return source
-    pruned = {
-        key: value
-        for key, value in source.items()
-        if key != TASK_SOURCE_PARTS
-        and not (key == TASK_SOURCE_PART and is_manual_part_link(task))
-    }
+    pruned = {key: value for key, value in source.items() if key != TASK_SOURCE_PARTS}
     if kept:
         pruned[TASK_SOURCE_PARTS] = kept
     return pruned or None
@@ -241,7 +236,10 @@ def refuse_mixed_link_forms(data: Mapping[str, Any]) -> None:
     list of 1. A caller that sends both forms gets an error, so the service never
     guesses which form the caller meant.
     """
-    single = [key for key in ("asset_id", "part_id", "quantity") if data.get(key)]
+    # Presence, not truth: a quantity of 0 or an empty id is still a second form.
+    single = [
+        key for key in ("asset_id", "part_id", "quantity") if data.get(key) is not None
+    ]
     if "parts" in data and single:
         raise models.TaskValidationError(
             f"send parts, or {', '.join(single)}, not both"

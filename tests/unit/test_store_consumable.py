@@ -1724,6 +1724,10 @@ def test_493_mixed_old_and_new_tasks_each_draw_their_parts(store):
     }
     new = _task(store, name="New")
     _run(store.set_task_consumables(new["id"], _links(asset, None, 2)))
+    # The old shape reaches a running store only through a load, which migrates it.
+    store._store.data = {"tasks": dict(store._tasks), "assets": dict(store._assets)}
+    _run(store.load())
+    sediment, carbon = store._assets[asset["id"]]["parts"]
     _run(store.complete_task(old["id"]))
     _run(store.complete_task(new["id"]))
     assert (sediment["stock"], carbon["stock"]) == (2, 0)
@@ -1754,3 +1758,104 @@ def test_493_deleting_an_appliance_keeps_links_to_other_appliances(store):
     }
     _run(store.delete_asset(other["id"]))
     assert store._tasks[task["id"]]["source"] == {GLUE: {"device_id": "dev1"}}
+
+
+# ── review fixes (#493) ──────────────────────────────────────────────────────
+
+
+def test_493_r1_undo_does_not_stamp_a_part_linked_after_the_older_completion(store):
+    # Linked to the sediment filter only, completed on 1 June. The carbon filter is
+    # linked later, and today's completion is undone: the carbon filter was never
+    # replaced on 1 June, so it goes back to no date.
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None)))
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert carbon["last_replaced"] is None
+    assert sediment["last_replaced"] == "2026-06-01"
+
+
+def test_493_r1_undo_falls_back_to_the_last_completion_that_stamped_the_part(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert sediment["last_replaced"] == carbon["last_replaced"] == "2026-06-01"
+
+
+def _old_entry(store, task, part, last_replaced, *, drawn=True):
+    """The last completion of *task*, rewritten in the shape before the lists."""
+    entry = store._tasks[task["id"]]["completions"][-1]
+    entry["last_replaced_before"] = last_replaced
+    if drawn:
+        entry["stock_drawn"] = {
+            "asset_id": part["asset_id"],
+            "part_id": part["part_id"],
+            "quantity": 1,
+        }
+    else:
+        entry.pop("stock_drawn", None)
+    return entry
+
+
+def test_493_r2_an_old_bare_date_goes_to_the_part_its_draw_names(store):
+    # The old entry drew the carbon filter. The links were reordered since, so the
+    # first link is now the sediment filter. The bare date belongs to the carbon one.
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)[::-1]))
+    _run(store.complete_task(task["id"]))
+    link_carbon = {"asset_id": asset["id"], "part_id": carbon["id"]}
+    entry = _old_entry(store, task, link_carbon, "2026-01-02")
+    sediment["last_replaced"] = "2026-06-13"  # as the completion stamped it
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert carbon["last_replaced"] == "2026-01-02"
+    assert sediment["last_replaced"] == "2026-06-13", "not the part of the old date"
+
+
+def test_493_r2_an_old_bare_date_with_no_draw_needs_exactly_1_link(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.complete_task(task["id"]))
+    link = {"asset_id": asset["id"], "part_id": sediment["id"]}
+    entry = _old_entry(store, task, link, "2026-01-02", drawn=False)
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    # 2 links and no draw to name the part: the bare date goes nowhere.
+    assert sediment["last_replaced"] == carbon["last_replaced"] == "2026-06-13"
+
+    single = _task(store, name="Single")
+    _run(store.set_task_consumables(single["id"], _links(asset, None)))
+    _run(store.complete_task(single["id"]))
+    entry = _old_entry(store, single, link, "2026-01-03", drawn=False)
+    _run(store.delete_completion(single["id"], entry["ts"]))
+    assert sediment["last_replaced"] == "2026-01-03"
+
+
+def test_493_r1_a_wear_completion_from_before_b01_3_still_counts_on_undo(store):
+    # An entry stored before last_replaced_before existed has no key. On the 1 part
+    # of a wear task it still counts as a replacement of that part.
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    old = store._tasks[task["id"]]["completions"][-1]
+    old.pop("last_replaced_before")
+    old.pop("stock_drawn", None)
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-01"

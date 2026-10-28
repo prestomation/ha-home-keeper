@@ -266,3 +266,9 @@ def test_493_the_archive_names_the_first_linked_part():
     assert a.build_archived_history(_part_task(), archived_at="x")["part_id"] == "p1"
     plain = {"id": "t", "name": "x", "source": {"parts": []}}
     assert a.build_archived_history(plain, archived_at="x")["part_id"] is None
+
+
+def test_493_the_archive_skips_a_malformed_first_link():
+    parts = ["junk", {"asset_id": "asset1"}, {"asset_id": "asset1", "part_id": "p2"}]
+    task = {"id": "t", "name": "x", "source": {"parts": parts}}
+    assert a.build_archived_history(task, archived_at="x")["part_id"] == "p2"

@@ -2446,16 +2446,15 @@ describe('consumableLinks and stockLinks (#493)', () => {
     expect(consumableLinks({ source: { parts: [A, { asset_id: 'a' }, null, 'x', B] } })).toEqual([A, B]);
   });
 
-  it('reads an old manual link as a list of 1, and a wear part as none', () => {
-    const legacy = { ...A, manual: true };
-    expect(consumableLinks({ source: { part: legacy } })).toEqual([legacy]);
+  it('reads a wear part as no consumable link', () => {
     expect(consumableLinks({ source: { part: A } })).toEqual([]);
-    expect(consumableLinks({ source: { part: { manual: true } } })).toEqual([]);
+    expect(consumableLinks({ source: { part: { ...A, manual: true } } })).toEqual([]);
   });
 
-  it('lets the list win, also when it is empty', () => {
-    expect(consumableLinks({ source: { parts: [], part: { ...A, manual: true } } })).toEqual([]);
-    expect(consumableLinks({ source: { parts: [B], part: { ...A, manual: true } } })).toEqual([B]);
+  it('reads the list beside any source.part, also when it is empty', () => {
+    expect(consumableLinks({ source: { parts: [], part: A } })).toEqual([]);
+    expect(consumableLinks({ source: { parts: [B], part: A } })).toEqual([B]);
+    expect(consumableLinks({ source: { parts: 'a:p' } })).toEqual([]);
   });
 
   it('reads nothing from a task with no source', () => {
@@ -2467,7 +2466,6 @@ describe('consumableLinks and stockLinks (#493)', () => {
   it('draws a wear part’s own part, or each consumable link', () => {
     expect(stockLinks({ source: { part: A } })).toEqual([A]);
     expect(stockLinks({ source: { parts: [A, B] } })).toEqual([A, B]);
-    expect(stockLinks({ source: { part: { ...A, manual: true } } })).toEqual([{ ...A, manual: true }]);
     expect(stockLinks({})).toEqual([]);
   });
 

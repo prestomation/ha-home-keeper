@@ -48,7 +48,8 @@ def warn_once(key: str) -> bool:
     if key in _warned:
         return False
     _warned.add(key)
-    _LOGGER.warning("%s", message)
+    # Equivalent to warning(message): no text in DEPRECATIONS holds a "%".
+    _LOGGER.warning("%s", message)  # pragma: no mutate
     return True
 
 

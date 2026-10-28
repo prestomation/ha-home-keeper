@@ -305,11 +305,8 @@ describe('consumable link tokens (#493)', () => {
     expect(partLinkToken({ asset_id: 'a1', part_id: 'p2' })).toBe('a1:p2');
   });
 
-  it('reads the stored list, an old manual link, or nothing', () => {
+  it('reads the stored list, or nothing', () => {
     expect(consumableLinkTokens(LIST)).toEqual(['a1:p1', 'a1:p2']);
-    expect(
-      consumableLinkTokens({ source: { part: { asset_id: 'a', part_id: 'p', manual: true } } }),
-    ).toEqual(['a:p']);
     // A wear part's own source is no consumable link.
     expect(consumableLinkTokens({ source: { part: { asset_id: 'a', part_id: 'p' } } })).toEqual([]);
     expect(consumableLinkTokens({})).toEqual([]);

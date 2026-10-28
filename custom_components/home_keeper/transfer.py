@@ -332,17 +332,13 @@ def is_portable_task(task: dict[str, Any]) -> bool:
     reconcile pass deletes.
     """
     source = task.get("source")
-    # A consumable link the user made by hand (B09-4) is in ``parts``, or in the
-    # ``part`` key of a wear part's reminder on a task stored before the list. The
-    # task is the user's own: the reconciler does not touch it. The task travels,
-    # and its links are left behind and counted.
-    if isinstance(source, dict):
-        owners = set(_RECONCILER_SOURCES & set(source))
-        owners.discard(TASK_SOURCE_PARTS)
-        if reconcile.is_manual_part_link(task):
-            owners.discard(TASK_SOURCE_PART)
-        if owners:
-            return False
+    # The consumable links the user made by hand (B09-4) are in ``parts``. The task
+    # is the user's own: the reconciler does not touch it. The task travels, and its
+    # links are left behind and counted.
+    if isinstance(source, dict) and (_RECONCILER_SOURCES - {TASK_SOURCE_PARTS}) & set(
+        source
+    ):
+        return False
     return not task.get("managed_by")
 
 
@@ -1844,18 +1840,22 @@ def _plan_task(
         record, _known_task_keys(), section="tasks", index=index, problems=problems
     )
 
-    if isinstance(record.get("source"), dict) and _RECONCILER_SOURCES & set(
-        record["source"]
-    ):
-        problems.append(
-            Problem(
-                "tasks",
-                index,
-                f"{path}.source",
-                "this task claims a source Home Keeper's own reconcilers own. Import "
-                "the appliance and its parts instead; the task is rebuilt from them.",
-            )
+    reserved = (
+        _RECONCILER_SOURCES & set(record["source"])
+        if isinstance(record.get("source"), dict)
+        else set()
+    )
+    if reserved:
+        # Consumable links (#493) are the user's own and nothing rebuilds them.
+        message = (
+            "this task carries consumable links (source.parts), and import does not "
+            "take them. Remove the parts key from the file, import the task, and "
+            "link the parts again."
+            if reserved == {TASK_SOURCE_PARTS}
+            else "this task claims a source Home Keeper's own reconcilers own. Import "
+            "the appliance and its parts instead; the task is rebuilt from them."
         )
+        problems.append(Problem("tasks", index, f"{path}.source", message))
         return None, (0, 0)
     if record.get("managed_by"):
         problems.append(

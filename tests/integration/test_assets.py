@@ -1351,3 +1351,42 @@ def test_493_the_old_link_form_warns_once_per_run(ha):
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
         call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_493_a_falsy_single_field_beside_parts_is_refused_on_both_surfaces(ha):
+    # quantity 0 or an empty asset_id beside a parts list is a second form. It is
+    # refused, not dropped in silence.
+    import uuid
+
+    from conftest import HA_URL
+    from ha_registry import ws_send
+
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    name = f"Water system {uuid.uuid4().hex[:8]}"
+    asset = _add_water_system(ha, name)
+    part = asset["parts"][0]
+    task_id = _add_floating_task(ha, f"Replace filters {name}")
+    parts = [{"asset_id": asset["id"], "part_id": part["id"]}]
+    try:
+        for extra in ({"quantity": 0}, {"asset_id": ""}):
+            r = ha.post(
+                f"{HA_URL}/api/services/home_keeper/set_task_consumable",
+                json={"task_id": task_id, "parts": parts, **extra},
+            )
+            assert r.status_code in (400, 500), (extra, r.text)
+            msg = ws_send(
+                token,
+                {
+                    "type": "home_keeper/set_task_consumable",
+                    "task_id": task_id,
+                    "parts": parts,
+                    **extra,
+                },
+            )
+            assert not msg.get("success"), (extra, msg)
+            assert "not both" in msg["error"]["message"], msg
+        unchanged = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert not (unchanged.get("source") or {}).get("parts")
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

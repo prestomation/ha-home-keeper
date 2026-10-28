@@ -2464,7 +2464,7 @@ def test_b07_1_a_newer_replayed_completion_carries_no_prior_due():
 
 def _linked_task(**kw) -> dict:
     task = _task(**kw)
-    task["source"] = {"part": {"asset_id": "a", "part_id": "p", "manual": True}}
+    task["source"] = {"parts": [{"asset_id": "a", "part_id": "p"}]}
     return task
 
 
@@ -2801,3 +2801,15 @@ def test_493_import_refuses_the_list_namespace():
     document["tasks"][0]["source"] = {"parts": [{"asset_id": "a", "part_id": "p"}]}
     plan = _plan(document)
     assert not plan.ok
+    # The links are not rebuilt from anything: the message says to link them again.
+    assert _errors(plan) == [
+        "this task carries consumable links (source.parts), and import does not take "
+        "them. Remove the parts key from the file, import the task, and link the "
+        "parts again."
+    ]
+
+
+def test_493_a_reconciler_source_keeps_its_own_message():
+    document = tr.build_document([_task()], [], now=NOW)
+    document["tasks"][0]["source"] = {"part": {"asset_id": "a", "part_id": "p"}}
+    assert "is rebuilt from them" in _errors(_plan(document))[0]

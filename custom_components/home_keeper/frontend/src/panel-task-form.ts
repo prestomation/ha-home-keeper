@@ -397,14 +397,18 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       // the textarea mid-word.
       if (has('notes')) p._taskNotePreview?.update(String(value.notes ?? ''));
       // Changing the attached device re-scopes the consumable picker; drop a link
-      // that no longer belongs to the newly-attached appliance. Both sides are
-      // normalized to '' so a cleared picker (null vs. undefined vs. absent) doesn't
-      // look like a change on an unrelated edit.
+      // to a part of the old appliance that the new one does not offer. A link that
+      // the old picker never offered (set through the service, to a part of another
+      // appliance) stays. Both sides are normalized to '' so a cleared picker (null
+      // vs. undefined vs. absent) doesn't look like a change on an unrelated edit.
       if (has('device_id') && (value.device_id ?? '') !== prevDevice) {
-        const opts = consumableOptions(p, p._edit.task);
+        const offered = (task: Partial<Task>): Set<string> =>
+          new Set(consumableOptions(p, task).map((o) => o.value));
+        const now = offered(p._edit.task);
+        const before = offered({ ...p._edit.task, device_id: prevDevice || null });
         (p._edit.task as Record<string, unknown>).consumable_links = consumableLinkTokens(
           p._edit.task,
-        ).filter((tok) => opts.some((o) => o.value === tok));
+        ).filter((tok) => now.has(tok) || !before.has(tok));
         // The card-link picker is likewise device-scoped — drop chosen links that
         // no longer resolve to the newly-attached appliance.
         const docOpts = documentOptions(p, p._edit.task);

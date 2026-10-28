@@ -142,6 +142,34 @@ def _completion_entry(task: dict[str, Any], when: Any) -> dict[str, Any] | None:
     return next((c for c in task.get("completions", []) if c.get("ts") == ts), None)
 
 
+def _replaced_before(
+    entry: dict[str, Any], links: list[dict[str, Any]]
+) -> dict[tuple[str, str], Any]:
+    """``{(asset_id, part_id): last_replaced before}`` for each part *entry* stamped.
+
+    A completion entry keeps a ``last_replaced_before`` list with 1 record for each
+    part (#493). An entry stored before the list keeps 1 bare date, or no key at all
+    (before B01-3). That entry belongs to the part that its ``stock_drawn`` names, or
+    else to the task's only part link (*links*). With several links and no draw, the
+    part is unknown, so it is none.
+    """
+    stamped = entry.get(LAST_REPLACED_BEFORE)
+    if isinstance(stamped, list):
+        return {
+            (str(r.get("asset_id")), str(r.get("part_id"))): r.get("last_replaced")
+            for r in stamped
+            if isinstance(r, dict)
+        }
+    drawn = entry.get("stock_drawn")
+    if isinstance(drawn, dict):
+        owner: dict[str, Any] = drawn
+    elif len(links) == 1:
+        owner = links[0]
+    else:
+        return {}
+    return {(str(owner.get("asset_id")), str(owner.get("part_id"))): stamped}
+
+
 # Source namespaces Home Keeper writes itself. They name no contributor device, so
 # the split-duplicate merge never groups tasks by them (B17-1).
 _RESERVED_SOURCE_NAMESPACES = frozenset(
@@ -777,10 +805,6 @@ class HomeKeeperStore:
         clean = self._clean_consumable_links(links)
 
         source = dict(existing.get("source") or {})
-        # An old 1-link ``part`` key on a task the load did not migrate goes too, so
-        # the list is the 1 record of the links.
-        if _is_manual_part_link(existing):
-            source.pop(TASK_SOURCE_PART)
         if clean:
             source[TASK_SOURCE_PARTS] = clean
         else:
@@ -3324,36 +3348,26 @@ class HomeKeeperStore:
         """Correct ``last_replaced`` after *entry* was deleted or moved (B01-3).
 
         For each part that *entry* stamped, and only when the part still shows the
-        date that *entry* stamped. The new date comes from the latest replacement
-        left in *task*. If no replacement is left, the date that *entry* replaced
-        comes back. A completion stored before a task took a list of parts holds 1
-        bare date, which belongs to the task's first part link.
+        date that *entry* stamped. The new date comes from the latest completion left
+        in *task* that stamped the same part. If none is left, the date that *entry*
+        replaced comes back.
         """
         if _is_use_task(task) or LAST_REPLACED_BEFORE not in entry:
             return
-        stamped = entry[LAST_REPLACED_BEFORE]
-        if isinstance(stamped, list):
-            records = [r for r in stamped if isinstance(r, dict)]
-        else:
-            links = _stock_links(task)
-            records = [{**links[0], "last_replaced": stamped}] if links else []
         today = dt_util.as_local(dt_util.now()).date().isoformat()
         stamped_date = min(_local_date(entry.get("ts")), today)
-        remaining = [
-            _local_date(c.get("ts"))
-            for c in task.get("completions") or []
-            if c.get("ts")
-        ]
-        for record in records:
-            asset = self._assets.get(str(record.get("asset_id")))
-            part = (
-                assets.find_part(asset, str(record.get("part_id"))) if asset else None
-            )
+        links = _stock_links(task)
+        for (asset_id, part_id), prior in _replaced_before(entry, links).items():
+            asset = self._assets.get(asset_id)
+            part = assets.find_part(asset, part_id) if asset else None
             if part is None or part.get("last_replaced") != stamped_date:
                 continue
-            part["last_replaced"] = (
-                min(max(remaining), today) if remaining else record.get("last_replaced")
-            )
+            remaining = [
+                _local_date(c.get("ts"))
+                for c in task.get("completions") or []
+                if c.get("ts") and (asset_id, part_id) in _replaced_before(c, links)
+            ]
+            part["last_replaced"] = min(max(remaining), today) if remaining else prior
 
     def _stamp_buy_restock(self, task: dict[str, Any], when: Any = None) -> None:
         """On completing an auto-created buy task, restock its part.

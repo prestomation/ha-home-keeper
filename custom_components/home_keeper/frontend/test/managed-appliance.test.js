@@ -629,3 +629,60 @@ describe('the part chip opens its part', () => {
     expect(gone._focusPart).toBe('p-gone');
   });
 });
+
+describe('the consumable list when the task changes device (#493)', () => {
+  const ON_DEVICE = {
+    id: 'a-fridge',
+    name: 'Fridge',
+    kind: 'virtual',
+    device_id: 'dev-fridge',
+    parts: [{ id: 'p-flt', name: 'Fridge filter', type: 'consumable', stock: 2 }],
+    metadata: [],
+  };
+  const OTHER = {
+    id: 'a-sink',
+    name: 'Sink',
+    kind: 'virtual',
+    device_id: 'dev-sink',
+    parts: [{ id: 'p-sed', name: 'Sediment filter', type: 'consumable', stock: 3 }],
+    metadata: [],
+  };
+  const SHELF = {
+    id: 'a-shelf',
+    name: 'Shelf',
+    kind: 'virtual',
+    parts: [{ id: 'p-salt', name: 'Salt', type: 'consumable', stock: 5 }],
+    metadata: [],
+  };
+  const TASK = {
+    ...REPLACE_TASK,
+    recurrence_type: 'floating',
+    interval: 6,
+    unit: 'months',
+    device_id: 'dev-fridge',
+    source: {
+      parts: [
+        { asset_id: 'a-fridge', part_id: 'p-flt' },
+        // Linked through the service to a part that no picker offers.
+        { asset_id: 'a-shelf', part_id: 'p-salt', quantity: 2 },
+      ],
+    },
+  };
+
+  it('drops the old device parts and keeps a link the picker never offered', async () => {
+    const panel = await mountAt(
+      '/tasks/t-door',
+      makeHass({ tasks: [TASK], assets: [ON_DEVICE, OTHER, SHELF] }),
+    );
+    panel.shadowRoot.querySelector('.d-edit').click();
+    const form = await waitFor(() =>
+      [...panel.shadowRoot.querySelectorAll('#hk-task-form ha-form')].find((f) =>
+        (f.schema || []).some((s) => s.name === 'device_id'),
+      ),
+    );
+    form.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...form.data, device_id: 'dev-sink' } } }),
+    );
+    expect(panel._edit.task.consumable_links).toEqual(['a-shelf:p-salt']);
+  });
+});

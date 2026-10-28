@@ -58,7 +58,6 @@ from .const import (
     EVENT_TASK_UPDATED,
     REC_SENSOR,
     REC_TRIGGERED,
-    TASK_SOURCE_PART,
     TASK_SOURCE_PARTS,
 )
 from .reconcile import is_use_task, stock_links
@@ -228,7 +227,6 @@ class FakeHomeKeeper:
         # Merge, exactly like the real store: another integration's namespace on the
         # same task survives a user linking or clearing a consumable.
         source = dict(task.get("source") or {})
-        source.pop(TASK_SOURCE_PART, None)
         if links:
             source[TASK_SOURCE_PARTS] = links
         else:

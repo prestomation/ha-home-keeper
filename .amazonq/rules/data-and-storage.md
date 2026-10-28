@@ -100,7 +100,8 @@ Details are in [completions](../../docs/design/completions.md).
 - Generated task names (wear and buy) are localized to `hass.config.language` when they
   are written. The pure reconciler takes the template as an argument.
 - `reconcile_part_tasks` skips the consumable links in `source.parts`. Read them only
-  through `reconcile.consumable_links`, which also reads an old manual `source.part`.
+  through `reconcile.consumable_links`. The load migrates an old manual `source.part`, and
+  every writer refuses that shape, so no reader takes it.
 - **A completion records each part it draws.** `stock_drawn` and `last_replaced_before`
   are lists with 1 record for each part. The undo also reads the old dict and bare date.
 - **An integration can own an appliance, never the stock on its parts.** `PART_USER_KEYS`
