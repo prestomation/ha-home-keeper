@@ -316,7 +316,7 @@ function taskMetaHtml(p: PanelHost, task: Task): string {
   return `${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
 }
 
-/** How many chips a row's chip strip shows before its "+n": 1 after a stock chip. */
+/** How many chips a row's chip strip shows before its "+n": 1 on a row with a stock chip. */
 function inlineChipCount(strip: Element | null): number {
   return strip?.classList.contains('hk-chips-lead') ? 1 : TASK_CARD_INLINE_CHIPS;
 }
@@ -383,10 +383,11 @@ function taskCard(p: PanelHost, task: Task): string {
   // tag chip comes next, because a scan lock explains a greyed Done.
   //
   // A stock chip and a second chip do not fit the column together: the second chip
-  // and the "+n" were cut off out of view. So a row that leads with a stock chip
-  // shows that chip only, and "+n" counts the rest.
+  // and the "+n" were cut off out of view. So a row with a stock chip shows 1 chip
+  // only, and "+n" counts the rest. A scan lock comes before the stock chip, because
+  // it is the reason that Done is greyed.
   const stock = consumableRowChip(p, task);
-  const lead = stock ? [stock, tag, dev] : [dev, tag];
+  const lead = !stock ? [dev, tag] : scanRequired(task) ? [tag, stock, dev] : [stock, tag, dev];
   const inlineChips = [...lead, ...taskChipsList(task), managed].filter(Boolean);
   const inlineCount = stock ? 1 : TASK_CARD_INLINE_CHIPS;
   const hiddenChips = Math.max(0, inlineChips.length - inlineCount);

@@ -74,7 +74,7 @@ test.describe('Home Keeper panel — triggered / battery tasks', { tag: '@respon
     const chip = card.locator('ha-assist-chip.hk-part-chip');
     // The row has room for a short chip; the full line is its tooltip.
     await expect(chip).toContainText('AAA · 2 left');
-    await expect(chip).toHaveAttribute('title', 'Takes 2 AAA');
+    await expect(chip).toHaveAttribute('title', 'Takes 2 AAA · 2 left');
     await chip.click();
     // The chip opens the part, not the task its row belongs to.
     await expect(page).toHaveURL(

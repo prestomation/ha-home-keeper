@@ -1467,8 +1467,11 @@ export const STYLES = `
   .hk-chips.hk-chips-inline.hk-chips-open > *:nth-child(n + ${TASK_CARD_INLINE_CHIPS + 1}) {
     display: inline-flex;
   }
-  /* A row that leads with a stock chip shows that chip only (#493). The 2 rules mirror
-     the 2 above, and the unfold rule comes after the fold rule to win the tie. */
+  /* A row with a stock chip shows 1 chip only (#493). The strip does not
+     shrink: the name column gives way, so the chip and its "+n" stay whole. The 2
+     rules after it mirror the 2 above, and the unfold rule comes after the fold rule
+     to win the tie. */
+  .hk-chips.hk-chips-inline.hk-chips-lead { flex-shrink: 0; }
   .hk-chips.hk-chips-inline.hk-chips-lead > *:nth-child(n + 2):not(.hk-chip-more) {
     display: none;
   }

@@ -230,7 +230,8 @@ export function consumableRowChip(p: PanelHost, task: Task): string {
     const [{ asset, part }] = links;
     const left =
       part.stock != null ? t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }) : '';
-    const label = left ? `${rowChipName(part.name)} · ${left}` : rowChipName(part.name);
+    const name = rowChipName(part.name, left);
+    const label = left ? `${name} · ${left}` : name;
     return partChip(asset.id, part.id as string, label, left ? `${lines[0]} · ${left}` : lines[0]);
   }
   const low = links.some(
@@ -243,17 +244,25 @@ export function consumableRowChip(p: PanelHost, task: Task): string {
   )}" label="${escapeHTML(label)}" title="${escapeHTML(lines.join('\n'))}">${icon}</ha-assist-chip>`;
 }
 
-/** The longest part name a row chip shows whole. */
-const ROW_CHIP_NAME_MAX = 18;
+/**
+ * The most characters a row chip label holds: the name, " · " and the count. At this
+ * length the chip and a "+n" fit the desktop chip track before its fade.
+ */
+const ROW_CHIP_LABEL_MAX = 22;
+/** The fewest characters of the name a row chip keeps, however long the count. */
+const ROW_CHIP_NAME_MIN = 6;
 
 /**
- * A part name cut to fit a row chip, with an ellipsis. The chip label has no style
- * hook, so CSS cannot cut the name and keep the count after it.
+ * A part name cut with an ellipsis, so that the name and *left* fit a row chip. The
+ * chip label has no style hook, so CSS cannot cut the name and keep the count after
+ * it.
  */
-function rowChipName(name: string): string {
+function rowChipName(name: string, left: string): string {
+  const room = left ? ROW_CHIP_LABEL_MAX - [...left].length - 3 : ROW_CHIP_LABEL_MAX;
+  const max = Math.max(ROW_CHIP_NAME_MIN, room);
   const chars = [...name];
-  if (chars.length <= ROW_CHIP_NAME_MAX) return name;
-  return `${chars.slice(0, ROW_CHIP_NAME_MAX - 1).join('').trimEnd()}…`;
+  if (chars.length <= max) return name;
+  return `${chars.slice(0, max - 1).join('').trimEnd()}…`;
 }
 
 /** Each part a completion of *task* draws, with what it takes, that still exists. */

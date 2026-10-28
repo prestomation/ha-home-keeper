@@ -318,17 +318,25 @@ describe('the stock chip on a task that spends spares', () => {
     pool.parts[0].name = 'Water softener salt pellets';
     const panel = await mountList('/tasks', makeHass({ tasks: [REPLACE_TASK], assets: [pool] }));
     await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
-    expect(rowChips(panel, 't-door')).toContain('Water softener sa… · 2 left');
+    expect(rowChips(panel, 't-door')).toContain('Water soften… · 2 left');
     const chip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-part-chip');
     expect(chip.getAttribute('title')).toBe('Takes 2 Water softener salt pellets · 2 left');
   });
 
-  it('keeps a name at the limit whole', async () => {
+  it('gives a longer count more of the room', async () => {
     const pool = batteries();
-    pool.parts[0].name = 'Softener salt bags';
+    Object.assign(pool.parts[0], { name: 'Water softener salt pellets', stock: 750, stock_unit: 'ml' });
     const panel = await mountList('/tasks', makeHass({ tasks: [REPLACE_TASK], assets: [pool] }));
     await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
-    expect(rowChips(panel, 't-door')).toContain('Softener salt bags · 2 left');
+    expect(rowChips(panel, 't-door')).toContain('Water s… · 750 ml left');
+  });
+
+  it('keeps a name at the limit whole', async () => {
+    const pool = batteries();
+    pool.parts[0].name = 'Softener salt';
+    const panel = await mountList('/tasks', makeHass({ tasks: [REPLACE_TASK], assets: [pool] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    expect(rowChips(panel, 't-door')).toContain('Softener salt · 2 left');
   });
 
   // ── several consumables on 1 task (#493) ──
@@ -397,6 +405,18 @@ describe('the stock chip on a task that spends spares', () => {
     more.click();
     more.click();
     expect(more.textContent).toBe(`+${folded}`);
+  });
+
+  // A scan lock explains a greyed Done, so its chip leads the row and stays in view.
+  it('leads with a scan-lock chip, before the stock chip', async () => {
+    const locked = { ...REPLACE_TASK, tag_id: 'door-tag', require_tag_scan: true, device_id: 'dev-door' };
+    const panel = await mountList('/tasks', makeHass({ tasks: [locked], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
+    const kids = [...strip.children];
+    expect(kids[0].classList.contains('hk-tag')).toBe(true);
+    expect(kids[1].classList.contains('hk-part-chip')).toBe(true);
+    expect(strip.querySelector('.hk-chip-more').textContent).toBe(`+${kids.length - 2}`);
   });
 
   it('keeps 2 chips before +n on a row with no stock chip', async () => {

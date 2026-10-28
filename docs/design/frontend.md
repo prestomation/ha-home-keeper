@@ -31,14 +31,13 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: f112c28892f1
+source_hash: b635fe1d2c70
 ---
 
 # Frontend
 
-Home Keeper ships 2 browser bundles of plain TypeScript custom elements. The panel
-(`home-keeper-panel`) is the admin surface. The card (`home-keeper-card`) is a usage surface
-on a dashboard that any user can see.
+Home Keeper ships 2 browser bundles of TypeScript custom elements. The panel (`home-keeper-panel`)
+is the admin surface. The card (`home-keeper-card`) is a usage surface on a dashboard for any user.
 
 ## Goals
 
@@ -76,9 +75,10 @@ flat in `src/`, because the i18n parity test and Stryker do not read subdirector
 
 `_render` rebuilds the shadow tree from strings, so every user value goes through
 `utils.escapeHTML` first. `_render` records the focused control (`_focusKey`) and restores it
-after the rebuild. The task form is split into sections (`forms.taskSchemaSections`), and each
-section gets only its own fields through `forms.pickFormData`. Thus one section cannot write
-stale values over another. `dialogs.makeDialog` is the one `ha-dialog` builder.
+after the rebuild. The task form has sections (`forms.taskSchemaSections`), and each section
+gets only its own fields (`forms.pickFormData`), so it cannot write stale values over another.
+A new `forms.taskFormSchemaKey` renders again. A consumable pick sets its amount fields on its
+own form in place, so the picker keeps the focus. `dialogs.makeDialog` builds each `ha-dialog`.
 
 ### Routes
 

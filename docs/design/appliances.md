@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: a2ef19e4a283
+source_hash: 59104cb555f4
 ---
 
 # Appliances and parts
@@ -59,8 +59,7 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
   `configuration_url` to the appliance page, and writes the device id back. The serial
   number stays off the device, because any signed-in user can list devices.
 - **Existing.** `devices._reconcile_existing` refreshes an `identifiers`/`connections`
-  snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the device that the
-  owner made again.
+  snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the new device of the owner.
 - **Move.** If an appliance has a new device and its old id is gone from the registry,
   `devices._async_repoint_device_ids` moves the tasks, the related devices and the options
   to the new id. The store fires an updated event for each task and appliance that moves.
@@ -92,7 +91,8 @@ fire. `reconcile.reconcile_buy_tasks` keeps a "Buy" task while an opted-in part 
 A task takes parts through `source.parts`, a list of `{asset_id, part_id, quantity}` from
 `store.set_task_consumables`. A completion draws each part in `reconcile.stock_links` and
 keeps lists in `stock_drawn` and `last_replaced_before`, so an undo gives each part back. The
-load moves an old manual `source.part` into the list (`reconcile.migrate_consumable_link`).
+load moves an old manual `source.part` into the list (`reconcile.migrate_consumable_link`). A
+save drops links to a removed part, so the Remove part confirm names the tasks that take it.
 
 `assets.PART_USER_KEYS` (stock) and `assets.PART_OWNER_KEYS` split every part key. On a
 managed appliance the user edits only stock. The owner writes the rest through

@@ -45,6 +45,66 @@ test.describe('Home Keeper — several consumables on 1 task @responsive', () =>
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${ids!.taskId}$`));
   });
 
+  test('a long part name keeps the count on the row chip', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openListFilters(panel);
+    await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+    const row = panel.locator(`ha-card.hk-card[data-id="${ids!.saltTaskId}"]`);
+    await row.scrollIntoViewIfNeeded();
+    const chip = row.locator('ha-assist-chip.hk-part-chip');
+    await expect(chip).toHaveAttribute('label', 'Water soften… · 8 left');
+    await expect(chip).toHaveAttribute('title', `Takes 1 ${WATER.salt} · 8 left`);
+    const box = await chip.boundingBox();
+    const strip = await row.locator('.hk-chips-inline').boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(strip!.x + strip!.width + 1);
+    // The device chip folds behind +1, in view, and opens with it.
+    const more = row.locator('.hk-chip-more');
+    await expect(more).toHaveText('+1');
+    const plus = await more.boundingBox();
+    // Clear of the 18px fade at the end of the chip track, where the track has one.
+    const masked = await row
+      .locator('.hk-chips-inline')
+      .evaluate((el) => getComputedStyle(el).maskImage !== 'none');
+    const fade = masked ? 18 : 0;
+    expect(plus!.x + plus!.width).toBeLessThanOrEqual(strip!.x + strip!.width - fade);
+    await more.click();
+    await expect(row.locator('ha-assist-chip.hk-device-chip')).toBeVisible();
+    await more.click();
+  });
+
+  test('a pick keeps the keyboard in the picker', async ({ page }) => {
+    await page.goto(`/home-keeper/tasks/${ids!.saltTaskId}`, { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('.d-edit').click();
+    const picker = panel
+      .locator('#hk-task-form-placement ha-selector-select')
+      .filter({ hasText: WATER.salt });
+    const focusPath = () =>
+      page.evaluate(() => {
+        const out: string[] = [];
+        let el: Element | null | undefined = document.activeElement;
+        while (el) {
+          out.push(el.tagName.toLowerCase());
+          el = el.shadowRoot?.activeElement;
+        }
+        return out.join(' > ');
+      });
+    await picker.locator('ha-generic-picker ha-button').click();
+    // Type only once the search box has the keyboard, or HA's shortcuts take the keys.
+    await expect.poll(focusPath).toContain('ha-input-search');
+    await page.keyboard.type(WATER.carbon);
+    await page.keyboard.press('Enter');
+    const amounts = panel.locator('#hk-task-form-placement ha-selector-number');
+    await expect(amounts).toHaveCount(2);
+    // The deep focus chain still runs through the picker, so Tab goes on from it.
+    await expect.poll(focusPath).toContain('ha-selector-select > ha-generic-picker');
+    await page.keyboard.press('Tab');
+    await expect.poll(focusPath).toContain('ha-selector-number');
+    await panel.locator('#f-cancel').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  });
+
   test('the task page shows 1 chip and 1 line for each part', async ({ page }) => {
     await page.goto(`/home-keeper/tasks/${ids!.taskId}`, { waitUntil: 'domcontentloaded' });
     const panel = page.locator('home-keeper-panel').first();

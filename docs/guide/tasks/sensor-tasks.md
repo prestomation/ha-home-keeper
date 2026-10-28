@@ -213,6 +213,27 @@ The task page shows 1 chip for each part. The task list shows 1 short chip first
 
 ![The task list with a 2 parts chip on a phone](../../images/34g-panel-mobile-multi-consumable-list.png)
 
+On the list, a long part name is cut short, so you can always read how much is left. Point
+to the chip to see the full name.
+
+![A task row with a cut part name and the count of the salt that is left](../../images/34h-panel-multi-consumable-long-name.png)
+
+![The same task row on a phone](../../images/34i-panel-mobile-multi-consumable-long-name.png)
+
+**Linked consumables** shows every part that the task takes now, also a part of a different
+appliance and on a task with no device. Such a part shows as **Part · Appliance**.
+
+![The task form of a task with no device, with its linked part and its amount field](../../images/34l-panel-multi-consumable-no-device.png)
+
+![The same task form on a phone](../../images/34m-panel-mobile-multi-consumable-no-device.png)
+
+When you remove a part from an appliance, the confirmation names the tasks that take that
+part. Save removes their links to it.
+
+![The Remove part confirmation, which names the task that takes the part](../../images/34j-panel-multi-consumable-remove-part.png)
+
+![The Remove part confirmation on a phone](../../images/34k-panel-mobile-multi-consumable-remove-part.png)
+
 An automation sets the list with the `parts` field of `home_keeper.set_task_consumable`:
 
 ```yaml
