@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Vincular tarea a un consumible",
-      "description": "Vincula una tarea a un consumible/pieza de un electrodoméstico para que al completarla se consuma un repuesto del stock y se dispare un evento de stock bajo en el umbral de reposición. Omite asset_id y part_id para quitar el vínculo.",
+      "name": "Vincular tarea a consumibles",
+      "description": "Vincula una tarea con 1 o más consumibles o piezas de un electrodoméstico. Cada finalización descuenta la cantidad de cada pieza de su stock y lanza un evento de stock bajo en el umbral de reposición. Envía parts para una lista, o asset_id y part_id para 1 pieza. No envíes ninguno, o envía una lista parts vacía, para quitar los vínculos.",
       "fields": {
         "task_id": {
           "name": "Nombre o ID de la tarea",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Cantidad",
           "description": "Cuánto consume de la pieza una finalización. Omítelo para usar la cantidad que indica la pieza."
+        },
+        "parts": {
+          "name": "Piezas",
+          "description": "La lista completa de piezas que usa la tarea. Cada elemento es asset_id, part_id, quantity, y quantity es opcional. La lista sustituye los vínculos de la tarea. No la uses junto con asset_id y part_id."
         }
       }
     },

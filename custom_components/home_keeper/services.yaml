@@ -948,14 +948,12 @@ move_skip:
         datetime:
 
 set_task_consumable:
-  name: Link task to a consumable
+  name: Link task to consumables
   description: >-
-    Link a task to an appliance consumable/part so completing the task consumes one
-    spare from the part's stock, and fires a home_keeper_part_low_stock event when
-    the count crosses the part's reorder threshold, so you can automate a
-    shopping-list add or reorder. Use it to wire any task (e.g. a sensor task
-    armed by a fridge's filter-life entity) to the consumable it depletes. Omit both
-    asset_id and part_id to clear the link.
+    Link a task to 1 or more appliance consumables or parts. Each completion takes
+    the amount of each part from its stock. A part that drops to its reorder
+    threshold fires a low-stock event. Use parts for a list, or asset_id and
+    part_id for 1 part. Send no part fields to clear the links.
   fields:
     task_id:
       name: Task name or ID
@@ -983,6 +981,15 @@ set_task_consumable:
           min: 0.01
           mode: box
           step: 0.01
+    parts:
+      name: Parts
+      description: >-
+        The full list of parts that the task takes. Each item has asset_id,
+        part_id and an optional quantity. The list replaces the
+        links of the task. Do not use it together with asset_id and part_id.
+      example: '[{"asset_id": "Water system", "part_id": "Sediment filter", "quantity": 2}]'
+      selector:
+        object:
 
 notify:
   name: Notify what's due

@@ -212,9 +212,9 @@ export interface Task {
   task_chips?: { label: string; icon?: string; url?: string }[];
   // Provenance for tasks derived/owned by another source (e.g. an appliance wear
   // part, or a synced `device_class: problem` binary sensor). Such tasks are managed
-  // by their source, so the panel hides edit/delete — EXCEPT a manual consumable
-  // link (`part.manual`), which the user owns: completing it consumes a spare, but it
-  // stays fully editable/deletable like any user task.
+  // by their source, so the panel hides edit/delete — EXCEPT a consumable link
+  // (`parts`, or an old `part.manual`), which the user owns: completing it consumes
+  // spares, but it stays fully editable/deletable like any user task.
   source?: {
     // `role` tells the two halves of a counted wear item apart. An **absent** role
     // reads as `replace`, which is what every part-derived task written before
@@ -229,6 +229,10 @@ export interface Task {
       // before a per-task quantity existed carries.
       quantity?: number;
     };
+    // The consumable parts a user linked to this task (#493). A completion draws
+    // each one off its own stock. `utils.consumableLinks` is the 1 reader: it also
+    // reads a task stored before the list, which keeps its 1 link in a manual `part`.
+    parts?: PartLink[];
     problem_sensor?: { entity_id: string };
     // The declarative companion that materialized this task. `spec_id` is
     // the dedupe key the reconciler owns; the panel reads it to find the companion and
@@ -362,6 +366,14 @@ export interface Hass {
 
 export type AssetKind = 'virtual' | 'existing';
 export type PartType = 'consumable' | 'wear';
+
+/** 1 consumable link on a task: the part, and what 1 completion takes of it. Absent
+ *  `quantity` means the part's own `consume_quantity` decides. */
+export interface PartLink {
+  asset_id: string;
+  part_id: string;
+  quantity?: number;
+}
 export type MetadataType = 'text' | 'link' | 'date';
 export type DocumentKind = 'link' | 'file';
 

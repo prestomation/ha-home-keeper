@@ -59,8 +59,9 @@ from .const import (
     REC_SENSOR,
     REC_TRIGGERED,
     TASK_SOURCE_PART,
+    TASK_SOURCE_PARTS,
 )
-from .reconcile import is_use_task
+from .reconcile import is_use_task, stock_links
 from .store import _changed_fields as _store_changed_fields
 
 # Permissive schema: the fake mirrors behaviour, not validation. Your integration's
@@ -205,30 +206,34 @@ class FakeHomeKeeper:
     async def _set_task_consumable(self, call: ServiceCall) -> None:
         data = dict(call.data)
         task = self.tasks[data["task_id"]]
-        asset_id = str(data["asset_id"]) if data.get("asset_id") else None
-        part_id = str(data["part_id"]) if data.get("part_id") else None
-        source = dict(task.get("source") or {})
-        # Merge, exactly like the real store: another integration's namespace on the
-        # same task survives a user linking or clearing a consumable.
-        if asset_id is None or part_id is None:
-            source.pop(TASK_SOURCE_PART, None)
-            task["source"] = source or None
+        # ``parts`` sets the whole list; the asset_id/part_id pair sets a list of 1.
+        if "parts" in data:
+            raw_links = list(data["parts"] or [])
+        elif data.get("asset_id") and data.get("part_id"):
+            raw_links = [data]
         else:
-            asset = self.assets[asset_id]
-            if assets_model.find_part(asset, part_id) is None:
+            raw_links = []
+        links: list[dict[str, Any]] = []
+        for raw in raw_links:
+            asset_id, part_id = str(raw["asset_id"]), str(raw["part_id"])
+            if assets_model.find_part(self.assets[asset_id], part_id) is None:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
-            link: dict[str, Any] = {
-                "asset_id": asset_id,
-                "part_id": part_id,
-                "manual": True,
-            }
-            amount = assets_model.normalize_link_quantity(data.get("quantity"))
+            link: dict[str, Any] = {"asset_id": asset_id, "part_id": part_id}
+            amount = assets_model.normalize_link_quantity(raw.get("quantity"))
             if amount is not None:
                 link["quantity"] = amount
-            source[TASK_SOURCE_PART] = link
-            task["source"] = source
+            links.append(link)
+        # Merge, exactly like the real store: another integration's namespace on the
+        # same task survives a user linking or clearing a consumable.
+        source = dict(task.get("source") or {})
+        source.pop(TASK_SOURCE_PART, None)
+        if links:
+            source[TASK_SOURCE_PARTS] = links
+        else:
+            source.pop(TASK_SOURCE_PARTS, None)
+        task["source"] = source or None
         self.hass.bus.async_fire(
             EVENT_TASK_UPDATED,
             events.task_event_data(task, extra={"changed_fields": ["source"]}),
@@ -270,67 +275,70 @@ class FakeHomeKeeper:
             self.hass.bus.async_fire(event, events.stock_event_data(asset, part))
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
-        """Draw a completed task's consumable off its part, like the real store.
+        """Draw a completed task's consumables off their parts, like the real store.
 
-        The twin of ``store._stamp_part_replacement``: the link's own ``quantity``
-        when it states one, the part's per-use amount otherwise. It is what lets a
-        glue assert that completing "Replace battery" really took 2 AAA cells off the
-        count.
+        The twin of ``store._stamp_part_replacement``: for each linked part, the
+        link's own ``quantity`` when it states one, the part's per-use amount
+        otherwise. It is what lets a glue assert that completing "Replace battery"
+        really took 2 AAA cells off the count.
         """
-        src = (task.get("source") or {}).get(TASK_SOURCE_PART)
-        if not isinstance(src, dict):
-            return
         if is_use_task(task):
             # A counted wear item's use task carries a part source of its own. It
             # records a use, not a renewal, so it stamps nothing and draws nothing.
             return
-        asset = self.assets.get(str(src.get("asset_id")))
-        if asset is None:
-            return
-        part = assets_model.find_part(asset, str(src.get("part_id")))
-        if part is None:
-            return
-        part["last_replaced"] = (
-            dt_util.as_local(when).date().isoformat()
-            if hasattr(when, "date")
-            else str(when)[:10]
-        )
-        before = part.get("stock")
-        self._emit_stock_event(
-            assets_model.consume_part_stock(part, quantity=src.get("quantity")),
-            asset,
-            part,
-        )
-        # Record what was really taken on the completion, like the real store, so an
-        # undo gives exactly that back.
-        drawn = assets_model.stock_delta(before, part.get("stock"))
         ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
         entry = next(
             (c for c in task.get("completions", []) if c.get("ts") == ts), None
         )
-        if before is not None and drawn < 0 and entry is not None:
-            entry["stock_drawn"] = {
-                "asset_id": asset.get("id"),
-                "part_id": part.get("id"),
-                "quantity": -drawn,
-            }
+        for link in stock_links(task):
+            asset = self.assets.get(str(link.get("asset_id")))
+            if asset is None:
+                continue
+            part = assets_model.find_part(asset, str(link.get("part_id")))
+            if part is None:
+                continue
+            part["last_replaced"] = (
+                dt_util.as_local(when).date().isoformat()
+                if hasattr(when, "date")
+                else str(when)[:10]
+            )
+            before = part.get("stock")
+            self._emit_stock_event(
+                assets_model.consume_part_stock(part, quantity=link.get("quantity")),
+                asset,
+                part,
+            )
+            # Record what was really taken on the completion, like the real store,
+            # so an undo gives exactly that back.
+            drawn = assets_model.stock_delta(before, part.get("stock"))
+            if before is not None and drawn < 0 and entry is not None:
+                entry.setdefault("stock_drawn", []).append(
+                    {
+                        "asset_id": asset.get("id"),
+                        "part_id": part.get("id"),
+                        "quantity": -drawn,
+                    }
+                )
 
     def _return_stock_drawn(self, entry: dict[str, Any]) -> None:
         """Give back what a deleted completion took, like the real store does."""
         drawn = entry.get("stock_drawn")
-        if not isinstance(drawn, dict):
-            return
-        asset = self.assets.get(str(drawn.get("asset_id")))
-        if asset is None:
-            return
-        part = assets_model.find_part(asset, str(drawn.get("part_id")))
-        if part is None or not assets_model.part_tracks_stock(part):
-            return
-        self._emit_stock_event(
-            assets_model.adjust_part_stock(part, float(drawn.get("quantity") or 0)),
-            asset,
-            part,
-        )
+        for record in drawn if isinstance(drawn, list) else [drawn]:
+            if not isinstance(record, dict):
+                continue
+            asset = self.assets.get(str(record.get("asset_id")))
+            if asset is None:
+                continue
+            part = assets_model.find_part(asset, str(record.get("part_id")))
+            if part is None or not assets_model.part_tracks_stock(part):
+                continue
+            self._emit_stock_event(
+                assets_model.adjust_part_stock(
+                    part, float(record.get("quantity") or 0)
+                ),
+                asset,
+                part,
+            )
 
     # -- test helpers ---------------------------------------------------------
 

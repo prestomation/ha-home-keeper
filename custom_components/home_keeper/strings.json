@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Link task to a consumable",
-      "description": "Link a task to an appliance consumable/part so completing it consumes one spare from the part's stock and fires a low-stock event at the reorder threshold. Omit asset_id and part_id to clear the link.",
+      "name": "Link task to consumables",
+      "description": "Link a task to 1 or more appliance consumables or parts. Each completion takes the amount of each part from its stock. A part that drops to its reorder threshold fires a low-stock event. Use parts for a list, or asset_id and part_id for 1 part. Send no part fields to clear the links.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Quantity",
           "description": "How much of the part one completion takes. Omit it to use the quantity that the part sets."
+        },
+        "parts": {
+          "name": "Parts",
+          "description": "The full list of parts that the task takes. Each item has asset_id, part_id and an optional quantity. The list replaces the links of the task. Do not use it together with asset_id and part_id."
         }
       }
     },

@@ -202,13 +202,13 @@ stock, write a "Used by" line in the part `notes`.
 
 ### Stock and `source`
 
-`home_keeper.set_task_consumable` links a task to a part (omit `asset_id` and `part_id` to
-unlink). Each completion takes `quantity` off the part `stock`, or the part
-`consume_quantity` (default 1) when you omit it. The link is stored as
-`source["part"] = {asset_id, part_id, manual: true, quantity}`. The task shows a chip such as
-**Takes 2 AAA · 2 left**. `delete_completion` gives back the `stock_drawn` of that
-completion. A count at the reorder level fires `home_keeper_part_low_stock` or
-`home_keeper_part_out_of_stock`.
+`home_keeper.set_task_consumable` sets the parts of a task: `asset_id` and `part_id` for 1,
+or a `parts` list of `{asset_id, part_id, quantity}`. It replaces the links. Send neither, or
+`parts: []`, to unlink. A completion takes `quantity`, or the part `consume_quantity`
+(default 1), off each part. The links are in `source["parts"]`, also in the task events. The
+load moves an old `source["part"]` link with `manual: true` into that list. A completion keeps 1
+`stock_drawn` record for each part, and `delete_completion` gives each back. A count at the
+reorder level fires `home_keeper_part_low_stock` or `home_keeper_part_out_of_stock`.
 
 For a use that is not a task, call `home_keeper.adjust_part_stock` with a negative `delta`.
 The response is `{stock, applied_delta, reorder_at, unit, status}`. To undo, send

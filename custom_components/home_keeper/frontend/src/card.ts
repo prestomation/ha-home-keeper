@@ -84,6 +84,7 @@ import {
   guardWrite,
   setTimeZone,
   hkStateSignal,
+  stockLinks,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -750,7 +751,7 @@ export class HomeKeeperCard extends HTMLElement {
       // only when a task actually references one. A device chip also needs it, to
       // point at its appliance page.
       this._assets = this._tasks.some(
-        (tk) => tk.card_links?.length || tk.source?.part || tk.device_id,
+        (tk) => tk.card_links?.length || stockLinks(tk).length || tk.device_id,
       )
         ? await api.getAssets(this._hass).catch(() => [] as Asset[])
         : [];
@@ -1215,18 +1216,19 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   /**
-   * Resolve a task's linked part (`source.part` — either an auto-generated wear-item
-   * task or a manually-linked consumable) to a document chip pointing at the part's
-   * product URL, when it has one. Unlike `_resolveDocuments`, this has no fallback
-   * "show the name anyway" — a part without a `url` simply contributes no chip.
+   * Resolve each of a task's linked parts (an auto-generated wear-item task's own
+   * part, or each consumable the user linked) to a document chip pointing at the
+   * part's product URL, when it has one. Unlike `_resolveDocuments`, this has no
+   * fallback "show the name anyway" — a part without a `url` contributes no chip.
    */
-  private _resolvePartLink(task: Task): DocumentChip | null {
-    const link = task.source?.part;
-    if (!link) return null;
-    const asset = this._assets.find((a) => a.id === link.asset_id);
-    const part = asset?.parts?.find((p) => p.id === link.part_id);
-    if (!part?.url) return null;
-    return { name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW_ICON };
+  private _resolvePartLinks(task: Task): DocumentChip[] {
+    const out: DocumentChip[] = [];
+    for (const link of stockLinks(task)) {
+      const asset = this._assets.find((a) => a.id === link.asset_id);
+      const part = asset?.parts?.find((p) => p.id === link.part_id);
+      if (part?.url) out.push({ name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW_ICON });
+    }
+    return out;
   }
 
   /** One document link rendered as a primary-tinted chip, wrapped in an anchor opened by
@@ -1317,11 +1319,10 @@ export class HomeKeeperCard extends HTMLElement {
     // renders the same chips from the same builder, so the two surfaces cannot drift.
     const taskChipsHtml = taskChipsList(task).join('');
     // Per-task "show on card" documents — links/metadata open in a new tab; uploaded
-    // files open via a signed URL minted on click (see `_hydrate`). A linked part's
-    // product URL (if any) rides along as one more chip. These render as link-chips
+    // files open via a signed URL minted on click (see `_hydrate`). Each linked
+    // part's product URL (if any) rides along as one more chip. These render as link-chips
     // inline in the same `.hk-chips` row as the rest.
-    const partLink = this._resolvePartLink(task);
-    const docs = partLink ? [partLink, ...this._resolveDocuments(task)] : this._resolveDocuments(task);
+    const docs = [...this._resolvePartLinks(task), ...this._resolveDocuments(task)];
     const docsHtml = docs.map((d) => this._documentChip(d)).join('');
     // A monitored task has nothing to complete — its owner or the sensor watcher arms
     // it; hide the action. A completion-blocked task (a synced problem sensor) keeps a

@@ -854,11 +854,9 @@ def test_manual_consumable_link_consumes_stock_on_completion(ha):
         {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
     )
     linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
-    assert linked["source"]["part"] == {
-        "asset_id": asset["id"],
-        "part_id": part["id"],
-        "manual": True,
-    }
+    assert linked["source"]["parts"] == [
+        {"asset_id": asset["id"], "part_id": part["id"]}
+    ]
 
     # Arm the low-stock sentinel automation, then complete the task: stock 2 -> 1,
     # which lands at reorder_at (==1) and fires home_keeper_part_low_stock.
@@ -917,7 +915,7 @@ def test_manual_link_survives_reconcile_and_can_be_cleared(ha):
     # Clearing the link (no asset/part) drops the source.
     call_service(ha, "home_keeper", "set_task_consumable", {"task_id": task_id})
     cleared = next(t for t in _all_tasks(ha) if t["id"] == task_id)
-    assert not (cleared.get("source") or {}).get("part"), "link should be cleared"
+    assert not (cleared.get("source") or {}).get("parts"), "link should be cleared"
 
 
 def test_set_task_consumable_rejects_derived_task(ha):
@@ -977,9 +975,161 @@ def test_deleting_asset_unlinks_manual_link_task(ha):
     assert survivor is not None, (
         "deleting the appliance must not delete the user's task"
     )
-    assert not (survivor.get("source") or {}).get("part"), (
+    assert not (survivor.get("source") or {}).get("parts"), (
         "the dangling consumable link should be cleared"
     )
+
+
+def _add_water_system(ha, name):
+    """The reporter's case (#493): 1 appliance with 2 stocked filters."""
+    import time
+
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [
+                {"name": "Sediment filter", "type": "consumable", "stock": 4},
+                {
+                    "name": "Carbon filter",
+                    "type": "consumable",
+                    "stock": 2,
+                    "reorder_at": 1,
+                },
+            ],
+        },
+    )
+    for _ in range(20):
+        asset = next((a for a in _assets(ha) if a["name"] == name), None)
+        if asset and len(asset.get("parts") or []) == 2:
+            return asset
+        time.sleep(1)
+    raise AssertionError(f"appliance {name!r} was not provisioned with its parts")
+
+
+def test_493_a_task_takes_a_list_of_consumables_by_name(ha):
+    # The service resolves each appliance and part name, like the 1-link fields.
+    import uuid
+
+    name = f"Water system {uuid.uuid4().hex[:8]}"
+    asset = _add_water_system(ha, name)
+    sediment, carbon = asset["parts"]
+    task_id = _add_floating_task(ha, f"Replace filters {name}")
+    try:
+        call_service(
+            ha,
+            "home_keeper",
+            "set_task_consumable",
+            {
+                "task_id": task_id,
+                "parts": [
+                    {"asset_id": name, "part_id": "Sediment filter", "quantity": 2},
+                    {"asset_id": asset["id"], "part_id": carbon["id"]},
+                ],
+            },
+        )
+        linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert linked["source"]["parts"] == [
+            {"asset_id": asset["id"], "part_id": sediment["id"], "quantity": 2},
+            {"asset_id": asset["id"], "part_id": carbon["id"]},
+        ]
+
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        stock = {p["id"]: p["stock"] for p in _assets_part(ha, asset["id"])}
+        assert stock == {sediment["id"]: 2, carbon["id"]: 1}
+
+        # An empty list clears every link.
+        call_service(
+            ha, "home_keeper", "set_task_consumable", {"task_id": task_id, "parts": []}
+        )
+        cleared = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert not (cleared.get("source") or {}).get("parts")
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_493_the_list_and_a_single_link_together_are_refused(ha):
+    import uuid
+
+    from conftest import HA_URL
+
+    name = f"Water system {uuid.uuid4().hex[:8]}"
+    asset = _add_water_system(ha, name)
+    part = asset["parts"][0]
+    task_id = _add_floating_task(ha, f"Replace filters {name}")
+    try:
+        r = ha.post(
+            f"{HA_URL}/api/services/home_keeper/set_task_consumable",
+            json={
+                "task_id": task_id,
+                "asset_id": asset["id"],
+                "part_id": part["id"],
+                "parts": [{"asset_id": asset["id"], "part_id": part["id"]}],
+            },
+        )
+        assert r.status_code == 400, r.text
+        assert "send parts, or asset_id, part_id, not both" in r.text
+        unchanged = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+        assert not (unchanged.get("source") or {}).get("parts")
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_493_the_websocket_command_sets_a_list(ha):
+    import uuid
+
+    from ha_registry import ws_send
+
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    name = f"Water system {uuid.uuid4().hex[:8]}"
+    asset = _add_water_system(ha, name)
+    sediment, carbon = asset["parts"]
+    task_id = _add_floating_task(ha, f"Replace filters {name}")
+    try:
+        msg = ws_send(
+            token,
+            {
+                "type": "home_keeper/set_task_consumable",
+                "task_id": task_id,
+                "parts": [
+                    {"asset_id": asset["id"], "part_id": sediment["id"]},
+                    {"asset_id": asset["id"], "part_id": carbon["id"], "quantity": 2},
+                ],
+            },
+        )
+        assert msg.get("success"), msg
+        assert msg["result"]["task"]["source"]["parts"] == [
+            {"asset_id": asset["id"], "part_id": sediment["id"]},
+            {"asset_id": asset["id"], "part_id": carbon["id"], "quantity": 2},
+        ]
+        refused = ws_send(
+            token,
+            {
+                "type": "home_keeper/set_task_consumable",
+                "task_id": task_id,
+                "parts": [{"asset_id": asset["id"], "part_id": sediment["id"]}] * 2,
+            },
+        )
+        assert not refused.get("success"), refused
+        # The 1-link form with no ids still clears the list.
+        cleared = ws_send(
+            token,
+            {
+                "type": "home_keeper/set_task_consumable",
+                "task_id": task_id,
+                "asset_id": None,
+                "part_id": None,
+            },
+        )
+        assert cleared.get("success"), cleared
+        assert not (cleared["result"]["task"].get("source") or {}).get("parts")
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
 # ── An appliance an integration owns ─────────────────────────────────────────
@@ -1103,7 +1253,7 @@ def test_a_consumable_link_carries_its_own_quantity(ha):
         },
     )
     linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
-    assert linked["source"]["part"]["quantity"] == 2
+    assert linked["source"]["parts"][0]["quantity"] == 2
 
     call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
     fresh = next(a for a in _assets(ha) if a["id"] == asset["id"])

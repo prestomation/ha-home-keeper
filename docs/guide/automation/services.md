@@ -16,8 +16,8 @@ lists all of them with their fields.
   today instead, independent of the periodic schedule, also without completing
   it. `move_occurrence` moves one date of a fixed schedule and leaves the other
   dates alone. See [Fixed schedules](../tasks/fixed-schedules.md#move-one-date).
-  `set_task_consumable` links a task to an
-  appliance consumable, so a completion draws down its stock. Omit the ids to
+  `set_task_consumable` links a task to 1 or more
+  appliance consumables, so a completion draws down the stock of each. Omit the ids to
   unlink. `list_tasks` returns a response. `delete_orphaned_tasks` deletes each task
   whose managing integration is not loaded. It is admin-only.
 <!-- vale ai-tells.OverusedVocabulary = NO -->

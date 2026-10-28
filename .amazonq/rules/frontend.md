@@ -64,6 +64,8 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - Reuse `.hk-eyebrow` and `.hk-indent`. Do not restate their rules.
 - Both list rows use the same fixed tracks (`--hk-chip-col`, `--hk-status-col`). A chip
   strip holds 1 element per chip.
+- **A task row's stock chip leads its strip alone** (`.hk-chips-stock`), so the column
+  shows it whole. The other chips fold behind "+n". The task page shows 1 chip per part.
 
 ## Layout
 

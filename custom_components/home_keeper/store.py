@@ -76,6 +76,7 @@ from .const import (
     TASK_SOURCE_BUY,
     TASK_SOURCE_DECLARATIVE_COMPANION,
     TASK_SOURCE_PART,
+    TASK_SOURCE_PARTS,
     TASK_SOURCE_PROBLEM_SENSOR,
     resolve_buy_task_naming,
     resolve_use_task_naming,
@@ -92,11 +93,14 @@ from .reconcile import is_manual_part_link as _is_manual_part_link
 from .reconcile import is_part_owned_name_update as _is_part_owned_name_update
 from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
+from .reconcile import migrate_consumable_link as _migrate_consumable_link
 from .reconcile import part_source as _part_source
+from .reconcile import prune_consumable_links as _prune_consumable_links
 from .reconcile import reanchor_edited_parts as _reanchor_edited_parts
 from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
+from .reconcile import stock_links as _stock_links
 from .reconcile import stray_part_tags as _stray_part_tags
 from .task_entities import owns_entities, update_needs_reload
 
@@ -112,6 +116,10 @@ _LOGGER = logging.getLogger(__name__)
 # Completion entry key: the part's ``last_replaced`` before this completion stamped
 # it. Store bookkeeping like ``stock_drawn``, not metadata (B01-3).
 LAST_REPLACED_BEFORE: Final = "last_replaced_before"
+
+# The most consumable links 1 task takes (#493). A real job takes a few parts. The
+# cap keeps a script error from writing a list without end into the task.
+MAX_CONSUMABLE_LINKS: Final = 20
 
 
 def _local_date(when: Any) -> str:
@@ -139,6 +147,7 @@ def _completion_entry(task: dict[str, Any], when: Any) -> dict[str, Any] | None:
 _RESERVED_SOURCE_NAMESPACES = frozenset(
     {
         TASK_SOURCE_PART,
+        TASK_SOURCE_PARTS,
         TASK_SOURCE_BUY,
         TASK_SOURCE_PROBLEM_SENSOR,
         TASK_SOURCE_DECLARATIVE_COMPANION,
@@ -417,6 +426,10 @@ class HomeKeeperStore:
         for task in self._tasks.values():
             if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
                 changed = True
+            # A manual consumable link stored before a task took a list of them
+            # moves into ``source.parts`` (#493), once.
+            if _migrate_consumable_link(task):
+                changed = True
         # A tag bound to a wear part's derived task before parts carried one moves
         # onto the part here, or the first reconcile after the upgrade would clear
         # it. Load-time only: on every pass it would also undo a tag a user just
@@ -586,6 +599,7 @@ class HomeKeeperStore:
         if isinstance(source, dict):
             reserved = {
                 TASK_SOURCE_PART,
+                TASK_SOURCE_PARTS,
                 TASK_SOURCE_PROBLEM_SENSOR,
                 TASK_SOURCE_BUY,
             } & set(source)
@@ -700,30 +714,44 @@ class HomeKeeperStore:
         *,
         quantity: float | None = None,
     ) -> dict[str, Any]:
-        """Link a task to an asset consumable/part, or clear the link.
+        """Link a task to 1 consumable part, or clear every link.
 
-        A manual link sets the task's ``source`` to a part reference (flagged
-        ``manual`` so the part-task reconciler leaves it alone — see
-        ``reconcile.is_manual_part_link``) so that *completing* the task draws the
-        part's per-use amount off its ``stock`` (one whole spare unless the part sets
-        its own ``consume_quantity``), firing the edge-triggered low/out-of-stock
-        events when the reorder threshold is crossed — exactly like a wear-part
-        replacement. This is how a user wires an arbitrary task (e.g. a sensor task
-        armed by a fridge's filter-life entity) to the consumable it depletes.
+        The 1-link form of :meth:`set_task_consumables`, kept for the
+        ``asset_id``/``part_id`` service fields. A link replaces the whole list, so
+        a second call points the task at another part, as it did before a task took
+        a list. Pass both ids as ``None`` to clear. ``quantity`` states what this
+        task takes of the part; ``None`` keeps the part's own amount.
+        """
+        if asset_id is None and part_id is None:
+            return await self.set_task_consumables(task_id, [])
+        return await self.set_task_consumables(
+            task_id, [{"asset_id": asset_id, "part_id": part_id, "quantity": quantity}]
+        )
 
-        Pass both ``asset_id`` and ``part_id`` to link; pass both as ``None`` to clear.
-        ``quantity`` states what this one task takes, for a task that takes more than
-        the part's own per-use amount (a smoke alarm that holds 2 cells of a battery
-        type other tasks take 1 of); ``None`` keeps the part's amount.
+    async def set_task_consumables(
+        self, task_id: str, links: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Set the list of consumable parts that a task takes (#493).
 
-        The link is **merged into** the task's ``source``, and clearing it pops only
-        the ``part`` key. Another integration's namespace on the same task — the glue
-        that created the task, and still reads its own key back — has to survive a
-        user linking or unlinking a consumable.
+        Each link is ``{asset_id, part_id, quantity?}``. A completion of the task
+        draws each part's amount off its own ``stock``: the link's ``quantity`` when
+        it states one, else the part's per-use amount. Each part fires its own
+        low/out-of-stock event when it crosses its reorder threshold, as a wear
+        part's replacement does. This is how a user wires any task (a sensor task
+        armed by a filter-life entity, a water system with 2 filters) to the parts it
+        uses. An empty list clears every link.
 
-        Raises ``KeyError`` for an unknown task; ``TaskValidationError`` for an unknown
-        asset/part, a half-specified link, or a task already owned by another source (a
-        reconciler-derived wear-part task, or a synced ``problem`` sensor).
+        The list replaces the old one. It is **merged into** the task's ``source``
+        under the ``parts`` key, and clearing it pops only that key. Another
+        integration's namespace on the same task has to survive a user linking or
+        unlinking a consumable. The reconciler does not own a linked task, so the
+        task stays the user's to edit and delete.
+
+        Raises ``KeyError`` for an unknown task; ``TaskValidationError`` for an
+        unknown asset/part, a half-specified link, the same part twice, more than
+        ``MAX_CONSUMABLE_LINKS`` links, or a task already owned by another source (a
+        reconciler-derived wear-part task, a buy reminder or a synced ``problem``
+        sensor). Nothing is written when a link is refused.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -738,25 +766,54 @@ class HomeKeeperStore:
                 "This task is auto-generated from an appliance wear part and is "
                 "already linked to it — manage its part in the appliance editor."
             )
-
         # A buy reminder restocks its part when it is completed. A consumable link
-        # on it would make the completion consume stock instead (a ``part`` source
-        # wins in ``complete_task``), so a buy reminder takes no link.
-        if _buy_source(existing) is not None and not (
-            asset_id is None and part_id is None
-        ):
+        # on it would make the completion consume stock instead (a part link wins in
+        # ``complete_task``), so a buy reminder takes no link.
+        if _buy_source(existing) is not None and links:
             raise models.TaskValidationError(
                 "A buy reminder restocks its part, so it cannot be linked to a "
                 "consumable."
             )
+        clean = self._clean_consumable_links(links)
 
         source = dict(existing.get("source") or {})
-        if asset_id is None and part_id is None:
-            if TASK_SOURCE_PART not in source:
-                return existing  # already unlinked — no-op, no event
+        # An old 1-link ``part`` key on a task the load did not migrate goes too, so
+        # the list is the 1 record of the links.
+        if _is_manual_part_link(existing):
             source.pop(TASK_SOURCE_PART)
-            existing["source"] = source or None
+        if clean:
+            source[TASK_SOURCE_PARTS] = clean
         else:
+            source.pop(TASK_SOURCE_PARTS, None)
+        if source == (existing.get("source") or {}):
+            return existing  # the same links — no-op, no event
+        existing["source"] = source or None
+        await self._save()
+        _LOGGER.debug(
+            "Set consumable links for task %s -> %s", task_id, existing.get("source")
+        )
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            self._task_event_data(existing, extra={"changed_fields": ["source"]}),
+        )
+        return existing
+
+    def _clean_consumable_links(
+        self, links: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Validate *links* and give back their stored form, in the given order.
+
+        Raises ``TaskValidationError`` for the first link that is refused.
+        """
+        if len(links) > MAX_CONSUMABLE_LINKS:
+            raise models.TaskValidationError(
+                f"a task takes at most {MAX_CONSUMABLE_LINKS} consumables"
+            )
+        clean: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for raw in links:
+            asset_id = raw.get("asset_id")
+            part_id = raw.get("part_id")
             if not asset_id or not part_id:
                 raise models.TaskValidationError(
                     "linking a consumable needs both asset_id and part_id"
@@ -768,30 +825,20 @@ class HomeKeeperStore:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
-            link: dict[str, Any] = {
-                "asset_id": asset_id,
-                "part_id": part_id,
-                "manual": True,
-            }
+            if (asset_id, part_id) in seen:
+                raise models.TaskValidationError(
+                    f"the part {part_id!r} is in the list twice"
+                )
+            seen.add((asset_id, part_id))
+            link: dict[str, Any] = {"asset_id": asset_id, "part_id": part_id}
             try:
-                amount = assets.normalize_link_quantity(quantity)
+                amount = assets.normalize_link_quantity(raw.get("quantity"))
             except assets.AssetValidationError as err:
                 raise models.TaskValidationError(str(err)) from err
             if amount is not None:
                 link["quantity"] = amount
-            if source.get(TASK_SOURCE_PART) == link:
-                return existing  # already linked to this part — no-op, no event
-            source[TASK_SOURCE_PART] = link
-            existing["source"] = source
-        await self._save()
-        _LOGGER.debug(
-            "Set consumable link for task %s -> %s", task_id, existing.get("source")
-        )
-        self._hass.bus.async_fire(
-            EVENT_TASK_UPDATED,
-            self._task_event_data(existing, extra={"changed_fields": ["source"]}),
-        )
-        return existing
+            clean.append(link)
+        return clean
 
     async def trigger_task(
         self, task_id: str, *, origin: str | None = None
@@ -2027,8 +2074,8 @@ class HomeKeeperStore:
         """Remove an asset; returns the removed asset (for device cleanup) or None.
 
         Drops the tasks **derived** from this asset's wear parts, but only **unlinks**
-        a user-owned task that was *manually* linked to one of its consumables (dropping
-        the dangling ``part`` key and keeping the rest of its ``source``, the task and
+        a user-owned task that was linked to its consumables (dropping the dangling
+        links and keeping its other links, the rest of its ``source``, the task and
         its history). Also detaches any child asset that named it as a parent (so the
         child becomes standalone).
 
@@ -2059,19 +2106,22 @@ class HomeKeeperStore:
             if buy is not None and buy.get("asset_id") == asset_id:
                 dropped_ids.add(tid)
                 continue
+            # A user-owned consumable link: keep the task, just drop the links that
+            # now dangle (their consumables are gone with the appliance). Links to
+            # other appliances stay, and so does another integration's namespace on
+            # the same task: it names the thing that made the task, which this
+            # appliance is not.
+            source = _prune_consumable_links(
+                t, lambda link: link["asset_id"] != asset_id
+            )
+            if source is not t.get("source"):
+                t["source"] = source
+                unlinked.append(t)
+                continue
             src = _part_source(t)
             if src is None or src.get("asset_id") != asset_id:
                 continue
-            if _is_manual_part_link(t):
-                # A user-owned manual link: keep the task, just drop the now-dangling
-                # link (its consumable is gone with the appliance). Only the ``part``
-                # key goes — another integration's namespace on the same task names
-                # the thing that made the task, which this appliance is not.
-                source = dict(t.get("source") or {})
-                source.pop(TASK_SOURCE_PART, None)
-                t["source"] = source or None
-                unlinked.append(t)
-            else:
+            if not _is_manual_part_link(t):
                 dropped_ids.add(tid)
         dropped = [self._tasks[tid] for tid in dropped_ids]
         self._tasks = {
@@ -2178,8 +2228,8 @@ class HomeKeeperStore:
                     self._hass.bus.async_fire(
                         EVENT_TASK_CREATED, self._task_event_data(task)
                     )
-            # A manual consumable link whose part was removed has its source cleared by
-            # the reconcile (the task survives standalone); announce the source change.
+            # A consumable link whose part was removed is cleared by the reconcile (the
+            # task survives with its other links); announce the source change.
             for tid, task in new_tasks.items():
                 old = old_tasks.get(tid)
                 if old is not None and old.get("source") != task.get("source"):
@@ -2710,11 +2760,11 @@ class HomeKeeperStore:
             self._reset_usage_baseline(updated, reading)
         self._tasks[task_id] = updated
         # A task carries at most one reserved source, so exactly one stock side-effect
-        # applies: a part-linked completion *consumes* a spare, a buy reminder
+        # applies: a part-linked completion *consumes* spares, a buy reminder
         # *restocks*. Branch (rather than call both self-guarding helpers) so a
         # malformed both-sources task can never both consume and restock on one
-        # completion — a `part` source wins, mirroring add_task's reserved-key guard.
-        if _part_source(updated):
+        # completion — a part link wins, mirroring add_task's reserved-key guard.
+        if _stock_links(updated):
             self._stamp_part_replacement(updated, when)
         elif _buy_source(updated):
             self._stamp_buy_restock(updated, when)
@@ -3155,8 +3205,16 @@ class HomeKeeperStore:
         cfg["baseline"] = reading
 
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
-        src = _part_source(task)
-        if not src:
+        """Stamp and draw each part that a completion of *task* replaces.
+
+        A wear part's task replaces its own part. A linked task replaces each of its
+        consumable links (#493). A link whose appliance or part is gone is skipped,
+        and the rest still draw. The completion entry records, for each part, the
+        ``last_replaced`` it overwrote and the stock it really took, so an undo puts
+        back each one.
+        """
+        links = _stock_links(task)
+        if not links:
             return
         if _is_use_task(task):
             # A counted wear item's *use* task carries a part source too, because it
@@ -3165,9 +3223,6 @@ class HomeKeeperStore:
             # would stamp the DWR treatment as done and draw a spare out of inventory,
             # so the count would arm a reminder for maintenance that never happened
             # while the stock quietly emptied.
-            return
-        asset = self._assets.get(src["asset_id"])
-        if not asset:
             return
         # ``as_local`` first (#250): *when* carries the offset the caller supplied — UTC
         # for a completion back-dated through the panel's date picker — and a bare
@@ -3180,108 +3235,125 @@ class HomeKeeperStore:
         # future ``last_replaced``, so the part could not be saved until that day
         # (B05-3).
         when_date = min(when_date, dt_util.as_local(dt_util.now()).date().isoformat())
-        part_id = src.get("part_id")
-        part = assets.find_part(asset, part_id) if part_id is not None else None
-        if part is not None:
-            entry = _completion_entry(task, when)
+        entry = _completion_entry(task, when)
+        for link in links:
+            asset = self._assets.get(link["asset_id"])
+            part = assets.find_part(asset, link["part_id"]) if asset else None
+            if asset is None or part is None:
+                continue
             if entry is not None:
                 # The date this completion replaces. An undo puts it back when no
                 # other replacement remains (B01-3).
-                entry[LAST_REPLACED_BEFORE] = part.get("last_replaced")
+                entry.setdefault(LAST_REPLACED_BEFORE, []).append(
+                    {
+                        "asset_id": asset.get("id"),
+                        "part_id": part.get("id"),
+                        "last_replaced": part.get("last_replaced"),
+                    }
+                )
             part["last_replaced"] = when_date
-            # Completing a wear-part replacement consumes the link's amount when it
-            # states one, and the part's per-use amount otherwise (one whole spare
-            # unless the part says otherwise); signal a low/out-of-stock crossing so
-            # users can automate a reorder.
+            # Completing a replacement consumes the link's amount when it states one,
+            # and the part's per-use amount otherwise (one whole spare unless the
+            # part says otherwise); signal a low/out-of-stock crossing so users can
+            # automate a reorder.
             before = part.get("stock")
             self._emit_stock_event(
-                assets.consume_part_stock(part, quantity=src.get("quantity")),
+                assets.consume_part_stock(part, quantity=link.get("quantity")),
                 asset,
                 part,
             )
-            self._stamp_stock_drawn(task, when, asset, part, before)
+            self._stamp_stock_drawn(entry, asset, part, before)
 
+    @staticmethod
     def _stamp_stock_drawn(
-        self,
-        task: dict[str, Any],
-        when: Any,
+        entry: dict[str, Any] | None,
         asset: dict[str, Any],
         part: dict[str, Any],
         before: float | None,
     ) -> None:
-        """Record on the completion entry how much stock it really took.
+        """Record on the completion entry how much stock it really took of *part*.
 
-        ``stock_drawn`` is what :meth:`delete_completion` gives back. It is the amount
+        ``stock_drawn`` is a list with 1 record for each part that the completion
+        took from. It is what :meth:`delete_completion` gives back. It is the amount
         the count really moved, not the amount asked for: the count stops at zero, so
         a completion of an empty part takes nothing and its undo must add nothing.
         Internal bookkeeping like ``meter_start``, so it survives
         ``update_completion`` and ``move_completion``.
         """
-        if before is None:
+        if before is None or entry is None:
             return
         drawn = assets.stock_delta(before, part.get("stock"))
         if drawn >= 0:
             return
-        entry = _completion_entry(task, when)
-        if entry is not None:
-            entry["stock_drawn"] = {
+        entry.setdefault("stock_drawn", []).append(
+            {
                 "asset_id": asset.get("id"),
                 "part_id": part.get("id"),
                 "quantity": -drawn,
             }
+        )
 
     def _return_stock_drawn(self, entry: dict[str, Any]) -> None:
         """Give back the stock a deleted completion took (see ``_stamp_stock_drawn``).
 
-        Does nothing when the appliance, the part or its count has gone since, because
-        there is no count left to correct.
+        Does nothing for a part whose appliance, record or count has gone since,
+        because there is no count left to correct. A completion stored before a task
+        took a list of parts holds 1 dict, which reads as a list of 1.
         """
         # ``stock_drawn`` gives back a draw. ``stock_added`` takes back the restock
         # that a completed buy reminder added (B01-5).
         for key, sign in (("stock_drawn", 1.0), ("stock_added", -1.0)):
             moved = entry.get(key)
-            if not isinstance(moved, dict):
-                continue
-            asset = self._assets.get(str(moved.get("asset_id")))
-            if asset is None:
-                continue
-            part = assets.find_part(asset, str(moved.get("part_id")))
-            if part is None or not assets.part_tracks_stock(part):
-                continue
-            quantity = sign * float(moved.get("quantity") or 0)
-            transition = assets.adjust_part_stock(part, quantity)
-            self._emit_stock_event(transition, asset, part)
+            records = moved if isinstance(moved, list) else [moved]
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                asset = self._assets.get(str(record.get("asset_id")))
+                if asset is None:
+                    continue
+                part = assets.find_part(asset, str(record.get("part_id")))
+                if part is None or not assets.part_tracks_stock(part):
+                    continue
+                quantity = sign * float(record.get("quantity") or 0)
+                transition = assets.adjust_part_stock(part, quantity)
+                self._emit_stock_event(transition, asset, part)
 
     def _restamp_last_replaced(
         self, task: dict[str, Any], entry: dict[str, Any]
     ) -> None:
         """Correct ``last_replaced`` after *entry* was deleted or moved (B01-3).
 
-        Only when the part still shows the date that *entry* stamped. The new date
-        comes from the latest replacement left in *task*. If no replacement is left,
-        the date that *entry* replaced comes back.
+        For each part that *entry* stamped, and only when the part still shows the
+        date that *entry* stamped. The new date comes from the latest replacement
+        left in *task*. If no replacement is left, the date that *entry* replaced
+        comes back. A completion stored before a task took a list of parts holds 1
+        bare date, which belongs to the task's first part link.
         """
-        src = _part_source(task)
-        if not src or _is_use_task(task) or LAST_REPLACED_BEFORE not in entry:
+        if _is_use_task(task) or LAST_REPLACED_BEFORE not in entry:
             return
-        asset = self._assets.get(src["asset_id"])
-        part_id = src.get("part_id")
-        if asset is None or part_id is None:
-            return
-        part = assets.find_part(asset, part_id)
-        if part is None:
-            return
+        stamped = entry[LAST_REPLACED_BEFORE]
+        if isinstance(stamped, list):
+            records = [r for r in stamped if isinstance(r, dict)]
+        else:
+            links = _stock_links(task)
+            records = [{**links[0], "last_replaced": stamped}] if links else []
         today = dt_util.as_local(dt_util.now()).date().isoformat()
-        if part.get("last_replaced") != min(_local_date(entry.get("ts")), today):
-            return
+        stamped_date = min(_local_date(entry.get("ts")), today)
         remaining = [
             _local_date(c.get("ts"))
             for c in task.get("completions") or []
             if c.get("ts")
         ]
-        part["last_replaced"] = (
-            min(max(remaining), today) if remaining else entry.get(LAST_REPLACED_BEFORE)
-        )
+        for record in records:
+            asset = self._assets.get(str(record.get("asset_id")))
+            part = (
+                assets.find_part(asset, str(record.get("part_id"))) if asset else None
+            )
+            if part is None or part.get("last_replaced") != stamped_date:
+                continue
+            part["last_replaced"] = (
+                min(max(remaining), today) if remaining else record.get("last_replaced")
+            )
 
     def _stamp_buy_restock(self, task: dict[str, Any], when: Any = None) -> None:
         """On completing an auto-created buy task, restock its part.

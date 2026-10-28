@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Powiąż zadanie z materiałem eksploatacyjnym",
-      "description": "Wiąże zadanie z materiałem eksploatacyjnym/częścią urządzenia, tak aby jego ukończenie zużywało jedną zapasową sztukę ze stanu i wyzwalało zdarzenie niskiego stanu przy progu ponownego zamówienia. Pomiń asset_id i part_id, aby usunąć powiązanie.",
+      "name": "Połącz zadanie z materiałami eksploatacyjnymi",
+      "description": "Łączy zadanie z 1 lub więcej materiałami eksploatacyjnymi lub częściami urządzenia. Każde ukończenie pobiera ilość każdej części z jej zapasu i wywołuje zdarzenie niskiego zapasu przy progu ponownego zamówienia. Wyślij parts dla listy albo asset_id i part_id dla 1 części. Nie wysyłaj żadnego z nich lub wyślij pustą listę parts, aby usunąć powiązania.",
       "fields": {
         "task_id": {
           "name": "Nazwa lub identyfikator zadania",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Ilość",
           "description": "Ile części zużywa jedno ukończenie. Pomiń to, aby użyć ilości podanej przy części."
+        },
+        "parts": {
+          "name": "Części",
+          "description": "Pełna lista części, których używa zadanie. Każdy element to asset_id, part_id, quantity, a quantity jest opcjonalne. Lista zastępuje powiązania zadania. Nie używaj jej razem z asset_id i part_id."
         }
       }
     },

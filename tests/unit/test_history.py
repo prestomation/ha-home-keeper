@@ -218,3 +218,38 @@ def test_remove_archived_completion_missing_is_noop():
         is False
     )
     assert a.remove_archived_completion(_asset(), "x", "y") is False
+
+
+def _listed_task(*asset_ids, **over):
+    """A task linked to a consumable on each of *asset_ids* (#493)."""
+    parts = [{"asset_id": aid, "part_id": f"p{n}"} for n, aid in enumerate(asset_ids)]
+    return {"id": "t1", "name": "Replace filters", "source": {"parts": parts}, **over}
+
+
+def test_493_a_task_relates_to_each_appliance_whose_part_it_takes():
+    task = _listed_task("other", "asset1")
+    assert a.task_relates_to_asset(task, _asset()) is True
+    assert a.task_relates_to_asset(task, _asset(id="other")) is True
+    assert a.task_relates_to_asset(task, _asset(id="third")) is False
+    assert a.task_relates_to_asset(_listed_task(), _asset()) is False
+
+
+def test_493_the_first_linked_appliance_keeps_the_history():
+    assets = {
+        "asset1": _asset(),
+        "other": _asset(id="other", device_id="dev1"),
+    }
+    found = a.find_archiving_asset(assets, _listed_task("gone", "asset1", "other"))
+    assert found["id"] == "asset1"
+    # The link wins over the device, as a wear part does.
+    found = a.find_archiving_asset(assets, _listed_task("asset1", device_id="dev1"))
+    assert found["id"] == "asset1"
+
+
+def test_493_a_malformed_list_relates_to_nothing():
+    task = {"id": "t", "name": "x", "source": {"parts": ["asset1", {"part_id": "p"}]}}
+    assert a.task_relates_to_asset(task, _asset()) is False
+    assert (
+        a.task_relates_to_asset({"id": "t", "source": {"parts": None}}, _asset())
+        is False
+    )

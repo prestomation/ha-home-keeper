@@ -9,7 +9,7 @@ import {
   weekdayName,
   type SimpleFreq,
 } from './rrule';
-import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
+import type { Asset, Completion, Hass, HassArea, HassLabel, Part, PartLink, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
  *  or materializes itself carries it in `managed_by.integration`, which is how the
@@ -1337,6 +1337,34 @@ export function countedProgress(
   };
 }
 
+/**
+ * The consumable links a user set on a task, in order (#493) — the twin of
+ * `reconcile.consumable_links`. The `parts` list wins, also when it is empty. A task
+ * stored before the list keeps 1 manual link in `source.part`, which reads as a list
+ * of 1. A wear part's own `source.part` is no consumable link, and an entry with no
+ * ids is skipped.
+ */
+export function consumableLinks(task: Pick<Task, 'source'>): PartLink[] {
+  const source = task.source;
+  if (!source) return [];
+  const isLink = (x: unknown): x is PartLink =>
+    !!x && typeof x === 'object' && Boolean((x as PartLink).asset_id) && Boolean((x as PartLink).part_id);
+  if (Array.isArray(source.parts)) return source.parts.filter(isLink);
+  const legacy = source.part;
+  return legacy?.manual && isLink(legacy) ? [legacy] : [];
+}
+
+/**
+ * The part links whose stock a completion draws — the twin of
+ * `reconcile.stock_links`: a wear part's task draws its own part, any other task
+ * draws each consumable link.
+ */
+export function stockLinks(task: Pick<Task, 'source'>): PartLink[] {
+  const own = task.source?.part;
+  if (own && !own.manual) return [own];
+  return consumableLinks(task);
+}
+
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): string {
   // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no
@@ -2096,8 +2124,9 @@ export type TaskAssociation = Pick<Task, 'device_id' | 'source'>;
  * counts as related.
  */
 function assetRank(task: TaskAssociation, asset: Asset): number {
-  // The task exists *because* of this appliance's part. Nothing beats that.
-  if (task.source?.part?.asset_id === asset.id) return 1;
+  // The task exists *because* of this appliance's part, or takes its parts.
+  // Nothing beats that.
+  if (stockLinks(task).some((link) => link.asset_id === asset.id)) return 1;
   const dev = task.device_id;
   if (!dev) return 0;
   if (asset.device_id && dev === asset.device_id) return 2;

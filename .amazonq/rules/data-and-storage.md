@@ -19,7 +19,7 @@ The store is in [store](../../docs/design/store.md), the task model in
 - `labels[]` are Home Assistant label-registry ids. `merge_update` writes `labels` only
   when the caller sends the key. Do not remove the id of a deleted label.
 - A `source` dict is merged, never replaced. Each namespace has 1 owner. Home Keeper owns
-  `part`, `buy` and `declarative_companion`. A writer changes only its own key, and an
+  `part`, `parts`, `buy` and `declarative_companion`. A writer changes only its own key, and an
   unlink pops only that key.
 - `task_chips` is set only by the integration that owns the task, and the task form does
   not show it. `card_links` is the user's link from a card task to appliance documents.
@@ -99,7 +99,10 @@ Details are in [completions](../../docs/design/completions.md).
   and the per-task entities. Never build a parallel part sensor.
 - Generated task names (wear and buy) are localized to `hass.config.language` when they
   are written. The pure reconciler takes the template as an argument.
-- `reconcile_part_tasks` skips a manual consumable link (`source.part.manual`).
+- `reconcile_part_tasks` skips the consumable links in `source.parts`. Read them only
+  through `reconcile.consumable_links`, which also reads an old manual `source.part`.
+- **A completion records each part it draws.** `stock_drawn` and `last_replaced_before`
+  are lists with 1 record for each part. The undo also reads the old dict and bare date.
 - **An integration can own an appliance, never the stock on its parts.** `PART_USER_KEYS`
   stay the user's on every path. A part that the owner drops is removed only if it tracks
   no stock. A new part field goes in `PART_USER_KEYS` or `PART_OWNER_KEYS`.

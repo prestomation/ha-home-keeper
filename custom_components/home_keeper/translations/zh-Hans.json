@@ -443,7 +443,7 @@
     },
     "set_task_consumable": {
       "name": "将任务关联到耗材",
-      "description": "将任务关联到设备的耗材/部件，这样完成任务时会从库存中消耗一个备件，并在补货阈值时触发低库存事件。省略 asset_id 和 part_id 可清除关联。",
+      "description": "将任务关联到电器的 1 个或多个耗材或部件。每次完成都会从每个部件的库存中扣除其用量，并在达到补货阈值时触发低库存事件。发送 parts 表示列表，或发送 asset_id 和 part_id 表示 1 个部件。两者都不发送，或发送空的 parts 列表，即可清除关联。",
       "fields": {
         "task_id": {
           "name": "任务名称或 ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "数量",
           "description": "一次完成消耗该部件的数量。省略时使用部件设置的数量。"
+        },
+        "parts": {
+          "name": "部件",
+          "description": "任务使用的完整部件列表。每项为 asset_id, part_id, quantity，quantity 可选。该列表会替换任务的关联。不要与 asset_id 和 part_id 一起使用。"
         }
       }
     },

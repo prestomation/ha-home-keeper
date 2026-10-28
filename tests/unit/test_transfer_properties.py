@@ -236,6 +236,9 @@ def test_t3_every_parent_loop_is_found_and_only_loops_are_reported(graph):
 def test_t4_only_a_reserved_source_makes_a_task_unportable(reserved, foreign):
     """T4. A task is unportable if and only if its source names a reconciler namespace.
 
+    The ``parts`` list of consumable links (#493) is reserved too, but it is the
+    user's own link, so it alone keeps the task portable.
+
     Kills `transfer.x_is_portable_task__mutmut_6`, which turns the set intersection into
     a union. A union is non-empty whenever the task has any source at all, so the mutant
     silently refuses to export every task a companion integration tagged with its own
@@ -247,4 +250,5 @@ def test_t4_only_a_reserved_source_makes_a_task_unportable(reserved, foreign):
         {"name": "T", "interval": 1, "unit": "days", "source": source or None},
         now=NOW,
     )
-    assert tr.is_portable_task(task) is not bool(reserved)
+    owners = set(reserved) - {tr.TASK_SOURCE_PARTS}
+    assert tr.is_portable_task(task) is not bool(owners)

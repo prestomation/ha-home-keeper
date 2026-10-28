@@ -98,6 +98,7 @@ from .coordinator import (
 )
 from .declarative_companion_sync import DeclarativeCompanionSync
 from .problem_sync import ProblemSensorSync
+from .reconcile import refuse_mixed_link_forms
 from .resolve import (
     AmbiguousName,
     NotFound,
@@ -345,9 +346,19 @@ MOVE_SKIP_SCHEMA = vol.Schema(
         vol.Required("new_ts"): cv.datetime,
     }
 )
-# Link a task to an appliance consumable/part (or clear the link). Completing a
-# linked task consumes one spare from the part's stock and fires the edge-triggered
-# low/out-of-stock events. Omit asset_id/part_id (or pass them empty) to unlink.
+# 1 entry of the ``parts`` list on set_task_consumable (#493).
+CONSUMABLE_LINK_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Required("part_id"): cv.string,
+        vol.Optional("quantity"): vol.Any(vol.Coerce(float), None),
+    }
+)
+# Link a task to appliance consumables/parts (or clear the links). Completing a
+# linked task consumes each part's amount from its stock and fires the
+# edge-triggered low/out-of-stock events. ``parts`` sets the whole list; the
+# asset_id/part_id pair sets a list of 1. Omit all of them (or pass an empty
+# ``parts``) to unlink.
 SET_TASK_CONSUMABLE_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
@@ -357,6 +368,7 @@ SET_TASK_CONSUMABLE_SCHEMA = vol.Schema(
         # amount (a smoke alarm holding 2 cells of a type other tasks take 1 of).
         # Omitted, the part's ``consume_quantity`` decides, as it always has.
         vol.Optional("quantity"): vol.Coerce(float),
+        vol.Optional("parts"): vol.All(cv.ensure_list, [CONSUMABLE_LINK_SCHEMA]),
     }
 )
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
@@ -1444,22 +1456,36 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         await coord.async_request_refresh()
 
-    async def handle_set_task_consumable(call: ServiceCall) -> None:
-        coord = _coordinator()
-        task_id = _task_ref(coord, call.data["task_id"])
-        asset_key = call.data.get("asset_id") or None
+    def _part_link_ref(coord: HomeKeeperCoordinator, raw: dict) -> dict:
+        """1 consumable link with its appliance and part names resolved to ids."""
+        asset_key = raw.get("asset_id") or None
         asset_id = _asset_ref(coord, asset_key) if asset_key else None
-        part_key = call.data.get("part_id") or None
+        part_key = raw.get("part_id") or None
         part_id = (
             _part_ref(coord, asset_id, part_key) if part_key and asset_id else part_key
         )
+        return {
+            "asset_id": asset_id,
+            "part_id": part_id,
+            "quantity": raw.get("quantity"),
+        }
+
+    async def handle_set_task_consumable(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
         with _store_errors(task_id=task_id):
-            await coord.store.set_task_consumable(
-                task_id,
-                asset_id,
-                part_id,
-                quantity=call.data.get("quantity"),
-            )
+            if "parts" in call.data:
+                refuse_mixed_link_forms(call.data)
+                links = [_part_link_ref(coord, raw) for raw in call.data["parts"]]
+                await coord.store.set_task_consumables(task_id, links)
+            else:
+                link = _part_link_ref(coord, call.data)
+                await coord.store.set_task_consumable(
+                    task_id,
+                    link["asset_id"],
+                    link["part_id"],
+                    quantity=link["quantity"],
+                )
         # Linking only rewrites the task's source; the per-task entity set is
         # unchanged, so a refresh is enough — no entry reload.
         await coord.async_request_refresh()

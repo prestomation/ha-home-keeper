@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Länka uppgift till en förbrukningsvara",
-      "description": "Länkar en uppgift till en förbrukningsvara/del på en apparat så att slutförandet förbrukar en reservdel från lagret och utlöser en händelse om lågt lager vid beställningsgränsen. Utelämna asset_id och part_id för att ta bort länken.",
+      "name": "Koppla uppgift till förbrukningsartiklar",
+      "description": "Kopplar en uppgift till 1 eller flera förbrukningsartiklar eller delar på en apparat. Varje slutförande drar varje dels mängd från dess lager och utlöser en händelse för lågt lager vid beställningsgränsen. Skicka parts för en lista, eller asset_id och part_id för 1 del. Skicka ingetdera, eller en tom parts-lista, för att ta bort kopplingarna.",
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Mängd",
           "description": "Hur mycket av delen en slutförd uppgift förbrukar. Utelämna det för att använda mängden som delen anger."
+        },
+        "parts": {
+          "name": "Delar",
+          "description": "Den fullständiga listan över delar som uppgiften använder. Varje post är asset_id, part_id, quantity, och quantity är valfri. Listan ersätter uppgiftens kopplingar. Använd den inte tillsammans med asset_id och part_id."
         }
       }
     },

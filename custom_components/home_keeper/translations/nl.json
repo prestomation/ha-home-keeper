@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Taak aan verbruiksartikel koppelen",
-      "description": "Koppelt een taak aan een verbruiksartikel/onderdeel van een apparaat, zodat het voltooien ervan één reserve uit de voorraad verbruikt en bij de besteldrempel een gebeurtenis voor lage voorraad activeert. Laat asset_id en part_id weg om de koppeling te wissen.",
+      "name": "Taak koppelen aan verbruiksartikelen",
+      "description": "Koppelt een taak aan 1 of meer verbruiksartikelen of onderdelen van een apparaat. Elke voltooiing haalt de hoeveelheid van elk onderdeel van de voorraad en vuurt een gebeurtenis voor lage voorraad af bij de bestelgrens. Stuur parts voor een lijst, of asset_id en part_id voor 1 onderdeel. Stuur geen van beide, of een lege parts-lijst, om de koppelingen te wissen.",
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Hoeveelheid",
           "description": "Hoeveel van het onderdeel één voltooiing verbruikt. Laat het weg om de hoeveelheid van het onderdeel te gebruiken."
+        },
+        "parts": {
+          "name": "Onderdelen",
+          "description": "De volledige lijst met onderdelen die de taak gebruikt. Elk item is asset_id, part_id, quantity, en quantity is optioneel. De lijst vervangt de koppelingen van de taak. Gebruik hem niet samen met asset_id en part_id."
         }
       }
     },

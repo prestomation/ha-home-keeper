@@ -69,6 +69,8 @@ import {
   toast,
   usageIntervalStats,
   isCompletedOneOff,
+  consumableLinks,
+  stockLinks,
 } from '../src/utils.ts';
 import { setLanguage } from '../src/i18n';
 
@@ -2432,5 +2434,48 @@ describe('addedCompletion', () => {
     expect(addedCompletion(new Set(['a']), { completions: [c('a')] })).toBeUndefined();
     expect(addedCompletion(new Set(), null)).toBeUndefined();
     expect(addedCompletion(new Set(), {})).toBeUndefined();
+  });
+});
+
+
+describe('consumableLinks and stockLinks (#493)', () => {
+  const A = { asset_id: 'a', part_id: 'p1' };
+  const B = { asset_id: 'b', part_id: 'p2', quantity: 2 };
+
+  it('reads the list in order, and skips an entry with no ids', () => {
+    expect(consumableLinks({ source: { parts: [A, { asset_id: 'a' }, null, 'x', B] } })).toEqual([A, B]);
+  });
+
+  it('reads an old manual link as a list of 1, and a wear part as none', () => {
+    const legacy = { ...A, manual: true };
+    expect(consumableLinks({ source: { part: legacy } })).toEqual([legacy]);
+    expect(consumableLinks({ source: { part: A } })).toEqual([]);
+    expect(consumableLinks({ source: { part: { manual: true } } })).toEqual([]);
+  });
+
+  it('lets the list win, also when it is empty', () => {
+    expect(consumableLinks({ source: { parts: [], part: { ...A, manual: true } } })).toEqual([]);
+    expect(consumableLinks({ source: { parts: [B], part: { ...A, manual: true } } })).toEqual([B]);
+  });
+
+  it('reads nothing from a task with no source', () => {
+    expect(consumableLinks({})).toEqual([]);
+    expect(consumableLinks({ source: null })).toEqual([]);
+    expect(consumableLinks({ source: {} })).toEqual([]);
+  });
+
+  it('draws a wear part’s own part, or each consumable link', () => {
+    expect(stockLinks({ source: { part: A } })).toEqual([A]);
+    expect(stockLinks({ source: { parts: [A, B] } })).toEqual([A, B]);
+    expect(stockLinks({ source: { part: { ...A, manual: true } } })).toEqual([{ ...A, manual: true }]);
+    expect(stockLinks({})).toEqual([]);
+  });
+
+  it('ranks each appliance whose part a task takes first', () => {
+    const own = { id: 'a', name: 'Water', device_id: 'dev-other' };
+    const other = { id: 'b', name: 'Fridge' };
+    const byDevice = { id: 'c', name: 'Sink', device_id: 'dev1' };
+    const task = { device_id: 'dev1', source: { parts: [A, B] } };
+    expect(assetsForTask(task, [byDevice, other, own]).map((x) => x.id)).toEqual(['b', 'a', 'c']);
   });
 });

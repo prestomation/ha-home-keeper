@@ -19,8 +19,10 @@ import {
   DEFAULT_BACKSTOP_INTERVAL,
   MAX_SEASON_WINDOWS,
   cardLinkTokens,
+  consumableLinkTokens,
   daysInMonth,
   formRecurrenceSummary,
+  isConsumableQtyField,
   pickFormData,
   seasonCount,
   sensorHintText,
@@ -38,7 +40,7 @@ import type { PanelHost } from './panel-host';
 import { formPhotosSection } from './panel-task-photos';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
-import type { Asset, Task } from './types';
+import type { Asset, PartLink, Task } from './types';
 import {
   assetTitle,
   assetsForTask,
@@ -46,6 +48,7 @@ import {
   formatQuantity,
   safeHref,
   setBtnWeight,
+  stockLinks,
 } from './utils';
 
 /**
@@ -210,13 +213,19 @@ export function documentOptions(p: PanelHost, task: Partial<Task>): { value: str
   return options.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line
- *  (HTML — the part name is a clickable link to its product page when it has a
- *  `url`, same anchor pattern as the appliance's parts-list read view). The
- *  appliance name opens the part on its appliance page, as the part chip does. */
+/** Resolve each of a task's part links to a "Appliance · Part · In stock: N" detail
+ *  line, 1 line per part (#493). HTML — the part name is a clickable link to its
+ *  product page when it has a `url`, same anchor pattern as the appliance's
+ *  parts-list read view. The appliance name opens the part on its appliance page,
+ *  as the part chip does. Empty when no linked part still exists. */
 export function consumableLinkLabel(p: PanelHost, task: Task): string {
-  const part = task.source?.part;
-  if (!part) return '';
+  return stockLinks(task)
+    .map((link) => partLinkLine(p, link))
+    .filter(Boolean)
+    .join('<br>');
+}
+
+function partLinkLine(p: PanelHost, part: PartLink): string {
   const asset = p._assets.find((a) => a.id === part.asset_id);
   const linked = asset?.parts?.find((x) => x.id === part.part_id);
   if (!asset || !linked) return '';
@@ -393,10 +402,9 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       // look like a change on an unrelated edit.
       if (has('device_id') && (value.device_id ?? '') !== prevDevice) {
         const opts = consumableOptions(p, p._edit.task);
-        const cur = (p._edit.task as Record<string, unknown>).consumable_link;
-        if (cur && !opts.some((o) => o.value === cur)) {
-          (p._edit.task as Record<string, unknown>).consumable_link = '';
-        }
+        (p._edit.task as Record<string, unknown>).consumable_links = consumableLinkTokens(
+          p._edit.task,
+        ).filter((tok) => opts.some((o) => o.value === tok));
         // The card-link picker is likewise device-scoped — drop chosen links that
         // no longer resolve to the newly-attached appliance.
         const docOpts = documentOptions(p, p._edit.task);
@@ -495,7 +503,9 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     const fixed = formData.recurrence_type === 'fixed';
     form.computeHelper = (s: { name: string }): string => {
       if (!s.name) return '';
-      const key = fixed && s.name === 'interval' ? 'help.intervalFixed' : 'help.' + s.name;
+      // Every part's amount field shares 1 helper.
+      const name = isConsumableQtyField(s.name) ? 'consumable_quantity' : s.name;
+      const key = fixed && name === 'interval' ? 'help.intervalFixed' : 'help.' + name;
       const h = t(key);
       return h === key ? '' : h;
     };

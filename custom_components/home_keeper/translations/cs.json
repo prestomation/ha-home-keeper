@@ -443,7 +443,7 @@
     },
     "set_task_consumable": {
       "name": "Propojit úkol se spotřebním materiálem",
-      "description": "Propojí úkol se spotřebním materiálem/dílem spotřebiče, takže jeho dokončení spotřebuje jeden náhradní kus ze zásob a při objednací hranici vyvolá událost nízkého stavu zásob. Vynechte asset_id a part_id pro zrušení propojení.",
+      "description": "Propojí úkol s 1 nebo více spotřebními díly či díly spotřebiče. Každé dokončení odebere množství každého dílu z jeho zásoby a při dosažení prahu pro doobjednání vyvolá událost nízké zásoby. Pro seznam pošlete parts, pro 1 díl asset_id a part_id. Pro zrušení propojení nepošlete nic nebo prázdný seznam parts.",
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Množství",
           "description": "Kolik dílu spotřebuje jedno dokončení. Vynechte to, chcete-li použít množství nastavené u dílu."
+        },
+        "parts": {
+          "name": "Díly",
+          "description": "Úplný seznam dílů, které úkol spotřebuje. Každá položka je asset_id, part_id, quantity a quantity je volitelné. Seznam nahradí propojení úkolu. Nepoužívejte ho spolu s asset_id a part_id."
         }
       }
     },

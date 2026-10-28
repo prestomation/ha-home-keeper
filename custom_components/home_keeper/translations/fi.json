@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Linkitä tehtävä kulutustarvikkeeseen",
-      "description": "Linkittää tehtävän laitteen kulutustarvikkeeseen/osaan niin, että sen valmiiksi merkitseminen kuluttaa yhden varaosan varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Jätä asset_id ja part_id pois poistaaksesi linkin.",
+      "name": "Linkitä tehtävä kulutustarvikkeisiin",
+      "description": "Linkittää tehtävän 1 tai useampaan laitteen kulutustarvikkeeseen tai osaan. Jokainen suoritus vähentää kunkin osan määrän sen varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Lähetä parts luettelolle tai asset_id ja part_id yhdelle osalle. Poista linkit lähettämällä kumpaakaan tai tyhjä parts-luettelo.",
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Määrä",
           "description": "Kuinka paljon osaa yksi suoritus kuluttaa. Jätä se pois, niin käytetään osan ilmoittamaa määrää."
+        },
+        "parts": {
+          "name": "Osat",
+          "description": "Täydellinen luettelo osista, joita tehtävä käyttää. Jokainen kohde on asset_id, part_id, quantity, ja quantity on valinnainen. Luettelo korvaa tehtävän linkit. Älä käytä sitä yhdessä asset_id:n ja part_id:n kanssa."
         }
       }
     },

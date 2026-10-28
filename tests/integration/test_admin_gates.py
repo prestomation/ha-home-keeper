@@ -15,6 +15,7 @@ tokens, asserting the admin succeeds where the non-admin is refused.
 import base64
 import importlib.util
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -828,3 +829,49 @@ def test_the_panel_tab_list_refuses_a_non_admin(non_admin_token):
     msg = ws_send(non_admin_token, {"type": "home_keeper/get_panel_tabs"})
     assert not msg.get("success"), "a non-admin read the panel tabs"
     assert msg["error"]["code"] == "unauthorized", msg
+
+
+def test_493_a_non_admin_sets_a_list_of_consumables_over_ws(ha, non_admin_token):
+    # A consumable link is task data, so the list form stays open like the 1-link
+    # form: it changes only how a completion draws stock.
+    name = f"Gate consumables probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {"name": name, "parts": [{"name": "Filter", "type": "consumable", "stock": 1}]},
+    )
+    asset = None
+    for _ in range(20):
+        listed = call_service(
+            ha, "home_keeper", "list_assets", {}, return_response=True
+        )
+        found = listed.get("service_response", listed)["assets"]
+        asset = next((a for a in found if a["name"] == name and a.get("parts")), None)
+        if asset:
+            break
+        time.sleep(1)
+    assert asset, f"appliance {name!r} was not provisioned"
+    added = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "one-off"},
+        return_response=True,
+    )
+    task_id = added.get("service_response", added)["task_id"]
+    try:
+        msg = ws_send(
+            non_admin_token,
+            {
+                "type": "home_keeper/set_task_consumable",
+                "task_id": task_id,
+                "parts": [
+                    {"asset_id": asset["id"], "part_id": asset["parts"][0]["id"]}
+                ],
+            },
+        )
+        assert msg.get("success"), f"a non-admin could not link consumables: {msg}"
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

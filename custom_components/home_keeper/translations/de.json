@@ -443,7 +443,7 @@
     },
     "set_task_consumable": {
       "name": "Aufgabe mit Verbrauchsmaterial verknüpfen",
-      "description": "Verknüpft eine Aufgabe mit einem Verbrauchsmaterial/Teil eines Geräts, sodass beim Abschließen ein Ersatzteil aus dem Bestand verbraucht wird und beim Nachbestellschwellenwert ein Ereignis bei niedrigem Bestand ausgelöst wird. Lasse asset_id und part_id weg, um die Verknüpfung zu entfernen.",
+      "description": "Verknüpft eine Aufgabe mit 1 oder mehr Verbrauchsmaterialien oder Teilen eines Geräts. Jede Erledigung entnimmt die Menge jedes Teils aus seinem Bestand und löst beim Nachbestellwert ein Ereignis für niedrigen Bestand aus. Sende parts für eine Liste oder asset_id und part_id für 1 Teil. Sende keines davon oder eine leere parts-Liste, um die Verknüpfungen zu entfernen.",
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Menge",
           "description": "Wie viel des Teils ein Abschluss verbraucht. Ohne Angabe gilt die Menge, die das Teil angibt."
+        },
+        "parts": {
+          "name": "Teile",
+          "description": "Die vollständige Liste der Teile, die die Aufgabe verbraucht. Jeder Eintrag ist asset_id, part_id, quantity, quantity ist optional. Die Liste ersetzt die Verknüpfungen der Aufgabe. Nicht zusammen mit asset_id und part_id verwenden."
         }
       }
     },

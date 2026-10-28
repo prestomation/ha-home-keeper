@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: fedce1f71f68
+source_hash: b428bcfb11a1
 ---
 
 # Import and export
@@ -69,7 +69,7 @@ the id, never a device id), `history` and `skips`, an appliance's `device_id`, i
 documents and each part. `carried_uses` states a counted wear item's use count
 (`reconcile.counted_uses`). `transfer.is_portable_task` and `transfer.is_portable_asset`
 keep out records with `managed_by`, appliances with a `source`, and tasks in a reserved
-reconciler namespace, except a user's consumable link. `skipped` counts what does not travel.
+reconciler namespace, except a user's consumable links. `skipped` counts what does not travel.
 
 `transfer.resolve_include` splits `include` into sections, companion domains and `settings`,
 and an unknown name raises `unknown_export_section`. The runner calls each ready companion's

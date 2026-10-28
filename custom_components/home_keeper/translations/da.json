@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Knyt opgave til en forbrugsvare",
-      "description": "Knytter en opgave til en forbrugsvare/del på et apparat, så fuldførelse forbruger én reservedel fra lageret og udløser en hændelse om lavt lager ved genbestillingsgrænsen. Udelad asset_id og part_id for at fjerne tilknytningen.",
+      "name": "Knyt opgave til forbrugsvarer",
+      "description": "Knyt en opgave til 1 eller flere forbrugsvarer eller dele på et apparat. Hver fuldførelse trækker hver dels mængde fra dens lager og udløser en hændelse for lavt lager ved genbestillingsgrænsen. Send parts for en liste, eller asset_id og part_id for 1 del. Send ingen af dem, eller en tom parts-liste, for at fjerne tilknytningerne.",
       "fields": {
         "task_id": {
           "name": "Opgavenavn eller -ID",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Mængde",
           "description": "Hvor meget af delen én fuldførelse bruger. Udelad det for at bruge den mængde, delen angiver."
+        },
+        "parts": {
+          "name": "Dele",
+          "description": "Den fulde liste over dele, som opgaven bruger. Hvert element er asset_id, part_id, quantity, og quantity er valgfri. Listen erstatter opgavens tilknytninger. Brug den ikke sammen med asset_id og part_id."
         }
       }
     },

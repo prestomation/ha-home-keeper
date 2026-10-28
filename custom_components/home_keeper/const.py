@@ -16,7 +16,7 @@ PLATFORMS = [
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.34.0"
+PANEL_VERSION = "0.35.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -311,6 +311,13 @@ PART_ROLE_REPLACE = "replace"
 # Marker on a task dict identifying it as derived from an asset part, so the
 # part-task reconciler owns it: ``task["source"] = {"asset_id", "part_id"}``.
 TASK_SOURCE_PART = "part"
+
+# The consumable links a user sets on a task (#493): ``task["source"]["parts"]`` is a
+# list of ``{"asset_id", "part_id", "quantity"?}``. A completion draws each part off
+# its own stock. ``store.set_task_consumables`` is the 1 writer. The reconciler does
+# not own these tasks. A task stored before the list existed keeps 1 manual link in
+# ``source["part"]``, and ``reconcile.migrate_consumable_link`` moves it on load.
+TASK_SOURCE_PARTS = "parts"
 
 # Marker on a task dict identifying it as an auto-created "buy" reminder for a low
 # spare part: ``task["source"] = {"buy": {"asset_id", "part_id"}}``. Owned entirely

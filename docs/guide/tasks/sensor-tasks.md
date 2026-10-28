@@ -170,7 +170,7 @@ linked to a consumable. An example is a task bound to a filter-life entity and
 linked to the filter part. The entity arms the task and a completion draws down
 the part.
 
-Select the part in the **Linked consumable** field on the task form. The field lists
+Select the part in the **Linked consumables** field on the task form. The field lists
 the parts of the appliance that the task is attached to with **Attach to device**.
 The field is hidden if the appliance has no consumable parts. The
 `home_keeper.set_task_consumable` service sets the same link. Omit the ids to
@@ -179,3 +179,53 @@ unlink. The task detail shows the linked part and its current stock.
 ![The task form's Linked consumable picker: link a task to a stocked consumable](../../images/34-panel-create-linked-consumable.png)
 
 ![A task detail showing its linked consumable and current spare stock](../../images/33-panel-linked-consumable-detail.png)
+
+##### Several consumables on 1 task
+
+A task can take more than 1 consumable part. Each completion takes each part from
+its own stock. Each part fires its own low-stock event at its own reorder threshold.
+Delete a completion to give back the stock of each part.
+
+An example is a water filter system with a sediment filter and a carbon filter. You
+replace both filters in 1 job. Do these steps:
+
+1. Add both filters as consumable parts of the water filter appliance.
+2. Attach the task to the device of the appliance.
+3. Select both filters in **Linked consumables**.
+4. Optional: type an amount in the **takes per completion** field of a part. Use this
+   if the system holds 2 filters of 1 type.
+
+If you leave the amount empty, the task takes the **Used per completion** amount of
+the part. That amount is 1 if the part does not set it.
+
+![The task form with 2 filters in Linked consumables and an amount for each filter](../../images/34b-panel-multi-consumable-form.png)
+
+![The task form with 2 linked filters on a phone](../../images/34c-panel-mobile-multi-consumable-form.png)
+
+The task page shows 1 chip for each part. The task list shows 1 short chip, such as
+**2 parts · Low stock**. Click that chip to open the task.
+
+![A task page with 1 stock chip for each linked filter](../../images/34d-panel-multi-consumable-detail.png)
+
+![The task list with a 2 parts chip on the water filter task](../../images/34e-panel-multi-consumable-list.png)
+
+![The task page with 2 linked filters on a phone](../../images/34f-panel-mobile-multi-consumable-detail.png)
+
+![The task list with a 2 parts chip on a phone](../../images/34g-panel-mobile-multi-consumable-list.png)
+
+An automation sets the list with the `parts` field of `home_keeper.set_task_consumable`:
+
+```yaml
+action: home_keeper.set_task_consumable
+data:
+  task_id: Replace water filters
+  parts:
+    - asset_id: Water filter system
+      part_id: Sediment filter
+    - asset_id: Water filter system
+      part_id: Carbon filter
+      quantity: 2
+```
+
+The list replaces the links of the task. Send an empty `parts` list to remove all
+links.

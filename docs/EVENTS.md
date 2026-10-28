@@ -154,7 +154,8 @@ track **both** `stock` and `reorder_at` to fire anything. If 1 change takes a lo
 
 Stock goes down, and these events fire, when a user completes a task **linked to that
 part**. This includes an automatic wear-part replacement task and a task linked by hand
-with `home_keeper.set_task_consumable`. Each completion removes the **Used per
+with `home_keeper.set_task_consumable`. A task linked to several parts fires 1 event for
+each part that crosses. Each completion removes the **Used per
 completion** amount of the part (1 spare if unset). With `0.33`, a bottle lasts 3 refills.
 
 A deleted completion gives the stock back. The completion records the amount that it

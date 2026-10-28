@@ -1792,24 +1792,36 @@ def _legacy_part(text: str) -> dict:
 # archive with it (it is a field on the asset record).
 
 
-def _part_asset_id(task: dict) -> str | None:
-    """Return the asset id a part-derived task is sourced from, or None."""
+def _part_asset_ids(task: dict) -> list[str]:
+    """The appliance ids whose parts *task* is about, strongest first.
+
+    A wear part's derived task, or an old 1-link task, names 1 appliance in
+    ``source.part``. A task linked to consumables names 1 in each entry of
+    ``source.parts`` (#493), in order. ``reconcile`` imports this module, so this
+    reads the 2 keys itself.
+    """
     source = task.get("source")
-    if isinstance(source, dict):
-        part = source.get("part")
-        if isinstance(part, dict):
-            return part.get("asset_id")
-    return None
+    if not isinstance(source, dict):
+        return []
+    ids: list[str] = []
+    part = source.get("part")
+    if isinstance(part, dict) and part.get("asset_id"):
+        ids.append(part["asset_id"])
+    links = source.get("parts")
+    for link in links if isinstance(links, list) else []:
+        if isinstance(link, dict) and link.get("asset_id"):
+            ids.append(link["asset_id"])
+    return ids
 
 
 def task_relates_to_asset(task: dict, asset: dict) -> bool:
     """True when *task* is associated with *asset*.
 
     A task belongs to an appliance when it is derived from one of the appliance's
-    wear parts, attached to the appliance's device, or attached to a device the
-    appliance lists as related.
+    wear parts, takes one of its consumables, is attached to the appliance's device,
+    or is attached to a device the appliance lists as related.
     """
-    if _part_asset_id(task) == asset.get("id"):
+    if asset.get("id") in _part_asset_ids(task):
         return True
     device_id = task.get("device_id")
     if not device_id:
@@ -1831,10 +1843,9 @@ def find_archiving_asset(assets_by_id: dict[str, dict], task: dict) -> dict | No
     the first appliance that owns or relates to the task's device. Returns None for
     a standalone task — its history is dropped on delete.
     """
-    part_id = _part_asset_id(task)
-    part_asset = assets_by_id.get(part_id) if part_id else None
-    if part_asset is not None:
-        return part_asset
+    for part_asset_id in _part_asset_ids(task):
+        if (part_asset := assets_by_id.get(part_asset_id)) is not None:
+            return part_asset
     device_id = task.get("device_id")
     if device_id:
         for asset in assets_by_id.values():

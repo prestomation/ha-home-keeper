@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Lier la tâche à un consommable",
-      "description": "Lie une tâche à un consommable/pièce d'un appareil afin que sa réalisation consomme une pièce de rechange du stock et déclenche un événement de stock bas au seuil de réapprovisionnement. Omettez asset_id et part_id pour supprimer le lien.",
+      "name": "Lier la tâche à des consommables",
+      "description": "Lie une tâche à 1 ou plusieurs consommables ou pièces d'un appareil. Chaque réalisation retire la quantité de chaque pièce de son stock et déclenche un événement de stock bas au seuil de réapprovisionnement. Envoyez parts pour une liste, ou asset_id et part_id pour 1 pièce. N'envoyez ni l'un ni l'autre, ou une liste parts vide, pour supprimer les liens.",
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Quantité",
           "description": "Quelle quantité de la pièce une réalisation consomme. Omettez-la pour utiliser la quantité indiquée par la pièce."
+        },
+        "parts": {
+          "name": "Pièces",
+          "description": "La liste complète des pièces utilisées par la tâche. Chaque élément est asset_id, part_id, quantity, et quantity est facultatif. La liste remplace les liens de la tâche. Ne l'utilisez pas avec asset_id et part_id."
         }
       }
     },

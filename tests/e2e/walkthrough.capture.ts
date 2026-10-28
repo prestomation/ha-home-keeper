@@ -237,6 +237,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
   //     is a beat that shows nothing.
   await seedBuyReminder();
+  // The water filter task takes 2 parts (#493): its pre-filter and 250 ml of
+  // descaler. Its row shows 1 "2 parts" chip, and step 2 shows a chip for each. No
+  // beat of its own: the link rides the beats that 1c to 2 already have, and 2a
+  // puts the seeded link back.
+  const waterLinks = (parts: Record<string, unknown>[]) =>
+    callService('home_keeper', 'set_task_consumable', { task_id: TASK.waterFilter, parts });
+  const sediment = { asset_id: ASSET.waterHeater, part_id: PART.sedimentFilter };
+  await waterLinks([
+    sediment,
+    { asset_id: ASSET.waterHeater, part_id: PART.descaler, quantity: 250 },
+  ]);
   // The seed reloads the config entry (a buy task owns entities), which re-registers
   // the panel and bounces the frontend. Land on the panel again afterwards rather than
   // filming whatever the bounce chose.
@@ -415,8 +426,10 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#hk-list')).toBeVisible();
 
   // 2. Open a task's detail page — full schedule, notes, completion history, and
-  //    (since this task is linked to a part with a product URL) a clickable
-  //    "Consumable link" row that jumps straight to buying the replacement.
+  //    (since this task is linked to parts with a product URL) a clickable
+  //    "Linked consumables" row that jumps straight to buying the replacement.
+  //    The task takes 2 parts here (#493, linked in 1b), so the page shows a stock
+  //    chip for each.
   const taskRow = panel.locator(`.detail-open[data-detail-id="${TASK.waterFilter}"]`);
   await expect(taskRow).toBeVisible();
   await taskRow.click();
@@ -435,6 +448,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
   await page.keyboard.press('Escape');
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await waterLinks([sediment]);
   await page.waitForTimeout(BEAT);
 
   // 2a1. Snooze and skip, the answers to a due task that are not "done". They hang

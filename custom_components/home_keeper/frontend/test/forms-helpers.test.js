@@ -13,7 +13,13 @@ import {
   backstopEnabled,
   cardLinkTokens,
   cardLinksFromTokens,
-  consumableLinkToken,
+  consumableFormSeed,
+  consumableLinkTokens,
+  consumableLinksFromForm,
+  consumableQtyField,
+  isConsumableQtyField,
+  partLinksKey,
+  partLinkToken,
   daysInMonth,
   haDateTimeToIso,
   isoToHaDateTime,
@@ -285,16 +291,86 @@ describe('daysInMonth', () => {
   });
 });
 
-describe('consumableLinkToken', () => {
+describe('consumable link tokens (#493)', () => {
+  const LIST = {
+    source: {
+      parts: [
+        { asset_id: 'a1', part_id: 'p1' },
+        { asset_id: 'a1', part_id: 'p2', quantity: 2 },
+      ],
+    },
+  };
+
   it('joins the asset and part ids', () => {
-    expect(consumableLinkToken({ source: { part: { asset_id: 'a1', part_id: 'p2' } } })).toBe(
-      'a1:p2',
-    );
+    expect(partLinkToken({ asset_id: 'a1', part_id: 'p2' })).toBe('a1:p2');
   });
 
-  it('is empty when the task has no part source', () => {
-    expect(consumableLinkToken({})).toBe('');
-    expect(consumableLinkToken({ source: {} })).toBe('');
+  it('reads the stored list, an old manual link, or nothing', () => {
+    expect(consumableLinkTokens(LIST)).toEqual(['a1:p1', 'a1:p2']);
+    expect(
+      consumableLinkTokens({ source: { part: { asset_id: 'a', part_id: 'p', manual: true } } }),
+    ).toEqual(['a:p']);
+    // A wear part's own source is no consumable link.
+    expect(consumableLinkTokens({ source: { part: { asset_id: 'a', part_id: 'p' } } })).toEqual([]);
+    expect(consumableLinkTokens({})).toEqual([]);
+    expect(consumableLinkTokens({ source: {} })).toEqual([]);
+  });
+
+  it('prefers the flat edit-state list once the user changed it', () => {
+    expect(consumableLinkTokens({ ...LIST, consumable_links: ['a1:p2'] })).toEqual(['a1:p2']);
+    expect(consumableLinkTokens({ ...LIST, consumable_links: [] })).toEqual([]);
+  });
+
+  it('seeds the tokens and each stored amount', () => {
+    expect(consumableFormSeed(LIST)).toEqual({
+      consumable_links: ['a1:p1', 'a1:p2'],
+      'consumable_qty:a1:p1': undefined,
+      'consumable_qty:a1:p2': 2,
+    });
+  });
+
+  it('names and tells apart the amount fields', () => {
+    expect(consumableQtyField('a1:p1')).toBe('consumable_qty:a1:p1');
+    expect(isConsumableQtyField('consumable_qty:a1:p1')).toBe(true);
+    expect(isConsumableQtyField('consumable_links')).toBe(false);
+    expect(isConsumableQtyField('xconsumable_qty:a')).toBe(false);
+  });
+
+  it('builds the links from the form, in the picker order', () => {
+    const state = {
+      ...LIST,
+      consumable_links: ['a1:p2', 'a1:p1', 'a2:p9'],
+      'consumable_qty:a1:p1': 3,
+      'consumable_qty:a2:p9': '0.5',
+    };
+    expect(consumableLinksFromForm(state)).toEqual([
+      // The stored amount stays when the form never touched the field.
+      { asset_id: 'a1', part_id: 'p2', quantity: 2 },
+      { asset_id: 'a1', part_id: 'p1', quantity: 3 },
+      { asset_id: 'a2', part_id: 'p9', quantity: 0.5 },
+    ]);
+  });
+
+  it('leaves out a blank, zero or bad amount', () => {
+    for (const bad of ['', null, undefined, 0, -1, 'abc']) {
+      expect(
+        consumableLinksFromForm({ consumable_links: ['a:p'], 'consumable_qty:a:p': bad }),
+      ).toEqual([{ asset_id: 'a', part_id: 'p' }]);
+    }
+  });
+
+  it('skips a token with no asset or no part', () => {
+    expect(consumableLinksFromForm({ consumable_links: [':p', 'a:', 'nocolon', 'a:p:q'] })).toEqual([
+      { asset_id: 'a', part_id: 'p:q' },
+    ]);
+  });
+
+  it('keys a list by ids and amounts, in order', () => {
+    const a = { asset_id: 'a', part_id: 'p' };
+    const b = { asset_id: 'a', part_id: 'q', quantity: 2 };
+    expect(partLinksKey([a, b])).toBe('[["a","p",null],["a","q",2]]');
+    expect(partLinksKey([a, b])).not.toBe(partLinksKey([b, a]));
+    expect(partLinksKey([])).toBe('[]');
   });
 });
 

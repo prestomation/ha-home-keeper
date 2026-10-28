@@ -29,6 +29,7 @@ import {
   zonedParts,
   zonedMidnight,
   zonedTimeToMs,
+  consumableLinks,
 } from './utils';
 import type {
   Asset,
@@ -43,6 +44,7 @@ import type {
   NotifyStyle,
   NotifyUrgency,
   Part,
+  PartLink,
   Profile,
   ProfileSync,
   SensorBinding,
@@ -75,6 +77,8 @@ export interface HaFormElement extends HTMLElement {
 export type Selector = Record<string, unknown>;
 export interface FormField {
   name: string;
+  /** A label the panel builds at run time; wins over the `field.<name>` string. */
+  label?: string;
   required?: boolean;
   selector?: Selector;
   type?: string;
@@ -501,6 +505,102 @@ export function snoozeHoursFromForm(value: unknown): number | null {
  * a field relative to the schema the payload builder and the tests are written
  * against.
  */
+/** The form field that holds what 1 completion takes of the part *token*. */
+export function consumableQtyField(token: string): string {
+  return CONSUMABLE_QTY_PREFIX + token;
+}
+
+/** True for a per-part amount field of the consumable list. */
+export function isConsumableQtyField(name: string): boolean {
+  return name.startsWith(CONSUMABLE_QTY_PREFIX);
+}
+
+const CONSUMABLE_QTY_PREFIX = 'consumable_qty:';
+
+/** The `asset_id:part_id` token of 1 consumable link. */
+export function partLinkToken(link: PartLink): string {
+  return `${link.asset_id}:${link.part_id}`;
+}
+
+/**
+ * The `asset_id:part_id` tokens the consumable picker holds, in order: the flat
+ * edit-state list once the user changed it, else the task's stored links.
+ */
+export function consumableLinkTokens(task: Partial<Task>): string[] {
+  const flat = (task as Record<string, unknown>).consumable_links;
+  if (Array.isArray(flat)) return flat.map(String);
+  return consumableLinks(task).map(partLinkToken);
+}
+
+/** The flat amount field of each chosen part: the edit state's value, else the
+ *  stored link's quantity. */
+function consumableQtyData(task: Partial<Task>): Record<string, unknown> {
+  const sd = task as Record<string, unknown>;
+  const stored = new Map(consumableLinks(task).map((l) => [partLinkToken(l), l.quantity]));
+  const out: Record<string, unknown> = {};
+  for (const token of consumableLinkTokens(task)) {
+    const field = consumableQtyField(token);
+    out[field] = field in sd ? sd[field] : stored.get(token);
+  }
+  return out;
+}
+
+/** The flat form values of a task's consumable links: the tokens and each amount.
+ *  Seeds the edit state, so a save with no edit round-trips the links unchanged. */
+export function consumableFormSeed(task: Partial<Task>): Record<string, unknown> {
+  return { consumable_links: consumableLinkTokens(task), ...consumableQtyData(task) };
+}
+
+/**
+ * The consumable links a form state asks for, in the picker's order, ready for
+ * `api.setTaskConsumables`. A blank, zero or bad amount is left out, so the part's
+ * own amount decides.
+ */
+export function consumableLinksFromForm(task: Partial<Task>): PartLink[] {
+  const amounts = consumableQtyData(task);
+  const links: PartLink[] = [];
+  for (const token of consumableLinkTokens(task)) {
+    const cut = token.indexOf(':');
+    if (cut < 1 || cut === token.length - 1) continue;
+    const link: PartLink = { asset_id: token.slice(0, cut), part_id: token.slice(cut + 1) };
+    const raw = amounts[consumableQtyField(token)];
+    const quantity = raw === '' || raw == null ? NaN : Number(raw);
+    if (quantity > 0) link.quantity = quantity;
+    links.push(link);
+  }
+  return links;
+}
+
+/** A comparable key for a list of consumable links. */
+export function partLinksKey(links: PartLink[]): string {
+  return JSON.stringify(links.map((l) => [l.asset_id, l.part_id, l.quantity ?? null]));
+}
+
+/**
+ * The consumable picker and 1 amount field for each chosen part (#493). The picker
+ * lists the consumables of the task's appliance. The amount fields follow the
+ * picker's order and name their part.
+ */
+function consumableFields(
+  task: Partial<Task>,
+  consumables: { value: string; label: string }[],
+): FormField[] {
+  const labels = new Map(consumables.map((c) => [c.value, c.label]));
+  return [
+    { name: 'consumable_links', selector: selSelect(consumables, true) } as FormField,
+    ...consumableLinkTokens(task)
+      .filter((token) => labels.has(token))
+      .map(
+        (token) =>
+          ({
+            name: consumableQtyField(token),
+            label: t('field.consumable_quantity', { part: labels.get(token) as string }),
+            selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
+          }) as FormField,
+      ),
+  ];
+}
+
 export function taskSchemaSections(
   task: Partial<Task>,
   consumables: { value: string; label: string }[] = [],
@@ -865,19 +965,12 @@ export function taskSchemaSections(
     // complete the task. Sits with the other attachment fields — a tag is one more
     // physical thing the task hangs off, like a device or a room.
     ...tagFields,
-    // Link the task to an appliance consumable so completing it draws down stock
-    // (and fires the low-stock reorder event). Only offered when the user has at
-    // least one consumable defined; the leading blank option clears the link.
+    // Link the task to appliance consumables so completing it draws down each
+    // part's stock (and fires the low-stock reorder event). Only offered when the
+    // appliance has at least 1 consumable. Each chosen part gets its own amount
+    // (#493); an empty amount keeps the part's own "Used per completion".
     ...(consumables.length && !locked.has('consumable_link')
-      ? [
-          {
-            name: 'consumable_link',
-            selector: selSelect([
-              { value: '', label: t('opt.consumable.none') },
-              ...consumables,
-            ]),
-          } as FormField,
-        ]
+      ? consumableFields(task, consumables)
       : []),
     ...(!locked.has('labels') ? [{ name: 'labels', selector: selLabel(true) } as FormField] : []),
     ...cardLinksField,
@@ -1177,10 +1270,10 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
       {},
       ...Array.from({ length: seasonCount(task) }, (_, i) => seasonWindowData(task, i + 1)),
     ),
-    // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
-    // edit state holds the flat value once the user changes it; fall back to the
-    // task's current part source.
-    consumable_link: sd.consumable_link ?? consumableLinkToken(task),
+    // Consumable links as `asset_id:part_id` tokens, plus 1 flat amount field for
+    // each. The live edit state holds the flat values once the user changes them;
+    // else they come from the task's stored links.
+    ...consumableFormSeed(task),
     labels: task.labels ?? [],
     // The card-link picker holds `asset_id:entry_id` tokens. `cardLinkTokens`
     // accepts either the stored `{asset_id, entry_id}` objects (a freshly loaded
@@ -1231,6 +1324,8 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     // No device, a cleared picker and a blank string all mean "unattached", so they all
     // have to land on the same value here.
     d.device_id || null,
+    // Each chosen consumable shows its own amount field.
+    d.consumable_links,
     // A fixed task shows "Monthly on" only for a monthly rule, and names its choices
     // from the start date, so both change the fields.
     d.recurrence_type === 'fixed' ? d.freq : null,
@@ -1238,12 +1333,6 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
       ? anchorDay((task as Partial<Task>).anchor)?.toISOString() ?? null
       : null,
   ]);
-}
-
-/** The `asset_id:part_id` token for a task's current part link (empty if none). */
-export function consumableLinkToken(task: Partial<Task>): string {
-  const part = task.source?.part;
-  return part ? `${part.asset_id}:${part.part_id}` : '';
 }
 
 /**
@@ -1270,9 +1359,10 @@ export function consumableLinkToken(task: Partial<Task>): string {
  * - `tag_id` / `require_tag_scan` — one sticker completes one task. A second task
  *   claiming the same tag is not a copied setting, it is a collision.
  *
- * `source` is likewise omitted, and that is why `consumable_link` is passed as the
- * flat token: `taskFormData` renders the picker from `source` but `_submitForm` reads
- * only the flat key, so seeding `source` would show a link the save never applies.
+ * `source` is likewise omitted, and that is why `consumable_links` and the amounts
+ * are passed as flat form values: `taskFormData` renders the picker from `source`
+ * but `_submitForm` reads only the flat keys, so seeding `source` would show links
+ * the save never applies.
  */
 export function duplicateTaskSeed(task: Task): Partial<Task> {
   // Shallow-copy the binding minus its anchor. Sharing the reference and deleting the
@@ -1305,7 +1395,7 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     // that behaves differently from its original, which is the one thing duplication
     // must not do. The form renders no control for it, so it rides along untouched.
     completion_required_fields: [...(task.completion_required_fields ?? [])],
-    consumable_link: consumableLinkToken(task),
+    ...consumableFormSeed(task),
     snooze_hours: taskSnoozeHours(task),
     // The season is part of the rule. Without it, a copy of a seasonal task is due
     // all year (F02-4). Copy each window, so the copy shares no object with the

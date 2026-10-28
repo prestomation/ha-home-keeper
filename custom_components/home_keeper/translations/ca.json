@@ -442,8 +442,8 @@
       }
     },
     "set_task_consumable": {
-      "name": "Vincula la tasca a un consumible",
-      "description": "Vincula una tasca a un consumible/peça d'un electrodomèstic perquè en completar-la es consumeixi un recanvi de l'estoc i es dispari un esdeveniment d'estoc baix al llindar de reposició. Omet asset_id i part_id per esborrar el vincle.",
+      "name": "Enllaça la tasca amb consumibles",
+      "description": "Enllaça una tasca amb 1 o més consumibles o peces d'un electrodomèstic. Cada compleció treu la quantitat de cada peça del seu estoc i dispara un esdeveniment d'estoc baix al llindar de recomanda. Envia parts per a una llista, o asset_id i part_id per a 1 peça. No enviïs cap dels dos, o envia una llista parts buida, per esborrar els enllaços.",
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
@@ -460,6 +460,10 @@
         "quantity": {
           "name": "Quantitat",
           "description": "Quina quantitat de la peça consumeix una finalització. Ometeu-ho per usar la quantitat que indica la peça."
+        },
+        "parts": {
+          "name": "Peces",
+          "description": "La llista completa de peces que fa servir la tasca. Cada element és asset_id, part_id, quantity, i quantity és opcional. La llista substitueix els enllaços de la tasca. No la facis servir juntament amb asset_id i part_id."
         }
       }
     },

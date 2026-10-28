@@ -303,7 +303,104 @@ describe('the stock chip on a task that spends spares', () => {
       makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
     );
     await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
-    expect(rowChips(panel, 't-door')).toContain('Takes 2 AAA · 2 left');
+    // The row has room for a short chip; the full line is its tooltip.
+    expect(rowChips(panel, 't-door')).toContain('AAA · 2 left');
+    const chip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-part-chip');
+    expect(chip.getAttribute('title')).toBe('Takes 2 AAA');
+    expect(chip.dataset.partId).toBe('p-aaa');
+  });
+
+  // ── several consumables on 1 task (#493) ──
+  const TWO = {
+    ...REPLACE_TASK,
+    source: {
+      parts: [
+        { asset_id: 'a-bat', part_id: 'p-aaa', quantity: 2 },
+        { asset_id: 'a-bat', part_id: 'p-9v' },
+      ],
+    },
+  };
+
+  it('shows 1 chip for each part on the task’s own page', async () => {
+    const panel = await mountAt('/tasks/t-door', makeHass({ tasks: [TWO], assets: [batteries()] }));
+    const labels = chipLabels(panel.shadowRoot, '.hk-asset-head .hk-chips');
+    expect(labels).toContain('Takes 2 AAA · 2 left');
+    expect(labels).toContain('Takes 1 9V');
+    const targets = [...panel.shadowRoot.querySelectorAll('.hk-asset-head .hk-part-chip')].map(
+      (c) => c.dataset.partId,
+    );
+    expect(targets).toEqual(['p-aaa', 'p-9v']);
+  });
+
+  it('folds several parts into 1 row chip that opens the task', async () => {
+    const panel = await mountList('/tasks', makeHass({ tasks: [TWO], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    // AAA is at or below its reorder point (2 <= 4), so the chip says so.
+    expect(rowChips(panel, 't-door')).toContain('2 parts · Low stock');
+    const chip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-part-chip');
+    expect(chip.classList.contains('detail-open')).toBe(false);
+    expect(chip.dataset.openTask).toBe('t-door');
+    expect(chip.dataset.partId).toBeUndefined();
+    expect(chip.getAttribute('title')).toBe('Takes 2 AAA\nTakes 1 9V');
+  });
+
+  it('leads the row with the stock chip alone, and folds the rest behind +n', async () => {
+    const tagged = { ...TWO, task_chips: [{ label: 'Kitchen' }, { label: 'Monthly' }] };
+    const panel = await mountList('/tasks', makeHass({ tasks: [tagged], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
+    expect(strip.classList.contains('hk-chips-stock')).toBe(true);
+    expect(strip.firstElementChild.classList.contains('hk-part-chip')).toBe(true);
+    const more = strip.querySelector('.hk-chip-more');
+    expect(more.textContent).toBe('+2');
+    more.click();
+    expect(more.textContent).toBe('−');
+    more.click();
+    expect(more.textContent).toBe('+2');
+  });
+
+  it('keeps 2 chips before +n on a row with no stock chip', async () => {
+    const plain = { ...REPLACE_TASK, source: null, task_chips: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] };
+    const panel = await mountList('/tasks', makeHass({ tasks: [plain], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    const strip = panel.shadowRoot.querySelector('ha-card.hk-card[data-id="t-door"] .hk-chips-inline');
+    expect(strip.classList.contains('hk-chips-stock')).toBe(false);
+    const more = strip.querySelector('.hk-chip-more');
+    expect(more.textContent).toBe('+1');
+    more.click();
+    more.click();
+    expect(more.textContent).toBe('+1');
+  });
+
+  it('leaves out Low stock when no linked part is low', async () => {
+    const pool = batteries();
+    pool.parts[0].stock = 10;
+    const panel = await mountList('/tasks', makeHass({ tasks: [TWO], assets: [pool] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    expect(rowChips(panel, 't-door')).toContain('2 parts');
+  });
+
+  it('shows a part with no count by name only on the row', async () => {
+    const one = { ...REPLACE_TASK, source: { parts: [{ asset_id: 'a-bat', part_id: 'p-9v' }] } };
+    const panel = await mountList('/tasks', makeHass({ tasks: [one], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    expect(rowChips(panel, 't-door')).toContain('9V');
+  });
+
+  it('skips a part that is gone and keeps the others', async () => {
+    const gone = {
+      ...TWO,
+      source: { parts: [{ asset_id: 'a-bat', part_id: 'p-missing' }, ...TWO.source.parts.slice(1)] },
+    };
+    const panel = await mountList('/tasks', makeHass({ tasks: [gone], assets: [batteries()] }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card'));
+    expect(rowChips(panel, 't-door')).toContain('9V');
+  });
+
+  it('lists each part on the task’s Linked consumables row', async () => {
+    const panel = await mountAt('/tasks/t-door', makeHass({ tasks: [TWO], assets: [batteries()] }));
+    const links = [...panel.shadowRoot.querySelectorAll('a.hk-part-link')].map((a) => a.dataset.partId);
+    expect(links).toEqual(['p-aaa', 'p-9v']);
   });
 
   it('carries the same chip onto the task’s own page', async () => {
@@ -457,6 +554,27 @@ describe('the part chip opens its part', () => {
     const chip = await waitFor(() => partChip(panel.shadowRoot));
     chip.click();
     expect(window.location.pathname).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+  });
+
+  it('opens the task from the row chip of a task that takes several parts', async () => {
+    const two = {
+      ...REPLACE_TASK,
+      source: {
+        parts: [
+          { asset_id: 'a-bat', part_id: 'p-aaa' },
+          { asset_id: 'a-bat', part_id: 'p-9v' },
+        ],
+      },
+    };
+    const panel = await mountList('/tasks', makeHass({ tasks: [two], assets: [batteries()] }));
+    const chip = await waitFor(() => partChip(panel.shadowRoot));
+    chip.click();
+    expect(window.location.pathname).toBe('/home-keeper/tasks/t-door');
+    history.replaceState(null, '', '/home-keeper/tasks');
+    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    chip.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(window.location.pathname).toBe('/home-keeper/tasks/t-door');
   });
 
   it('links the appliance on the Linked consumable row to the same part', async () => {
