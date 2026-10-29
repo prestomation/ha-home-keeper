@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Ocurrència de tasca moguda",
               "task_overdue": "La tasca ha quedat endarrerida",
               "task_due_soon": "La tasca venç aviat",
+              "task_overdue_resolved": "La tasca ja no està endarrerida",
               "part_low_stock": "Peça de recanvi amb estoc baix",
               "part_out_of_stock": "Peça de recanvi sense estoc",
               "part_restocked": "Peça de recanvi reabastida",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "La tasca venç aviat",
       "description": "S'activa quan una tasca venç en 3 dies o menys."
+    },
+    "task_overdue_resolved": {
+      "name": "La tasca ja no està endarrerida",
+      "description": "S'activa quan una tasca vençuda deixa d'estar vençuda."
     },
     "part_low_stock": {
       "name": "Peça de recanvi amb estoc baix",

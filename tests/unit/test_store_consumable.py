@@ -113,7 +113,7 @@ class _FakeBus:
     def __init__(self) -> None:
         self.fired: list[tuple[str, dict]] = []
 
-    def async_fire(self, event: str, data: dict) -> None:
+    def async_fire(self, event: str, data: dict, context: object = None) -> None:
         self.fired.append((event, data))
 
     def of(self, event: str) -> list[dict]:

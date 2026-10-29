@@ -101,9 +101,9 @@
     },
     "disable_task_without_device": {
       "budget": {
-        "logbook_rows": 3,
+        "logbook_rows": 5,
         "unavailable_flips": 0,
-        "events": 1,
+        "events": 2,
         "storage_writes": 1,
         "entry_reloads": 0
       },
@@ -114,9 +114,9 @@
     },
     "complete_task": {
       "budget": {
-        "logbook_rows": 3,
+        "logbook_rows": 5,
         "unavailable_flips": 0,
-        "events": 1,
+        "events": 2,
         "storage_writes": 1,
         "entry_reloads": 0
       }
@@ -160,9 +160,9 @@
     },
     "complete_short_interval_task": {
       "budget": {
-        "logbook_rows": 3,
+        "logbook_rows": 5,
         "unavailable_flips": 0,
-        "events": 1,
+        "events": 2,
         "storage_writes": 1,
         "entry_reloads": 0
       }
@@ -178,9 +178,9 @@
     },
     "complete_task_on_device": {
       "budget": {
-        "logbook_rows": 5,
+        "logbook_rows": 7,
         "unavailable_flips": 0,
-        "events": 1,
+        "events": 2,
         "storage_writes": 1,
         "entry_reloads": 0
       }

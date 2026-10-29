@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Ocorrência da tarefa movida",
               "task_overdue": "Tarefa ficou atrasada",
               "task_due_soon": "Tarefa vence em breve",
+              "task_overdue_resolved": "Tarefa não está mais atrasada",
               "part_low_stock": "Peça sobressalente com estoque baixo",
               "part_out_of_stock": "Peça sobressalente sem estoque",
               "part_restocked": "Peça sobressalente reposta",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Tarefa vence em breve",
       "description": "Dispara quando uma tarefa vence em 3 dias ou menos."
+    },
+    "task_overdue_resolved": {
+      "name": "Tarefa não está mais atrasada",
+      "description": "Dispara quando uma tarefa atrasada deixa de estar atrasada."
     },
     "part_low_stock": {
       "name": "Peça sobressalente com estoque baixo",

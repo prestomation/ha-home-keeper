@@ -139,7 +139,8 @@ def _install_components(ha: types.ModuleType) -> None:
             COMPLETED = "completed"
 
         class TodoListEntity:
-            pass
+            # Home Assistant's ``Entity`` sets this from the service call.
+            _context = None
 
         comp_todo.TodoItem = TodoItem
         comp_todo.TodoItemStatus = TodoItemStatus
@@ -170,7 +171,8 @@ def _install_components(ha: types.ModuleType) -> None:
     if not hasattr(comp_button, "ButtonEntity"):
 
         class ButtonEntity:
-            pass
+            # Home Assistant's ``Entity`` sets this from the service call.
+            _context = None
 
         comp_button.ButtonEntity = ButtonEntity
     components.button = comp_button
@@ -374,6 +376,9 @@ def _install_helpers() -> None:
         _T = typing.TypeVar("_T")
 
         class CoordinatorEntity(typing.Generic[_T]):
+            # Home Assistant's ``Entity`` sets this from the service call.
+            _context = None
+
             def __init__(self, coordinator) -> None:
                 self.coordinator = coordinator
 

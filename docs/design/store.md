@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 1b1f2ec23090
+source_hash: b22f219f1ac6
 ---
 
 # Store
@@ -72,12 +72,12 @@ if a shim changed data. A new optional field needs no shim: readers use `.get()`
 
 Each public mutation keeps one order. It finds the record or raises `KeyError`, and
 runs its guards (`models.TaskValidationError`, `assets.AssetValidationError`) before any
-write. Then it changes the in-memory dicts, awaits `_save`, fires its events and returns
-the new record.
+write. Then it changes the in-memory dicts, awaits `_save`, fires its events through `_fire`
+with the caller's context ([events-api](events-api.md)) and returns the new record.
 
 Events fire after the save, so a listener that reads the store back sees saved state.
 `_changed_fields` ignores history and schedule keys, so a reschedule is not an edit, and
-an update with no changed field fires no event.
+an update with no changed field fires no event. `caller_of` gives a task's last caller.
 
 Guards that every surface must meet live here: reserved `source` namespaces in `add_task`,
 part-owned names and tags, `_check_deletable`, and the completion origin gates.

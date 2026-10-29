@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Tehtävän esiintymä siirretty",
               "task_overdue": "Tehtävä erääntyi",
               "task_due_soon": "Tehtävä erääntyy pian",
+              "task_overdue_resolved": "Tehtävä ei enää myöhässä",
               "part_low_stock": "Varaosan varasto vähissä",
               "part_out_of_stock": "Varaosa loppu",
               "part_restocked": "Varaosa täydennetty",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Tehtävä erääntyy pian",
       "description": "Laukeaa, kun tehtävä erääntyy 3 päivän sisällä."
+    },
+    "task_overdue_resolved": {
+      "name": "Tehtävä ei enää myöhässä",
+      "description": "Laukeaa, kun myöhästynyt tehtävä ei ole enää myöhässä."
     },
     "part_low_stock": {
       "name": "Varaosan varasto vähissä",

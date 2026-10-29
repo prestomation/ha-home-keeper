@@ -45,6 +45,9 @@
     "task_due_soon": {
       "trigger": "mdi:clock-alert-outline"
     },
+    "task_overdue_resolved": {
+      "trigger": "mdi:check-decagram-outline"
+    },
     "part_low_stock": {
       "trigger": "mdi:package-down"
     },

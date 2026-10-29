@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from . import (
     appliance_report,
+    caller,
     companions,
     cost_summary,
     declarative_companion_sync,
@@ -220,58 +221,88 @@ def _with_coordinator(
 @callback
 def async_register(hass: HomeAssistant) -> None:
     """Register all Home Keeper websocket commands."""
-    websocket_api.async_register_command(hass, ws_get_tasks)
-    websocket_api.async_register_command(hass, ws_add_task)
-    websocket_api.async_register_command(hass, ws_update_task)
-    websocket_api.async_register_command(hass, ws_delete_task)
-    websocket_api.async_register_command(hass, ws_delete_orphaned_tasks)
-    websocket_api.async_register_command(hass, ws_set_task_consumable)
-    websocket_api.async_register_command(hass, ws_complete_task)
-    websocket_api.async_register_command(hass, ws_update_completion)
-    websocket_api.async_register_command(hass, ws_move_completion)
-    websocket_api.async_register_command(hass, ws_delete_completion)
-    websocket_api.async_register_command(hass, ws_delete_archived_completion)
-    websocket_api.async_register_command(hass, ws_snooze_task)
-    websocket_api.async_register_command(hass, ws_skip_task)
-    websocket_api.async_register_command(hass, ws_set_due_today)
-    websocket_api.async_register_command(hass, ws_move_occurrence)
-    websocket_api.async_register_command(hass, ws_upcoming_occurrences)
-    websocket_api.async_register_command(hass, ws_update_skip)
-    websocket_api.async_register_command(hass, ws_move_skip)
-    websocket_api.async_register_command(hass, ws_delete_skip)
-    websocket_api.async_register_command(hass, ws_get_assets)
-    websocket_api.async_register_command(hass, ws_add_asset)
-    websocket_api.async_register_command(hass, ws_update_asset)
-    websocket_api.async_register_command(hass, ws_delete_asset)
-    websocket_api.async_register_command(hass, ws_archive_asset)
-    websocket_api.async_register_command(hass, ws_restore_asset)
-    websocket_api.async_register_command(hass, ws_adjust_part_stock)
-    websocket_api.async_register_command(hass, ws_add_asset_document)
-    websocket_api.async_register_command(hass, ws_remove_asset_document)
-    websocket_api.async_register_command(hass, ws_update_asset_document)
-    websocket_api.async_register_command(hass, ws_sign_document_url)
-    websocket_api.async_register_command(hass, ws_remove_part_file)
-    websocket_api.async_register_command(hass, ws_sign_part_file_url)
-    websocket_api.async_register_command(hass, ws_remove_task_photo)
-    websocket_api.async_register_command(hass, ws_set_task_photo_cover)
-    websocket_api.async_register_command(hass, ws_sign_task_photo_urls)
-    websocket_api.async_register_command(hass, ws_export_appliance_report)
-    websocket_api.async_register_command(hass, ws_export_data)
-    websocket_api.async_register_command(hass, ws_import_data)
-    websocket_api.async_register_command(hass, ws_get_options)
-    websocket_api.async_register_command(hass, ws_get_spend)
-    websocket_api.async_register_command(hass, ws_set_options)
-    websocket_api.async_register_command(hass, ws_get_companions)
-    websocket_api.async_register_command(hass, ws_get_panel_tabs)
-    websocket_api.async_register_command(hass, ws_get_profiles)
-    websocket_api.async_register_command(hass, ws_list_declarative_companions)
-    websocket_api.async_register_command(hass, ws_add_declarative_companion)
-    websocket_api.async_register_command(hass, ws_update_declarative_companion)
-    websocket_api.async_register_command(hass, ws_delete_declarative_companion)
-    websocket_api.async_register_command(hass, ws_list_declarative_presets)
-    websocket_api.async_register_command(hass, ws_preview_declarative_companion)
-    websocket_api.async_register_command(hass, ws_installed_integrations)
-    websocket_api.async_register_command(hass, ws_list_entity_keys)
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_tasks))
+    websocket_api.async_register_command(hass, caller.websocket(ws_add_task))
+    websocket_api.async_register_command(hass, caller.websocket(ws_update_task))
+    websocket_api.async_register_command(hass, caller.websocket(ws_delete_task))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_delete_orphaned_tasks)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_set_task_consumable))
+    websocket_api.async_register_command(hass, caller.websocket(ws_complete_task))
+    websocket_api.async_register_command(hass, caller.websocket(ws_update_completion))
+    websocket_api.async_register_command(hass, caller.websocket(ws_move_completion))
+    websocket_api.async_register_command(hass, caller.websocket(ws_delete_completion))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_delete_archived_completion)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_snooze_task))
+    websocket_api.async_register_command(hass, caller.websocket(ws_skip_task))
+    websocket_api.async_register_command(hass, caller.websocket(ws_set_due_today))
+    websocket_api.async_register_command(hass, caller.websocket(ws_move_occurrence))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_upcoming_occurrences)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_update_skip))
+    websocket_api.async_register_command(hass, caller.websocket(ws_move_skip))
+    websocket_api.async_register_command(hass, caller.websocket(ws_delete_skip))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_assets))
+    websocket_api.async_register_command(hass, caller.websocket(ws_add_asset))
+    websocket_api.async_register_command(hass, caller.websocket(ws_update_asset))
+    websocket_api.async_register_command(hass, caller.websocket(ws_delete_asset))
+    websocket_api.async_register_command(hass, caller.websocket(ws_archive_asset))
+    websocket_api.async_register_command(hass, caller.websocket(ws_restore_asset))
+    websocket_api.async_register_command(hass, caller.websocket(ws_adjust_part_stock))
+    websocket_api.async_register_command(hass, caller.websocket(ws_add_asset_document))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_remove_asset_document)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_update_asset_document)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_sign_document_url))
+    websocket_api.async_register_command(hass, caller.websocket(ws_remove_part_file))
+    websocket_api.async_register_command(hass, caller.websocket(ws_sign_part_file_url))
+    websocket_api.async_register_command(hass, caller.websocket(ws_remove_task_photo))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_set_task_photo_cover)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_sign_task_photo_urls)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_export_appliance_report)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_export_data))
+    websocket_api.async_register_command(hass, caller.websocket(ws_import_data))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_options))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_spend))
+    websocket_api.async_register_command(hass, caller.websocket(ws_set_options))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_companions))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_panel_tabs))
+    websocket_api.async_register_command(hass, caller.websocket(ws_get_profiles))
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_list_declarative_companions)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_add_declarative_companion)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_update_declarative_companion)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_delete_declarative_companion)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_list_declarative_presets)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_preview_declarative_companion)
+    )
+    websocket_api.async_register_command(
+        hass, caller.websocket(ws_installed_integrations)
+    )
+    websocket_api.async_register_command(hass, caller.websocket(ws_list_entity_keys))
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})

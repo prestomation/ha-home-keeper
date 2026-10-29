@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Ocurrencia de tarea movida",
               "task_overdue": "Tarea vencida",
               "task_due_soon": "Tarea próxima a vencer",
+              "task_overdue_resolved": "Tarea ya no vencida",
               "part_low_stock": "Pieza de repuesto con stock bajo",
               "part_out_of_stock": "Pieza de repuesto agotada",
               "part_restocked": "Pieza de repuesto repuesta",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Tarea próxima a vencer",
       "description": "Se activa cuando una tarea vence en 3 días o menos."
+    },
+    "task_overdue_resolved": {
+      "name": "Tarea ya no vencida",
+      "description": "Se activa cuando una tarea vencida deja de estar vencida."
     },
     "part_low_stock": {
       "name": "Pieza de repuesto con stock bajo",

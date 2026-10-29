@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Taakmoment verplaatst",
               "task_overdue": "Taak is verlopen",
               "task_due_soon": "Taak vervalt binnenkort",
+              "task_overdue_resolved": "Taak niet meer achterstallig",
               "part_low_stock": "Reserveonderdeel bijna op",
               "part_out_of_stock": "Reserveonderdeel niet op voorraad",
               "part_restocked": "Reserveonderdeel aangevuld",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Taak vervalt binnenkort",
       "description": "Activeert wanneer een taak binnen 3 dagen verschuldigd wordt."
+    },
+    "task_overdue_resolved": {
+      "name": "Taak niet meer achterstallig",
+      "description": "Activeert wanneer een achterstallige taak niet meer achterstallig is."
     },
     "part_low_stock": {
       "name": "Reserveonderdeel bijna op",

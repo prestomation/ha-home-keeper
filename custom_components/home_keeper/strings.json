@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Task occurrence moved",
               "task_overdue": "Task became overdue",
               "task_due_soon": "Task due soon",
+              "task_overdue_resolved": "Task no longer overdue",
               "part_low_stock": "Spare part low on stock",
               "part_out_of_stock": "Spare part out of stock",
               "part_restocked": "Spare part restocked",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Task due soon",
       "description": "Triggers when a task becomes due in 3 days or less."
+    },
+    "task_overdue_resolved": {
+      "name": "Task no longer overdue",
+      "description": "Triggers when an overdue task is no longer overdue."
     },
     "part_low_stock": {
       "name": "Spare part low on stock",

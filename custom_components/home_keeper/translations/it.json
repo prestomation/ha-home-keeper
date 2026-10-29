@@ -1209,6 +1209,7 @@
               "task_occurrence_moved": "Occorrenza dell'attività spostata",
               "task_overdue": "Attività diventata scaduta",
               "task_due_soon": "Attività in scadenza",
+              "task_overdue_resolved": "Attività non più scaduta",
               "part_low_stock": "Ricambio con scorte basse",
               "part_out_of_stock": "Ricambio esaurito",
               "part_restocked": "Ricambio rifornito",
@@ -1304,6 +1305,10 @@
     "task_due_soon": {
       "name": "Attività in scadenza",
       "description": "Si attiva quando un'attività scade entro 3 giorni."
+    },
+    "task_overdue_resolved": {
+      "name": "Attività non più scaduta",
+      "description": "Si attiva quando un'attività scaduta non è più scaduta."
     },
     "part_low_stock": {
       "name": "Ricambio con scorte basse",

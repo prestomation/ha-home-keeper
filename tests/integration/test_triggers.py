@@ -203,7 +203,7 @@ def test_every_trigger_validates_in_home_assistant(ha):
     """Home Assistant knows each trigger, and a target is required where it must be."""
     service = _service_device_id(ha)
     keys = _trigger_keys()
-    assert len(keys) == 30
+    assert len(keys) == 31
     triggers = [
         _hk(key, key, {"device_id": service} if _targeted(key) else None)
         for key in keys

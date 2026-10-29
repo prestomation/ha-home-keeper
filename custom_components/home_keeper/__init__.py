@@ -36,6 +36,7 @@ from . import (
     appliance_report,
     assets,
     backend_i18n,
+    caller,
     card,
     companions,
     declarative_companion_sync,
@@ -938,6 +939,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Home Keeper from a config entry, with no caller.
+
+    A service call can start a reload, and a task or a timer gets a copy of the
+    caller. Setup starts the timers and listeners of the entry, so with the caller of
+    the reload each later event of that work would name that user (``caller.py``).
+    """
+    with caller.caller(None):
+        return await _async_setup_entry(hass, entry)
+
+
+async def _async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Home Keeper from a config entry."""
     # Read the backend string tables in the executor, before anything on the loop can
     # ask for a string and read them itself. Everything downstream — the coordinator's
@@ -1163,7 +1175,11 @@ def _register_services(hass: HomeAssistant) -> None:
     and entities use. DEFERRED: a `home_keeper.contribute_task` service (plus the
     `SIGNAL_TASK_CONTRIBUTION` dispatcher) would let other integrations push tasks
     here without coupling — see IDEAS.md.
+
+    Each handler runs with the context of its call as the caller, so the events
+    that it fires name the user (``caller.py``).
     """
+    services = caller.ContextServices(hass.services)
 
     def _coordinator() -> HomeKeeperCoordinator:
         if (coord := find_coordinator(hass)) is None:
@@ -1874,181 +1890,175 @@ def _register_services(hass: HomeAssistant) -> None:
                 hass, _coordinator(), dict(call.data), context=call.context
             )
 
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "add_task",
         handle_add_task,
         ADD_TASK_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "update_task", handle_update_task, UPDATE_TASK_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "delete_task", handle_delete_task, DELETE_TASK_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "delete_orphaned_tasks",
         handle_delete_orphaned_tasks,
         vol.Schema({}),
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "complete_task", handle_complete_task, COMPLETE_TASK_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "update_completion", handle_update_completion, UPDATE_COMPLETION_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "delete_completion", handle_delete_completion, DELETE_COMPLETION_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "move_completion", handle_move_completion, MOVE_COMPLETION_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "delete_archived_completion",
         handle_delete_archived_completion,
         DELETE_ARCHIVED_COMPLETION_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "trigger_task", handle_trigger_task, TRIGGER_TASK_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "set_task_meter", handle_set_task_meter, SET_TASK_METER_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "snooze_task", handle_snooze_task, SNOOZE_TASK_SCHEMA
     )
-    hass.services.async_register(
-        DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
-    )
-    hass.services.async_register(
+    services.async_register(DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA)
+    services.async_register(
         DOMAIN, "move_occurrence", handle_move_occurrence, MOVE_OCCURRENCE_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "set_due_today",
         handle_set_due_today,
         SET_DUE_TODAY_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "update_skip", handle_update_skip, UPDATE_SKIP_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "delete_skip", handle_delete_skip, DELETE_SKIP_SCHEMA
     )
-    hass.services.async_register(
-        DOMAIN, "move_skip", handle_move_skip, MOVE_SKIP_SCHEMA
-    )
-    hass.services.async_register(
+    services.async_register(DOMAIN, "move_skip", handle_move_skip, MOVE_SKIP_SCHEMA)
+    services.async_register(
         DOMAIN,
         "set_task_consumable",
         handle_set_task_consumable,
         SET_TASK_CONSUMABLE_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "notify",
         handle_notify,
         NOTIFY_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "list_tasks",
         handle_list_tasks,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "list_profiles",
         handle_list_profiles,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
-        DOMAIN, "add_asset", handle_add_asset, ADD_ASSET_SCHEMA
-    )
-    hass.services.async_register(
+    services.async_register(DOMAIN, "add_asset", handle_add_asset, ADD_ASSET_SCHEMA)
+    services.async_register(
         DOMAIN, "update_asset", handle_update_asset, UPDATE_ASSET_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "update_managed_asset",
         handle_update_managed_asset,
         UPDATE_MANAGED_ASSET_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "delete_asset", handle_delete_asset, DELETE_ASSET_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "archive_asset", handle_archive_asset, ASSET_ID_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "restore_asset", handle_restore_asset, ASSET_ID_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "list_assets",
         handle_list_assets,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "adjust_part_stock",
         handle_adjust_part_stock,
         ADJUST_PART_STOCK_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "remove_part_file",
         handle_remove_part_file,
         REMOVE_PART_FILE_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "add_asset_document",
         handle_add_asset_document,
         ADD_ASSET_DOCUMENT_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "remove_asset_document",
         handle_remove_asset_document,
         REMOVE_ASSET_DOCUMENT_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "update_asset_document",
         handle_update_asset_document,
         UPDATE_ASSET_DOCUMENT_SCHEMA,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "sign_document_url",
         handle_sign_document_url,
         SIGN_DOCUMENT_URL_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "sign_part_file_url",
         handle_sign_part_file_url,
         SIGN_PART_FILE_URL_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "remove_task_photo", handle_remove_task_photo, TASK_PHOTO_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "set_task_photo_cover", handle_set_task_photo_cover, TASK_PHOTO_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "sign_task_photo_url",
         handle_sign_task_photo_url,
@@ -2144,38 +2154,38 @@ def _register_services(hass: HomeAssistant) -> None:
             "companions": list(coord.store.get_declarative_companions().values()),
         }
 
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "export_appliance_report",
         handle_export_appliance_report,
         EXPORT_APPLIANCE_REPORT_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "export_data",
         handle_export_data,
         EXPORT_DATA_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "import_data",
         handle_import_data,
         IMPORT_DATA_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN, "set_options", handle_set_options, SET_OPTIONS_SCHEMA
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "register_companion",
         handle_register_companion,
         companions.REGISTER_COMPANION_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "list_companions",
         handle_list_companions,
@@ -2185,14 +2195,14 @@ def _register_services(hass: HomeAssistant) -> None:
     # Declarative-companion CRUD. Schemas kept minimal (dict pass-through) here
     # because the pure normalizer owns every field-level validation. Service
     # docstrings + services.yaml describe the spec shape.
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "add_declarative_companion",
         handle_add_declarative_companion,
         schema=vol.Schema({}, extra=vol.ALLOW_EXTRA),
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "update_declarative_companion",
         handle_update_declarative_companion,
@@ -2202,13 +2212,13 @@ def _register_services(hass: HomeAssistant) -> None:
         ),
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "delete_declarative_companion",
         handle_delete_declarative_companion,
         schema=vol.Schema({vol.Required("id"): cv.string}),
     )
-    hass.services.async_register(
+    services.async_register(
         DOMAIN,
         "list_declarative_companions",
         handle_list_declarative_companions,

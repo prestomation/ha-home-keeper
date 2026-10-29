@@ -32,6 +32,7 @@ from . import assets, companions, notifications, notifier, recurrence, transitio
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
+    EVENT_TASK_OVERDUE_RESOLVED,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_TASK_DEVICE_ENTITIES,
@@ -421,7 +422,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._persist_edge_state()
             for event_name, payload in fired:
                 payload["entity_id"] = self.store.todo_entity_id
-                self.hass.bus.async_fire(event_name, payload)
+                # A crossing is the clock, so it has no caller. The change that ended
+                # an overdue period is the last change to the task, so its end has
+                # the caller of that change (#467).
+                context = None
+                if event_name == EVENT_TASK_OVERDUE_RESOLVED:
+                    context = self.store.caller_of(payload["task_id"])
+                self.hass.bus.async_fire(event_name, payload, context=context)
             # Automatic notification source: send each notification whose auto
             # trigger matches a transition that fired this cycle, for a task in its
             # profile (once per notification, deduped). The task id goes with the

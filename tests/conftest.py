@@ -46,6 +46,8 @@ _PURE_MODULES = (
     # allowlist: the thumbnail is Pillow's work, not a rule of ours.
     "photo_thumbs",
     "events",
+    # The context of the caller (#467). Imports Home Assistant only for type checking.
+    "caller",
     "transitions",
     # The deprecated input forms and their 1 warning per run (#493). Stdlib only.
     "deprecations",

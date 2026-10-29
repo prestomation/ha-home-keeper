@@ -164,6 +164,7 @@ Home Keeper writes a logbook row for each of these task events:
 | Snoozed | was snoozed until 2026-10-20 |
 | Due soon | is due in 48 hours |
 | Overdue | became overdue |
+| No longer overdue | is no longer overdue |
 | Armed | became due |
 | Due today set | was set to due today |
 | Occurrence moved | has its occurrence on 2026-11-01 moved to 2026-11-03 |
@@ -180,6 +181,24 @@ Each row starts with the task name. The rows show in these places:
 
 The logbook text is in English. Created, updated and deleted tasks get no row on the
 to-do list.
+
+A row also shows who made the change:
+
+| Change made by | The row shows |
+| --- | --- |
+| A user in the panel or on the to-do list | That user |
+| The **Complete** button or a tag scan | The user who pressed or scanned |
+| An action that a user calls | That user |
+| An automation or a script | That automation or script |
+| Home Keeper on its own, such as **became overdue** | No user |
+
+The **is no longer overdue** row names the user of the change that ended the overdue
+period, such as the user who completed the task.
+
+The event has the same context. An automation can read the user from
+`trigger.event.context.user_id`. For a tag scan, the context has the user of the scan.
+Its parent is the scan. A change that Home Keeper makes on its own has a new context with
+no user. Examples are an overdue crossing and a change from a sensor.
 
 ![The Activity page filtered to the Home Keeper to-do list, with a row for each task event](../../images/logbook-after-panel.png)
 
@@ -199,6 +218,38 @@ sources:
     entities:
       - todo.home_keeper_tasks
 ```
+
+All task rows are on 1 entity, the to-do list, so 1 source gets the rows of all tasks.
+The logbook can filter rows only by entity. To show 1 kind of row, filter on the text of
+the row. The Chronicle Card `search` filter keeps the rows that contain the text.
+
+A task that becomes overdue gets a **became overdue** row. When it stops being overdue,
+it gets an **is no longer overdue** row. These changes end the overdue period:
+
+- a completion
+- a skip
+- a snooze
+- a move of its date to the future
+- a disable of the task
+- a clear by its sensor
+
+Both rows contain the word "overdue". So this card shows when each task became overdue
+and when it stopped:
+
+```yaml
+type: custom:chronicle-card
+title: Overdue tasks
+days_back: 30
+sources:
+  - type: logbook
+    entities:
+      - todo.home_keeper_tasks
+filters:
+  search: overdue
+```
+
+Use `search: was completed` for the completions. `search` takes 1 text, so use 1 card for
+each kind of row.
 
 The logbook keeps the rows for as long as the recorder keeps its data. The default is
 10 days. To keep the rows longer, set `purge_keep_days`:
