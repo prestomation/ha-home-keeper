@@ -30,6 +30,19 @@ async function setEnabled(page, taskId: string, enabled: boolean): Promise<void>
   );
 }
 
+/**
+ * Switch a task off from outside the panel, once the panel is past its own load.
+ *
+ * The panel takes a change in its entities within 2 s of its own load as the echo of
+ * that load, and does not read the data again. Home Assistant 2026.11 pushes the state
+ * of this change before the service call returns, so a call made as the page opens
+ * landed in that window and left the row and the page unchanged.
+ */
+async function switchOffAfterLoad(page, taskId: string): Promise<void> {
+  await page.waitForTimeout(2_500);
+  await setEnabled(page, taskId, false);
+}
+
 test.describe('Home Keeper panel — a switched-off task', () => {
   test.afterEach(async ({ page }) => {
     await setEnabled(page, TASK.waterFilter, true).catch(() => undefined);
@@ -48,7 +61,7 @@ test.describe('Home Keeper panel — a switched-off task', () => {
     const allBefore = await countOf(all);
     const overdueBefore = await countOf(overdue);
 
-    await setEnabled(page, TASK.waterFilter, false);
+    await switchOffAfterLoad(page, TASK.waterFilter);
     // The panel rebuilds on the task_updated event; poll rather than race it.
     await expect.poll(async () => countOf(all), { timeout: 15_000 }).toBe(allBefore);
     expect(
@@ -70,7 +83,7 @@ test.describe('Home Keeper panel — a switched-off task', () => {
   test('says Disabled on the row instead of a due date', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await setEnabled(page, TASK.waterFilter, false);
+    await switchOffAfterLoad(page, TASK.waterFilter);
 
     const row = panel.locator(`ha-card.hk-card[data-id="${TASK.waterFilter}"]`);
     await expect(row.locator('ha-assist-chip.hk-disabled')).toBeVisible({ timeout: 15_000 });
@@ -90,7 +103,7 @@ test.describe('Home Keeper panel — a switched-off task', () => {
     await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
     await expect(panel.locator('.d-enable'), 'nothing to enable on a live task').toHaveCount(0);
 
-    await setEnabled(page, TASK.waterFilter, false);
+    await switchOffAfterLoad(page, TASK.waterFilter);
     const banner = panel.locator('.hk-disabled-banner');
     await expect(banner, 'the page must say why nothing is happening').toBeVisible({
       timeout: 15_000,
