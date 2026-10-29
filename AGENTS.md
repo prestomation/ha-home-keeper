@@ -103,6 +103,8 @@ your topic before you change code or push.
 - **Credit an outside contributor** with `(Thanks @user!)`.
 - **A stable section covers everything since the last stable**, with a `### Fixed` list
   of every `(Fixes #N)` since then.
+- **A breaking change gets its own `### Changed` bullet** and ships in a minor version.
+  Details: [changelog-and-release.md](.amazonq/rules/changelog-and-release.md#breaking-changes).
 - **Betas use the next release number.** After `X.Y.0` ships, `main` goes to
   `X.(Y+1).0b1`. Never cut `X.Y.0bN` after `X.Y.0`.
 - **A new feature cuts a beta in the same PR.** Bump `manifest.json` and `PANEL_VERSION`
