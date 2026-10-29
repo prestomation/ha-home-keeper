@@ -442,24 +442,28 @@
       }
     },
     "set_task_consumable": {
-      "name": "Lier la tâche à un consommable",
-      "description": "Lie une tâche à un consommable/pièce d'un appareil afin que sa réalisation consomme une pièce de rechange du stock et déclenche un événement de stock bas au seuil de réapprovisionnement. Omettez asset_id et part_id pour supprimer le lien.",
+      "name": "Lier la tâche à des consommables",
+      "description": "Lie une tâche à 1 ou plusieurs consommables ou pièces d'un appareil. Chaque réalisation retire la quantité de chaque pièce de son stock. Une pièce qui atteint le seuil de réapprovisionnement déclenche un événement de stock bas. Envoyez la liste parts. Envoyez une liste parts vide pour supprimer les liens.",
       "fields": {
         "task_id": {
           "name": "Nom ou ID de la tâche",
           "description": "L'id de la tâche déclenchée à armer. Son nom fonctionne aussi. Le panneau affiche l'id."
         },
         "asset_id": {
-          "name": "Nom ou ID de l'actif",
-          "description": "L'identifiant de l'appareil auquel la pièce appartient. Son nom fonctionne aussi. Le panneau affiche l'id."
+          "name": "Nom ou ID de l'appareil (obsolète)",
+          "description": "Obsolète. Utilisez parts. Ce champ sera supprimé dans une version ultérieure. L'appareil de l'unique pièce à lier, par ID ou nom."
         },
         "part_id": {
-          "name": "Nom ou ID de la pièce",
-          "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi. Le panneau affiche l'id."
+          "name": "Nom ou ID de la pièce (obsolète)",
+          "description": "Obsolète. Utilisez parts. Ce champ sera supprimé dans une version ultérieure. L'unique pièce à lier, par ID ou nom."
         },
         "quantity": {
-          "name": "Quantité",
-          "description": "Quelle quantité de la pièce une réalisation consomme. Omettez-la pour utiliser la quantité indiquée par la pièce."
+          "name": "Quantité (obsolète)",
+          "description": "Obsolète. Utilisez la quantité dans parts. Ce champ sera supprimé dans une version ultérieure. Quantité de la pièce utilisée par 1 réalisation."
+        },
+        "parts": {
+          "name": "Pièces",
+          "description": "La liste complète des pièces utilisées par la tâche. Chaque élément a asset_id et part_id, par ID ou nom. La quantité est facultative. La liste remplace les liens de la tâche. Une liste vide les supprime."
         }
       }
     },

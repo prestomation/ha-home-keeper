@@ -442,24 +442,28 @@
       }
     },
     "set_task_consumable": {
-      "name": "Koble oppgave til en forbruksvare",
-      "description": "Knytter en oppgave til en forbruksvare/del på et apparat, slik at fullføring forbruker én reservedel fra lageret og utløser en hendelse om lavt lager ved bestillingsgrensen. Utelat asset_id og part_id for å fjerne koblingen.",
+      "name": "Koble oppgave til forbruksvarer",
+      "description": "Kobler en oppgave til 1 eller flere forbruksvarer eller deler på et apparat. Hver fullføring trekker mengden for hver del fra lageret. En del som når bestillingsgrensen, utløser en hendelse for lavt lager. Send listen parts. Send en tom parts-liste for å fjerne koblingene.",
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
           "description": "ID-en til den utløste oppgaven som skal aktiveres. Navnet fungerer også. Panelet viser id-en."
         },
         "asset_id": {
-          "name": "Eiendelsnavn eller -ID",
-          "description": "ID-en til apparatet som reservedelen tilhører. Navnet fungerer også. Panelet viser id-en."
+          "name": "Apparatets navn eller ID (foreldet)",
+          "description": "Foreldet. Bruk parts. Feltet fjernes i en senere versjon. Apparatet for den ene delen som skal kobles, etter ID eller navn."
         },
         "part_id": {
-          "name": "Reservedelsnavn eller -ID",
-          "description": "ID-en til reservedelen hvis lager skal justeres. Navnet fungerer også. Panelet viser id-en."
+          "name": "Delens navn eller ID (foreldet)",
+          "description": "Foreldet. Bruk parts. Feltet fjernes i en senere versjon. Den ene delen som skal kobles, etter ID eller navn."
         },
         "quantity": {
-          "name": "Mengde",
-          "description": "Hvor mye av delen én fullføring bruker. Utelat det for å bruke mengden delen angir."
+          "name": "Mengde (foreldet)",
+          "description": "Foreldet. Bruk mengden i parts. Feltet fjernes i en senere versjon. Hvor mye av delen 1 fullføring bruker."
+        },
+        "parts": {
+          "name": "Deler",
+          "description": "Den fullstendige listen over deler som oppgaven bruker. Hvert element har asset_id og part_id, etter ID eller navn. Mengde er valgfri. Listen erstatter oppgavens koblinger. En tom liste fjerner dem."
         }
       }
     },

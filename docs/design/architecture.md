@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: f28b0ce4f28f
+source_hash: 6bf6ce4b6128
 ---
 
 # Architecture
@@ -42,7 +42,7 @@ the tasks through native entities, such as the to-do list and the calendar, and 
 
 | Layer | Modules | Rule |
 |---|---|---|
-| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `cost_summary.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `trigger_targets.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
+| Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `transfer_bundle.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `cost_summary.py`, `shopping.py`, `todo_items.py`, `task_photos.py`, `trigger_targets.py`, `deprecations.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py`, `photo_thumbs.py`, `panel_tabs.py` | Home Assistant imports only under `TYPE_CHECKING`. |
 | Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `transfer_runner.py`, `transfer_http.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `event.py`, `trigger.py`, `device_trigger.py` | `const.PLATFORMS` lists the entity platforms. |

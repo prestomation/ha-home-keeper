@@ -2464,7 +2464,7 @@ def test_b07_1_a_newer_replayed_completion_carries_no_prior_due():
 
 def _linked_task(**kw) -> dict:
     task = _task(**kw)
-    task["source"] = {"part": {"asset_id": "a", "part_id": "p", "manual": True}}
+    task["source"] = {"parts": [{"asset_id": "a", "part_id": "p"}]}
     return task
 
 
@@ -2755,3 +2755,74 @@ def test_x03_6_replan_reports_a_task_that_is_now_a_create():
     replanned = tr.replan_tasks(document, plan, tasks={}, assets={}, now=NOW)
     assert replanned.records[0].action == "create"
     assert replanned.records[0].record_id != stored["id"]
+
+
+# ── A list of consumable links (#493) ────────────────────────────────────────
+
+
+def _listed_task(**kw) -> dict:
+    task = _task(**kw)
+    task["source"] = {
+        "parts": [
+            {"asset_id": "a", "part_id": "p1"},
+            {"asset_id": "a", "part_id": "p2", "quantity": 2},
+        ]
+    }
+    return task
+
+
+def test_493_a_task_with_a_list_of_links_is_exported_without_them():
+    task = _listed_task()
+    assert tr.is_portable_task(task) is True
+    document = tr.build_document([task], [], now=NOW)
+    (out,) = document["tasks"]
+    assert "source" not in out
+    assert document["home_keeper"]["skipped"] == {"consumable_links": 2}
+
+
+def test_493_each_link_counts_and_old_and_new_tasks_add_up():
+    assert tr.count_consumable_links([_listed_task(), _linked_task()]) == 3
+    empty = _task()
+    empty["source"] = {"parts": []}
+    assert tr.count_consumable_links([empty]) == 0
+    managed = _listed_task()
+    managed["managed_by"] = {"integration": "x"}
+    assert tr.count_consumable_links([managed]) == 0
+
+
+def test_493_a_wear_task_beside_a_list_key_stays_out():
+    task = _task()
+    task["source"] = {"part": {"asset_id": "a", "part_id": "p"}, "parts": []}
+    assert tr.is_portable_task(task) is False
+
+
+def test_493_import_refuses_the_list_namespace():
+    document = tr.build_document([_task()], [], now=NOW)
+    document["tasks"][0]["source"] = {"parts": [{"asset_id": "a", "part_id": "p"}]}
+    plan = _plan(document)
+    assert not plan.ok
+    # The links are not rebuilt from anything: the message says to link them again.
+    assert _errors(plan) == [
+        "this task carries consumable links (source.parts), and import does not take "
+        "them. Remove the parts key from the file, import the task, and link the "
+        "parts again."
+    ]
+
+
+def test_493_a_reconciler_source_keeps_its_own_message():
+    document = tr.build_document([_task()], [], now=NOW)
+    document["tasks"][0]["source"] = {
+        "part": {"asset_id": "a", "part_id": "p"},
+        "parts": [],
+    }
+    plan = _plan(document)
+    assert _errors(plan) == [
+        "this task claims a source Home Keeper's own reconcilers own. Import the "
+        "appliance and its parts instead; the task is rebuilt from them."
+    ]
+    [problem] = plan.problems
+    assert (problem.section, problem.index, problem.path) == (
+        "tasks",
+        0,
+        "tasks[0].source",
+    )

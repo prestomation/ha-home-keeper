@@ -13,7 +13,14 @@ import {
   backstopEnabled,
   cardLinkTokens,
   cardLinksFromTokens,
-  consumableLinkToken,
+  consumableFormSeed,
+  consumableOptionsFor,
+  consumableLinkTokens,
+  consumableLinksFromForm,
+  consumableQtyField,
+  isConsumableQtyField,
+  partLinksKey,
+  partLinkToken,
   daysInMonth,
   haDateTimeToIso,
   isoToHaDateTime,
@@ -285,16 +292,83 @@ describe('daysInMonth', () => {
   });
 });
 
-describe('consumableLinkToken', () => {
+describe('consumable link tokens (#493)', () => {
+  const LIST = {
+    source: {
+      parts: [
+        { asset_id: 'a1', part_id: 'p1' },
+        { asset_id: 'a1', part_id: 'p2', quantity: 2 },
+      ],
+    },
+  };
+
   it('joins the asset and part ids', () => {
-    expect(consumableLinkToken({ source: { part: { asset_id: 'a1', part_id: 'p2' } } })).toBe(
-      'a1:p2',
-    );
+    expect(partLinkToken({ asset_id: 'a1', part_id: 'p2' })).toBe('a1:p2');
   });
 
-  it('is empty when the task has no part source', () => {
-    expect(consumableLinkToken({})).toBe('');
-    expect(consumableLinkToken({ source: {} })).toBe('');
+  it('reads the stored list, or nothing', () => {
+    expect(consumableLinkTokens(LIST)).toEqual(['a1:p1', 'a1:p2']);
+    // A wear part's own source is no consumable link.
+    expect(consumableLinkTokens({ source: { part: { asset_id: 'a', part_id: 'p' } } })).toEqual([]);
+    expect(consumableLinkTokens({})).toEqual([]);
+    expect(consumableLinkTokens({ source: {} })).toEqual([]);
+  });
+
+  it('prefers the flat edit-state list once the user changed it', () => {
+    expect(consumableLinkTokens({ ...LIST, consumable_links: ['a1:p2'] })).toEqual(['a1:p2']);
+    expect(consumableLinkTokens({ ...LIST, consumable_links: [] })).toEqual([]);
+  });
+
+  it('seeds the tokens and each stored amount', () => {
+    expect(consumableFormSeed(LIST)).toEqual({
+      consumable_links: ['a1:p1', 'a1:p2'],
+      'consumable_qty:a1:p1': undefined,
+      'consumable_qty:a1:p2': 2,
+    });
+  });
+
+  it('names and tells apart the amount fields', () => {
+    expect(consumableQtyField('a1:p1')).toBe('consumable_qty:a1:p1');
+    expect(isConsumableQtyField('consumable_qty:a1:p1')).toBe(true);
+    expect(isConsumableQtyField('consumable_links')).toBe(false);
+    expect(isConsumableQtyField('xconsumable_qty:a')).toBe(false);
+  });
+
+  it('builds the links from the form, in the picker order', () => {
+    const state = {
+      ...LIST,
+      consumable_links: ['a1:p2', 'a1:p1', 'a2:p9'],
+      'consumable_qty:a1:p1': 3,
+      'consumable_qty:a2:p9': '0.5',
+    };
+    expect(consumableLinksFromForm(state)).toEqual([
+      // The stored amount stays when the form never touched the field.
+      { asset_id: 'a1', part_id: 'p2', quantity: 2 },
+      { asset_id: 'a1', part_id: 'p1', quantity: 3 },
+      { asset_id: 'a2', part_id: 'p9', quantity: 0.5 },
+    ]);
+  });
+
+  it('leaves out a blank, zero or bad amount', () => {
+    for (const bad of ['', null, undefined, 0, -1, 'abc']) {
+      expect(
+        consumableLinksFromForm({ consumable_links: ['a:p'], 'consumable_qty:a:p': bad }),
+      ).toEqual([{ asset_id: 'a', part_id: 'p' }]);
+    }
+  });
+
+  it('skips a token with no asset or no part', () => {
+    expect(consumableLinksFromForm({ consumable_links: [':p', 'a:', 'nocolon', 'a:p:q'] })).toEqual([
+      { asset_id: 'a', part_id: 'p:q' },
+    ]);
+  });
+
+  it('keys a list by ids and amounts, in order', () => {
+    const a = { asset_id: 'a', part_id: 'p' };
+    const b = { asset_id: 'a', part_id: 'q', quantity: 2 };
+    expect(partLinksKey([a, b])).toBe('[["a","p",null],["a","q",2]]');
+    expect(partLinksKey([a, b])).not.toBe(partLinksKey([b, a]));
+    expect(partLinksKey([])).toBe('[]');
   });
 });
 
@@ -838,5 +912,79 @@ describe('Home Assistant time zone (X04-7)', () => {
     const parts = zonedParts(ms, 'America/Los_Angeles');
     expect(parts).toEqual([2026, 6, 13, 9, 8, 7]);
     expect(zonedTimeToMs(parts, 'America/Los_Angeles')).toBe(ms);
+  });
+});
+
+describe('consumableOptionsFor — the picker lists every linked part (#493)', () => {
+  const FRIDGE = {
+    id: 'a-fr',
+    name: 'Fridge',
+    parts: [
+      { id: 'p-flt', name: 'Fridge filter', type: 'consumable' },
+      { id: 'p-door', name: 'Door seal', type: 'wear' },
+    ],
+  };
+  const SHELF = { id: 'a-sh', name: 'Shelf', parts: [{ id: 'p-salt', name: 'Salt', type: 'consumable' }] };
+  const SINK = { id: 'a-sk', name: 'Sink', parts: [{ id: 'p-sed', name: 'Sediment', type: 'consumable' }] };
+
+  it('offers the consumables of the device appliance by name', () => {
+    expect(consumableOptionsFor([FRIDGE], [FRIDGE, SHELF], [])).toEqual([
+      { value: 'a-fr:p-flt', label: 'Fridge filter' },
+    ]);
+  });
+
+  it('names the appliance first when the device has several appliances', () => {
+    expect(consumableOptionsFor([FRIDGE, SINK], [FRIDGE, SINK], []).map((o) => o.label)).toEqual([
+      'Fridge · Fridge filter',
+      'Sink · Sediment',
+    ]);
+  });
+
+  it('adds a linked part of another appliance as "Part · Appliance"', () => {
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }, { asset_id: 'a-fr', part_id: 'p-flt' }];
+    expect(consumableOptionsFor([FRIDGE], [FRIDGE, SHELF], links)).toEqual([
+      { value: 'a-fr:p-flt', label: 'Fridge filter' },
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('offers the links of a task with no device', () => {
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }];
+    expect(consumableOptionsFor([], [SHELF], links)).toEqual([
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('skips a link whose part or appliance is gone, and lists a link only once', () => {
+    const links = [
+      { asset_id: 'a-sh', part_id: 'p-gone' },
+      { asset_id: 'a-gone', part_id: 'p-x' },
+      { asset_id: 'a-sh', part_id: 'p-salt' },
+      { asset_id: 'a-sh', part_id: 'p-salt' },
+    ];
+    expect(consumableOptionsFor([], [SHELF], links)).toEqual([
+      { value: 'a-sh:p-salt', label: 'Salt · Shelf' },
+    ]);
+  });
+
+  it('skips a link to an appliance that has no parts list', () => {
+    const bare = { id: 'a-bare', name: 'Bare' };
+    expect(consumableOptionsFor([], [bare], [{ asset_id: 'a-bare', part_id: 'p-x' }])).toEqual([]);
+  });
+
+  it('sorts the extra links in among the device parts by label', () => {
+    const zeo = { id: 'a-z', name: 'Softener', parts: [{ id: 'p-z', name: 'Zeolite', type: 'consumable' }] };
+    const links = [{ asset_id: 'a-sh', part_id: 'p-salt' }];
+    expect(consumableOptionsFor([zeo], [zeo, SHELF], links).map((o) => o.label)).toEqual([
+      'Salt · Shelf',
+      'Zeolite',
+    ]);
+  });
+
+  it('offers a linked wear item of another appliance too', () => {
+    const links = [{ asset_id: 'a-fr', part_id: 'p-door' }];
+    expect(consumableOptionsFor([], [FRIDGE], links)).toEqual([
+      { value: 'a-fr:p-door', label: 'Door seal · Fridge' },
+    ]);
   });
 });

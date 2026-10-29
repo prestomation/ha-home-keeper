@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: 55b08370a40f
+source_hash: 2a887df7f798
 ---
 
 # Appliances and parts
@@ -47,34 +47,29 @@ and raise `AssetValidationError`. `assets.py` has no Home Assistant imports.
 - `manufacturer`, `model`, `serial_number` are first-class; `notes` is Markdown; `cost`
   feeds the report. `metadata` is a list of `{id, type, label, value}` (`text`, `link`,
   `date`). A `date` entry with `track: true` becomes a `date` sensor.
-- `parent_asset_id` (virtual only) nests a device through `via_device`, and
-  `assets.would_create_cycle` rejects a loop. `related_device_ids` is panel-only.
+- `parent_asset_id` (virtual only) nests a device. `assets.would_create_cycle` stops loops.
 - `managed_by` and `source` are create-only. An update with `managed_by: null` hands the
   appliance back to the user. `task_history` keeps completions of deleted tasks.
 
 ### Virtual and existing devices
 
 `devices.async_reconcile_assets` runs at setup and after each change, parents first.
-
 - **Virtual.** `devices._reconcile_virtual` registers `(home_keeper, asset_<id>)`, apart
   from task devices keyed on the bare task id. It syncs name, make, model, parent and a
   `configuration_url` to the appliance page, and writes the device id back. The serial
   number stays off the device, because any signed-in user can list devices.
 - **Existing.** `devices._reconcile_existing` refreshes an `identifiers`/`connections`
-  snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the device that the
-  owner made again.
+  snapshot. If the id is gone, `devices._resolve_by_snapshot` finds the new device of the owner.
 - **Move.** If an appliance has a new device and its old id is gone from the registry,
   `devices._async_repoint_device_ids` moves the tasks, the related devices and the options
   to the new id. The store fires an updated event for each task and appliance that moves.
 - **Prune.** An `asset_` device with no appliance is removed. A delete removes the virtual
-  device, detaches its tasks, drops derived and buy tasks, and unlinks manual links.
+  device, detaches its tasks, drops derived and buy tasks, and drops links to its parts.
 
 ### The per-entry device split
 
-Home Assistant 2026.8 made device identifiers unique per config entry, so a copied foreign
-identifier forks a nameless device. The chosen model links entities to a foreign device
-through the entity's `device_entry`, and owns a device only for a virtual appliance.
-2 setup steps repair data from the merge model:
+Home Assistant 2026.8 made device identifiers unique per config entry. Entities link to a
+foreign device through `device_entry`. 2 setup steps repair data from the merge model:
 
 - `devices.async_detach_legacy_merged_devices` removes our entry from a foreign device that
   has another entry, so the split has nothing of ours to divide.
@@ -83,9 +78,8 @@ through the entity's `device_entry`, and owns a device only for a virtual applia
   ours, or an appliance snapshot match. Tasks, appliances and options share 1 mapping.
   `store.async_merge_split_duplicates` merges contributor tasks that the split duplicated.
 
-`device_compat.py` holds every registry read and each call whose shape changed between
-releases, such as `device_compat.resolve_device` and `device_compat.find_devices`. A child
-device is a valid target. Its imports are `TYPE_CHECKING`-only, so tests use plain fakes.
+`device_compat.py` holds every registry read whose shape changed between releases, such as
+`device_compat.resolve_device`. Its imports are `TYPE_CHECKING`-only.
 
 ### Parts and spares
 
@@ -94,6 +88,12 @@ A part is `consumable` or `wear` (`assets._normalize_part`). Stock is decimal;
 `assets.adjust_part_stock` return a transition (`low`, `out`, `restocked`) for the store to
 fire. `reconcile.reconcile_buy_tasks` keeps a "Buy" task while an opted-in part is low.
 
+A task takes parts through `source.parts`, a list of `{asset_id, part_id, quantity}` from
+`store.set_task_consumables`. A completion draws each part in `reconcile.stock_links` and
+keeps lists in `stock_drawn` and `last_replaced_before`, so an undo gives each part back. The
+load moves an old manual `source.part` into the list (`reconcile.migrate_consumable_link`). A
+save drops links to a removed part, so the Remove part confirm names the tasks that take it.
+
 `assets.PART_USER_KEYS` (stock) and `assets.PART_OWNER_KEYS` split every part key. On a
 managed appliance the user edits only stock. The owner writes the rest through
 `assets.apply_managed_parts`, and a part it drops stays if the part tracks stock.
@@ -101,8 +101,8 @@ managed appliance the user edits only stock. The owner writes the rest through
 ### Wear tasks and counted wear
 
 `reconcile.reconcile_part_tasks` is pure. It keys tasks by `(asset_id, part_id, role)` from
-`source.part`, deletes orphans, and writes the rest with localized names from the store. A
-`manual: true` link (`reconcile.is_manual_part_link`) is outside its scope.
+`source.part`, deletes orphans, and writes the rest with localized names from the store.
+Consumable links (`reconcile.consumable_links`) are outside its scope.
 
 - **Time wear:** 1 `floating` task anchored to `last_replaced`. A completion stamps
   `last_replaced` and consumes stock (`store._stamp_part_replacement`).
@@ -123,9 +123,8 @@ replacement tasks at the target or past the `replace_also_every` backstop, and
 (unit cost times stock) and a grand total. `appliance_report.report_to_csv` localizes the
 headers and escapes formula-like cells. The `export_appliance_report` service is admin-only.
 
-`panel-asset-form.ts` renders the drawer, fills empty make, model and serial from a picked
-device, and hides locked fields. The editors in `panel-asset-editors.ts` change
-`_assetEdit.asset` in place for the save to read. A wear part previews the tasks it makes.
+`panel-asset-form.ts` renders the drawer and hides locked fields. The editors in
+`panel-asset-editors.ts` change `_assetEdit.asset` in place for the save to read.
 
 ## Trade-offs
 
@@ -138,6 +137,7 @@ device, and hides locked fields. The editors in `panel-asset-editors.ts` change
 - **2 tasks per counted part** over **1**: a use and a renewal are different events, and
   the replacement task keeps the renewal history.
 - **Task names in the instance language** over **per-viewer names**: one stored name.
+- **A list of links on a task** over **parts that a wear item names**: any task takes parts.
 
 ## One-way doors
 
@@ -145,5 +145,6 @@ device, and hides locked fields. The editors in `panel-asset-editors.ts` change
   `source`, `task_history`.
 - Part: `type`, `replace_interval`, `replace_unit` (with `uses`), `replace_also_every`,
   `action`, `use_noun`, `use_task_name`, `carried_uses`, the stock fields.
-- Task: `recurrence_type: "use"`, `source.part` with `role` (absent is `replace`) and
-  `manual`, and `source.buy`. The `export_appliance_report` response keys.
+- Task: `recurrence_type: "use"`, `source.part` with `role` (absent is `replace`),
+  `source.parts`, and `source.buy`. The `export_appliance_report` response keys.
+- Completion entry: the `stock_drawn` and `last_replaced_before` lists.

@@ -32,6 +32,17 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
 - A service or websocket call that starts a reload in the background waits for it before it
   answers, so the caller's next call does not meet an unloaded entry.
 
+## Deprecation
+
+- **Keep an old input form for a while, and say so.** Accept the old form, and log 1
+  warning per form per Home Assistant run through `deprecations.warn_once`, not 1 per
+  call. The text names the new form and says that the old form will be removed in a later
+  release. Never warn about stored data that the load still reads.
+- Mark the old field `advanced: true` and "(deprecated)" in `services.yaml`,
+  `strings.json` and every locale, and in the docs that name it.
+- Record the planned removal in the PR body and in `IDEAS.md`. The removal deletes the
+  `DEPRECATIONS` entry, so a search for its key finds each place to change.
+
 ## Name or id
 
 - **Every `*_id` service field accepts a name as well as an id, id first.** Keep it 1

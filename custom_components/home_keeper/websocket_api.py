@@ -25,6 +25,7 @@ from . import (
     cost_summary,
     declarative_companion_sync,
     declarative_presets,
+    deprecations,
     devices,
     manuals,
     models,
@@ -49,6 +50,7 @@ from .coordinator import (
     task_has_entities,
 )
 from .models import TaskValidationError
+from .reconcile import has_link_form, refuse_mixed_link_forms
 from .shopping_sync import own_todo_entity_ids
 from .task_entities import update_needs_reload
 from .transfer_runner import (
@@ -416,11 +418,20 @@ async def ws_delete_orphaned_tasks(
     {
         vol.Required("type"): "home_keeper/set_task_consumable",
         vol.Required("task_id"): str,
-        # Both null clears the link; both set links the task to that part.
-        vol.Required("asset_id"): vol.Any(str, None),
-        vol.Required("part_id"): vol.Any(str, None),
+        # Both null clears the links; both set links the task to that 1 part. Send
+        # both keys, or `parts` (`has_link_form`).
+        vol.Optional("asset_id"): vol.Any(str, None),
+        vol.Optional("part_id"): vol.Any(str, None),
         # What this one task takes; absent, the part's own per-use amount decides.
         vol.Optional("quantity"): vol.Any(vol.Coerce(float), None),
+        # The whole list of links (#493); an empty list clears them. Ids only.
+        vol.Optional("parts"): [
+            {
+                vol.Required("asset_id"): str,
+                vol.Required("part_id"): str,
+                vol.Optional("quantity"): vol.Any(vol.Coerce(float), None),
+            }
+        ],
     }
 )
 @websocket_api.async_response
@@ -431,12 +442,23 @@ async def ws_set_task_consumable(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    task = await coord.store.set_task_consumable(
-        msg["task_id"],
-        msg["asset_id"],
-        msg["part_id"],
-        quantity=msg.get("quantity"),
+    # Before the store: a refused message changes nothing. Home Assistant answers a
+    # vol.Invalid with invalid_format, the code the old schema gave.
+    if not has_link_form(msg):
+        raise vol.Invalid("send parts, or both asset_id and part_id")
+    deprecations.warn_single_consumable_link(
+        msg, deprecations.WS_SINGLE_CONSUMABLE_LINK
     )
+    if "parts" in msg:
+        refuse_mixed_link_forms(msg)
+        task = await coord.store.set_task_consumables(msg["task_id"], msg["parts"])
+    else:
+        task = await coord.store.set_task_consumable(
+            msg["task_id"],
+            msg.get("asset_id"),
+            msg.get("part_id"),
+            quantity=msg.get("quantity"),
+        )
     # Linking only rewrites the task's source; the per-task entity set is unchanged,
     # so a refresh is enough (no entry reload).
     await coord.async_request_refresh()

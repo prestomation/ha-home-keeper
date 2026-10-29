@@ -17,7 +17,7 @@ import { assetMatchesQuery, bucketByKey } from './card-filter';
 import { makeDialog } from './dialogs';
 import { t, tn } from './i18n';
 import {
-  consumableChip,
+  consumableRowChip,
   deviceChip,
   isManagedOrphan,
   managedChip,
@@ -316,6 +316,11 @@ function taskMetaHtml(p: PanelHost, task: Task): string {
   return `${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
 }
 
+/** How many chips a row's chip strip shows before its "+n": 1 on a row with a stock chip. */
+function inlineChipCount(strip: Element | null): number {
+  return strip?.classList.contains('hk-chips-lead') ? 1 : TASK_CARD_INLINE_CHIPS;
+}
+
 function taskCard(p: PanelHost, task: Task): string {
   // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
@@ -370,13 +375,22 @@ function taskCard(p: PanelHost, task: Task): string {
   // so folding them behind a caption would put an action one navigation away that
   // used to be one click. It unfolds the row in place instead.
   //
-  // The stock chip sits with them: "Takes 2 AAA · 2 left" is what this task is
-  // about as much as the device it is on, and it is read right where the Done
-  // button that spends those spares is.
-  const inlineChips = [dev, tag, consumableChip(p, task), ...taskChipsList(task), managed].filter(
-    Boolean,
-  );
-  const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
+  // The stock chip sits with them: "AAA · 2 left" is what this task is about as
+  // much as the device it is on, and it is read right where the Done button that
+  // spends those spares is. A task that takes several parts shows 1 short chip.
+  // The stock chip goes first (#493): the column clips what does not fit at its
+  // end, and a stock chip placed after the device chip was cut off mid-word. The
+  // tag chip comes next, because a scan lock explains a greyed Done.
+  //
+  // A stock chip and a second chip do not fit the column together: the second chip
+  // and the "+n" were cut off out of view. So a row with a stock chip shows 1 chip
+  // only, and "+n" counts the rest. A scan lock comes before the stock chip, because
+  // it is the reason that Done is greyed.
+  const stock = consumableRowChip(p, task);
+  const lead = !stock ? [dev, tag] : scanRequired(task) ? [tag, stock, dev] : [stock, tag, dev];
+  const inlineChips = [...lead, ...taskChipsList(task), managed].filter(Boolean);
+  const inlineCount = stock ? 1 : TASK_CARD_INLINE_CHIPS;
+  const hiddenChips = Math.max(0, inlineChips.length - inlineCount);
   const chipsOpen = !!task.id && p._chipsExpanded.has(task.id);
   const more = hiddenChips
     ? `<button class="hk-chip-more" data-chips-more="${escapeHTML(task.id)}" aria-expanded="${
@@ -401,7 +415,7 @@ function taskCard(p: PanelHost, task: Task): string {
             <div class="hk-meta">${taskMetaHtml(p, task)}</div>
             </div>
           </div>
-          <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
+          <div class="hk-chips hk-chips-inline${stock ? ' hk-chips-lead' : ''}${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
@@ -862,7 +876,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
       btn.setAttribute('aria-expanded', String(open));
       btn.textContent = open
         ? '−'
-        : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - TASK_CARD_INLINE_CHIPS)}`;
+        : `+${Math.max(0, (chips?.children.length ?? 1) - 1 - inlineChipCount(chips))}`;
     }),
   );
 }

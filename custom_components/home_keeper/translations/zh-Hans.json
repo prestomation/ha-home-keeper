@@ -443,23 +443,27 @@
     },
     "set_task_consumable": {
       "name": "将任务关联到耗材",
-      "description": "将任务关联到设备的耗材/部件，这样完成任务时会从库存中消耗一个备件，并在补货阈值时触发低库存事件。省略 asset_id 和 part_id 可清除关联。",
+      "description": "将任务关联到电器的 1 个或多个耗材或部件。每次完成都会从每个部件的库存中扣除其用量。部件降到补货阈值时会触发低库存事件。请发送 parts 列表。发送空的 parts 列表即可清除关联。",
       "fields": {
         "task_id": {
           "name": "任务名称或 ID",
           "description": "要置为待办的触发式任务的 id。名称同样可用。面板中会显示 ID。"
         },
         "asset_id": {
-          "name": "资产名称或 ID",
-          "description": "该零件所属设备的 ID。名称同样可用。面板中会显示 ID。"
+          "name": "电器名称或 ID（已弃用）",
+          "description": "已弃用。请使用 parts。此字段将在以后的版本中移除。要关联的单个部件所属的电器，按 ID 或名称。"
         },
         "part_id": {
-          "name": "零件名称或 ID",
-          "description": "要调整库存的零件的 ID。名称同样可用。面板中会显示 ID。"
+          "name": "部件名称或 ID（已弃用）",
+          "description": "已弃用。请使用 parts。此字段将在以后的版本中移除。要关联的单个部件，按 ID 或名称。"
         },
         "quantity": {
-          "name": "数量",
-          "description": "一次完成消耗该部件的数量。省略时使用部件设置的数量。"
+          "name": "数量（已弃用）",
+          "description": "已弃用。请使用 parts 中的数量。此字段将在以后的版本中移除。1 次完成使用此部件的数量。"
+        },
+        "parts": {
+          "name": "部件",
+          "description": "任务使用的完整部件列表。每项包含 asset_id 和 part_id，按 ID 或名称。数量可选。该列表会替换任务的关联。空列表会清除关联。"
         }
       }
     },

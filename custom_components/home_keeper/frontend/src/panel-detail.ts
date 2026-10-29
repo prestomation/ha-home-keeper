@@ -490,7 +490,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         ${task.recurrence_type === 'sensor' ? row(t('field.sensor_entity_id'), sensorProgress(p, task)) : ''}
         ${task.recurrence_type === 'sensor' ? sensorProgressBar(p, task) : ''}
         ${row(t('detail.nextDue'), due)}
-        ${row(t('field.consumable_link'), consumableLinkLabel(p, task), true)}
+        ${row(t('field.consumable_links'), consumableLinkLabel(p, task), true)}
         ${idRow(task.id)}
       </div></ha-card>`,
     notes: `

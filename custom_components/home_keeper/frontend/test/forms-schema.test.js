@@ -44,6 +44,7 @@ import {
   taskFormIsEmpty,
   taskSchema,
   taskSchemaSections,
+  taskFormSchemaKey,
   toProfileSync,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
@@ -1929,15 +1930,23 @@ describe('duplicateTaskSeed — a copy of the rule, not of the record (#279)', (
     }
   });
 
-  it('carries the consumable link as the flat token, not as a source', () => {
+  it('carries the consumable links as flat tokens, not as a source', () => {
     // `taskFormData` renders the picker from `source`, but `_submitForm` reads only
-    // the flat key. Seeding `source` would show a link the save never applies.
+    // the flat keys. Seeding `source` would show links the save never applies.
     const linked = {
       ...floating,
-      source: { part: { asset_id: 'a1', part_id: 'p1', manual: true } },
+      source: {
+        parts: [
+          { asset_id: 'a1', part_id: 'p1' },
+          { asset_id: 'a1', part_id: 'p2', quantity: 2 },
+        ],
+      },
     };
-    expect(duplicateTaskSeed(linked).consumable_link).toBe('a1:p1');
-    expect(duplicateTaskSeed(floating).consumable_link).toBe('');
+    const seed = duplicateTaskSeed(linked);
+    expect(seed.consumable_links).toEqual(['a1:p1', 'a1:p2']);
+    expect(seed['consumable_qty:a1:p2']).toBe(2);
+    expect(seed['consumable_qty:a1:p1']).toBeUndefined();
+    expect(duplicateTaskSeed(floating).consumable_links).toEqual([]);
   });
 
   it('copies the label and card-link collections rather than sharing them', () => {
@@ -3028,5 +3037,79 @@ describe('task form payload: low findings', () => {
     expect(
       buildTaskPayload({ recurrence_type: 'fixed', anchor: '2026-03-02 18:00:00' }).anchor,
     ).toMatch(/^2026-03-02T/);
+  });
+});
+
+describe('the consumable list on the task form (#493)', () => {
+  const consumables = [
+    { value: 'a:p1', label: 'Sediment filter' },
+    { value: 'a:p2', label: 'Carbon filter' },
+  ];
+  const base = { recurrence_type: 'floating', interval: 6, unit: 'months' };
+  const list = (task, opts = consumables) => taskSchema(task, opts);
+
+  it('offers a multi-select of the consumables and no amount field before a pick', () => {
+    const fields = list(base);
+    const picker = fields.find((f) => f.name === 'consumable_links');
+    expect(picker.selector.select.multiple).toBe(true);
+    expect(picker.selector.select.options).toEqual(consumables);
+    expect(names(fields).some((n) => n.startsWith('consumable_qty:'))).toBe(false);
+  });
+
+  it('adds 1 amount field for each chosen part, in the picked order, with its name', () => {
+    const fields = list({ ...base, consumable_links: ['a:p2', 'a:p1'] });
+    const amounts = fields.filter((f) => f.name.startsWith('consumable_qty:'));
+    expect(amounts.map((f) => f.name)).toEqual(['consumable_qty:a:p2', 'consumable_qty:a:p1']);
+    expect(amounts.map((f) => f.label)).toEqual([
+      'Carbon filter: takes per completion',
+      'Sediment filter: takes per completion',
+    ]);
+    expect(amounts[0].selector.number.min).toBeGreaterThan(0);
+    // The amount fields follow the picker directly.
+    const at = names(fields).indexOf('consumable_links');
+    expect(names(fields).slice(at + 1, at + 3)).toEqual(amounts.map((f) => f.name));
+  });
+
+  it('gives no amount field to a link the picker does not list', () => {
+    const fields = list({ ...base, consumable_links: ['other:p9', 'a:p1'] });
+    expect(names(fields).filter((n) => n.startsWith('consumable_qty:'))).toEqual([
+      'consumable_qty:a:p1',
+    ]);
+  });
+
+  it('hides the whole list with no consumables, or when an owner locks it', () => {
+    expect(names(list(base, []))).not.toContain('consumable_links');
+    const managed = {
+      ...base,
+      consumable_links: ['a:p1'],
+      managed_by: { integration: 'x', locked_fields: ['consumable_link'] },
+    };
+    expect(names(list(managed)).some((n) => n.startsWith('consumable'))).toBe(false);
+  });
+
+  // The backend refuses a link on a buy reminder: completing one restocks its part,
+  // so a draw on the same completion would undo the restock.
+  it('offers no list on a buy reminder', () => {
+    const buy = { ...base, source: { buy: { asset_id: 'a', part_id: 'p1' } } };
+    expect(names(list(buy)).some((n) => n.startsWith('consumable'))).toBe(false);
+  });
+
+  it('seeds the form data from the stored links', () => {
+    const data = taskFormData({
+      ...base,
+      source: { parts: [{ asset_id: 'a', part_id: 'p2', quantity: 2 }] },
+    });
+    expect(data.consumable_links).toEqual(['a:p2']);
+    expect(data['consumable_qty:a:p2']).toBe(2);
+  });
+
+  it('changes the schema key when the chosen parts change', () => {
+    expect(taskFormSchemaKey({ ...base, consumable_links: ['a:p1'] })).not.toBe(
+      taskFormSchemaKey({ ...base, consumable_links: ['a:p1', 'a:p2'] }),
+    );
+    // An amount is a value, not a field: it does not re-render the form.
+    expect(taskFormSchemaKey({ ...base, consumable_links: ['a:p1'], 'consumable_qty:a:p1': 2 })).toBe(
+      taskFormSchemaKey({ ...base, consumable_links: ['a:p1'] }),
+    );
   });
 });

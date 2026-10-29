@@ -10,7 +10,9 @@ import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './document
 import { TaskPhotoUrlCache, coverOriginalRefs, coverRefs, detailRefs } from './task-photos';
 import {
   buildTaskPayload,
-  consumableLinkToken,
+  consumableFormSeed,
+  consumableLinksFromForm,
+  partLinksKey,
   duplicateTaskSeed,
   seasonFieldLabelKey,
   type FormField,
@@ -129,6 +131,7 @@ import {
   btnAttrs,
   type BtnWeight,
   buildPath,
+  consumableLinks,
   escapeHTML,
   isBuyTask,
   parseRoute,
@@ -1262,16 +1265,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         recurrence_type: 'floating',
         interval: 1,
         unit: 'months',
-        consumable_link: '',
+        consumable_links: [],
       } as Partial<Task>,
     });
     this._render();
   }
   _openEdit(task: Task): void {
     this._rememberDrawerOpener();
-    // Seed the flat consumable_link so the picker reflects the current link and a
-    // plain save (no edit) round-trips it unchanged.
-    const seeded = { ...task, consumable_link: consumableLinkToken(task) } as Partial<Task>;
+    // Seed the flat consumable links so the picker reflects the current links and a
+    // plain save (no edit) round-trips them unchanged.
+    const seeded = { ...task, ...consumableFormSeed(task) } as Partial<Task>;
     // The form opens beside whatever you were reading, and the location does not move:
     // on the list that is the list, and on the task's own page it is that page — the
     // history, the notes and the schedule that explain the values being edited. Edit
@@ -1358,13 +1361,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // Record the id immediately: if the link step below throws, the form stays open
       // and a retry must *update* this task, not create a second one.
       this._edit.task = { ...this._edit.task, id: saved.id };
-      // The consumable link rides its own service (it sets the task's source, which
-      // update_task doesn't touch). Only call when it actually changed: the desired
-      // token vs. the saved task's current link.
-      const desired = String((task as Record<string, unknown>).consumable_link ?? '');
-      if (desired !== consumableLinkToken(saved)) {
-        const [assetId, partId] = desired ? desired.split(':') : ['', ''];
-        await api.setTaskConsumable(this._hass, saved.id, assetId || null, partId || null);
+      // The consumable links ride their own service (they set the task's source,
+      // which update_task doesn't touch). Only call when they actually changed: the
+      // desired list vs. the saved task's current links. A wear part's own task
+      // takes no list, so its form offers none and sends none.
+      const desired = consumableLinksFromForm(task);
+      if (partLinksKey(desired) !== partLinksKey(consumableLinks(saved))) {
+        await api.setTaskConsumables(this._hass, saved.id, desired);
       }
       // Photos picked in the New task form upload now that the task has an id. A
       // failed photo does not undo the task: the form closes, and the task page opens
@@ -1396,6 +1399,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       await this._refresh();
     } catch (err) {
       this._edit.error = String((err as { message?: string })?.message || err);
+      this._edit.revealError = true;
       this._render();
     }
   }
@@ -2852,8 +2856,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // Every season window is the same control repeated, so `season_2_start_month`
       // reads the label authored once for `season_start_month` — windows that named
       // themselves individually is the inconsistency reported on #242.
-      form.computeLabel = (s: { name: string }): string =>
-        s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '';
+      form.computeLabel = (s: { name: string; label?: string }): string =>
+        s.label ?? (s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '');
       // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
       // where no string is authored, so helpers appear only where we wrote them.
       form.computeHelper = (s: { name: string }): string => {

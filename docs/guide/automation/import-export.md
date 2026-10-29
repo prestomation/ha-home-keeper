@@ -272,8 +272,8 @@ on the way back in.
   A counted wear item keeps its count. The count is on the part, because the 2
   tasks that use it are not in the file.
 - **Tasks created by companions.**
-- **The link from a task to a consumable.** The task is in the file, but its link is
-  not. The `home_keeper` block counts these links. Link the tasks again after an
+- **The links from a task to consumables.** The task is in the file, but its links
+  are not. The `home_keeper` block counts each link. Link the tasks again after an
   import.
 - **Appliances that a companion manages**, with their stock counts. The companion
   builds the appliance again after an import. Enter the counts again.

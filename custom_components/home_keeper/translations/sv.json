@@ -442,24 +442,28 @@
       }
     },
     "set_task_consumable": {
-      "name": "Länka uppgift till en förbrukningsvara",
-      "description": "Länkar en uppgift till en förbrukningsvara/del på en apparat så att slutförandet förbrukar en reservdel från lagret och utlöser en händelse om lågt lager vid beställningsgränsen. Utelämna asset_id och part_id för att ta bort länken.",
+      "name": "Koppla uppgift till förbrukningsartiklar",
+      "description": "Kopplar en uppgift till 1 eller flera förbrukningsartiklar eller delar på en apparat. Varje slutförande drar mängden för varje del från dess lager. En del som når beställningsgränsen utlöser en händelse för lågt lager. Skicka listan parts. Skicka en tom parts-lista för att ta bort kopplingarna.",
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
           "description": "ID:t för den utlösta uppgiften som ska aktiveras. Namnet fungerar också. Panelen visar id:t."
         },
         "asset_id": {
-          "name": "Tillgångsnamn eller -ID",
-          "description": "ID för den apparat som delen tillhör. Namnet fungerar också. Panelen visar id:t."
+          "name": "Apparatens namn eller ID (inaktuellt)",
+          "description": "Inaktuellt. Använd parts. Fältet tas bort i en senare version. Apparaten för den enda delen som ska kopplas, efter ID eller namn."
         },
         "part_id": {
-          "name": "Delnamn eller -ID",
-          "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
+          "name": "Delens namn eller ID (inaktuellt)",
+          "description": "Inaktuellt. Använd parts. Fältet tas bort i en senare version. Den enda delen som ska kopplas, efter ID eller namn."
         },
         "quantity": {
-          "name": "Mängd",
-          "description": "Hur mycket av delen en slutförd uppgift förbrukar. Utelämna det för att använda mängden som delen anger."
+          "name": "Mängd (inaktuellt)",
+          "description": "Inaktuellt. Använd mängden i parts. Fältet tas bort i en senare version. Hur mycket av delen 1 slutförande använder."
+        },
+        "parts": {
+          "name": "Delar",
+          "description": "Den fullständiga listan över delar som uppgiften använder. Varje post har asset_id och part_id, efter ID eller namn. Mängden är valfri. Listan ersätter uppgiftens kopplingar. En tom lista tar bort dem."
         }
       }
     },

@@ -442,24 +442,28 @@
       }
     },
     "set_task_consumable": {
-      "name": "Vincular tarea a un consumible",
-      "description": "Vincula una tarea a un consumible/pieza de un electrodoméstico para que al completarla se consuma un repuesto del stock y se dispare un evento de stock bajo en el umbral de reposición. Omite asset_id y part_id para quitar el vínculo.",
+      "name": "Vincular tarea a consumibles",
+      "description": "Vincula una tarea con 1 o más consumibles o piezas de un electrodoméstico. Cada finalización descuenta la cantidad de cada pieza de su stock. Una pieza que llega al umbral de reposición lanza un evento de stock bajo. Envía la lista parts. Envía una lista parts vacía para quitar los vínculos.",
       "fields": {
         "task_id": {
           "name": "Nombre o ID de la tarea",
           "description": "El id de la tarea activada a armar. Su nombre también funciona. El panel muestra el id."
         },
         "asset_id": {
-          "name": "Nombre o ID del activo",
-          "description": "El id del electrodoméstico al que pertenece la pieza. Su nombre también funciona. El panel muestra el id."
+          "name": "Nombre o ID del electrodoméstico (obsoleto)",
+          "description": "Obsoleto. Usa parts. Este campo se eliminará en una versión posterior. El electrodoméstico de la única pieza que se vincula, por ID o nombre."
         },
         "part_id": {
-          "name": "Nombre o ID de la pieza",
-          "description": "El id de la pieza cuyo stock se va a ajustar. Su nombre también funciona. El panel muestra el id."
+          "name": "Nombre o ID de la pieza (obsoleto)",
+          "description": "Obsoleto. Usa parts. Este campo se eliminará en una versión posterior. La única pieza que se vincula, por ID o nombre."
         },
         "quantity": {
-          "name": "Cantidad",
-          "description": "Cuánto consume de la pieza una finalización. Omítelo para usar la cantidad que indica la pieza."
+          "name": "Cantidad (obsoleto)",
+          "description": "Obsoleto. Usa la cantidad en parts. Este campo se eliminará en una versión posterior. Cantidad de la pieza que usa 1 finalización."
+        },
+        "parts": {
+          "name": "Piezas",
+          "description": "La lista completa de piezas que usa la tarea. Cada elemento tiene asset_id y part_id, por ID o nombre. La cantidad es opcional. La lista sustituye los vínculos de la tarea. Una lista vacía los quita."
         }
       }
     },

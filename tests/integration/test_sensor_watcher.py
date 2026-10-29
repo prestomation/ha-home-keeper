@@ -578,7 +578,7 @@ def test_clear_on_recover_draws_down_a_linked_consumable(ha):
             "set_task_consumable",
             {"task_id": task_id, "asset_id": asset_id, "part_id": part_id},
         )
-        _poll_task(ha, task_id, lambda t: (t.get("source") or {}).get("part"))
+        _poll_task(ha, task_id, lambda t: (t.get("source") or {}).get("parts"))
 
         _set_flag(ha, True)
         _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)

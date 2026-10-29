@@ -443,23 +443,27 @@
     },
     "set_task_consumable": {
       "name": "Aufgabe mit Verbrauchsmaterial verknüpfen",
-      "description": "Verknüpft eine Aufgabe mit einem Verbrauchsmaterial/Teil eines Geräts, sodass beim Abschließen ein Ersatzteil aus dem Bestand verbraucht wird und beim Nachbestellschwellenwert ein Ereignis bei niedrigem Bestand ausgelöst wird. Lasse asset_id und part_id weg, um die Verknüpfung zu entfernen.",
+      "description": "Verknüpft eine Aufgabe mit 1 oder mehr Verbrauchsmaterialien oder Teilen eines Geräts. Jede Erledigung entnimmt die Menge jedes Teils aus seinem Bestand. Ein Teil, das den Nachbestellwert erreicht, löst ein Ereignis für niedrigen Bestand aus. Sende die Liste parts. Sende eine leere parts-Liste, um die Verknüpfungen zu entfernen.",
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
           "description": "Die ID der scharf zu schaltenden ausgelösten Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         },
         "asset_id": {
-          "name": "Asset-Name oder -ID",
-          "description": "Die ID des Geräts, zu dem das Teil gehört. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+          "name": "Gerätename oder ID (veraltet)",
+          "description": "Veraltet. Verwende parts. Dieses Feld wird in einer späteren Version entfernt. Das Gerät des einen zu verknüpfenden Teils, per ID oder Name."
         },
         "part_id": {
-          "name": "Teilename oder -ID",
-          "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+          "name": "Teilname oder ID (veraltet)",
+          "description": "Veraltet. Verwende parts. Dieses Feld wird in einer späteren Version entfernt. Das eine zu verknüpfende Teil, per ID oder Name."
         },
         "quantity": {
-          "name": "Menge",
-          "description": "Wie viel des Teils ein Abschluss verbraucht. Ohne Angabe gilt die Menge, die das Teil angibt."
+          "name": "Menge (veraltet)",
+          "description": "Veraltet. Verwende die Menge in parts. Dieses Feld wird in einer späteren Version entfernt. Wie viel des Teils 1 Erledigung verbraucht."
+        },
+        "parts": {
+          "name": "Teile",
+          "description": "Die vollständige Liste der Teile, die die Aufgabe verbraucht. Jeder Eintrag hat asset_id und part_id, per ID oder Name. Die Menge ist optional. Die Liste ersetzt die Verknüpfungen der Aufgabe. Eine leere Liste entfernt sie."
         }
       }
     },

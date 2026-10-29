@@ -948,14 +948,12 @@ move_skip:
         datetime:
 
 set_task_consumable:
-  name: Link task to a consumable
+  name: Link task to consumables
   description: >-
-    Link a task to an appliance consumable/part so completing the task consumes one
-    spare from the part's stock, and fires a home_keeper_part_low_stock event when
-    the count crosses the part's reorder threshold, so you can automate a
-    shopping-list add or reorder. Use it to wire any task (e.g. a sensor task
-    armed by a fridge's filter-life entity) to the consumable it depletes. Omit both
-    asset_id and part_id to clear the link.
+    Link a task to 1 or more appliance consumables or parts. Each completion takes
+    the amount of each part from its stock. A part that drops to its reorder
+    threshold fires a low-stock event. Send the parts list. Send an empty parts
+    list to clear the links.
   fields:
     task_id:
       name: Task name or ID
@@ -964,25 +962,41 @@ set_task_consumable:
       selector:
         text:
     asset_id:
-      name: Appliance name or ID
-      description: The id of the appliance the consumable belongs to. Omit to unlink. Its name works too. The panel shows the id.
+      name: Appliance name or ID (deprecated)
+      description: >-
+        The appliance of the 1 part to link. An id or a name works. This field is
+        deprecated and will be removed in a later release. Use parts instead.
+      advanced: true
       selector:
         text:
     part_id:
-      name: Part name or ID
-      description: The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id.
+      name: Part name or ID (deprecated)
+      description: >-
+        The 1 part to link. Its name works too. Use parts in its place. This
+        deprecated field goes away in a later release.
+      advanced: true
       selector:
         text:
     quantity:
-      name: Quantity
+      name: Quantity (deprecated)
       description: >-
-        How much of the part one completion takes. Omit it to use the quantity that
-        the part sets.
+        How much of the part 1 completion takes. A later release removes this
+        deprecated field. Put the quantity in parts instead.
+      advanced: true
       selector:
         number:
           min: 0.01
           mode: box
           step: 0.01
+    parts:
+      name: Parts
+      description: >-
+        The full list of parts that the task takes. Each item has asset_id and
+        part_id, and can have a quantity. An id or a name works for both. The list
+        replaces the links of the task. An empty list clears them.
+      example: '[{"asset_id": "Water system", "part_id": "Sediment filter", "quantity": 2}]'
+      selector:
+        object:
 
 notify:
   name: Notify what's due

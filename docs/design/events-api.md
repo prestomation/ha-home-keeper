@@ -14,11 +14,12 @@ implements:
   - custom_components/home_keeper/api_surface.py
   - custom_components/home_keeper/resolve.py
   - custom_components/home_keeper/service_errors.py
+  - custom_components/home_keeper/deprecations.py
   - custom_components/home_keeper/websocket_api.py
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: eab726e4e48e
+source_hash: a26baa7db8b1
 ---
 
 # Events and API surface
@@ -69,20 +70,19 @@ command, upload or entity action), so the logbook names the user, and keeps it p
 
 ### Edge-triggered transitions
 
-`transitions.detect_transitions` is pure. It takes the previous edge state, the task map
-and an injected `now`, and returns the events plus the next state. The state per task is
-`{"next_due", "due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags,
-but `due_soon_fired` stays true if the old date announced and the new one is in the window.
-No `next_due`, or disabled: no crossing fires. `DUE_SOON_WINDOW` is 3 days. A task with
-`overdue_fired` that is not overdue now fires `overdue_resolved` once and clears the flag. A
-deleted task fires nothing. Its context is `store.caller_of`, the change that ended the period.
-`coordinator._async_update_data` runs the detector on each periodic and post-mutation
-refresh. Until setup calls `coordinator.enable_transition_events`, it keeps the detected
-state as a silent baseline. The edge state lives in `hass.data` per config entry, so a
-reload keeps it. `transitions.auto_crossings` drops a due-soon crossing that a snooze or a
-completion caused, before notifications use the list.
-`assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop to 0
-fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fires.
+`transitions.detect_transitions` is pure. It takes the previous edge state, the task map and an
+injected `now`, and returns the events plus the next state. The state per task is `{"next_due",
+"due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags, but `due_soon_fired`
+stays true if the old date announced and the new one is in the window. No `next_due`, or disabled:
+no crossing fires. `DUE_SOON_WINDOW` is 3 days. A task with `overdue_fired` that is not overdue now
+fires `overdue_resolved` once and clears the flag. A deleted task fires nothing. Its context is
+`store.caller_of`, the change that ended the period. `coordinator._async_update_data` runs the
+detector on each periodic and post-mutation refresh. Until setup calls
+`coordinator.enable_transition_events`, it keeps the detected state as a silent baseline. The edge
+state lives in `hass.data` per config entry, so a reload keeps it. `transitions.auto_crossings`
+drops a due-soon crossing that a snooze or a completion caused, before notifications use the list.
+`assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop to 0 fires
+only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fires.
 
 ### Triggers
 
@@ -99,15 +99,15 @@ at startup, often before the entry loads. `event.py` mirrors events onto 1 event
 
 ### Services and websocket commands
 
-`__init__._register_services` runs 1 time, from `async_setup`; a reload removes no service.
-With no loaded entry, a handler raises `integration_not_loaded`. Read services use
-`SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold labels.
-`websocket_api._with_coordinator` finds the coordinator and maps store errors to codes.
-`backend_i18n.resolve_exception` localizes the text, as a websocket error gets no later
-translation. Each `WebsocketSpec` names its service twin, except the panel tab list and the
-reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of photos.
-An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
+`__init__._register_services` runs 1 time, from `async_setup`; a reload removes no service. With no
+loaded entry, a handler raises `integration_not_loaded`. Read services use `SupportsResponse.ONLY`.
+`services.yaml` and `strings.json` hold labels. `websocket_api._with_coordinator` finds the
+coordinator and maps store errors to codes. `backend_i18n.resolve_exception` localizes the text, as
+a websocket error gets no later translation. Each `WebsocketSpec` names its service twin, except the
+panel tab list and the reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of
+photos. An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first. A call with no user is trusted ([SECURITY.md](../SECURITY.md)).
+An old input form logs 1 warning per run (`deprecations.warn_once`).
 
 ### Name or id, and errors
 

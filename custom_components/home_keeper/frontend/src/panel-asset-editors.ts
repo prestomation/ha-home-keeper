@@ -42,7 +42,7 @@ import {
   pickFormData,
   selText,
 } from './forms';
-import { t } from './i18n';
+import { t, tn } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import { openConfirmDialog } from './panel-dialogs';
 import { collapsibleSection, section, setIcon } from './panel-history';
@@ -57,7 +57,14 @@ import {
   uploadButtonLabel,
 } from './panel-upload';
 import type { Asset, AssetDocument, Hass, MetadataEntry, MetadataType, Part } from './types';
-import { assetPartsLocked, escapeHTML, isHttpUrl, randomId, setBtnWeight } from './utils';
+import {
+  assetPartsLocked,
+  consumableLinks,
+  escapeHTML,
+  isHttpUrl,
+  randomId,
+  setBtnWeight,
+} from './utils';
 
 // ── shared row scaffolds ────────────────────────────────────────────────────
 
@@ -876,6 +883,7 @@ function partBox(
             else if (chosen > i) p._assetEdit.openPart = chosen - 1;
           }
         },
+        removePartBody(p, p._assetEdit.asset?.id, p._assetEdit.asset?.parts?.[i]?.id),
       );
     });
     foot.appendChild(del);
@@ -970,6 +978,23 @@ async function uploadPartFile(p: PanelHost, part: Part, file: File): Promise<voi
     file_content_type: updated.file_content_type,
     file_size: updated.file_size,
   });
+}
+
+/**
+ * The body of the Remove part confirm. Save drops the consumable links to a removed
+ * part (#493), so the confirm names the tasks that take it first.
+ */
+function removePartBody(p: PanelHost, assetId?: string, partId?: string): string {
+  const undo = t('confirm.cannotUndo');
+  if (!assetId || !partId) return undo;
+  const users = p._tasks
+    .filter((task) =>
+      consumableLinks(task).some((l) => l.asset_id === assetId && l.part_id === partId),
+    )
+    .map((task) => task.name)
+    .sort((a, b) => a.localeCompare(b));
+  if (!users.length) return undo;
+  return `${tn('confirm.partTasks', users.length, { tasks: users.join(', ') })} ${undo}`;
 }
 
 /**

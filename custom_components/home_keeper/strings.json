@@ -442,24 +442,28 @@
       }
     },
     "set_task_consumable": {
-      "name": "Link task to a consumable",
-      "description": "Link a task to an appliance consumable/part so completing it consumes one spare from the part's stock and fires a low-stock event at the reorder threshold. Omit asset_id and part_id to clear the link.",
+      "name": "Link task to consumables",
+      "description": "Link a task to 1 or more appliance consumables or parts. Each completion takes the amount of each part from its stock. A part that drops to its reorder threshold fires a low-stock event. Send the parts list. Send an empty parts list to clear the links.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
           "description": "The id of the task to link (or unlink). Its name works too. The panel shows the id."
         },
         "asset_id": {
-          "name": "Appliance name or ID",
-          "description": "The id of the appliance the consumable belongs to. Omit to unlink. Its name works too. The panel shows the id."
+          "name": "Appliance name or ID (deprecated)",
+          "description": "The appliance of the 1 part to link. An id or a name works. This field is deprecated and will be removed in a later release. Use parts instead."
         },
         "part_id": {
-          "name": "Part name or ID",
-          "description": "The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id."
+          "name": "Part name or ID (deprecated)",
+          "description": "The 1 part to link. Its name works too. Use parts in its place. This deprecated field goes away in a later release."
         },
         "quantity": {
-          "name": "Quantity",
-          "description": "How much of the part one completion takes. Omit it to use the quantity that the part sets."
+          "name": "Quantity (deprecated)",
+          "description": "How much of the part 1 completion takes. A later release removes this deprecated field. Put the quantity in parts instead."
+        },
+        "parts": {
+          "name": "Parts",
+          "description": "The full list of parts that the task takes. Each item has asset_id and part_id, and can have a quantity. An id or a name works for both. The list replaces the links of the task. An empty list clears them."
         }
       }
     },

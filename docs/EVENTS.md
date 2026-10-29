@@ -150,7 +150,7 @@ threshold, `home_keeper_part_restocked` fires.
 
 Each crossing fires 1 event, not 1 event for each step while the part is low. A part must
 track **both** `stock` and `reorder_at` to fire anything. If 1 change takes a low part to
-0, only **`out_of_stock`** fires.
+0, only **`out_of_stock`** fires. Each part of a task that takes several parts fires its own.
 
 Stock goes down, and these events fire, when a user completes a task **linked to that
 part**. This includes an automatic wear-part replacement task and a task linked by hand

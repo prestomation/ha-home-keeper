@@ -9,7 +9,7 @@ import {
   weekdayName,
   type SimpleFreq,
 } from './rrule';
-import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
+import type { Asset, Completion, Hass, HassArea, HassLabel, Part, PartLink, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
  *  or materializes itself carries it in `managed_by.integration`, which is how the
@@ -477,9 +477,9 @@ export function isMonitoredDormant(task: Task): boolean {
     // (`store.add_task` rejects the reserved namespaces, `models.merge_update` never
     // merges `source`, and the importer refuses them), and it writes `triggered` only
     // when the part counts uses — a time-measured part gets `floating` instead. The
-    // `manual` half is load-bearing: `store.set_task_consumable` puts that same shape
-    // on any task the user owns, including a dormant triggered one, and that task
-    // really is waiting on its owner.
+    // `manual` half is load-bearing: a consumable link stored before the `parts` list
+    // has that same shape on any task the user owns, including a dormant triggered
+    // one, and that task really is waiting on its owner.
     const part = task.source?.part;
     return !(part && !part.manual);
   }
@@ -1316,8 +1316,8 @@ export function countedProgress(
   // The replacement half: same part, and a role that is absent or `replace` — absent
   // being what every part-derived task written before counted wear items carries.
   // A **manual** link is excluded, exactly as `reconcile.counted_part_pairs` and
-  // `reconcile.reconcile_part_tasks` exclude it. `set_task_consumable` lets any task
-  // point at any part, so without this guard `find` can return a user-owned task and
+  // `reconcile.reconcile_part_tasks` exclude it. An old manual link can point any
+  // task at any part, so without this guard `find` can return a user-owned task and
   // measure the count from its completion instead — a chip that disagrees with the
   // figure the reminder arms on.
   const replaceTask = tasks?.find((candidate) => {
@@ -1335,6 +1335,30 @@ export function countedProgress(
     target,
     noun: (part.use_noun ?? '').trim(),
   };
+}
+
+/**
+ * The consumable links a user set on a task, in order (#493) — the twin of
+ * `reconcile.consumable_links`. An entry with no ids is skipped. The backend moves an
+ * old manual `source.part` link into this list when it loads, so the panel never
+ * sees that shape.
+ */
+export function consumableLinks(task: Pick<Task, 'source'>): PartLink[] {
+  const parts = task.source?.parts;
+  if (!Array.isArray(parts)) return [];
+  return parts.filter(
+    (x): x is PartLink => !!x && Boolean(x.asset_id) && Boolean(x.part_id),
+  );
+}
+
+/**
+ * The part links whose stock a completion draws — the twin of
+ * `reconcile.stock_links`: a wear part's task draws its own part, any other task
+ * draws each consumable link.
+ */
+export function stockLinks(task: Pick<Task, 'source'>): PartLink[] {
+  const own = task.source?.part;
+  return own ? [own] : consumableLinks(task);
 }
 
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
@@ -2096,8 +2120,9 @@ export type TaskAssociation = Pick<Task, 'device_id' | 'source'>;
  * counts as related.
  */
 function assetRank(task: TaskAssociation, asset: Asset): number {
-  // The task exists *because* of this appliance's part. Nothing beats that.
-  if (task.source?.part?.asset_id === asset.id) return 1;
+  // The task exists *because* of this appliance's part, or takes its parts.
+  // Nothing beats that.
+  if (stockLinks(task).some((link) => link.asset_id === asset.id)) return 1;
   const dev = task.device_id;
   if (!dev) return 0;
   if (asset.device_id && dev === asset.device_id) return 2;
@@ -2129,8 +2154,9 @@ export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
  * one a single-destination surface picks.
  *
  * Ranked, strongest first:
- *   1. the appliance whose *part* the task is (`source.part.asset_id`) — the task
- *      exists because of that appliance, so nothing beats it;
+ *   1. an appliance whose part the task is or takes (`stockLinks`: a wear part's
+ *      `source.part`, or each consumable link in `source.parts`) — the task exists
+ *      because of that appliance, so nothing beats it;
  *   2. the appliance the device belongs to (`asset.device_id`);
  *   3. an appliance that merely lists the device as related.
  * An archived appliance always ranks below a live one at the same strength: it is

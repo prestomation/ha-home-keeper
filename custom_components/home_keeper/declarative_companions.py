@@ -899,7 +899,7 @@ def reconcile_declarative_tasks(
         # below drops the marker, which is how it clears.
         was_paused = bool((declarative_source(task) or {}).get("paused"))
         # Keep every other namespace on the task. A person can link the task to a
-        # consumable (``source["part"]``), and a rewrite of the whole source would
+        # consumable (``source["parts"]``), and a rewrite of the whole source would
         # drop that link with no message.
         new_source = {
             **{

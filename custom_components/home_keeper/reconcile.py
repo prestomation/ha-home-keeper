@@ -13,8 +13,9 @@ unit-tested directly (see ``tests/unit/test_reconcile.py``).
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, tzinfo
-from typing import Any
+from typing import Any, TypeGuard
 
 from . import models, recurrence
 from .assets import (
@@ -42,6 +43,7 @@ from .const import (
     REC_USE,
     TASK_SOURCE_BUY,
     TASK_SOURCE_PART,
+    TASK_SOURCE_PARTS,
     USE_TASK_NAME_TEMPLATES,
     WEAR_TASK_NAME_TEMPLATES,
     resolve_action_task_naming,
@@ -102,12 +104,11 @@ _DEFAULT_USE_NAME_TEMPLATE = USE_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
     """Return a task's ``{asset_id, part_id}`` part provenance, or None.
 
-    Covers both reconciler-derived tasks (auto-generated from a wear part's
-    ``replace_interval``) and tasks a user *manually linked* to a consumable — both
-    carry ``source = {"part": {"asset_id", "part_id", ...}}`` so completion consumes
-    one spare from the part's stock. A manual link additionally carries
-    ``"manual": True`` inside the part dict; use :func:`is_manual_part_link` to tell
-    them apart where ownership matters (the reconciler must not own manual links).
+    This is a reconciler-derived task (from a wear part). A task that a user linked
+    by hand keeps its links in ``source.parts`` (#493). Only a document that the load
+    has not migrated yet still holds such a link here, with ``"manual": True`` in the
+    part dict; :func:`is_manual_part_link` tells the two apart where ownership matters
+    (the reconciler must not own a hand link).
     """
     source = task.get("source")
     if isinstance(source, dict) and isinstance(source.get(TASK_SOURCE_PART), dict):
@@ -135,6 +136,124 @@ def is_manual_part_link(task: dict[str, Any]) -> bool:
     """
     src = part_source(task)
     return bool(src and src.get("manual"))
+
+
+def _is_link(value: Any) -> TypeGuard[dict[str, Any]]:
+    """True when *value* names a part: a dict with a text ``asset_id`` and ``part_id``.
+
+    A hand-edited id that is a list or a dict could not be a dict key or a set member,
+    so a check here keeps it from raising ``TypeError`` in a reconcile pass.
+    """
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("asset_id"), str)
+        and isinstance(value.get("part_id"), str)
+    )
+
+
+def consumable_links(task: dict[str, Any]) -> list[dict[str, Any]]:
+    """The consumable links that a user set on *task*, in ``source.parts`` (#493).
+
+    An entry with no text ``asset_id`` or ``part_id`` is skipped, so a hand-edited
+    document cannot crash a completion. An old manual link in ``source.part`` is not
+    read here: :func:`migrate_consumable_link` moves it into the list on load, and
+    ``add_task``, ``update_task`` and import refuse both namespaces.
+    """
+    source = task.get("source")
+    links = source.get(TASK_SOURCE_PARTS) if isinstance(source, dict) else None
+    if not isinstance(links, list):
+        return []
+    return [link for link in links if _is_link(link)]
+
+
+def stock_links(task: dict[str, Any]) -> list[dict[str, Any]]:
+    """The part links whose stock a completion of *task* draws.
+
+    A wear part's derived task draws its own part. Any other task draws each of its
+    consumable links (:func:`consumable_links`).
+    """
+    src = part_source(task)
+    if src is not None:
+        return [src]
+    return consumable_links(task)
+
+
+def migrate_consumable_link(task: dict[str, Any]) -> bool:
+    """Move an old manual ``source.part`` link into the ``source.parts`` list.
+
+    Returns True when the task changed. A list that is already there wins, and the
+    old link is dropped. A malformed old link is dropped too, because it never drew
+    stock. A wear part's ``source.part`` stays. The store runs this on load, so the
+    stored document holds 1 shape.
+    """
+    source = task.get("source")
+    if not isinstance(source, dict):
+        return False
+    legacy = source.get(TASK_SOURCE_PART)
+    if not (isinstance(legacy, dict) and legacy.get("manual")):
+        return False
+    migrated = {key: value for key, value in source.items() if key != TASK_SOURCE_PART}
+    if TASK_SOURCE_PARTS not in migrated and _is_link(legacy):
+        migrated[TASK_SOURCE_PARTS] = [
+            {
+                key: legacy[key]
+                for key in ("asset_id", "part_id", "quantity")
+                if key in legacy
+            }
+        ]
+    task["source"] = migrated or None
+    return True
+
+
+def prune_consumable_links(
+    task: dict[str, Any], keep: Callable[[dict[str, Any]], bool]
+) -> dict[str, Any] | None:
+    """The task's ``source`` with the consumable links that *keep* refuses removed.
+
+    Returns the same ``source`` object when no link goes, so a caller can test
+    ``is``. The last link that goes takes the ``parts`` key with it, and a source
+    with no key left is ``None``. Every other namespace stays, because it belongs to
+    the integration that made the task. The input is not changed.
+    """
+    source = task.get("source")
+    if not isinstance(source, dict):
+        return None
+    links = consumable_links(task)
+    kept = [link for link in links if keep(link)]
+    if len(kept) == len(links):
+        return source
+    pruned = {key: value for key, value in source.items() if key != TASK_SOURCE_PARTS}
+    if kept:
+        pruned[TASK_SOURCE_PARTS] = kept
+    return pruned or None
+
+
+def refuse_mixed_link_forms(data: Mapping[str, Any]) -> None:
+    """Refuse a link request that sends the ``parts`` list and a 1-link field.
+
+    ``parts`` sets the whole list, and ``asset_id``/``part_id``/``quantity`` set a
+    list of 1. A caller that sends both forms gets an error, so the service never
+    guesses which form the caller meant.
+    """
+    # Presence, not truth: a quantity of 0 or an empty id is still a second form.
+    single = [
+        key for key in ("asset_id", "part_id", "quantity") if data.get(key) is not None
+    ]
+    if "parts" in data and single:
+        raise models.TaskValidationError(
+            f"send parts, or {', '.join(single)}, not both"
+        )
+
+
+def has_link_form(data: Mapping[str, Any]) -> bool:
+    """Whether a link request names its form: ``parts``, or both 1-link keys.
+
+    The websocket command refuses a message without a form. Before #493 its schema
+    required ``asset_id`` and ``part_id``, and a message without them was an error. A
+    message that only names the task must not clear the links in silence. A null value
+    still counts as present: ``asset_id: null, part_id: null`` is the old way to clear.
+    """
+    return "parts" in data or ("asset_id" in data and "part_id" in data)
 
 
 def buy_source(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -817,12 +936,12 @@ def reconcile_part_tasks(
                 result[existing_tid] = merged
                 changed = True
 
-    # Clear a manual consumable link whose target part no longer exists (the part was
+    # Clear each consumable link whose target part no longer exists (the part was
     # removed while the appliance remains). Left dangling, the link silently no-ops on
     # completion — the user would think they're drawing down stock but aren't. The task
-    # itself survives; only the ``part`` key goes. Any other namespace on the same
-    # ``source`` belongs to the integration that made the task, and a part that was
-    # deleted somewhere else is no reason to drop it.
+    # itself survives, and so do its links to parts that still exist. Any other
+    # namespace on the same ``source`` belongs to the integration that made the
+    # task, and a part that was deleted somewhere else is no reason to drop it.
     existing_parts = {
         (asset.get("id"), part.get("id"))
         for asset in assets.values()
@@ -830,16 +949,11 @@ def reconcile_part_tasks(
         if part.get("id")
     }
     for tid, task in list(result.items()):
-        src = part_source(task)
-        if src is None or not src.get("manual"):
-            continue
-        if (src["asset_id"], src["part_id"]) not in existing_parts:
-            source = {
-                key: value
-                for key, value in (task.get("source") or {}).items()
-                if key != TASK_SOURCE_PART
-            }
-            result[tid] = {**task, "source": source or None}
+        source = prune_consumable_links(
+            task, lambda link: (link["asset_id"], link["part_id"]) in existing_parts
+        )
+        if source is not task.get("source"):
+            result[tid] = {**task, "source": source}
             changed = True
 
     return result, changed

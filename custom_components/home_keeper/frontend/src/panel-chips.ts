@@ -11,10 +11,10 @@
  */
 
 import { taskAreaId } from './card-filter';
-import { t } from './i18n';
+import { t, tn } from './i18n';
 import type { PanelHost } from './panel-host';
 import { MDI_DEVICES } from './panel-icons';
-import type { Asset, ManagedByBase, Task } from './types';
+import type { Asset, ManagedByBase, Part, Task } from './types';
 import {
   HK_DOMAIN,
   areaName,
@@ -28,6 +28,7 @@ import {
   navigateTo,
   safeHref,
   scanRequired,
+  stockLinks,
   tagName,
 } from './utils';
 
@@ -192,46 +193,124 @@ function ownerChip(p: PanelHost, mb?: ManagedByBase | null): string {
  * on its appliance page (`wirePartChips`). So an integration that links its task to
  * a part gets this chip for free, and does not have to send a chip of its own.
  *
- * Empty when the link points at a part that is gone, and on a counted wear item's
- * *use* task, which draws nothing off the shelf.
+ * 1 chip for each part the task takes (#493). Empty when each link points at a
+ * part that is gone, and on a counted wear item's *use* task, which draws nothing
+ * off the shelf.
  */
 export function consumableChip(p: PanelHost, task: Task): string {
-  const link = task.source?.part;
-  if (!link || isUseTask(task)) return '';
-  const asset = p._assets.find((a) => a.id === link.asset_id);
-  const part = asset?.parts?.find((x) => x.id === link.part_id);
-  if (!asset || !part?.id) return '';
-  const takes = link.quantity ?? part.consume_quantity ?? 1;
-  const bits = [t('chip.takes', { n: formatQuantity(takes, part.stock_unit), part: part.name })];
-  if (part.stock != null) {
-    bits.push(t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }));
+  return resolvedStockLinks(p, task)
+    .map(({ asset, part, takes }) => {
+      const bits = [t('chip.takes', { n: formatQuantity(takes, part.stock_unit), part: part.name })];
+      if (part.stock != null) {
+        bits.push(t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }));
+      }
+      return partChip(asset.id, part.id as string, bits.join(' · '), t('chip.part.tip'));
+    })
+    .join('');
+}
+
+/**
+ * The 1 stock chip of a task-list row. The row has room for a short chip only, so
+ * the full "Takes 2 Sediment filter · 4 left" line goes to the tooltip.
+ *
+ * - 1 part: the part name and what is left. A long name is cut, so the count stays
+ *   in view. A click opens the part, as on the task page.
+ * - More parts (#493): "2 parts", plus "Low stock" when 1 of them is at or below
+ *   its reorder point. A click opens the task page, which shows 1 chip per part.
+ *
+ * Empty when the task takes no part that still exists.
+ */
+export function consumableRowChip(p: PanelHost, task: Task): string {
+  const links = resolvedStockLinks(p, task);
+  if (!links.length) return '';
+  const lines = links.map(({ part, takes }) =>
+    t('chip.takes', { n: formatQuantity(takes, part.stock_unit), part: part.name }),
+  );
+  if (links.length === 1) {
+    const [{ asset, part }] = links;
+    const left =
+      part.stock != null ? t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }) : '';
+    const name = rowChipName(part.name, left);
+    const label = left ? `${name} · ${left}` : name;
+    return partChip(asset.id, part.id as string, label, left ? `${lines[0]} · ${left}` : lines[0]);
   }
-  const label = bits.join(' · ');
+  const low = links.some(
+    ({ part }) => part.stock != null && part.reorder_at != null && part.stock <= part.reorder_at,
+  );
+  const label = [tn('chip.parts', links.length), ...(low ? [t('chip.lowStock')] : [])].join(' · ');
+  const icon = `<ha-icon slot="icon" icon="mdi:package-variant" class="hk-chip-ic"></ha-icon>`;
+  return `<ha-assist-chip class="hk-counted hk-part-chip" role="link" tabindex="0" data-open-task="${escapeHTML(
+    task.id,
+  )}" label="${escapeHTML(label)}" title="${escapeHTML(lines.join('\n'))}">${icon}</ha-assist-chip>`;
+}
+
+/**
+ * The most characters a row chip label holds: the name, " · " and the count. At this
+ * length the chip and a "+n" fit the desktop chip track before its fade.
+ */
+const ROW_CHIP_LABEL_MAX = 22;
+/** The fewest characters of the name a row chip keeps, however long the count. */
+const ROW_CHIP_NAME_MIN = 6;
+
+/**
+ * A part name cut with an ellipsis, so that the name and *left* fit a row chip. The
+ * chip label has no style hook, so CSS cannot cut the name and keep the count after
+ * it.
+ */
+function rowChipName(name: string, left: string): string {
+  const room = left ? ROW_CHIP_LABEL_MAX - [...left].length - 3 : ROW_CHIP_LABEL_MAX;
+  const max = Math.max(ROW_CHIP_NAME_MIN, room);
+  const chars = [...name];
+  if (chars.length <= max) return name;
+  return `${chars.slice(0, max - 1).join('').trimEnd()}…`;
+}
+
+/** Each part a completion of *task* draws, with what it takes, that still exists. */
+function resolvedStockLinks(
+  p: PanelHost,
+  task: Task,
+): { asset: Asset; part: Part; takes: number }[] {
+  // A counted wear item's use task draws nothing off the shelf.
+  if (isUseTask(task)) return [];
+  const out: { asset: Asset; part: Part; takes: number }[] = [];
+  for (const link of stockLinks(task)) {
+    const asset = p._assets.find((a) => a.id === link.asset_id);
+    const part = asset?.parts?.find((x) => x.id === link.part_id);
+    if (!asset || !part?.id) continue;
+    out.push({ asset, part, takes: link.quantity ?? part.consume_quantity ?? 1 });
+  }
+  return out;
+}
+
+/** 1 chip that opens a part on its appliance page (`wirePartChips`). */
+function partChip(assetId: string, partId: string, label: string, title: string): string {
   const icon = `<ha-icon slot="icon" icon="mdi:package-variant" class="hk-chip-ic"></ha-icon>`;
   return `<ha-assist-chip class="hk-counted hk-part-chip" role="link" tabindex="0" data-asset-id="${escapeHTML(
-    asset.id,
-  )}" data-part-id="${escapeHTML(part.id)}" label="${escapeHTML(label)}" title="${escapeHTML(
-    t('chip.part.tip'),
+    assetId,
+  )}" data-part-id="${escapeHTML(partId)}" label="${escapeHTML(label)}" title="${escapeHTML(
+    title,
   )}">${icon}</ha-assist-chip>`;
 }
 
 /**
- * Wire every part chip, and the appliance link on a task's "Linked consumable"
- * row, to open its part. Each carries the destination in the DOM, the same way a
+ * Wire every part chip, and the appliance link on a task's "Linked consumables"
+ * row, to open its part. A list-row chip for several parts opens its task. Each carries the destination in the DOM, the same way a
  * device chip does. The click stops here, so a chip on a list row does not also
  * open the row's task.
  */
 export function wirePartChips(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.hk-part-chip, a.hk-part-link').forEach((chip) => {
-    const { assetId, partId } = chip.dataset;
-    if (!assetId || !partId) return;
+    const { assetId, partId, openTask } = chip.dataset;
+    // A row chip for several parts opens its task, which lists each part.
+    if (!openTask && (!assetId || !partId)) return;
     const go = (e: Event): void => {
       // A modified click on the link keeps the browser's own meaning: a new tab.
       const m = e as MouseEvent;
       if (m.ctrlKey || m.metaKey || m.shiftKey || m.button === 1) return;
       e.preventDefault();
       e.stopPropagation();
-      p._openPart(assetId, partId);
+      if (openTask) p._openDetail('task', openTask);
+      else p._openPart(assetId as string, partId as string);
     };
     chip.addEventListener('click', go);
     // An anchor already turns Enter into a click; only the chip needs the keys.

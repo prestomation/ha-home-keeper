@@ -312,7 +312,7 @@ the device takes, and the task reads **Takes 2 AAA · 2 left**. Complete the tas
 **Takes 2 AAA**.
 
 Click the chip to open that part on its appliance page. The page scrolls to the part
-and marks it. The appliance name in the task's **Linked consumable** row opens the
+and marks it. The appliance name in the task's **Linked consumables** row opens the
 same part.
 
 Delete that completion and the 2 batteries go back on the count. Each counted part

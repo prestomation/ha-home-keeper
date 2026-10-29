@@ -1389,8 +1389,8 @@ def test_reconcile_keeps_a_consumable_link_on_the_task():
         spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
     )
     tid = next(iter(tasks))
-    link = {"asset_id": "a1", "part_id": "p1", "manual": True, "quantity": 2}
-    tasks[tid]["source"]["part"] = dict(link)
+    link = [{"asset_id": "a1", "part_id": "p1", "quantity": 2}]
+    tasks[tid]["source"]["parts"] = [dict(x) for x in link]
     own = dict(tasks[tid]["source"][dc.TASK_SOURCE_DECLARATIVE_COMPANION])
 
     new_tasks, ops, changed = dc.reconcile_declarative_tasks(
@@ -1401,7 +1401,7 @@ def test_reconcile_keeps_a_consumable_link_on_the_task():
     assert ops == []
     assert new_tasks[tid]["source"] == {
         dc.TASK_SOURCE_DECLARATIVE_COMPANION: own,
-        "part": link,
+        "parts": link,
     }
 
 

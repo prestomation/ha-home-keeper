@@ -133,8 +133,18 @@ def test_b09_5_update_task_refuses_a_rename_of_a_wear_item_task(store):  # noqa:
     assert store._tasks[task["id"]]["name"] == "Replace battery"
 
 
-def test_b09_5_update_task_keeps_a_rename_of_a_manual_link(store):  # noqa: F811
+@pytest.mark.parametrize(
+    "hand_link",
+    [
+        # The old shape, which only an unmigrated document holds.
+        {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+        # Every hand link after the load (#493).
+        {"parts": [{"asset_id": "a1", "part_id": "p1"}]},
+    ],
+    ids=["old-part", "parts"],
+)
+def test_b09_5_update_task_keeps_a_rename_of_a_manual_link(store, hand_link):  # noqa: F811
     task = _task(store)
-    task["source"] = {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}}
+    task["source"] = hand_link
     updated = _run(store.update_task(task["id"], {"name": "Swap the filter"}))
     assert updated["name"] == "Swap the filter"

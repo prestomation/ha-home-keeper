@@ -15,6 +15,7 @@ import type {
   NotifyRunOptions,
   PanelTabInfo,
   Part,
+  PartLink,
   PortableDocument,
   Profile,
   SpendSummary,
@@ -271,28 +272,19 @@ export async function deleteOrphanedTasks(hass: Hass): Promise<string[]> {
 }
 
 /**
- * Link a task to an appliance consumable/part (so completing it draws down stock
- * and fires the low-stock reorder event), or clear the link by passing nulls.
- *
- * *quantity* is how much one completion of this task takes off, for the case where
- * the amount belongs to the task rather than to the part — one device takes 2 cells
- * and the next takes 4 from the same pool. Leave it out and the part's own
- * `consume_quantity` decides, which is what every link the panel makes does today:
- * the field is here for the integrations that write these links.
+ * Set the whole list of consumable parts a task takes (#493). Each completion
+ * draws each part's amount off its stock. An empty list clears every link. A link
+ * with no `quantity` takes the part's own `consume_quantity`.
  */
-export async function setTaskConsumable(
+export async function setTaskConsumables(
   hass: Hass,
   taskId: string,
-  assetId: string | null,
-  partId: string | null,
-  quantity?: number,
+  parts: PartLink[],
 ): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/set_task_consumable',
     task_id: taskId,
-    asset_id: assetId,
-    part_id: partId,
-    ...(quantity == null ? {} : { quantity }),
+    parts,
   });
   return res.task;
 }

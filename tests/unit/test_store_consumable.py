@@ -192,12 +192,9 @@ def test_linking_a_consumable_keeps_a_foreign_namespace(store):
     )
 
     assert linked["source"][GLUE] == {"device_id": "dev1"}
-    assert linked["source"]["part"] == {
-        "asset_id": asset["id"],
-        "part_id": part["id"],
-        "manual": True,
-        "quantity": 2,
-    }
+    assert linked["source"]["parts"] == [
+        {"asset_id": asset["id"], "part_id": part["id"], "quantity": 2}
+    ]
 
 
 def test_a_link_without_a_quantity_states_none(store):
@@ -205,7 +202,7 @@ def test_a_link_without_a_quantity_states_none(store):
     part = asset["parts"][0]
     task = _task(store)
     linked = _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
-    assert "quantity" not in linked["source"]["part"]
+    assert "quantity" not in linked["source"]["parts"][0]
 
 
 def test_relinking_the_same_part_and_quantity_is_a_no_op(store):
@@ -222,7 +219,7 @@ def test_relinking_the_same_part_and_quantity_is_a_no_op(store):
     changed = _run(
         store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=3)
     )
-    assert changed["source"]["part"]["quantity"] == 3
+    assert changed["source"]["parts"][0]["quantity"] == 3
     assert len(store._hass.bus.fired) == fired + 1
 
 
@@ -318,11 +315,9 @@ def test_a_completion_records_what_it_took(store):
     _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
     _run(store.complete_task(task["id"]))
     entry = store._tasks[task["id"]]["completions"][-1]
-    assert entry["stock_drawn"] == {
-        "asset_id": asset["id"],
-        "part_id": part["id"],
-        "quantity": 2,
-    }
+    assert entry["stock_drawn"] == [
+        {"asset_id": asset["id"], "part_id": part["id"], "quantity": 2}
+    ]
 
 
 def test_deleting_a_completion_gives_its_stock_back(store):
@@ -345,7 +340,8 @@ def test_undo_gives_back_only_what_the_empty_part_really_gave(store):
     _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
     _run(store.complete_task(task["id"]))
     assert part["stock"] == 0
-    assert store._tasks[task["id"]]["completions"][-1]["stock_drawn"]["quantity"] == 1
+    [drawn] = store._tasks[task["id"]]["completions"][-1]["stock_drawn"]
+    assert drawn["quantity"] == 1
     _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
     assert part["stock"] == 1
 
@@ -619,7 +615,7 @@ def test_b17_1_two_manual_links_to_one_part_are_not_merged_by_a_split_elsewhere(
     second = _dated_task(store, "2026-02-01T00:00:00+00:00", device_id="dev_garage")
     for task in (first, second):
         _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
-    assert first["source"]["part"] == second["source"]["part"]
+    assert first["source"]["parts"] == second["source"]["parts"]
 
     split = {"zw_half": "composite", "sb_half": "composite"}
     assert _run(store.async_merge_split_duplicates(split)) == 0
@@ -1415,3 +1411,451 @@ def test_a_moved_completion_reads_as_a_pair_of_logbook_rows(store) -> None:
         )
         == "was completed"
     )
+
+
+# ── several consumables on 1 task (#493) ─────────────────────────────────────
+
+
+def _water(store):
+    """The reporter's case: 1 water system with 2 different filters in stock."""
+    return _asset(
+        store,
+        name="Water system",
+        parts=[
+            {"name": "Sediment filter", "stock": 4, "reorder_at": 1},
+            {"name": "Carbon filter", "stock": 2, "reorder_at": 1},
+        ],
+    )
+
+
+def _links(asset, *quantities):
+    out = []
+    for part, quantity in zip(asset["parts"], quantities, strict=False):
+        link = {"asset_id": asset["id"], "part_id": part["id"]}
+        if quantity is not None:
+            link["quantity"] = quantity
+        out.append(link)
+    return out
+
+
+def test_493_a_task_takes_a_list_of_consumables(store):
+    asset = _water(store)
+    task = _task(store, source={GLUE: {"device_id": "dev1"}})
+    linked = _run(store.set_task_consumables(task["id"], _links(asset, None, 2)))
+    assert linked["source"] == {
+        GLUE: {"device_id": "dev1"},
+        "parts": _links(asset, None, 2),
+    }
+    [event] = store._hass.bus.of("home_keeper_task_updated")
+    assert event["changed_fields"] == ["source"]
+    assert event["source"]["parts"] == _links(asset, None, 2)
+
+
+def test_493_the_single_link_call_writes_a_list_of_1(store):
+    asset = _water(store)
+    part = asset["parts"][1]
+    task = _task(store)
+    linked = _run(
+        store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2)
+    )
+    assert linked["source"] == {
+        "parts": [{"asset_id": asset["id"], "part_id": part["id"], "quantity": 2}]
+    }
+
+
+def test_493_the_single_link_call_replaces_the_whole_list(store):
+    asset = _water(store)
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    part = asset["parts"][0]
+    linked = _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+    assert linked["source"] == {"parts": _links(asset, None)}
+
+
+def test_493_an_empty_list_clears_every_link(store):
+    asset = _water(store)
+    task = _task(store, source={GLUE: {"device_id": "dev1"}})
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    cleared = _run(store.set_task_consumables(task["id"], []))
+    assert cleared["source"] == {GLUE: {"device_id": "dev1"}}
+    assert len(store._hass.bus.of("home_keeper_task_updated")) == 2
+
+
+def test_493_the_same_list_again_is_a_no_op(store):
+    asset = _water(store)
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, 1, 2)))
+    saves = store._store.saves
+    fired = len(store._hass.bus.fired)
+    _run(store.set_task_consumables(task["id"], _links(asset, 1, 2)))
+    assert (store._store.saves, len(store._hass.bus.fired)) == (saves, fired)
+
+
+def test_493_an_empty_list_on_a_plain_task_is_a_no_op(store):
+    task = _task(store)
+    fired = len(store._hass.bus.fired)
+    assert _run(store.set_task_consumables(task["id"], [])) is task
+    assert task["source"] is None
+    assert len(store._hass.bus.fired) == fired
+
+
+def test_493_a_list_refuses_the_same_part_twice(store):
+    asset = _water(store)
+    task = _task(store)
+    twice = _links(asset, None) + _links(asset, 2)
+    message = f"the part {asset['parts'][0]['id']!r} is in the list twice"
+    with raises_exactly(TaskValidationError, message):
+        _run(store.set_task_consumables(task["id"], twice))
+    assert task["source"] is None
+
+
+def test_493_a_list_refuses_an_unknown_part_and_writes_nothing(store):
+    asset = _water(store)
+    task = _task(store)
+    bad = [*_links(asset, None), {"asset_id": asset["id"], "part_id": "nope"}]
+    message = f"asset {asset['id']!r} has no part 'nope'"
+    with raises_exactly(TaskValidationError, message):
+        _run(store.set_task_consumables(task["id"], bad))
+    with raises_exactly(TaskValidationError, "unknown asset: 'gone'"):
+        _run(
+            store.set_task_consumables(
+                task["id"], [{"asset_id": "gone", "part_id": "p"}]
+            )
+        )
+    with raises_exactly(
+        TaskValidationError, "linking a consumable needs both asset_id and part_id"
+    ):
+        _run(store.set_task_consumables(task["id"], [{"asset_id": asset["id"]}]))
+    with raises_exactly(TaskValidationError, "quantity must be greater than zero"):
+        _run(store.set_task_consumables(task["id"], _links(asset, 0)))
+    assert task["source"] is None
+    assert not store._hass.bus.fired
+
+
+def test_493_a_list_has_a_limit(store):
+    asset = _asset(
+        store,
+        parts=[
+            {"name": f"P{n}", "stock": 1}
+            for n in range(store_mod.MAX_CONSUMABLE_LINKS + 1)
+        ],
+    )
+    task = _task(store)
+    links = _links(asset, *([None] * len(asset["parts"])))
+    with raises_exactly(
+        TaskValidationError,
+        f"a task takes at most {store_mod.MAX_CONSUMABLE_LINKS} consumables",
+    ):
+        _run(store.set_task_consumables(task["id"], links))
+    linked = _run(
+        store.set_task_consumables(task["id"], links[: store_mod.MAX_CONSUMABLE_LINKS])
+    )
+    assert len(linked["source"]["parts"]) == store_mod.MAX_CONSUMABLE_LINKS
+
+
+def test_493_a_wear_task_takes_no_list(store):
+    asset = _asset(store, parts=[{**_WEAR, "stock": 4}])
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    with raises_exactly(
+        TaskValidationError,
+        "This task is auto-generated from an appliance wear part and is "
+        "already linked to it — manage its part in the appliance editor.",
+    ):
+        _run(store.set_task_consumables(task["id"], _links(asset, None)))
+
+
+def test_493_a_buy_reminder_takes_no_list(store):
+    asset = _water(store)
+    task = _task(store, name="Buy filter")
+    task["source"] = {"buy": {"asset_id": asset["id"], "part_id": "p"}}
+    with raises_exactly(
+        TaskValidationError,
+        "A buy reminder restocks its part, so it cannot be linked to a consumable.",
+    ):
+        _run(store.set_task_consumables(task["id"], _links(asset, None)))
+    assert _run(store.set_task_consumables(task["id"], [])) is task
+
+
+def test_493_an_unknown_task_raises_key_error(store):
+    with pytest.raises(KeyError):
+        _run(store.set_task_consumables("nope", []))
+
+
+def test_493_add_task_refuses_the_list_namespace(store):
+    with raises_exactly(
+        TaskValidationError,
+        "source keys ['parts'] are reserved for Home Keeper's own task reconcilers "
+        "and cannot be set via add_task",
+    ):
+        _run(store.add_task({"name": "x", "source": {"parts": []}}))
+
+
+def test_493_a_completion_draws_every_linked_part(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, 2, None)))
+    _run(store.complete_task(task["id"]))
+    assert (sediment["stock"], carbon["stock"]) == (2, 1)
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_drawn"] == [
+        {"asset_id": asset["id"], "part_id": sediment["id"], "quantity": 2},
+        {"asset_id": asset["id"], "part_id": carbon["id"], "quantity": 1},
+    ]
+    assert entry["last_replaced_before"] == [
+        {"asset_id": asset["id"], "part_id": sediment["id"], "last_replaced": None},
+        {"asset_id": asset["id"], "part_id": carbon["id"], "last_replaced": None},
+    ]
+    assert sediment["last_replaced"] == carbon["last_replaced"] == "2026-06-13"
+    # Each part fires its own crossing.
+    [low] = store._hass.bus.of("home_keeper_part_low_stock")
+    assert low["part_id"] == carbon["id"]
+
+
+def test_493_the_undo_gives_back_every_part(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    sediment["last_replaced"] = "2026-01-02"
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, 2, None)))
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert (sediment["stock"], carbon["stock"]) == (4, 2)
+    assert (sediment["last_replaced"], carbon["last_replaced"]) == ("2026-01-02", None)
+    [restocked] = store._hass.bus.of("home_keeper_part_restocked")
+    assert restocked["part_id"] == carbon["id"]
+
+
+def test_493_a_move_restamps_every_part(store):
+    asset = _water(store)
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.complete_task(task["id"]))
+    new = datetime(2026, 6, 2, 9, tzinfo=TZ).isoformat()
+    _run(store.move_completion(task["id"], _completed_ts(store, task["id"]), new))
+    assert [p["last_replaced"] for p in asset["parts"]] == ["2026-06-02"] * 2
+
+
+def test_493_a_missing_part_is_skipped_and_the_rest_still_draw(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    asset["parts"].remove(sediment)
+    _run(store.complete_task(task["id"]))
+    assert carbon["stock"] == 1
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert [d["part_id"] for d in entry["stock_drawn"]] == [carbon["id"]]
+
+
+def test_493_a_link_to_a_deleted_appliance_draws_nothing(store):
+    asset = _water(store)
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    del store._assets[asset["id"]]
+    _run(store.complete_task(task["id"]))
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert "stock_drawn" not in entry
+    assert "last_replaced_before" not in entry
+
+
+def test_493_a_task_with_an_empty_list_completes_as_a_plain_task(store):
+    task = _task(store, source={"parts": []})
+    _run(store.complete_task(task["id"]))
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert "stock_drawn" not in entry
+    assert "last_replaced_before" not in entry
+
+
+def test_493_an_old_link_loads_into_the_list(store):
+    asset = _water(store)
+    part = asset["parts"][0]
+    legacy = _task(store)
+    legacy["source"] = {
+        "part": {
+            "asset_id": asset["id"],
+            "part_id": part["id"],
+            "manual": True,
+            "quantity": 2,
+        },
+        GLUE: {"device_id": "dev1"},
+    }
+    store._store.data = {"tasks": dict(store._tasks), "assets": dict(store._assets)}
+    _run(store.load())
+    loaded = store._tasks[legacy["id"]]
+    assert loaded["source"] == {
+        GLUE: {"device_id": "dev1"},
+        "parts": [{"asset_id": asset["id"], "part_id": part["id"], "quantity": 2}],
+    }
+    assert store._store.saves == 1, "the migration is saved once"
+    _run(store.load())
+    assert store._store.saves == 1, "a migrated document is not saved again"
+    # It behaves as before: the completion draws the link's 2.
+    _run(store.complete_task(legacy["id"]))
+    assert store._assets[asset["id"]]["parts"][0]["stock"] == 2
+
+
+def test_493_an_old_completion_entry_still_undoes(store):
+    # A completion stored before the lists: 1 dict and 1 bare date.
+    asset = _water(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+    _run(store.complete_task(task["id"]))
+    entry = store._tasks[task["id"]]["completions"][-1]
+    entry["stock_drawn"] = {
+        "asset_id": asset["id"],
+        "part_id": part["id"],
+        "quantity": 2,
+    }
+    entry["last_replaced_before"] = "2026-01-02"
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert part["stock"] == 4
+    assert part["last_replaced"] == "2026-01-02"
+
+
+def test_493_mixed_old_and_new_tasks_each_draw_their_parts(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    old = _task(store, name="Old")
+    old["source"] = {
+        "part": {"asset_id": asset["id"], "part_id": sediment["id"], "manual": True}
+    }
+    new = _task(store, name="New")
+    _run(store.set_task_consumables(new["id"], _links(asset, None, 2)))
+    # The old shape reaches a running store only through a load, which migrates it.
+    store._store.data = {"tasks": dict(store._tasks), "assets": dict(store._assets)}
+    _run(store.load())
+    sediment, carbon = store._assets[asset["id"]]["parts"]
+    _run(store.complete_task(old["id"]))
+    _run(store.complete_task(new["id"]))
+    assert (sediment["stock"], carbon["stock"]) == (2, 0)
+
+
+def test_493_removing_1_part_keeps_the_other_link(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    asset["parts"].remove(sediment)
+    _run(store.reconcile_part_tasks())
+    assert store._tasks[task["id"]]["source"] == {
+        "parts": [{"asset_id": asset["id"], "part_id": carbon["id"]}]
+    }
+
+
+def test_493_deleting_an_appliance_keeps_links_to_other_appliances(store):
+    water = _water(store)
+    other = _asset(store, name="Fridge", parts=[{"name": "Fridge filter", "stock": 1}])
+    task = _task(store, source={GLUE: {"device_id": "dev1"}})
+    links = _links(water, None) + _links(other, None)
+    _run(store.set_task_consumables(task["id"], links))
+    _run(store.delete_asset(water["id"]))
+    assert store._tasks[task["id"]]["source"] == {
+        GLUE: {"device_id": "dev1"},
+        "parts": _links(other, None),
+    }
+    _run(store.delete_asset(other["id"]))
+    assert store._tasks[task["id"]]["source"] == {GLUE: {"device_id": "dev1"}}
+
+
+# ── review fixes (#493) ──────────────────────────────────────────────────────
+
+
+def test_493_r1_undo_does_not_stamp_a_part_linked_after_the_older_completion(store):
+    # Linked to the sediment filter only, completed on 1 June. The carbon filter is
+    # linked later, and today's completion is undone: the carbon filter was never
+    # replaced on 1 June, so it goes back to no date.
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None)))
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert carbon["last_replaced"] is None
+    assert sediment["last_replaced"] == "2026-06-01"
+
+
+def test_493_r1_undo_falls_back_to_the_last_completion_that_stamped_the_part(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert sediment["last_replaced"] == carbon["last_replaced"] == "2026-06-01"
+
+
+def _old_entry(store, task, part, last_replaced, *, drawn=True):
+    """The last completion of *task*, rewritten in the shape before the lists."""
+    entry = store._tasks[task["id"]]["completions"][-1]
+    entry["last_replaced_before"] = last_replaced
+    if drawn:
+        entry["stock_drawn"] = {
+            "asset_id": part["asset_id"],
+            "part_id": part["part_id"],
+            "quantity": 1,
+        }
+    else:
+        entry.pop("stock_drawn", None)
+    return entry
+
+
+def test_493_r2_an_old_bare_date_goes_to_the_part_its_draw_names(store):
+    # The old entry drew the carbon filter. The links were reordered since, so the
+    # first link is now the sediment filter. The bare date belongs to the carbon one.
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)[::-1]))
+    _run(store.complete_task(task["id"]))
+    link_carbon = {"asset_id": asset["id"], "part_id": carbon["id"]}
+    entry = _old_entry(store, task, link_carbon, "2026-01-02")
+    sediment["last_replaced"] = "2026-06-13"  # as the completion stamped it
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert carbon["last_replaced"] == "2026-01-02"
+    assert sediment["last_replaced"] == "2026-06-13", "not the part of the old date"
+
+
+def test_493_r2_an_old_bare_date_with_no_draw_needs_exactly_1_link(store):
+    asset = _water(store)
+    sediment, carbon = asset["parts"]
+    task = _task(store)
+    _run(store.set_task_consumables(task["id"], _links(asset, None, None)))
+    _run(store.complete_task(task["id"]))
+    link = {"asset_id": asset["id"], "part_id": sediment["id"]}
+    entry = _old_entry(store, task, link, "2026-01-02", drawn=False)
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    # 2 links and no draw to name the part: the bare date goes nowhere.
+    assert sediment["last_replaced"] == carbon["last_replaced"] == "2026-06-13"
+
+    single = _task(store, name="Single")
+    _run(store.set_task_consumables(single["id"], _links(asset, None)))
+    _run(store.complete_task(single["id"]))
+    entry = _old_entry(store, single, link, "2026-01-03", drawn=False)
+    _run(store.delete_completion(single["id"], entry["ts"]))
+    assert sediment["last_replaced"] == "2026-01-03"
+
+
+def test_493_r1_a_wear_completion_from_before_b01_3_still_counts_on_undo(store):
+    # An entry stored before last_replaced_before existed has no key. On the 1 part
+    # of a wear task it still counts as a replacement of that part.
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    old = store._tasks[task["id"]]["completions"][-1]
+    old.pop("last_replaced_before")
+    old.pop("stock_drawn", None)
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-01"
