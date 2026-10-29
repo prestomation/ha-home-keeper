@@ -14,6 +14,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   A task can take more than 1 consumable part with its own amount for each part.
   (Fixes #493) (Thanks @ebolly!)
 
+### Changed
+
+- **Consumable links in task data.** Task events and `list_tasks` now show the linked parts
+  of a task in the `source.parts` list, and completion entries keep `stock_drawn` and
+  `last_replaced_before` as lists, so change an automation that reads `source.part` or the
+  old shape of those 2 fields. The `asset_id` and `part_id` fields of
+  `home_keeper.set_task_consumable` still work but log a warning.
+
 ## [0.35.0b1]
 
 ### Added
