@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Events &amp; automations | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/docs/guide/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Events &amp; automations | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change. Use these"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change. Use these"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-511/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/docs/guide/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/docs/guide/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/docs/guide/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-511/docs/guide/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-511/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-511/assets/js/runtime~main.9c71083e.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-511/assets/js/runtime~main.d6f9e641.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-511/assets/js/main.5ca688b7.js" defer="defer"></script>
 </head>
 <body>
@@ -202,7 +202,11 @@ fired after a reboot. The full catalog with every event and payload is in
 
 
 
-<table><thead><tr><th>Event</th><th>Row</th></tr></thead><tbody><tr><td>Completed</td><td>was completed by Ann</td></tr><tr><td>Completed on an earlier day</td><td>was completed by Ann on 2026-10-20</td></tr><tr><td>Completed by a sensor</td><td>was completed by its sensor</td></tr><tr><td>Completion removed</td><td>had a completion removed</td></tr><tr><td>Completion of an earlier day removed</td><td>had its completion on 2026-10-20 removed</td></tr><tr><td>Skipped</td><td>was skipped</td></tr><tr><td>Snoozed</td><td>was snoozed until 2026-10-20</td></tr><tr><td>Due soon</td><td>is due in 48 hours</td></tr><tr><td>Overdue</td><td>became overdue</td></tr><tr><td>Armed</td><td>became due</td></tr><tr><td>Due today set</td><td>was set to due today</td></tr><tr><td>Occurrence moved</td><td>has its occurrence on 2026-11-01 moved to 2026-11-03</td></tr></tbody></table>
+
+
+
+
+<table><thead><tr><th>Event</th><th>Row</th></tr></thead><tbody><tr><td>Completed</td><td>was completed by Ann</td></tr><tr><td>Completed on an earlier day</td><td>was completed by Ann on 2026-10-20</td></tr><tr><td>Completed by a sensor</td><td>was completed by its sensor</td></tr><tr><td>Completion removed</td><td>had a completion removed</td></tr><tr><td>Completion of an earlier day removed</td><td>had its completion on 2026-10-20 removed</td></tr><tr><td>Skipped</td><td>was skipped</td></tr><tr><td>Snoozed</td><td>was snoozed until 2026-10-20</td></tr><tr><td>Due soon</td><td>is due in 48 hours</td></tr><tr><td>Overdue</td><td>became overdue</td></tr><tr><td>No longer overdue</td><td>is no longer overdue</td></tr><tr><td>Armed</td><td>became due</td></tr><tr><td>Due today set</td><td>was set to due today</td></tr><tr><td>Occurrence moved</td><td>has its occurrence on 2026-11-01 moved to 2026-11-03</td></tr></tbody></table>
 <p>A completion row shows the day of the completion when it is not the day of the row.
 The day is in the time zone of Home Assistant. A change to the time of a completion
 writes 2 rows: the completion that is removed and the completion that is added.</p>
@@ -214,12 +218,67 @@ writes 2 rows: the completion that is removed and the completion that is added.<
 </ul>
 <p>The logbook text is in English. Created, updated and deleted tasks get no row on the
 to-do list.</p>
+<p>A row also shows who made the change:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Change made by</th><th>The row shows</th></tr></thead><tbody><tr><td>A user in the panel or on the to-do list</td><td>That user</td></tr><tr><td>The <strong>Complete</strong> button or a tag scan</td><td>The user who pressed or scanned</td></tr><tr><td>An action that a user calls</td><td>That user</td></tr><tr><td>An automation or a script</td><td>That automation or script</td></tr><tr><td>Home Keeper on its own, such as <strong>became overdue</strong></td><td>No user</td></tr></tbody></table>
+<p>The <strong>is no longer overdue</strong> row names the user of the change that ended the overdue
+period, such as the user who completed the task.</p>
+<p>The event has the same context. An automation can read the user from
+<code>trigger.event.context.user_id</code>. For a tag scan, the context has the user of the scan.
+Its parent is the scan. A change that Home Keeper makes on its own has a new context with
+no user. Examples are an overdue crossing and a change from a sensor.</p>
 <p><img decoding="async" loading="lazy" alt="The Activity page filtered to the Home Keeper to-do list, with a row for each task event" src="/ha-home-keeper/pr-preview/pr-511/assets/images/logbook-after-panel-35cccf7aaef519ade79edaf5d3892a04.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The Activity card on the device page of a water heater, with the completion of its task" src="/ha-home-keeper/pr-preview/pr-511/assets/images/logbook-after-device-d88e7d759c4bdfe28c33b5249f29a7e4.png" width="1280" height="1254" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="show-the-history-on-a-dashboard">Show the history on a dashboard<a href="#show-the-history-on-a-dashboard" class="hash-link" aria-label="Direct link to Show the history on a dashboard" title="Direct link to Show the history on a dashboard" translate="no">​</a></h3>
 <p>A card that reads the logbook can show the rows. Use the <code>logbook</code> source of
 <a href="https://github.com/KadenThomp36/chronicle-card" target="_blank" rel="noopener noreferrer" class="">Chronicle Card</a> with the to-do list:</p>
 <div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> custom</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain">chronicle</span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain">card</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">title</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> Task history</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">days_back</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">30</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">sources</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> logbook</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">entities</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> todo.home_keeper_tasks</span><br></div></code></pre></div></div>
+<p>All task rows are on 1 entity, the to-do list, so 1 source gets the rows of all tasks.
+The logbook can filter rows only by entity. To show 1 kind of row, filter on the text of
+the row. The Chronicle Card <code>search</code> filter keeps the rows that contain the text.</p>
+<p>A task that becomes overdue gets a <strong>became overdue</strong> row. When it stops being overdue,
+it gets an <strong>is no longer overdue</strong> row. These changes end the overdue period:</p>
+<ul>
+<li class="">a completion</li>
+<li class="">a skip</li>
+<li class="">a snooze</li>
+<li class="">a move of its date to the future</li>
+<li class="">a disable of the task</li>
+<li class="">a clear by its sensor</li>
+</ul>
+<p>Both rows contain the word &quot;overdue&quot;. So this card shows when each task became overdue
+and when it stopped:</p>
+<div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> custom</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain">chronicle</span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain">card</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">title</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> Overdue tasks</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">days_back</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">30</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">sources</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> logbook</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">entities</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> todo.home_keeper_tasks</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token key atrule" style="color:#00a4db">filters</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token key atrule" style="color:#00a4db">search</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> overdue</span><br></div></code></pre></div></div>
+<p>Use <code>search: was completed</code> for the completions. <code>search</code> takes 1 text, so use 1 card for
+each kind of row.</p>
 <p>The logbook keeps the rows for as long as the recorder keeps its data. The default is
 10 days. To keep the rows longer, set <code>purge_keep_days</code>:</p>
 <div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">recorder</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token key atrule" style="color:#00a4db">purge_keep_days</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">90</span><br></div></code></pre></div></div>
