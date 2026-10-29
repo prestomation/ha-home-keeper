@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">38 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">34<span class="text"> run</span></button>
+            <span class="text">40 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">36<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">4<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">3<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">2<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_tags_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-27 16:16 +0000
+            created at 2026-10-29 03:48 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -98,9 +98,9 @@
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="key">import</span> <span class="nam">logging</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="key">from</span> <span class="nam">typing</span> <span class="key">import</span> <span class="nam">TYPE_CHECKING</span><span class="op">,</span> <span class="nam">Any</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">from</span> <span class="nam">homeassistant</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">CALLBACK_TYPE</span><span class="op">,</span> <span class="nam">Event</span><span class="op">,</span> <span class="nam">HomeAssistant</span><span class="op">,</span> <span class="nam">callback</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">from</span> <span class="nam">homeassistant</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">CALLBACK_TYPE</span><span class="op">,</span> <span class="nam">Context</span><span class="op">,</span> <span class="nam">Event</span><span class="op">,</span> <span class="nam">HomeAssistant</span><span class="op">,</span> <span class="nam">callback</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="key">from</span> <span class="op">.</span> <span class="key">import</span> <span class="nam">models</span><span class="op">,</span> <span class="nam">tags</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="key">from</span> <span class="op">.</span> <span class="key">import</span> <span class="nam">caller</span><span class="op">,</span> <span class="nam">models</span><span class="op">,</span> <span class="nam">tags</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">const</span> <span class="key">import</span> <span class="nam">EVENT_HA_TAG_SCANNED</span><span class="op">,</span> <span class="nam">ORIGIN_TAG_SCAN</span>&nbsp;</span><span class="r"></span></p>
     <p class="exc show_exc"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="exc show_exc"><span class="n"><a id="t22" href="#t22">22</a></span><span class="t"><span class="key">if</span> <span class="nam">TYPE_CHECKING</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -159,15 +159,20 @@
     <p class="run"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">        <span class="nam">tag_id</span> <span class="op">=</span> <span class="nam">event</span><span class="op">.</span><span class="nam">data</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;tag_id&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">tag_id</span> <span class="key">or</span> <span class="key">not</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">tag_id</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">76&#x202F;&#x219B;&#x202F;77</span><span class="annotate long">line 76 didn't jump to line 77 because the condition on line 76 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">            <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">        <span class="nam">coord</span> <span class="op">=</span> <span class="nam">find_coordinator</span><span class="op">(</span><span class="nam">hass</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">        <span class="key">if</span> <span class="nam">coord</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">            <span class="com"># The entry reloads: wait for it, so the scan is not lost.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">            <span class="nam">hass</span><span class="op">.</span><span class="nam">async_create_task</span><span class="op">(</span><span class="nam">_after_setup</span><span class="op">(</span><span class="nam">tag_id</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">            <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">        <span class="key">if</span> <span class="nam">matched</span> <span class="op">:=</span> <span class="nam">_match</span><span class="op">(</span><span class="nam">coord</span><span class="op">,</span> <span class="nam">tag_id</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">            <span class="nam">hass</span><span class="op">.</span><span class="nam">async_create_task</span><span class="op">(</span><span class="nam">_complete</span><span class="op">(</span><span class="nam">coord</span><span class="op">,</span> <span class="nam">matched</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">    <span class="key">return</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">bus</span><span class="op">.</span><span class="nam">async_listen</span><span class="op">(</span><span class="nam">EVENT_HA_TAG_SCANNED</span><span class="op">,</span> <span class="nam">_on_tag_scanned</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">        <span class="com"># The completion is a child of the scan and has the user of the scan, so the</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">        <span class="com"># logbook shows who scanned the tag (``caller.py``). A task that starts in</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">        <span class="com"># the block keeps the caller.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">        <span class="nam">context</span> <span class="op">=</span> <span class="nam">Context</span><span class="op">(</span><span class="nam">user_id</span><span class="op">=</span><span class="nam">event</span><span class="op">.</span><span class="nam">context</span><span class="op">.</span><span class="nam">user_id</span><span class="op">,</span> <span class="nam">parent_id</span><span class="op">=</span><span class="nam">event</span><span class="op">.</span><span class="nam">context</span><span class="op">.</span><span class="nam">id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">        <span class="key">with</span> <span class="nam">caller</span><span class="op">.</span><span class="nam">caller</span><span class="op">(</span><span class="nam">context</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">            <span class="nam">coord</span> <span class="op">=</span> <span class="nam">find_coordinator</span><span class="op">(</span><span class="nam">hass</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">            <span class="key">if</span> <span class="nam">coord</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">                <span class="com"># The entry reloads: wait for it, so the scan is not lost.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">                <span class="nam">hass</span><span class="op">.</span><span class="nam">async_create_task</span><span class="op">(</span><span class="nam">_after_setup</span><span class="op">(</span><span class="nam">tag_id</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">                <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">            <span class="key">if</span> <span class="nam">matched</span> <span class="op">:=</span> <span class="nam">_match</span><span class="op">(</span><span class="nam">coord</span><span class="op">,</span> <span class="nam">tag_id</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">                <span class="nam">hass</span><span class="op">.</span><span class="nam">async_create_task</span><span class="op">(</span><span class="nam">_complete</span><span class="op">(</span><span class="nam">coord</span><span class="op">,</span> <span class="nam">matched</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">    <span class="key">return</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">bus</span><span class="op">.</span><span class="nam">async_listen</span><span class="op">(</span><span class="nam">EVENT_HA_TAG_SCANNED</span><span class="op">,</span> <span class="nam">_on_tag_scanned</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -177,7 +182,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_tags_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-27 16:16 +0000
+            created at 2026-10-29 03:48 +0000
         </p>
     </div>
 </footer>
