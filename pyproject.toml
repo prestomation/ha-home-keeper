@@ -116,6 +116,8 @@ only_mutate = [
     # tests/unit/test_task_photos.py.
     "custom_components/home_keeper/task_photos.py",
     "custom_components/home_keeper/events.py",
+    # The caller context of the store events (#467). Driven by tests/unit/test_caller.py.
+    "custom_components/home_keeper/caller.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
     "custom_components/home_keeper/card_resource.py",

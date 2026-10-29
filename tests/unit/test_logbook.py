@@ -137,3 +137,16 @@ def test_a_snooze_row_names_the_day_in_the_home_assistant_time_zone(
     assert moved_row[_LB.LOGBOOK_ENTRY_MESSAGE] == (
         "has its occurrence on 2026-10-28 back on its date"
     )
+
+
+def test_the_resolved_row_shares_the_word_overdue() -> None:
+    """Chronicle Card ``search: overdue`` shows the 2 rows of an overdue period."""
+    rows = [
+        _describers()[name](types.SimpleNamespace(event_type=name, data={"name": "F"}))
+        for name in ("home_keeper_task_overdue", "home_keeper_task_overdue_resolved")
+    ]
+    assert [row[_LB.LOGBOOK_ENTRY_MESSAGE] for row in rows] == [
+        "became overdue",
+        "is no longer overdue",
+    ]
+    assert rows[1][_LB.LOGBOOK_ENTRY_ICON] == "mdi:check-decagram-outline"

@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Uppgiftstillfälle flyttat",
               "task_overdue": "Uppgift blev försenad",
               "task_due_soon": "Uppgift förfaller snart",
+              "task_overdue_resolved": "Uppgift inte längre försenad",
               "part_low_stock": "Reservdel med lågt lagersaldo",
               "part_out_of_stock": "Reservdel slut i lager",
               "part_restocked": "Reservdel påfylld",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Uppgift förfaller snart",
       "description": "Utlöses när en uppgift förfaller om 3 dagar eller mindre."
+    },
+    "task_overdue_resolved": {
+      "name": "Uppgift inte längre försenad",
+      "description": "Utlöses när en försenad uppgift inte längre är försenad."
     },
     "part_low_stock": {
       "name": "Reservdel med lågt lagersaldo",

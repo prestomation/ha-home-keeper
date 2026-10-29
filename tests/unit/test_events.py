@@ -320,6 +320,11 @@ def test_created_updated_and_deleted_get_no_row():
         ),
         ("home_keeper_task_snoozed", {}, "was snoozed until ?"),
         ("home_keeper_task_overdue", {"days_overdue": 3}, "became overdue"),
+        (
+            "home_keeper_task_overdue_resolved",
+            {"days_overdue": 3},
+            "is no longer overdue",
+        ),
         ("home_keeper_task_due_soon", {"due_in_hours": 12.0}, "is due in 12 hours"),
         ("home_keeper_task_due_soon", {"due_in_hours": 2.5}, "is due in 2.5 hours"),
         ("home_keeper_task_due_soon", {"due_in_hours": 1.0}, "is due in 1 hour"),

@@ -5,7 +5,8 @@ task map, but a due date passing is not itself a mutation — nothing *calls* an
 when ``now`` crosses a task's ``next_due``. This module turns "what the tasks look
 like now" plus "what we already announced" into the set of `home_keeper_task_overdue`
 / `home_keeper_task_due_soon` events to fire, **edge-triggered** so each is announced
-at most once per ``next_due`` value.
+at most once per ``next_due`` value. When an announced overdue task stops being
+overdue, it fires `home_keeper_task_overdue_resolved` once (#467).
 
 It imports nothing from Home Assistant (only the pure ``recurrence``/``events`` core
 and ``const``), so the crossing logic — fire-once, reset-on-reschedule, skip
@@ -20,7 +21,7 @@ from datetime import timedelta
 from typing import Any
 
 from . import events, recurrence
-from .const import EVENT_TASK_DUE_SOON, EVENT_TASK_OVERDUE
+from .const import EVENT_TASK_DUE_SOON, EVENT_TASK_OVERDUE, EVENT_TASK_OVERDUE_RESOLVED
 
 # How far ahead of ``next_due`` a task counts as "due soon". Matches the binary
 # sensor's ``due_soon`` attribute window so the event and the entity agree.
@@ -52,6 +53,10 @@ def detect_transitions(
     and disabled tasks never fire (they're still tracked, so re-arming/re-enabling
     starts fresh). Tasks absent from *tasks* drop out of the state (deleted tasks can't
     leak stale flags).
+
+    A task that announced ``overdue`` and is not overdue now fires
+    ``overdue_resolved`` once: its new date is in the future, it is dormant, or it is
+    disabled. A deleted task fires nothing: ``home_keeper_task_deleted`` records it.
     """
     fired: list[tuple[str, dict[str, Any]]] = []
     next_state: StateMap = {}
@@ -102,6 +107,23 @@ def detect_transitions(
                     )
                 )
                 overdue_fired = True
+
+        live = task.get("enabled", True) and recurrence.is_overdue(task, now=now)
+        if prior is not None and prior.get("overdue_fired") and not live:
+            since = prior["next_due"]
+            fired.append(
+                (
+                    EVENT_TASK_OVERDUE_RESOLVED,
+                    events.task_event_data(
+                        task,
+                        extra={
+                            "overdue_since": since,
+                            "days_overdue": (now - recurrence._parse(since)).days,
+                        },
+                    ),
+                )
+            )
+            overdue_fired = False
 
         next_state[tid] = {
             "next_due": next_due,

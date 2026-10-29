@@ -15,13 +15,14 @@ from datetime import datetime, time
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import (
     assets,
+    caller,
     declarative_companions,
     events,
     models,
@@ -328,6 +329,10 @@ class HomeKeeperStore:
         # Home Assistant adds the entity. The task events carry it, so the logbook
         # shows their rows on the to-do list.
         self.todo_entity_id: str | None = None
+        # The caller of the last event of each task (``_fire``). The coordinator gives
+        # it to ``home_keeper_task_overdue_resolved``: the change that ended the
+        # overdue period is the last change to the task.
+        self._task_callers: dict[str, Context | None] = {}
 
     async def async_apply_due_time(self, due_time: time | None) -> None:
         """Set the set due time, and move the stored future floating dates to it.
@@ -345,7 +350,7 @@ class HomeKeeperStore:
             return
         await self._save()
         for task in moved:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["next_due"]}),
             )
@@ -436,6 +441,25 @@ class HomeKeeperStore:
         self._photo_task_ids = self._tasks_with_photos()
         if changed:
             await self._save()
+
+    def _fire(self, event_type: str, data: dict[str, Any]) -> None:
+        """Fire a store event with the context of the caller (#467).
+
+        The caller is the service call, websocket command or entity action that
+        changes the data (``caller.py``). With no caller, Home Assistant gives the
+        event a new context.
+        """
+        context = caller.current()
+        if (task_id := data.get("task_id")) is not None:
+            if event_type == EVENT_TASK_DELETED:
+                self._task_callers.pop(task_id, None)
+            else:
+                self._task_callers[task_id] = context
+        self._hass.bus.async_fire(event_type, data, context=context)
+
+    def caller_of(self, task_id: str) -> Context | None:
+        """The caller of the last event of the task, or None."""
+        return self._task_callers.get(task_id)
 
     def _task_event_data(
         self, task: dict[str, Any], *, extra: dict[str, Any] | None = None
@@ -600,7 +624,7 @@ class HomeKeeperStore:
         self._tasks[task["id"]] = task
         await self._save()
         _LOGGER.debug("Added task %s (%s)", task["id"], task["name"])
-        self._hass.bus.async_fire(EVENT_TASK_CREATED, self._task_event_data(task))
+        self._fire(EVENT_TASK_CREATED, self._task_event_data(task))
         return task
 
     def _check_template_syntax(self, task: dict[str, Any]) -> None:
@@ -686,7 +710,7 @@ class HomeKeeperStore:
         # selectively (e.g. a rename vs. a schedule change).
         changed = _changed_fields(existing, merged)
         if changed:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(merged, extra={"changed_fields": changed}),
             )
@@ -787,7 +811,7 @@ class HomeKeeperStore:
         _LOGGER.debug(
             "Set consumable link for task %s -> %s", task_id, existing.get("source")
         )
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_UPDATED,
             self._task_event_data(existing, extra={"changed_fields": ["source"]}),
         )
@@ -818,7 +842,7 @@ class HomeKeeperStore:
         existing["next_due"] = dt_util.now().isoformat()
         await self._save()
         _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
-        self._hass.bus.async_fire(EVENT_TASK_TRIGGERED, self._task_event_data(existing))
+        self._fire(EVENT_TASK_TRIGGERED, self._task_event_data(existing))
         return existing
 
     async def snooze_task(
@@ -870,7 +894,7 @@ class HomeKeeperStore:
         recurrence.defer(existing, until, now=now)
         await self._save()
         _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_SNOOZED,
             self._task_event_data(
                 existing,
@@ -919,7 +943,7 @@ class HomeKeeperStore:
             return existing
         await self._save()
         _LOGGER.debug("Moved occurrence %s of task %s to %s", original, task_id, to)
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_OCCURRENCE_MOVED,
             self._task_event_data(
                 existing,
@@ -978,7 +1002,7 @@ class HomeKeeperStore:
         recurrence.defer(existing, now, now=now)
         await self._save()
         _LOGGER.debug("Set task %s due now (%s)", task_id, existing["next_due"])
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_DUE_TODAY_SET,
             self._task_event_data(existing, extra={"origin": origin}),
         )
@@ -1048,7 +1072,7 @@ class HomeKeeperStore:
         self._tasks[task_id] = updated
         await self._save()
         _LOGGER.debug("Skipped task %s; next due %s", task_id, updated.get("next_due"))
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_SKIPPED,
             self._task_event_data(
                 updated, extra={"ts": now.isoformat(), "origin": origin}
@@ -1086,7 +1110,7 @@ class HomeKeeperStore:
             await self._save()
             _LOGGER.debug("Set usage baseline for task %s -> %s", task_id, baseline)
             if not silent:
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(task, extra={"changed_fields": ["sensor"]}),
                 )
@@ -1101,9 +1125,7 @@ class HomeKeeperStore:
             self._archive_task_history(removed)
             del self._tasks[task_id]
             await self._save()
-            self._hass.bus.async_fire(
-                EVENT_TASK_DELETED, self._task_event_data(removed)
-            )
+            self._fire(EVENT_TASK_DELETED, self._task_event_data(removed))
 
     async def delete_tasks(self, task_ids: Collection[str]) -> list[dict[str, Any]]:
         """Delete several tasks with one save (X08-2).
@@ -1130,9 +1152,7 @@ class HomeKeeperStore:
         if removed:
             await self._save()
             for task in removed:
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
         return removed
 
     async def delete_orphaned_tasks(self) -> list[dict[str, Any]]:
@@ -1160,9 +1180,7 @@ class HomeKeeperStore:
         if removed:
             await self._save()
             for task in removed:
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
         return removed
 
     def _check_deletable(self, task: dict[str, Any], *, force: bool) -> None:
@@ -1242,7 +1260,7 @@ class HomeKeeperStore:
         if changed:
             await self._save()
             for tid in changed:
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(
                         self._tasks[tid], extra={"changed_fields": ["device_id"]}
@@ -1269,7 +1287,7 @@ class HomeKeeperStore:
         self._assets[asset["id"]] = asset
         await self._save()
         _LOGGER.debug("Added asset %s (%s)", asset["id"], asset.get("name"))
-        self._hass.bus.async_fire(EVENT_ASSET_CREATED, events.asset_event_data(asset))
+        self._fire(EVENT_ASSET_CREATED, events.asset_event_data(asset))
         return asset
 
     async def update_asset(
@@ -1301,7 +1319,7 @@ class HomeKeeperStore:
             asset_id, existing.get("parts"), merged.get("parts")
         )
         for task in reanchored.values():
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(
                     task, extra={"changed_fields": ["last_completed", "next_due"]}
@@ -1309,7 +1327,7 @@ class HomeKeeperStore:
             )
         changed = _changed_fields(existing, merged)
         if changed:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_ASSET_UPDATED,
                 events.asset_event_data(merged, extra={"changed_fields": changed}),
             )
@@ -1431,7 +1449,7 @@ class HomeKeeperStore:
         # Fire only once the batch is on disk: a listener that reads the store back
         # (the to-do sync does) must not see a half-applied import.
         for event_type, data in events_to_fire:
-            self._hass.bus.async_fire(event_type, data)
+            self._fire(event_type, data)
 
     async def _mutate_task_photos(self, task_id: str, op: _AssetOp) -> Any:
         """Run *op* against a task's photos, then save and fire ``task_updated``.
@@ -1447,7 +1465,7 @@ class HomeKeeperStore:
         if result is _UNCHANGED:
             return task
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_UPDATED,
             self._task_event_data(task, extra={"changed_fields": ["photos"]}),
         )
@@ -1526,7 +1544,7 @@ class HomeKeeperStore:
         if result is _UNCHANGED:
             return asset
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_ASSET_UPDATED,
             events.asset_event_data(asset, extra={"changed_fields": [changed_field]}),
         )
@@ -1733,7 +1751,7 @@ class HomeKeeperStore:
         if changed:
             await self._save()
         for task, fields in moved:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": fields}),
             )
@@ -1765,7 +1783,7 @@ class HomeKeeperStore:
             return []
         await self._save()
         for task in changed:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["sensor"]}),
             )
@@ -1785,7 +1803,7 @@ class HomeKeeperStore:
             return False
         task["notes"] = notes
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_UPDATED,
             self._task_event_data(task, extra={"changed_fields": ["notes"]}),
         )
@@ -1823,7 +1841,7 @@ class HomeKeeperStore:
         if changed:
             await self._save()
         for asset, fields in moved:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_ASSET_UPDATED,
                 events.asset_event_data(asset, extra={"changed_fields": fields}),
             )
@@ -2015,7 +2033,7 @@ class HomeKeeperStore:
         await self._delete_dropped_part_files(
             asset_id, before.get("parts"), asset.get("parts")
         )
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_ASSET_UPDATED,
             events.asset_event_data(asset, extra={"changed_fields": changed}),
         )
@@ -2087,14 +2105,14 @@ class HomeKeeperStore:
         await manuals.async_delete_asset_documents(self._hass, asset_id)
         # The appliance and the wear-part tasks it owned are both gone — announce each.
         for task in dropped:
-            self._hass.bus.async_fire(EVENT_TASK_DELETED, self._task_event_data(task))
+            self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
         # A surviving manual-link task lost its consumable — announce the source change.
         for task in unlinked:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["source"]}),
             )
-        self._hass.bus.async_fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
+        self._fire(EVENT_ASSET_DELETED, events.asset_event_data(asset))
         return asset
 
     async def archive_asset(self, asset_id: str) -> dict[str, Any] | None:
@@ -2109,7 +2127,7 @@ class HomeKeeperStore:
             return None
         asset["archived_at"] = dt_util.utcnow().isoformat()
         await self._save()
-        self._hass.bus.async_fire(EVENT_ASSET_ARCHIVED, events.asset_event_data(asset))
+        self._fire(EVENT_ASSET_ARCHIVED, events.asset_event_data(asset))
         return asset
 
     async def restore_asset(self, asset_id: str) -> dict[str, Any] | None:
@@ -2119,7 +2137,7 @@ class HomeKeeperStore:
             return None
         asset["archived_at"] = None
         await self._save()
-        self._hass.bus.async_fire(EVENT_ASSET_RESTORED, events.asset_event_data(asset))
+        self._fire(EVENT_ASSET_RESTORED, events.asset_event_data(asset))
         return asset
 
     async def reconcile_part_tasks(self) -> bool:
@@ -2170,20 +2188,16 @@ class HomeKeeperStore:
             # as updates — they're internal churn (name/interval re-derivation), not a
             # user action.
             for task in removed:
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
             for tid, task in new_tasks.items():
                 if tid not in old_tasks:
-                    self._hass.bus.async_fire(
-                        EVENT_TASK_CREATED, self._task_event_data(task)
-                    )
+                    self._fire(EVENT_TASK_CREATED, self._task_event_data(task))
             # A manual consumable link whose part was removed has its source cleared by
             # the reconcile (the task survives standalone); announce the source change.
             for tid, task in new_tasks.items():
                 old = old_tasks.get(tid)
                 if old is not None and old.get("source") != task.get("source"):
-                    self._hass.bus.async_fire(
+                    self._fire(
                         EVENT_TASK_UPDATED,
                         self._task_event_data(
                             task, extra={"changed_fields": ["source"]}
@@ -2224,14 +2238,12 @@ class HomeKeeperStore:
         await self._save()
         entity_set_changed = False
         for task in removed:
-            self._hass.bus.async_fire(EVENT_TASK_DELETED, self._task_event_data(task))
+            self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
             if owns_entities(task):
                 entity_set_changed = True
         for tid, task in new_tasks.items():
             if tid not in old_tasks:
-                self._hass.bus.async_fire(
-                    EVENT_TASK_CREATED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_CREATED, self._task_event_data(task))
                 if owns_entities(task):
                     entity_set_changed = True
         return entity_set_changed
@@ -2332,18 +2344,14 @@ class HomeKeeperStore:
         entity_set_changed = False
         for kind, task in ops:
             if kind == "created":
-                self._hass.bus.async_fire(
-                    EVENT_TASK_CREATED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_CREATED, self._task_event_data(task))
                 entity_set_changed = True
             elif kind == "deleted":
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
                 entity_set_changed = True
             elif kind == "updated":
                 old = before.get(task["id"], {})
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(
                         task, extra={"changed_fields": _changed_fields(old, task)}
@@ -2352,11 +2360,9 @@ class HomeKeeperStore:
                 if update_needs_reload(old, task):
                     entity_set_changed = True
             elif kind == "armed":
-                self._hass.bus.async_fire(
-                    EVENT_TASK_TRIGGERED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_TRIGGERED, self._task_event_data(task))
             elif kind == "cleared":
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_COMPLETED,
                     self._completion_event_data(task, now, ORIGIN_PROBLEM_SENSOR_SYNC),
                 )
@@ -2400,7 +2406,7 @@ class HomeKeeperStore:
         spec["updated"] = now_iso
         self._declarative_companions[spec["id"]] = spec
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_DECLARATIVE_COMPANION_ADDED,
             events.declarative_companion_event_data(spec),
         )
@@ -2440,11 +2446,11 @@ class HomeKeeperStore:
             self._tasks = new_tasks
         await self._save()
         for _kind, task in label_ops:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["labels"]}),
             )
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_DECLARATIVE_COMPANION_UPDATED,
             events.declarative_companion_event_data(spec),
         )
@@ -2477,12 +2483,10 @@ class HomeKeeperStore:
         entity_set_changed = False
         for kind, task in ops:
             if kind == "deleted":
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
                 if owns_entities(task):
                     entity_set_changed = True
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_DECLARATIVE_COMPANION_REMOVED,
             events.declarative_companion_event_data(existing),
         )
@@ -2506,7 +2510,7 @@ class HomeKeeperStore:
         self._tasks = new_tasks
         await self._save()
         for _kind, task in ops:
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
             )
@@ -2580,15 +2584,11 @@ class HomeKeeperStore:
         for kind, task in ops:
             if kind == "created":
                 created_ids.append(task["id"])
-                self._hass.bus.async_fire(
-                    EVENT_TASK_CREATED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_CREATED, self._task_event_data(task))
                 if owns_entities(task):
                     entity_set_changed = True
             elif kind == "deleted":
-                self._hass.bus.async_fire(
-                    EVENT_TASK_DELETED, self._task_event_data(task)
-                )
+                self._fire(EVENT_TASK_DELETED, self._task_event_data(task))
                 if owns_entities(task):
                     entity_set_changed = True
             elif kind == "resumed":
@@ -2597,7 +2597,7 @@ class HomeKeeperStore:
                 # sensor watcher, which must arm it on a condition that became true
                 # while the companion was off.
                 created_ids.append(task["id"])
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
@@ -2606,7 +2606,7 @@ class HomeKeeperStore:
             elif kind == "paused":
                 # The entity of this task is disabled (B12-1). The task stays, with
                 # its history, and its device-page entities go on the reload.
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
@@ -2616,7 +2616,7 @@ class HomeKeeperStore:
                 # The fields the pass really changed (B12-4). An automation that
                 # filters on ``changed_fields`` reads the same list as for an edit.
                 old = before.get(task["id"], {})
-                self._hass.bus.async_fire(
+                self._fire(
                     EVENT_TASK_UPDATED,
                     self._task_event_data(
                         task, extra={"changed_fields": _changed_fields(old, task)}
@@ -2722,7 +2722,7 @@ class HomeKeeperStore:
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
         )
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_COMPLETED,
             self._completion_event_data(updated, when, origin, metadata=clean_metadata),
         )
@@ -2781,7 +2781,7 @@ class HomeKeeperStore:
         extra: dict[str, Any] = {"ts": ts}
         if moved_baseline is not None:
             extra["meter_baseline"] = moved_baseline
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_COMPLETION_UPDATED,
             self._task_event_data(updated, extra=extra),
         )
@@ -2876,7 +2876,7 @@ class HomeKeeperStore:
         self._return_stock_drawn(removed_entry)
         self._restamp_last_replaced(updated, removed_entry)
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_UNCOMPLETED,
             self._task_event_data(updated, extra={"ts": ts, "origin": origin}),
         )
@@ -2940,11 +2940,11 @@ class HomeKeeperStore:
             for key in models.COMPLETION_METADATA_FIELDS
             if moved and key in moved
         }
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_UNCOMPLETED,
             self._task_event_data(updated, extra={"ts": old_ts, "origin": None}),
         )
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_COMPLETED,
             self._completion_event_data(updated, when_ts, None, metadata=metadata),
         )
@@ -2987,7 +2987,7 @@ class HomeKeeperStore:
         extra: dict[str, Any] = {"ts": ts}
         if moved_baseline is not None:
             extra["meter_baseline"] = moved_baseline
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_SKIP_UPDATED,
             self._task_event_data(updated, extra=extra),
         )
@@ -3053,7 +3053,7 @@ class HomeKeeperStore:
                 cfg["baseline"] = restored
         self._tasks[task_id] = updated
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_SKIP_REMOVED,
             self._task_event_data(updated, extra={"ts": ts}),
         )
@@ -3082,7 +3082,7 @@ class HomeKeeperStore:
             raise models.TaskValidationError(str(err)) from err
         self._tasks[task_id] = updated
         await self._save()
-        self._hass.bus.async_fire(
+        self._fire(
             EVENT_TASK_SKIP_UPDATED,
             self._task_event_data(updated, extra={"ts": old_ts}),
         )
@@ -3102,7 +3102,7 @@ class HomeKeeperStore:
             await self._save()
             # The asset's archived history changed — fire asset_updated so listeners
             # (and the events contract) see it, mirroring every other asset mutation.
-            self._hass.bus.async_fire(
+            self._fire(
                 EVENT_ASSET_UPDATED,
                 events.asset_event_data(
                     asset, extra={"changed_fields": ["archived_history"]}
@@ -3333,7 +3333,7 @@ class HomeKeeperStore:
         """
         event = _STOCK_EVENT.get(transition)
         if event is not None:
-            self._hass.bus.async_fire(event, events.stock_event_data(asset, part))
+            self._fire(event, events.stock_event_data(asset, part))
 
     async def adjust_part_stock(
         self, asset_id: str, part_id: str, delta: float

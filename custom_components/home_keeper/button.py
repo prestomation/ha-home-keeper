@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import caller
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
@@ -88,7 +89,9 @@ class HomeKeeperMarkDoneButton(HomeKeeperTaskEntity, ButtonEntity):
         if task is not None and one_off_completed(task):
             return
         try:
-            await self.coordinator.store.complete_task(self._task_id)
+            # The context of the press, so the event names the user (``caller.py``).
+            with caller.caller(self._context):
+                await self.coordinator.store.complete_task(self._task_id)
         except KeyError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

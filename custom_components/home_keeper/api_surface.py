@@ -578,6 +578,18 @@ EVENTS: tuple[EventSpec, ...] = (
         extra=(Field("due_in_hours", "float"),),
     ),
     EventSpec(
+        const.EVENT_TASK_OVERDUE_RESOLVED,
+        "EVENT_TASK_OVERDUE_RESOLVED",
+        "fired",
+        "task",
+        "a task that announced overdue is no longer overdue: completed, skipped, "
+        "snoozed, moved, disabled or cleared by its sensor; once per overdue event",
+        extra=(
+            Field("overdue_since", "str", "the due date that went overdue"),
+            Field("days_overdue", "int", "whole days from that date to the end"),
+        ),
+    ),
+    EventSpec(
         const.EVENT_PART_LOW_STOCK,
         "EVENT_PART_LOW_STOCK",
         "fired",

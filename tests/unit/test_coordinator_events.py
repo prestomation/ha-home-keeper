@@ -18,9 +18,13 @@ from test_coordinator_purge import NOW, coordinator
 class _FakeBus:
     def __init__(self) -> None:
         self.fired: list[tuple[str, dict[str, Any]]] = []
+        self.contexts: list[Any] = []
 
-    def async_fire(self, event_type: str, data: dict[str, Any]) -> None:
+    def async_fire(
+        self, event_type: str, data: dict[str, Any], context: Any = None
+    ) -> None:
         self.fired.append((event_type, data))
+        self.contexts.append(context)
 
 
 class _FakeStore:
@@ -28,6 +32,10 @@ class _FakeStore:
 
     def __init__(self, tasks: dict[str, dict[str, Any]]) -> None:
         self._tasks = tasks
+        self.callers: dict[str, Any] = {}
+
+    def caller_of(self, task_id: str) -> Any:
+        return self.callers.get(task_id)
 
     async def settle_use_tasks(self) -> None:
         return None
@@ -76,3 +84,19 @@ def test_a_transition_event_carries_the_to_do_entity_id() -> None:
     assert [name for name, _ in fired] == ["home_keeper_task_overdue"]
     assert fired[0][1]["entity_id"] == "todo.home_keeper_tasks"
     assert fired[0][1]["task_id"] == "t1"
+
+
+def test_the_end_of_an_overdue_period_has_the_context_of_the_change() -> None:
+    """The user who completed the task ends the overdue period (#467)."""
+    coord = _make()
+    ann = object()
+    coord.store.callers["t1"] = ann
+    _run(coord)
+    task = {**_overdue_task(), "next_due": (NOW + timedelta(days=30)).isoformat()}
+    coord.store._tasks = {"t1": task}
+    _run(coord)
+    names = [name for name, _ in coord.hass.bus.fired]
+    assert names == ["home_keeper_task_overdue", "home_keeper_task_overdue_resolved"]
+    # The crossing into overdue is the clock, so it has no caller.
+    assert coord.hass.bus.contexts == [None, ann]
+    assert coord.hass.bus.fired[1][1]["entity_id"] == "todo.home_keeper_tasks"

@@ -1205,6 +1205,7 @@
               "task_occurrence_moved": "Termin zadania przeniesiony",
               "task_overdue": "Zadanie stało się zaległe",
               "task_due_soon": "Termin zadania zbliża się",
+              "task_overdue_resolved": "Zadanie już nie jest zaległe",
               "part_low_stock": "Niski stan części zapasowej",
               "part_out_of_stock": "Brak części zapasowej na stanie",
               "part_restocked": "Część zapasowa uzupełniona",
@@ -1300,6 +1301,10 @@
     "task_due_soon": {
       "name": "Termin zadania zbliża się",
       "description": "Uruchamia się, gdy termin zadania przypada za 3 dni lub wcześniej."
+    },
+    "task_overdue_resolved": {
+      "name": "Zadanie już nie jest zaległe",
+      "description": "Uruchamia się, gdy zaległe zadanie przestaje być zaległe."
     },
     "part_low_stock": {
       "name": "Niski stan części zapasowej",

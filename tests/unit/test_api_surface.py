@@ -76,8 +76,8 @@ def _service_registrations() -> list[tuple[str, str, str]]:
         func = node.func
         if not (isinstance(func, ast.Attribute) and func.attr == "async_register"):
             continue
-        owner = func.value
-        if not (isinstance(owner, ast.Attribute) and owner.attr == "services"):
+        # ``services`` is ``caller.ContextServices(hass.services)`` (#467).
+        if ast.unparse(func.value) != "services":
             continue
         if len(node.args) < 3 or not isinstance(node.args[1], ast.Constant):
             continue
@@ -213,7 +213,7 @@ def test_services_register_once_in_async_setup() -> None:
         "list somebody forgets."
     )
     assert "_register_services(hass)" in ast.unparse(_init_function("async_setup"))
-    assert "_register_services" not in ast.unparse(_init_function("async_setup_entry"))
+    assert "_register_services" not in ast.unparse(_init_function("_async_setup_entry"))
     unload = ast.unparse(_init_function("async_unload_entry"))
     assert "services.async_remove" not in unload
     assert "SERVICE_NAMES" not in unload
@@ -580,7 +580,7 @@ def _fired_extras() -> dict[str, set[str]]:
                 isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
             ):
                 continue
-            if node.func.attr != "async_fire" or not node.args:
+            if node.func.attr not in ("async_fire", "_fire") or not node.args:
                 continue
             event = node.args[0]
             if not isinstance(event, ast.Name) or not hasattr(const, event.id):

@@ -131,16 +131,16 @@ The bookkeeping of each sync (which list item stands for which task) fires **no 
 
 ### Time-based transitions (edge-triggered)
 
-`home_keeper_task_overdue` fires when a task first passes its due date
-(`now ≥ next_due`). `home_keeper_task_due_soon` fires when it enters the 3-day window
-before that date. The coordinator finds these on its refresh (every 5 minutes). They are
-**edge-triggered**: each fires **at most once per `next_due` value**. A task that stays
-overdue does not fire again. A completion or a new date re-arms the next event.
+`home_keeper_task_overdue` fires when a task first passes its due date (`now ≥ next_due`).
+`home_keeper_task_due_soon` fires when it enters the 3-day window before that date. The
+coordinator finds these on its refresh (every 5 minutes). Each fires **at most once per
+`next_due` value**. A completion or a new date re-arms the next event.
+`home_keeper_task_overdue_resolved` fires once when a task that fired `overdue` stops being
+overdue: its new date is in the future, or it is dormant or disabled. A deleted task fires
+only `home_keeper_task_deleted`. The context is that of the change that ended the period.
 
-**Restart.** At startup Home Keeper records the current state with no events. A restart
-never sends "overdue" events for tasks that were already overdue. Only changes that occur
-while Home Assistant runs fire events. The per-task overdue `binary_sensor` always shows
-the current state.
+**Restart.** At startup Home Keeper records the current state with no events, so a restart
+never replays "overdue". The per-task overdue `binary_sensor` always shows the current state.
 
 ### Stock transitions (edge-triggered)
 
@@ -297,3 +297,4 @@ trigger variable holds the bus event, the same as for a `platform: event` trigge
   `home_keeper_task_created` or `home_keeper_task_updated`. An update that only adds history
   still fires, with `completions` in its `changed_fields`. To mirror completions, read the
   task history on that event. Do not count completion events.
+- **Context.** `context.user_id` is the user who caused the event. The clock has no user.

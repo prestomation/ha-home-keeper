@@ -23,6 +23,7 @@ import sys
 import types
 from pathlib import Path
 
+import hk_caller as caller
 import pytest
 from ha_stubs import install_ha_stubs
 
@@ -152,12 +153,14 @@ class _Store:
     def __init__(self, assets: dict) -> None:
         self.assets = assets
         self.writes: list[str] = []
+        self.callers: list = []
 
     def get_asset(self, asset_id):
         return self.assets.get(asset_id)
 
     async def add_asset_document(self, asset_id, document):
         self.writes.append("add_asset_document")
+        self.callers.append(caller.current())
         return {**document}
 
     async def set_part_file(self, asset_id, part_id, meta):
@@ -185,7 +188,8 @@ class _Reader:
 class _Request:
     def __init__(self, hass, reader) -> None:
         self.app = {"hass": hass}
-        self._data = {"hass_user": types.SimpleNamespace(system_generated=False)}
+        user = types.SimpleNamespace(id="ann", system_generated=False)
+        self._data = {"hass_user": user}
         self._reader = reader
 
     def get(self, key):
@@ -308,6 +312,9 @@ def test_x02_1_an_upload_with_no_reload_writes_the_store(hass, tmp_path):
 
     assert result[0] == "json"
     assert store.writes == ["add_asset_document"]
+    # The event of the upload names the user who sent it (#467).
+    assert [context.user_id for context in store.callers] == ["ann"]
+    assert caller.current() is None
     stored = tmp_path / manuals.MANUALS_SUBDIR / "a1" / f"{document_id}__manual.pdf"
     assert stored.read_bytes() == PDF
     assert _incoming(tmp_path) == []
@@ -332,6 +339,7 @@ class _TaskStore:
         self.tasks = tasks
         self.fail = fail
         self.added: list[dict] = []
+        self.callers: list = []
 
     def get_task(self, task_id):
         return self.tasks.get(task_id)
@@ -342,6 +350,7 @@ class _TaskStore:
                 self.tasks.pop(task_id, None)
             raise self.fail
         self.added.append(photo)
+        self.callers.append(caller.current())
         self.tasks[task_id].setdefault("photos", []).append(photo)
         return photo
 
@@ -382,6 +391,7 @@ def test_a_task_photo_upload_stores_the_file_and_a_thumbnail(hass, tmp_path):
             "size": len(data),
         }
     ]
+    assert [context.user_id for context in store.callers] == ["ann"]
     folder = _task_dir(tmp_path)
     assert (folder / f"{PHOTO_ID}__Attic_gap.png").read_bytes() == data
     assert (folder / f"thumb_{PHOTO_ID}__thumb.jpg").is_file()
@@ -534,7 +544,7 @@ def test_a_task_photo_upload_across_an_unload_removes_its_files(hass, tmp_path):
 def test_a_task_photo_upload_needs_a_real_user(hass, tmp_path):
     hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
     request = _PhotoRequest(hass, _Reader([]))
-    request._data["hass_user"] = types.SimpleNamespace(system_generated=True)
+    request._data["hass_user"] = types.SimpleNamespace(id="sys", system_generated=True)
 
     result = asyncio.run(
         manuals.HomeKeeperTaskPhotoView().post(request, "t1", PHOTO_ID)
