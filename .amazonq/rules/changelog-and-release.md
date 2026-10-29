@@ -63,6 +63,33 @@ feature PR must follow so that its work ships.
   repository, so the keyword fills the issue's Development panel and closes nothing. The
   release that ships the fix closes the issue.
 
+## Breaking changes
+
+- **A change is breaking** if an existing automation, script or integration can act
+  differently or fail with no change on its side. This covers service fields, event
+  payload keys and shapes, entity ids and attributes, websocket commands, and the shape
+  of exported data.
+- **The PR body says so.** Its **One-way doors** section has a **Breaking** line for each
+  such surface: the old form, the new form, and who is affected. If nothing breaks, write
+  "Breaking: none".
+- **A breaking change has its own bullet under `### Changed`.** The lead is a normal noun
+  phrase, with no "Breaking" marker, because the lead rule above stays the same. The
+  bullet says what the user must change. The 3-sentence limit applies. A stable section
+  repeats these bullets, so an upgrader sees them. Example:
+  `- **Consumable links in task data.** Task events and list_tasks now show the linked
+  parts of a task in the source.parts list, so change an automation that reads
+  source.part. The asset_id and part_id fields of home_keeper.set_task_consumable still
+  work but log a warning.`
+- **A breaking change ships in a minor version** (`X.Y.0`), never in a patch. There is
+  no stable 1.0 yet.
+- **An old input form stays accepted for 1 minor release.** It logs 1 warning for each
+  run and names the new form. Mark it deprecated in `services.yaml`, the strings and the
+  docs. Remove it no earlier than 2 months after the release that deprecates it. Do the
+  removal in its own PR with its own breaking bullet. Record the planned removal in
+  `IDEAS.md` or the backlog.
+- **Stored data migrates on load, with no warning.** Keep the old reader until a one-time
+  migration lets you drop it.
+
 ## Stable sections
 
 - A stable `## [X.Y.Z]` section describes the changes since the last **stable**, for a

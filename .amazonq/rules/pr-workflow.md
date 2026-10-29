@@ -24,6 +24,8 @@ summary: The branch, review, screenshot, walkthrough and documentation gates tha
   each one before work starts. The PR body has a **One-way doors** section that lists
   each committed surface: the field, its format, where it appears, and what automations
   will rely on. Frontend form data and private helpers are not one-way doors.
+  Add a **Breaking** line for each breaking surface
+  ([changelog-and-release.md](changelog-and-release.md#breaking-changes)).
 - **Security.** The plan writes this section before work starts, and the PR body keeps
   it next to **One-way doors**. It is a table with 1 row for each service, websocket
   command, HTTP method (`POST /api/...`) and event that the change adds or changes. The
