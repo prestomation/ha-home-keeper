@@ -3,7 +3,9 @@
 Home Keeper supports a dashboard card, **Home Keeper Tasks** (`custom:home-keeper-card`),
 that lists tasks and completes them with a **Done** button. This is useful for a task
 list on a dashboard or a wall tablet. The card resource is registered automatically.
-To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker.
+To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker. The
+picker shows at most 3 tasks in its preview, so it opens fast in a home with many tasks.
+The card on your dashboard shows all its tasks.
 
 From the card, a user can:
 

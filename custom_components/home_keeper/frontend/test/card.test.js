@@ -1417,3 +1417,83 @@ describe('HomeKeeperCard to-do item subscription (F09-3)', () => {
     expect(conn.calls).toBe(1);
   });
 });
+
+describe('HomeKeeperCard picker preview (#524)', () => {
+  const manyTasks = Array.from({ length: 200 }, (_, i) => ({
+    id: `t${i}`,
+    name: `Task ${i}`,
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    next_due: new Date(Date.now() + (i + 1) * 86_400_000).toISOString(),
+    completions: [],
+  }));
+  const rowsOf = async (preview, config) => {
+    const card = makeCard(config);
+    if (preview) card.preview = true;
+    card.hass = { callWS: async () => ({ tasks: manyTasks }), language: 'en' };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    return card;
+  };
+
+  it('shows at most 3 rows when Home Assistant sets preview', async () => {
+    const card = await rowsOf(true, { type: 'custom:home-keeper-card' });
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(3);
+    expect(sr(card).querySelector('.hk-more')).not.toBeNull();
+  });
+
+  it('keeps a lower max_items in preview', async () => {
+    const card = await rowsOf(true, { type: 'custom:home-keeper-card', max_items: 2 });
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(2);
+  });
+
+  it('caps a larger max_items in preview', async () => {
+    const card = await rowsOf(true, { type: 'custom:home-keeper-card', max_items: 50 });
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(3);
+  });
+
+  it('shows every task on a real dashboard card', async () => {
+    const card = await rowsOf(false, { type: 'custom:home-keeper-card' });
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(200);
+  });
+
+  it('trims the rows when preview is set after the first paint', async () => {
+    const card = await rowsOf(false, { type: 'custom:home-keeper-card' });
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(200);
+    card.preview = true;
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(3);
+  });
+
+  it('shows at most 3 rows inside the card picker, which never sets preview', async () => {
+    const picker = document.createElement('hui-card-picker');
+    picker.attachShadow({ mode: 'open' });
+    document.body.appendChild(picker);
+    const card = document.createElement('home-keeper-card');
+    card.setConfig({ type: 'custom:home-keeper-card' });
+    card.hass = { callWS: async () => ({ tasks: manyTasks }), language: 'en' };
+    picker.shadowRoot.appendChild(card);
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(3);
+  });
+
+  it('shows every task in another shadow root', async () => {
+    const host = document.createElement('div');
+    host.attachShadow({ mode: 'open' });
+    document.body.appendChild(host);
+    const card = document.createElement('home-keeper-card');
+    card.setConfig({ type: 'custom:home-keeper-card' });
+    card.hass = { callWS: async () => ({ tasks: manyTasks }), language: 'en' };
+    host.shadowRoot.appendChild(card);
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelectorAll('.hk-row').length).toBe(200);
+  });
+
+  it('sizes the preview card for the capped rows', async () => {
+    const card = await rowsOf(true, { type: 'custom:home-keeper-card' });
+    expect(card.getCardSize()).toBe(4);
+  });
+
+  it('does not change the stub config', () => {
+    expect(HomeKeeperCard.getStubConfig().max_items).toBeUndefined();
+  });
+});
