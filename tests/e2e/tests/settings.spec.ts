@@ -283,6 +283,101 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     }
   });
 
+  test('a target picked in Send to is stored and its Test reaches Home Assistant (#521)', async ({
+    page,
+  }) => {
+    // The picker used to list phones only, so `persistent_notification` could not be
+    // chosen. Listing it is half of the fix. This test does the whole walk a user with
+    // no phone does: pick it in the form, check that it is stored, press Test, and read
+    // the delivered notification back from Home Assistant itself. Every other test of
+    // this target seeds it through `set_options` and never touches the picker.
+    const label = 'hk_e2e_pick_521';
+    const taskId = await createTask({
+      name: 'Rinse the compost bin',
+      recurrence_type: 'floating',
+      interval: 7,
+      unit: 'days',
+      labels: [label],
+    });
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_pick_profile',
+          name: 'Compost',
+          filter: { status: 'all', labels: [label], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_pick',
+          name: 'Compost walk',
+          profile_id: 'e2e_pick_profile',
+          targets: [],
+          actions: ['complete'],
+          style: 'walk',
+          snooze_hours: 24,
+          channel: '',
+          urgency: 'normal',
+          auto: { overdue: false, due_soon: false },
+        },
+      ],
+    });
+    await callService('persistent_notification', 'dismiss_all', {});
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'notifications');
+      const card = panel.locator('#hk-notifications');
+      const row = card.locator('.hk-item-card').first();
+      const header = row.locator('> .hk-item-header');
+      if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      const form = row.locator('.hk-item-body > ha-form').nth(1);
+      await expect(form).toBeVisible();
+
+      // Pick it from the list, the way a user does.
+      await form.getByText('Send to', { exact: true }).first().click();
+      await page.getByText('persistent_notification', { exact: true }).first().click();
+      await page.keyboard.press('Escape');
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.notifications.find((n: any) => n.id === 'e2e_pick')?.targets;
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual(['persistent_notification']);
+
+      await settleToasts(page);
+      if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      await row.locator('.hk-notify-test').click();
+      await expect(page.locator('.message')).toContainText('Notification sent.');
+
+      // What Home Assistant now holds: the walk's first task as title, the due phrase
+      // as message. Read through the same websocket the notifications drawer uses.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const all = await hass.callWS({ type: 'persistent_notification/get' });
+              return all.map((n: any) => ({ title: n.title, message: n.message }));
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual([{ title: 'Rinse the compost bin', message: 'Due now.' }]);
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('persistent_notification', 'dismiss_all', {});
+      await deleteTask(taskId);
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
   test('two notifications configured back to back both keep their channel (#255)', async ({
     page,
   }) => {
