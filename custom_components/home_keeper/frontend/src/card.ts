@@ -440,7 +440,37 @@ export function todoEntityId(hass: Hass | undefined): string {
   return 'todo.home_keeper_tasks';
 }
 
+/** Most rows the card draws in a Home Assistant preview (the card picker). */
+export const PREVIEW_MAX_ITEMS = 3;
+
+/**
+ * Whether *el* is drawn inside the card picker of the dashboard editor. The picker
+ * makes its cards without a `hui-card` wrapper, so it never sets `preview`: the only
+ * sign is the shadow root that holds the card. Home Assistant saves the stub config
+ * of the card that the user picks, so a row limit there would stay in the saved card.
+ */
+function isInCardPicker(el: HTMLElement): boolean {
+  const root = el.getRootNode();
+  return root instanceof ShadowRoot && root.host.localName === 'hui-card-picker';
+}
+
 export class HomeKeeperCard extends HTMLElement {
+  /** Home Assistant sets this on a card that it draws as a preview, for example in
+   *  the card picker. A preview shows only a few rows, so a home with many tasks
+   *  opens the picker fast. A card on a dashboard never has it set. */
+  get preview(): boolean {
+    return this._preview;
+  }
+  set preview(value: boolean) {
+    const next = !!value;
+    if (next === this._preview) return;
+    this._preview = next;
+    // Home Assistant can set the flag after the first paint.
+    if (this._loaded) this._render();
+  }
+  private _preview = false;
+  // The card sits in the card picker of the dashboard editor (see `isInCardPicker`).
+  private _inPicker = false;
   private _hass?: Hass;
   /** The integration's options, for the skip/snooze switches. Both default on, so
    *  an empty object until the first load reads as "offer both" rather than
@@ -592,6 +622,7 @@ export class HomeKeeperCard extends HTMLElement {
   connectedCallback(): void {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
     this._disconnected = false;
+    this._inPicker = isInCardPicker(this);
     void this._subscribe();
     void this._boot();
   }
@@ -851,9 +882,16 @@ export class HomeKeeperCard extends HTMLElement {
     return sortTasks(filtered, this._config.sort ?? 'due', areas, devices);
   }
 
+  /** The row limit: `max_items` (0 = none), and never above the preview cap in a preview. */
+  private _maxItems(): number {
+    const max = Math.max(0, Number(this._config.max_items) || 0);
+    if (!this._preview && !this._inPicker) return max;
+    return max > 0 ? Math.min(max, PREVIEW_MAX_ITEMS) : PREVIEW_MAX_ITEMS;
+  }
+
   private _visibleCount(): number {
     const shaped = this._shaped();
-    const max = Math.max(0, Number(this._config.max_items) || 0);
+    const max = this._maxItems();
     return max > 0 ? Math.min(shaped.length, max) : shaped.length;
   }
 
@@ -1072,7 +1110,7 @@ export class HomeKeeperCard extends HTMLElement {
       const empty = this._tasks.length ? t('tasks.noMatch') : t('card.empty');
       return `<div class="hk-empty"><ha-alert alert-type="info">${escapeHTML(empty)}</ha-alert></div>`;
     }
-    const max = Math.max(0, Number(this._config.max_items) || 0);
+    const max = this._maxItems();
     const visible = max > 0 ? shaped.slice(0, max) : shaped;
     const hidden = shaped.length - visible.length;
 

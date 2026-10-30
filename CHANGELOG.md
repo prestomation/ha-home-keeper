@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.35.0b4]
+
+### Fixed
+
+- **Fast card picker.** The Tasks card now shows at most 3 tasks in the card picker of
+  the dashboard editor, so the dialog opens fast in a home with many tasks. A card on a
+  dashboard still shows every task. (Fixes #524)
+
 ## [0.35.0b3]
 
 ### Fixed
