@@ -3082,8 +3082,8 @@ export function profileScopeKey(filter: NotifyFilter | undefined): string {
 
 /**
  * The `ha-form` schema for one **notification** (delivery), in the order the panel
- * renders it. *targets* is the live `mobile_app_*` list; *profiles* populates the
- * profile dropdown (what tasks to send).
+ * renders it. *targets* is the live list of allowed notify services; *profiles*
+ * populates the profile dropdown (what tasks to send).
  *
  * The panel builds this as three forms rather than one, so it can put text between
  * them: what the chosen profile selects goes under the profile picker, and the two

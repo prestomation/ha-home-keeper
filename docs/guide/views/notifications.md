@@ -24,9 +24,11 @@ fields:
 - **Profile**: the [Profile](./profiles.md) whose
   Include field selects which tasks the notification contains. All due tasks are
   included if no profile is set.
-- **Send to**: one or more `mobile_app_*` companion-app devices selected from a
-  list. Only these devices and `persistent_notification` are supported as targets.
-  Other notify services are not supported.
+- **Send to**: one or more targets selected from a list. The list shows each
+  `mobile_app_*` companion-app device and `persistent_notification`. Other notify
+  services are not supported. A phone shows the buttons. `persistent_notification`
+  shows the text in Home Assistant, with no buttons, so a walk does not move to the
+  next task.
 - **Buttons**: which of the 4 buttons are shown and the snooze duration.
 - **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
   Snooze, or Skip then sends the next due task. When no task is due the walk sends

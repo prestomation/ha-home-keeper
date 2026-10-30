@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.35.0b3]
+
+### Fixed
+
+- **Persistent notification target.** The **Send to** list in **Settings → Notifications**
+  now shows `persistent_notification`, so a user with no phone can choose it. (Fixes #521)
+
 ## [0.35.0b2]
 
 ### Added

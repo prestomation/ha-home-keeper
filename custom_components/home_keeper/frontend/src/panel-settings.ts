@@ -193,8 +193,8 @@ export function settingsSectionList(p: PanelHost): {
       card: 'hk-notifications',
       label: t('notify.heading'),
       // Amber rather than green when notifications are configured but there is no
-      // mobile app to deliver them to — the one state that looks fine on the card
-      // and silently does nothing.
+      // target to deliver them to — the one state that looks fine on the card and
+      // silently does nothing. `persistent_notification` counts as a target.
       mark: p._notifyTargets.length ? count(opts?.notifications?.length ?? 0) : dot('warn'),
     },
     { key: 'companions', card: 'hk-companions', label: t('companions.heading'), mark: count(companionsOn) },
@@ -1143,6 +1143,9 @@ function itemCard(o: {
 
 // ── persistence ─────────────────────────────────────────────────────────────
 
+/** Notify services of the companion app. Only these deliver buttons. */
+const MOBILE_TARGET_PREFIX = 'mobile_app_';
+
 /** The two option lists the Settings tab edits. The options key is also the debounce
  *  key, which is what lets one helper serve both. */
 type OptionListKey = 'profiles' | 'notifications';
@@ -1572,7 +1575,8 @@ function renderNotifications(p: PanelHost, host: HTMLElement): void {
       count: notifications.length,
     },
     (body) => {
-      if (!p._notifyTargets.length) {
+      // Only a phone gets the buttons, so the hint stays until one is available.
+      if (!p._notifyTargets.some((tg) => tg.startsWith(MOBILE_TARGET_PREFIX))) {
         const alert = document.createElement('ha-alert');
         alert.setAttribute('alert-type', 'info');
         alert.textContent = t('notify.no_targets');
@@ -1687,6 +1691,7 @@ function notificationEditor(
           // The look pair is not self-evident and the chip cannot say it: Android
           // draws the icon only in the status bar, and ignores the color outright
           // from 12 on. Both facts are about the phone, not about this form.
+          if (s.name === 'targets') return t('notify.targets_help');
           if (s.name === 'icon') return t('notify.icon_help');
           if (s.name === 'color') return t('notify.color_help');
           if (s.name === 'channel') return t('notify.channel_help');

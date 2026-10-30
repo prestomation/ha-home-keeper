@@ -104,6 +104,12 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const form = row.locator('.hk-item-body > ha-form').nth(1);
       await expect(form).toBeVisible();
 
+      // "Send to" is not limited to phones (#521): its label says so, and the help under
+      // it says what `persistent_notification` does that a phone does not.
+      await expect(form).toContainText('Send to');
+      await expect(form).not.toContainText('mobile apps');
+      await expect(form).toContainText('no buttons');
+
       // Both controls are drawn, under the labels the locale file gives them.
       await expect(form).toContainText('Notification channel');
       await expect(form).toContainText('Urgency');

@@ -46,20 +46,20 @@ _LOGGER = logging.getLogger(__name__)
 EVENT_MOBILE_APP_ACTION = "mobile_app_notification_action"
 
 # notify services we can target with actionable payloads (the legacy per-device
-# services — the newer notify entity API doesn't carry ``data.actions``). The prefix
-# lives in :mod:`notifications`, which enforces it on every stored target; here it
-# only narrows what the picker offers.
-_TARGET_PREFIX = notifications.TARGET_PREFIX
+# services — the newer notify entity API doesn't carry ``data.actions``). The allowlist
+# lives in :mod:`notifications`, which enforces it on every stored target; the picker
+# offers the same set, so it never lists a service that a save would reject.
 
 
 def available_targets(hass: HomeAssistant) -> list[str]:
-    """Sorted list of ``mobile_app_*`` notify service names available right now.
+    """Sorted list of allowed notify service names available right now.
 
-    Surfaced to the panel (via ``get_options``) and the options flow so the user
+    That is each ``mobile_app_*`` service, and ``persistent_notification`` when the
+    core service is registered. Surfaced to the panel (via ``get_options``) so the user
     picks targets from a live list rather than typing service names.
     """
     services = hass.services.async_services().get("notify", {})
-    return sorted(name for name in services if name.startswith(_TARGET_PREFIX))
+    return sorted(name for name in services if notifications.is_allowed_target(name))
 
 
 def _profiles(entry: ConfigEntry) -> list[dict[str, Any]]:
