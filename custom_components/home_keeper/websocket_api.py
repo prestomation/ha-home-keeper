@@ -1527,7 +1527,7 @@ async def ws_get_options(
 ) -> None:
     """Return the config-entry options for the panel's Settings tab.
 
-    Also returns ``notify_targets`` — the ``mobile_app_*`` notify services available
+    Also returns ``notify_targets`` — the allowed notify services available
     right now — so the Notifications card can offer them as a checklist instead of
     making the user type service names, and ``own_todo_entities``, which the
     shopping-list picker excludes so it can't be pointed at Home Keeper's own list.

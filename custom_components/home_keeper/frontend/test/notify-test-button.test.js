@@ -376,6 +376,6 @@ describe('X09-2: Test on a notification with no device', () => {
     testBtn(panel).click();
     await new Promise((r) => setTimeout(r, 20));
     expect(serviceCalls(calls)).toEqual([]);
-    expect(toasts).toEqual(['Choose a device in "Send to (mobile apps)" first.']);
+    expect(toasts).toEqual(['Choose a device in "Send to" first.']);
   });
 });

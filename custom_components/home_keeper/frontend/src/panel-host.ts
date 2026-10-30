@@ -263,7 +263,7 @@ export interface PanelHost extends HTMLElement {
   _notifyBlocked(task: Task): void;
   /** Toast why *task* can't be duplicated. */
   _notifyNoDuplicate(task: Task): void;
-  /** The mobile_app_* notify services a notification can be delivered to. */
+  /** The notify services a notification can be delivered to. */
   _notifyTargets: string[];
   /** Open the drawer on a new task. */
   _openCreate(): void;

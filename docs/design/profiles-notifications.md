@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: 4084f1dad7fe
+source_hash: f75699e8903a
 ---
 
 # Profiles and notifications
@@ -69,8 +69,11 @@ holds the shared cases. The card `profile` setting and the active profile in
 `snooze_hours`, `style` (`walk` or `digest`), `channel`, `urgency`, `icon`, `color` and
 `auto` (`{overdue, due_soon}`). A `None` `profile_id` covers every overdue task; one that
 no longer resolves sends nothing. `notifications.split_targets` drops a target that is
-not allowed when the value is stored. Per-person delivery is 1 notification for each
-person: a profile for that person's tasks and the `mobile_app_*` service of the phone.
+not allowed when the value is stored. `notifier.available_targets` offers the same set to
+the **Send to** picker (`get_options` `notify_targets`): each `mobile_app_*` service, and
+`persistent_notification` when its service is registered. Per-person delivery is 1
+notification for each person: a profile for that person's tasks and the `mobile_app_*`
+service of the phone.
 
 ### Send and walk (`notifier.py`)
 

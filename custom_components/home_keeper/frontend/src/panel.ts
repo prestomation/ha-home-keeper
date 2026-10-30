@@ -265,7 +265,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _tabRuntime: PanelTabRuntime = newTabRuntime();
   // Integration options for the Settings tab (loaded lazily with the rest).
   _options: HomeKeeperOptions | null = null;
-  // Available mobile_app_* notify services (for the Notifications profile editor).
+  // Available notify services (for the Notifications profile editor).
   _notifyTargets: string[] = [];
   // Home Keeper's own todo entities, kept out of the shopping-list picker.
   _ownTodoEntities: string[] = [];

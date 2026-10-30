@@ -233,7 +233,7 @@ def is_allowed_target(target: str) -> bool:
 def split_targets(value: Any) -> tuple[list[str], list[str]]:
     """Partition raw notify targets into ``(accepted, rejected)``.
 
-    The picker in the panel only ever offers ``mobile_app_*`` services, but that is a
+    The picker in the panel offers only these allowed services, but that is a
     UI courtesy — nothing stopped a stored notification (or a ``target:`` override on
     ``home_keeper.notify``) from naming *any* notify service the admin has set up:
     SMTP, Telegram, a webhook. That turns Home Keeper into a confused deputy, relaying
