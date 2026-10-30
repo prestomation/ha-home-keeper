@@ -1025,10 +1025,18 @@ def _set_entity_disabled(ha, entity_id, disabled):
 
 
 def _wait_for_state(ha, entity_id, timeout=120):
-    """Wait until *entity_id* has a state again (its integration reloads on enable)."""
+    """Wait until *entity_id* has a real state again (its entry reloads on enable).
+
+    A re-enabled entity can show an ``unavailable`` placeholder before its integration
+    reloads (Home Assistant 2026.11 does), so a state that exists is not enough: the
+    tests that run next read the reading.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if any(s["entity_id"] == entity_id for s in list_states(ha)):
+        if any(
+            s["entity_id"] == entity_id and s["state"] != "unavailable"
+            for s in list_states(ha)
+        ):
             return
         time.sleep(2)
     raise AssertionError(f"{entity_id} did not come back after it was enabled")
