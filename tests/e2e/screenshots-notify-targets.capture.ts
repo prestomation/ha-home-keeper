@@ -4,9 +4,8 @@
  *   SHOT_DIR=../../docs/images npx playwright test \
  *     --config=screenshots-notify-targets.config.ts
  *
- * The picker lists `persistent_notification` next to the phones. The container has no
- * phone, so the list in the shot holds that one service, which is what a user without a
- * phone sees.
+ * The picker lists `persistent_notification` next to the phones, so a user without a
+ * phone can choose it. The fixture's `mobile_app_test` service is the phone in the shot.
  */
 import { expect, test } from '@playwright/test';
 import { callService, openPanel } from './tests/helpers';
@@ -65,7 +64,7 @@ test('capture the Send to picker', async ({ page }) => {
   };
 
   const { card, form } = await open();
-  await form.locator('ha-select').first().click();
+  await form.getByText('Send to', { exact: true }).first().click();
   await expect(page.getByText('persistent_notification').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/22d-panel-notify-targets.png` });
@@ -74,7 +73,7 @@ test('capture the Send to picker', async ({ page }) => {
 
   await page.setViewportSize(PHONE);
   const phone = await open();
-  await phone.form.locator('ha-select').first().click();
+  await phone.form.getByText('Send to', { exact: true }).first().click();
   await expect(page.getByText('persistent_notification').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/22d-panel-mobile-notify-targets.png` });

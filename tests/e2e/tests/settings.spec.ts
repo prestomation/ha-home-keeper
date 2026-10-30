@@ -109,6 +109,10 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toContainText('Send to');
       await expect(form).not.toContainText('mobile apps');
       await expect(form).toContainText('no buttons');
+      // The list offers it next to the phone service of the fixture.
+      await form.getByText('Send to', { exact: true }).first().click();
+      await expect(page.getByText('persistent_notification', { exact: true }).first()).toBeVisible();
+      await page.keyboard.press('Escape');
 
       // Both controls are drawn, under the labels the locale file gives them.
       await expect(form).toContainText('Notification channel');
@@ -168,7 +172,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await openRow();
       await actions.locator('.hk-notify-test').click();
       const toast = page.locator('.message');
-      await expect(toast).toContainText('Choose a device in "Send to (mobile apps)" first.');
+      await expect(toast).toContainText('Choose a device in "Send to" first.');
 
       // The panel stays up and does not log an error of its own.
       await expect(panel.locator('#hk-notifications')).toBeVisible();
