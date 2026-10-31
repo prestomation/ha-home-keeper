@@ -713,3 +713,37 @@ def test_async_get_events_ignores_a_task_changed_after_the_snapshot():
         entity.async_get_events(_Hass(), _dt(2026, 3, 1), _dt(2026, 3, 3))
     )
     assert {e.summary for e in got} == {"Fixed chore"}
+
+
+def test_async_get_events_ignores_nested_changes_after_the_snapshot():
+    """The store edits log entries in place, so the snapshot must copy deeply."""
+    task = _fixed_task(
+        _dt(2026, 1, 1, 9),
+        id="a",
+        completions=[{"ts": "2026-02-01T09:00:00-04:00", "note": "x"}],
+        skips=[],
+        moved_occurrences=[],
+    )
+    entity = _entity({"a": task})
+    seen: list[tuple] = []
+    real = cal.HomeKeeperCalendarEntity._collect_from
+
+    def spy(tasks, start, end):
+        seen.append(
+            (
+                tasks[0]["completions"][0]["note"],
+                len(tasks[0]["completions"]),
+                len(tasks[0]["skips"]),
+            )
+        )
+        return real(tasks, start, end)
+
+    class _Hass:
+        async def async_add_executor_job(self, func, *args):
+            task["completions"][0]["note"] = "changed"  # entry edited in place
+            task["completions"].append({"ts": "2026-02-02T09:00:00-04:00"})
+            task["skips"].append({"skipped_at": "2026-02-03T09:00:00-04:00"})
+            return spy(*args)
+
+    asyncio.run(entity.async_get_events(_Hass(), _dt(2026, 3, 1), _dt(2026, 3, 3)))
+    assert seen == [("x", 1, 0)]

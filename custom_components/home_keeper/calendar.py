@@ -9,6 +9,7 @@ it, and a moved date shows on its new date. The calendar is read-only.
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -198,10 +199,10 @@ class HomeKeeperCalendarEntity(
     ) -> list[CalendarEvent]:
         # A wide range of a home with many tasks takes seconds of CPU. Run it in an
         # executor, so the event loop keeps serving. The worker reads a snapshot made
-        # here in the loop: a copy of each task dict, so a change in the loop cannot
-        # reach it. Nothing in the work writes, and ``recurrence`` and ``dt_util``
+        # here in the loop. It is a deep copy, because the store edits log entries and
+        # lists in place. Nothing in the work writes, and ``recurrence`` and ``dt_util``
         # keep no shared mutable state.
-        snapshot = [dict(task) for task in self.coordinator.data.values()]
+        snapshot = [copy.deepcopy(task) for task in self.coordinator.data.values()]
         return await hass.async_add_executor_job(
             self._collect_from, snapshot, start_date, end_date
         )
@@ -209,6 +210,7 @@ class HomeKeeperCalendarEntity(
     def _collect_events(
         self, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
+        # Reads the live task dicts, so call it on the event loop only.
         return self._collect_from(
             list(self.coordinator.data.values()), start_date, end_date
         )
