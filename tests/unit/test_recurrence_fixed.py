@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import hk_recurrence as r
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -595,3 +596,58 @@ def test_b11_8_the_next_occurrence_from_an_occurrence_is_the_next_date():
     assert nxt(jan31, dt(2026, 2, 28, 9), "MONTHLY", 1) == dt(2026, 3, 31, 9)
     assert nxt(jan1, jan1, "WEEKLY", 2) == dt(2026, 1, 15, 9)
     assert nxt(jan1, jan1, "DAILY", 3) == dt(2026, 1, 4, 9)
+
+
+# ── completing before the time of day, across a DST change (#331) ─────────────
+
+
+def _complete_an_hour_early(zone, eve):
+    """Anchor a daily task 1 hour ahead of ``eve``, complete it, return both dues."""
+    now = eve.astimezone(zone)
+    anchor = now + timedelta(hours=1)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+    r.apply_completion(task, now, now=now)
+    return anchor, datetime.fromisoformat(task["next_due"]).astimezone(zone)
+
+
+_NY = ZoneInfo("America/New_York")
+
+
+@pytest.mark.parametrize(
+    "eve, label",
+    [
+        (datetime(2026, 10, 31, 11, 12, 51, tzinfo=_NY), "day before fall back"),
+        (datetime(2026, 3, 7, 11, 12, 51, tzinfo=_NY), "day before spring forward"),
+        (datetime(2026, 11, 1, 11, 12, 51, tzinfo=_NY), "day of fall back"),
+        (datetime(2026, 3, 8, 11, 12, 51, tzinfo=_NY), "day of spring forward"),
+        (datetime(2026, 7, 10, 11, 12, 51, tzinfo=_NY), "no change nearby"),
+    ],
+)
+def test_completing_early_moves_a_fixed_task_to_the_next_local_day(eve, label):
+    # The integration test of the same name once compared against ``before + 24 h``.
+    # That is 1 hour off on the eve of a DST change; the product keeps the local
+    # wall clock (goal G3), so the expected value is built in local time.
+    anchor, nxt = _complete_an_hour_early(_NY, eve)
+    local = anchor.astimezone(_NY)
+    expected = datetime.combine(
+        local.date() + timedelta(days=1), local.time(), tzinfo=_NY
+    )
+    assert nxt == expected, f"{label}: got {nxt.isoformat()}"
+
+
+def test_the_old_absolute_24_hour_expectation_is_wrong_on_a_dst_eve():
+    # What the integration test did: read the stored ISO string (a fixed offset) and
+    # add 1 day. On the eve of fall back that lands 1 hour off the local wall clock.
+    anchor, nxt = _complete_an_hour_early(
+        _NY, datetime(2026, 10, 31, 11, 12, 51, tzinfo=_NY)
+    )
+    old_expectation = datetime.fromisoformat(anchor.isoformat()) + timedelta(days=1)
+    assert nxt != old_expectation
+    assert nxt - old_expectation == timedelta(hours=1)

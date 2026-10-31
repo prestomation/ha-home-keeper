@@ -79,7 +79,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
+        "device_id": "1919bccc9be84887c6e1c69b1408e8a3",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -171,11 +171,12 @@
         "completion_detail": "none",
         "completion_required_fields": [],
         "source": {
-          "part": {
-            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
-            "part_id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
-            "manual": true
-          }
+          "parts": [
+            {
+              "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+              "part_id": "f8319a3a-c717-48c2-a53e-79a205fb4a48"
+            }
+          ]
         },
         "card_links": [
           {
@@ -303,12 +304,13 @@
           "home_keeper_battery_notes": {
             "device_id": "front_door_sensor_demo"
           },
-          "part": {
-            "asset_id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
-            "part_id": "3b9e1d57-2c6f-4a8b-b1e4-9d7c5f2a6e83",
-            "manual": true,
-            "quantity": 2
-          }
+          "parts": [
+            {
+              "asset_id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
+              "part_id": "3b9e1d57-2c6f-4a8b-b1e4-9d7c5f2a6e83",
+              "quantity": 2
+            }
+          ]
         },
         "managed_by": {
           "integration": "home_keeper_battery_notes",
@@ -484,7 +486,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
+        "device_id": "1919bccc9be84887c6e1c69b1408e8a3",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -675,7 +677,7 @@
         "name": "Wear rain jacket",
         "notes": "",
         "recurrence_type": "use",
-        "device_id": "f42abbadb961d83263e90cfc86906018",
+        "device_id": "341213363825d45e138cad96f1e1554c",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -709,7 +711,7 @@
         "name": "Renew DWR coating (Rain jacket)",
         "notes": "",
         "recurrence_type": "triggered",
-        "device_id": "f42abbadb961d83263e90cfc86906018",
+        "device_id": "341213363825d45e138cad96f1e1554c",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -723,7 +725,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "e6900cbc7d13e8c90dbbf12d92f25327",
+        "device_id": "1919bccc9be84887c6e1c69b1408e8a3",
         "identifiers": [
           [
             "home_keeper",
@@ -892,7 +894,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "0fccb50292fe7db25e68281fc5674e52",
+        "device_id": "7622c7187aba5eab74a180f1d71bf749",
         "identifiers": [
           [
             "home_keeper",
@@ -917,7 +919,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "62154922305bb240bbce96989f06869d",
+        "device_id": "395189dc63507b6554bc6aaa69f982ed",
         "identifiers": [
           [
             "home_keeper",
@@ -943,7 +945,7 @@
         "name": "Rain jacket",
         "kind": "virtual",
         "external_id": "",
-        "device_id": "f42abbadb961d83263e90cfc86906018",
+        "device_id": "341213363825d45e138cad96f1e1554c",
         "area_id": null,
         "manufacturer": "Fjallraven",
         "model": "Keb Eco-Shell",
@@ -994,7 +996,7 @@
         "id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
         "kind": "virtual",
         "name": "Batteries",
-        "device_id": "4c74232621908b59cba590f76b1efb3d",
+        "device_id": "4b682ffd0d4aa2263474e502d8241464",
         "identifiers": [
           [
             "home_keeper",
