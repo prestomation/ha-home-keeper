@@ -7,10 +7,13 @@ adding tasks flows through the recurrence engine and updates entities.
 
 import json
 import time
+from zoneinfo import ZoneInfo
 
 import websockets.sync.client
 from conftest import HA_URL, call_service, get_state, list_states, poll_state
 
+# The zone the test Home Assistant runs in (TZ in docker-compose.yml).
+HA_ZONE = ZoneInfo("America/New_York")
 _WS_URL = HA_URL.replace("http://", "ws://") + "/api/websocket"
 
 
@@ -567,9 +570,15 @@ def test_completing_a_fixed_task_before_its_time_of_day_moves_it_on(ha):
         call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
         after = next(t for t in _list_tasks(ha) if t["id"] == task_id)
         assert after["next_due"] != before, "next_due did not move (#331)"
-        assert datetime.fromisoformat(after["next_due"]) == datetime.fromisoformat(
-            before
-        ) + timedelta(days=1)
+        # Next day at the same local wall clock. Adding 24 hours to the stored
+        # fixed-offset string is 1 hour off on the eve of a DST change (this test
+        # failed on 2026-10-31); the pinned cases are in
+        # tests/unit/test_recurrence_fixed.py.
+        local = datetime.fromisoformat(before).astimezone(HA_ZONE)
+        expected = datetime.combine(
+            local.date() + timedelta(days=1), local.time(), tzinfo=HA_ZONE
+        )
+        assert datetime.fromisoformat(after["next_due"]) == expected
         assert len(after["completions"]) == 1
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
