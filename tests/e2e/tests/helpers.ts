@@ -417,3 +417,16 @@ export async function openListFilters(panel: Locator): Promise<void> {
   await panel.locator('#hk-filters-btn').click();
   await expect(controls).toBeVisible();
 }
+
+/**
+ * Open the "Send to" list of a notification row (#521). The control is Home Assistant's
+ * own multi-select, and its markup moves between releases: on 2026.10 the label is the
+ * opener, and on 2026.11 the label is a plain `span` and only the Add button opens the
+ * list. The Add button is the one part that is a button in both, so click that. Never
+ * click the label text: it matches 2 elements on the beta, and the first one is inert.
+ */
+export async function openSendTo(form: Locator): Promise<void> {
+  const field = form.locator('ha-selector').filter({ hasText: 'Send to' });
+  await expect(field).toHaveCount(1);
+  await field.locator('ha-button').first().click();
+}
