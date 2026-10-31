@@ -4,6 +4,7 @@ import {
   createTask,
   deleteTask,
   openPanel,
+  openSendTo,
   openSettingsSection,
   trackPanelErrors,
 } from './helpers';
@@ -110,7 +111,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).not.toContainText('mobile apps');
       await expect(form).toContainText('no buttons');
       // The list offers it next to the phone service of the fixture.
-      await form.getByText('Send to', { exact: true }).first().click();
+      await openSendTo(form);
       await expect(page.getByText('persistent_notification', { exact: true }).first()).toBeVisible();
       await page.keyboard.press('Escape');
 
@@ -337,7 +338,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toBeVisible();
 
       // Pick it from the list, the way a user does.
-      await form.getByText('Send to', { exact: true }).first().click();
+      await openSendTo(form);
       await page.getByText('persistent_notification', { exact: true }).first().click();
       await page.keyboard.press('Escape');
       await expect
