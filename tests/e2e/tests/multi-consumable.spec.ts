@@ -97,8 +97,11 @@ test.describe('Home Keeper — several consumables on 1 task @responsive', () =>
     await page.keyboard.press('Enter');
     const amounts = panel.locator('#hk-task-form-placement ha-selector-number');
     await expect(amounts).toHaveCount(2);
-    // The deep focus chain still runs through the picker, so Tab goes on from it.
-    await expect.poll(focusPath).toContain('ha-selector-select > ha-generic-picker');
+    // The keyboard stays on the picker's own Add button. Stable HA nests the button in
+    // `ha-generic-picker`. The 2026.11 beta slots it from `ha-selector-select`. Tab goes on from it.
+    await expect
+      .poll(focusPath)
+      .toMatch(/ha-selector-select > (ha-generic-picker > )?ha-button > button$/);
     await page.keyboard.press('Tab');
     await expect.poll(focusPath).toContain('ha-selector-number');
     await panel.locator('#f-cancel').click();
