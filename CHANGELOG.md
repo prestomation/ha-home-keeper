@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.35.0b5]
+
+### Fixed
+
+- **Responsive calendar.** The calendar page and Home Assistant stay quick when you view
+  a wide date range in a home with many tasks.
+
 ## [0.35.0b4]
 
 ### Fixed
