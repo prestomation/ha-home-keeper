@@ -23,9 +23,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Consumable links in task data.** Task events and `list_tasks` now show the linked parts
   of a task in the `source.parts` list, and completion entries keep `stock_drawn` and
   `last_replaced_before` as lists, so change an automation that reads `source.part` or the
-  old shape of those 2 fields. The `asset_id` and `part_id` fields of
-  `home_keeper.set_task_consumable` still work but log a warning. Make a backup before you
-  upgrade, because 0.34 does not read the new shapes.
+  old shape of those 2 fields. Make a backup before you upgrade, because 0.34 does not read
+  the new shapes.
 
 ### Fixed
 
