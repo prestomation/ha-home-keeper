@@ -11,7 +11,7 @@
 | custom\_components/home\_keeper/backend\_i18n.py                 |       49 |        5 |        8 |        1 |     89% |76-77, 80, 108-109 |
 | custom\_components/home\_keeper/binary\_sensor.py                |       70 |       70 |        6 |        0 |      0% |    12-152 |
 | custom\_components/home\_keeper/button.py                        |       43 |       13 |        4 |        0 |     68% |44-66, 78-79 |
-| custom\_components/home\_keeper/calendar.py                      |      116 |       10 |       50 |        7 |     90% |36-37, 144, 149-\>142, 162, 171, 199, 207, 212, 215-216, 222-\>205 |
+| custom\_components/home\_keeper/calendar.py                      |      121 |        8 |       50 |        6 |     92% |37-38, 145, 150-\>143, 163, 172, 230, 233-234, 240-\>223 |
 | custom\_components/home\_keeper/caller.py                        |       32 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/card.py                          |       87 |        7 |       28 |        2 |     92% |87-89, 129-130, 134, 153 |
 | custom\_components/home\_keeper/card\_resource.py                |       29 |        0 |        2 |        0 |    100% |           |
@@ -78,7 +78,7 @@
 | custom\_components/home\_keeper/trigger.py                       |       58 |       58 |        8 |        0 |      0% |    21-143 |
 | custom\_components/home\_keeper/trigger\_targets.py              |       47 |        0 |       12 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      717 |      717 |      106 |        0 |      0% |    8-2017 |
-| **TOTAL**                                                        | **13925** | **2815** | **4962** |  **307** | **81%** |           |
+| **TOTAL**                                                        | **13930** | **2813** | **4962** |  **306** | **81%** |           |
 
 
 ## Setup coverage badge
