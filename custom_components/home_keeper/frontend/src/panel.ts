@@ -41,7 +41,13 @@ import { renderAssetForm } from './panel-asset-form';
 import { sourceOwnedTask, wireDeviceChips, wirePartChips } from './panel-chips';
 import { emptySkipState, emptySnoozeState, type SkipState, type SnoozeState } from './defer';
 import { DeferMenus } from './defer-dialogs';
-import { controls, patchFilterCounts, patchListBar, wireControls } from './panel-controls';
+import {
+  controls,
+  patchFilterCounts,
+  patchListBar,
+  shellMarkup,
+  wireControls,
+} from './panel-controls';
 import { renderDeclarativeDialog } from './panel-declarative';
 import { openSkip, openSnooze, setDueToday, renderSkip, renderSnooze } from './panel-defer';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
@@ -53,7 +59,13 @@ import {
 } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { REQUIRED_COMPONENTS } from './panel-icons';
-import { assetsList, renderActionSheet, tasksList, wireLists } from './panel-lists';
+import {
+  adoptPatchedList,
+  isPatchedList,
+  patchTasksList,
+  suspendPatchedList,
+} from './panel-list-patch';
+import { assetsList, renderActionSheet, taskListModel, tasksList, wireLists } from './panel-lists';
 import {
   exportedLine,
   settingsBackbar,
@@ -649,24 +661,34 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * reset, because the menu button and any open form registered there and this pass did
    * not rebuild them.
    *
+   * `_render` also calls it, with the list it has just built, when only the tasks
+   * changed (see there). It then replays what the query patch keeps current: the list,
+   * the pill counts, the chips and the box.
+   *
    * Returns false when there is no rendered list to patch — a task's own page, or the
    * Settings tab — leaving the caller to render normally.
    */
-  private _applyQuery(): boolean {
+  private _applyQuery(known?: NonNullable<ReturnType<typeof taskListModel>>): boolean {
     const root = this.shadowRoot;
     const list = root?.getElementById('hk-list');
     if (!root || !list) return false;
     // The open deferral menu points at a row this is about to replace, and holds
     // document-level dismiss handlers.
     this._closeDeferMenu();
-    list.innerHTML = this._view === 'tasks' ? tasksList(this) : assetsList(this);
-    // Scoped to the list, not the shadow root: `wireDetailOpeners` also matches the
-    // appliance detail pane beside it, which this pass did not rebuild and must not
-    // bind a second time.
-    wireLists(this, list);
-    wireDetailOpeners(this, list);
-    wireDeviceChips(this, list);
-    wirePartChips(this, list);
+    // A list of rows keeps the rows that the new query still shows (`panel-list-patch`).
+    // Anything else, and a list the patch cannot read, is drawn from a string.
+    const model = this._view === 'tasks' ? (known ?? taskListModel(this)) : null;
+    if (!(model && patchTasksList(this, list, model))) {
+      suspendPatchedList(list);
+      list.innerHTML = this._view === 'tasks' ? tasksList(this) : assetsList(this);
+      // Scoped to the list, not the shadow root: `wireDetailOpeners` also matches the
+      // appliance detail pane beside it, which this pass did not rebuild and must not
+      // bind a second time.
+      wireLists(this, list);
+      wireDetailOpeners(this, list);
+      wireDeviceChips(this, list);
+      wirePartChips(this, list);
+    }
     patchFilterCounts(this, root);
     patchListBar(this, root);
     // A query the panel set itself — the empty state's way out, Escape, the clear
@@ -771,6 +793,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // the element otherwise), plus any pending per-keystroke persist timers.
     teardownOverlay(this);
     this._closeDeferMenu();
+    // Unmount took listeners and observers off the page, so the next render builds it again.
+    this._renderedShell = '';
     // The sheet-threshold media query outlives the element, so its listener has to
     // come off too — it closes over `this` and would otherwise keep the whole
     // detached shadow tree reachable, and re-render it on every crossing.
@@ -2160,6 +2184,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // The session the last render drew the drawer for, so the next one can tell "the
   // same form, rebuilt" from "a different form" when deciding to keep the scroll.
   private _renderedDrawerSubject: object | null = null;
+  /** The markup around the list at the last full render, and whether an overlay stood over it. */
+  private _renderedShell = '';
+  private _renderedOverlay = false;
 
   // ── rendering ───────────────────────────────────────────────────────────────
   _render(): void {
@@ -2168,28 +2195,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // again the listeners and the re-sign timer that unmount took off (F01-6).
     // `connectedCallback` renders again when the panel is attached again.
     if (!this.shadowRoot || !this.isConnected) return;
-    // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
-    // the keyboard back on the same control in the rebuilt tree.
-    const focused = this._focusKey();
-    this._ensureMarkdown();
-    // The open deferral menu points at markup this render is about to replace, and
-    // holds document-level dismiss handlers, so it comes down before the rebuild.
+    // The open deferral menu points at markup this render may replace, and holds
+    // document-level dismiss handlers, so it comes down before the rebuild.
     this._closeDeferMenu();
-    this._liveHassEls = [];
-    // Everything below is rebuilt from scratch, so every preview on screen is about to
-    // be detached — cancel its pending debounce rather than leaking a timer.
-    this._disposeAllPreviews();
-    // The drawer's scroller is rebuilt with everything else, at scrollTop 0. A render
-    // the drawer asked for itself — Add part, Remove part, an upload landing — used to
-    // throw the reader to the top of a form they were halfway down; the position is
-    // put back below, before anything paints.
-    // `_drawerSubject` is read *after* the state that opened this render has been
-    // set, so a drawer that swaps to another object (Edit on a second row while one
-    // is open) starts that form at its top rather than wherever the last one was.
-    const drawerScroll =
-      this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
     const drawerSubject = this._drawerSubject;
     const onTasks = this._view === 'tasks';
+    // The plain task list keeps its rows through a render (`panel-list-patch`).
+    const listModel = this._loaded && onTasks && !this._detail ? taskListModel(this) : null;
+    const existing = this.shadowRoot.getElementById('hk-list');
+    const keptList = listModel && existing && isPatchedList(existing) ? existing : null;
 
     let inner: string;
     if (!this._loaded && this._loadError) {
@@ -2280,7 +2294,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       inner = `
         ${this._tabs()}
         ${controls(this)}
-        <div id="hk-list">${onTasks ? tasksList(this) : assetsList(this)}</div>`;
+        <div id="hk-list">${listModel ? '' : onTasks ? tasksList(this) : assetsList(this)}</div>`;
     }
 
     // Editing happens in a side drawer beside the list rather than in a card above
@@ -2290,7 +2304,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const drawerOpen = this._drawerOpen();
     // The spend sheet sits outside `.hk-wrap`, so the page under it can go inert.
     const sheet = this._loaded && onTasks && !this._detail ? spendSheet(this) : '';
-    this.shadowRoot.innerHTML = `
+    const html = `
       <style>${STYLES}</style>
       <div class="hk-toolbar">
         <span id="menu-host"></span>
@@ -2315,7 +2329,62 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ${sheet}
       <div id="hk-dialog-host"></div>
     `;
+    // Nothing but the tasks changed: the markup around the list is the same, no form or
+    // dialog stands over it, and none did at the last render. Then only the list and the
+    // counts on the scope pills need to change, and the rest of the page stays as it is.
+    // That page holds the list, and a list that moves to a new page is laid out again.
+    const overlay =
+      drawerOpen ||
+      sheet !== '' ||
+      [
+        this._completion,
+        this._moveCompletion,
+        this._snooze,
+        this._skip,
+        this._actionSheet,
+        this._declDialog,
+        this._presetDialog,
+        this._labelDialog,
+        this._confirmDelete,
+      ].some((d) => d.open);
+    const shellKey = shellMarkup(html);
+    if (
+      listModel &&
+      keptList?.isConnected &&
+      !overlay &&
+      !this._renderedOverlay &&
+      shellKey === this._renderedShell &&
+      this._applyQuery(listModel)
+    ) {
+      void this._signFiles();
+      return;
+    }
+    this._renderedShell = shellKey;
+    this._renderedOverlay = overlay;
+
+    // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
+    // the keyboard back on the same control in the rebuilt tree.
+    const focused = this._focusKey();
+    this._ensureMarkdown();
+    this._liveHassEls = [];
+    // Everything below is rebuilt from scratch, so every preview on screen is about to
+    // be detached — cancel its pending debounce rather than leaking a timer.
+    this._disposeAllPreviews();
+    // The drawer's scroller is rebuilt with everything else, at scrollTop 0. A render
+    // the drawer asked for itself — Add part, Remove part, an upload landing — used to
+    // throw the reader to the top of a form they were halfway down; the position is
+    // put back below, before anything paints.
+    // `_drawerSubject` is read *after* the state that opened this render has been
+    // set, so a drawer that swaps to another object (Edit on a second row while one
+    // is open) starts that form at its top rather than wherever the last one was.
+    const drawerScroll =
+      this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
+    // The old list leaves the tree first, so that replacing the tree does not free its
+    // rows. It goes back in when the new tree stands.
+    keptList?.remove();
+    this.shadowRoot.innerHTML = html;
     this._hydrate();
+    if (listModel) this._mountTaskList(listModel, keptList);
     if (drawerScroll && drawerSubject && drawerSubject === this._renderedDrawerSubject) {
       const scroller = this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky');
       if (scroller) scroller.scrollTop = drawerScroll;
@@ -2325,6 +2394,29 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._syncDrawerModality();
     this._syncSpendSheet();
     this._observeBar();
+  }
+
+  /**
+   * Fill the empty `#hk-list` of a new tree. It takes the old list back when there is
+   * one, and patches it. The patch wires the rows that are new, so `_hydrate` has left
+   * this list alone. Without an old list, or if the patch declines, the list is drawn
+   * from a string and wired like the rest.
+   */
+  private _mountTaskList(
+    model: NonNullable<ReturnType<typeof taskListModel>>,
+    kept: HTMLElement | null,
+  ): void {
+    const root = this.shadowRoot;
+    let list = root?.getElementById('hk-list');
+    if (!root || !list) return;
+    if (kept && adoptPatchedList(kept, list)) list = kept;
+    if (patchTasksList(this, list, model)) return;
+    suspendPatchedList(list);
+    list.innerHTML = tasksList(this);
+    wireLists(this, list);
+    wireDetailOpeners(this, list);
+    wireDeviceChips(this, list);
+    wirePartChips(this, list);
   }
 
   /**

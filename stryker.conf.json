@@ -48,6 +48,7 @@
     "custom_components/home_keeper/frontend/src/rrule.ts",
     "custom_components/home_keeper/frontend/src/transfer-view.ts",
     "custom_components/home_keeper/frontend/src/panel-spend.ts",
+    "custom_components/home_keeper/frontend/src/panel-list-patch.ts",
     "custom_components/home_keeper/frontend/src/list-bar.ts"
   ],
   "thresholds": {
