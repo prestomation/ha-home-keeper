@@ -157,8 +157,9 @@ class TaskLifeCycle(RuleBasedStateMachine):
 
 
 TaskLifeCycle.TestCase.settings = settings(
-    # Fixed in CI. `HK_STATEFUL_EXAMPLES` lets a developer search longer by hand.
-    max_examples=int(os.environ.get("HK_STATEFUL_EXAMPLES", "200")),
+    # Fixed in CI. 200 examples missed a removed undo restore of moved dates (#529).
+    # `HK_STATEFUL_EXAMPLES` lets a developer search longer by hand.
+    max_examples=int(os.environ.get("HK_STATEFUL_EXAMPLES", "600")),
     stateful_step_count=12,
     deadline=None,
     derandomize=True,
