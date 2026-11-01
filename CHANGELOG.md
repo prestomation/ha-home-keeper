@@ -6,13 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.35.0b5]
+## [0.35.0b6]
 
 ### Fixed
 
 - **Faster task list.** The Tasks tab now keeps the rows that did not change. A search
   keystroke and a refresh after a task changes use far less main thread time, so a
   home with 1,000 tasks stays responsive.
+
+## [0.35.0b5]
+
+### Fixed
+
+- **Responsive calendar.** The calendar page and Home Assistant stay quick when you view
+  a wide date range in a home with many tasks.
 
 ## [0.35.0b4]
 
