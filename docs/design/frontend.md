@@ -77,8 +77,9 @@ flat in `src/`, because the i18n parity test and Stryker do not read subdirector
 `utils.escapeHTML` first. `_render` records the focused control (`_focusKey`) and restores it
 after the rebuild. The task form has sections (`forms.taskSchemaSections`), and each section
 gets only its own fields (`forms.pickFormData`), so it cannot write stale values over another.
-A new `forms.taskFormSchemaKey` renders again. A consumable pick sets its amount fields on its
-own form in place, so the picker keeps the focus. `dialogs.makeDialog` builds each `ha-dialog`.
+A changed `forms.taskFormSchemaKey` renders the drawer again. A consumable pick sets its
+amount fields on its own form in place, so the picker keeps the focus.
+`dialogs.makeDialog` builds each `ha-dialog`.
 
 ### Routes
 
@@ -94,7 +95,7 @@ is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible m
 `api.ts` wraps the websocket commands and `types.ts` their shapes. `_refresh` loads all data.
 `_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
 open. `_lookUpDetail` loads again, with a spinner, for a detail id that the lists do not have.
-`panel-list-patch.ts` keeps unchanged Rows elements; `_render` keeps the page if only tasks changed.
+`panel-list-patch.ts` keeps unchanged row elements; `_render` keeps the page if only tasks changed.
 
 ### Task layouts, the list bar and preferences
 
