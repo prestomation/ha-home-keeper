@@ -78,8 +78,7 @@ flat in `src/`, because the i18n parity test and Stryker do not read subdirector
 after the rebuild. The task form has sections (`forms.taskSchemaSections`), and each section
 gets only its own fields (`forms.pickFormData`), so it cannot write stale values over another.
 A changed `forms.taskFormSchemaKey` renders the drawer again. A consumable pick sets its
-amount fields on its own form in place, so the picker keeps the focus.
-`dialogs.makeDialog` builds each `ha-dialog`.
+amount fields in place, so the picker keeps the focus. `dialogs.makeDialog` builds each dialog.
 
 ### Routes
 
