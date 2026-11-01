@@ -10,6 +10,16 @@ import {
 } from './helpers';
 import { settleToasts } from '../shots';
 
+/**
+ * Block service workers. A fresh browser context loads Home Assistant, installs its
+ * service worker, and the page then reloads by itself about 8 seconds after the first
+ * load (seen on /home-keeper, /lovelace/0 and /profile/general, with no test action).
+ * A slow runner moves a test step across that moment: an `evaluate` dies with
+ * "Execution context was destroyed", a new document has no `hass` yet, and an open
+ * row or dialog is gone. With the worker blocked, no reload happens.
+ */
+test.use({ serviceWorkers: 'block' });
+
 test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () => {
   test('Settings tab renders the options form and deep-links', async ({ page }) => {
     const errors = trackPanelErrors(page);

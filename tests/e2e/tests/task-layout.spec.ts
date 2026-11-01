@@ -307,8 +307,9 @@ test.describe('Home Keeper panel — task list layouts', () => {
     const box = (await tile.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    // Past the 500ms threshold, with room for a slow frame either side of it.
-    await page.waitForTimeout(600);
+    // The product holds for 500ms (`HOLD_MS` in panel-lists.ts, not exported). Hold
+    // for 900ms, so a slow runner that delays the timer still lands past it.
+    await page.waitForTimeout(900);
     await page.mouse.up();
 
     // The page, not the sheet — and the click that ends the hold must not open one
