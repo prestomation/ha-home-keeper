@@ -136,3 +136,18 @@ def test_restore_is_for_a_fixed_task_only():
     now = datetime(2026, 1, 3, tzinfo=NY)
     r.remove_completion(task, "2026-01-02T00:00:00+00:00", now=now)
     assert "moved_occurrences" not in task
+
+
+def test_only_the_pruned_rows_are_stored_and_a_kept_move_stays():
+    task, now = _moved_task()
+    old = dict(task["moved_occurrences"][0])
+    future_from = datetime(2026, 1, 20, 0, 30, tzinfo=NY)
+    r.move_occurrence(task, future_from, future_from + timedelta(hours=1), now=now)
+    kept = {
+        "from": future_from.isoformat(),
+        "to": (future_from + timedelta(hours=1)).isoformat(),
+    }
+    later = now + timedelta(hours=38)
+    r.apply_completion(task, later, now=later)
+    assert task["completions"][-1][r.PRUNED_MOVES] == [old]
+    assert task["moved_occurrences"] == [kept]
