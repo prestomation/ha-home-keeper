@@ -998,6 +998,7 @@ def apply_history(
         for entry in task.get("completions") or []:
             if id(entry) not in stored_ids:
                 entry.pop(recurrence.PRIOR_DUE, None)
+                entry.pop(recurrence.PRUNED_MOVES, None)
     # A task stored by an older release can have no ``skips`` key at all.
     task["completions"] = _merge_log(stored_completions, task.get("completions") or [])
     task["skips"] = _merge_log(stored_skips, task.get("skips") or [])

@@ -48,7 +48,7 @@ and archive:
 | `photo` | site-relative or http(s) image URL | `ha-picture-upload` |
 | `who` | `person.*` entity id | user |
 | `reading` | float | sensor, editable |
-| `prior_due`, `meter_start` | internal | store bookkeeping |
+| `prior_due`, `pruned_moves`, `meter_start` | internal | store bookkeeping |
 
 `models.normalize_completion_metadata` cleans the user fields. It strips strings, drops
 blanks, refuses a negative or non-finite cost, and refuses a photo that is not http(s) or
