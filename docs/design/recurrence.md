@@ -12,7 +12,7 @@ implements:
 max_lines: 193
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: a27f484f9248
+source_hash: 8fd92a95da69
 ---
 
 # Task model and recurrence
@@ -132,10 +132,10 @@ and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving 
 
 ### Completion and skip
 
-`recurrence.apply_completion` writes the log entry and moves `next_due`. A completion older
-than the latest one only fills in the log. For a fixed task, `_advance_fixed_schedule` moves
-past `max(now, next_due)`: Done before the time of day clears today's occurrence, and an
-overdue task skips all missed ones in 1 step. The entry keeps `prior_due` for
+`recurrence.apply_completion` writes the log entry and moves `next_due`. A completion older than the
+latest one only fills in the log. For a fixed task, `_advance_fixed_schedule` moves past `max(now,
+next_due)`: Done before the time of day clears today's occurrence, and an overdue task skips all
+missed ones in 1 step. The entry keeps `prior_due` and, for a fixed task, `pruned_moves` for
 `remove_completion`; a floating entry only after a snooze, a due today or a moved date.
 
 `recurrence.skip_occurrence` writes to `skips`, never to `completions`, and does not change
@@ -187,7 +187,7 @@ start. A fixed task uses `recurrence.next_in_season_occurrence`, which the calen
 
 - Stored keys: the `recurrence_type` values, `interval`, `unit`, `rrule`, `anchor`,
   `moved_occurrences` (`from`, `to`), `due`, `next_due`, `last_completed`, `enabled`,
-  `active_season`, `snooze_hours`, `skips`, and the internal `prior_due` and `deferred_from`.
+  `active_season`, `snooze_hours`, `skips`, internal `prior_due`, `pruned_moves`, `deferred_from`.
 - Services: `add_task`, `update_task` (also the legacy `freq`), `snooze_task`, `skip_task`,
   `set_due_today`, `move_occurrence`, `trigger_task` ([INTEGRATING](../INTEGRATING.md)).
 - Options: `due_time_mode` (`completion`, `set_time`) and `due_time` (`HH:MM`).
