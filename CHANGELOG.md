@@ -12,6 +12,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **Undo keeps moved dates.** Undo of a completion now brings back a date that you moved
   before the completion. The task no longer shows a time that is on no schedule.
+- **Responsive calendar.** The calendar page and Home Assistant stay quick when you view
+  a wide date range in a home with many tasks.
 
 ## [0.35.0b4]
 

@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 0514a2bc9975
+source_hash: ff6176fb8ba2
 ---
 
 # To-do, calendar and list sync
@@ -56,8 +56,8 @@ entity, it gives its `entity_id` to the store, so the logbook ties task events t
 `calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`
 and never shows a `triggered` or `sensor` task. Each other task is 1 event at `next_due`.
 `calendar._fixed_events` expands a `fixed` task with its moves, inside its `active_season`.
-The dates from now up to `next_due` are left out (`calendar._due_ahead`), and a `next_due`
-from a snooze or a due today is its own event. The calendar is read-only.
+The dates from now up to `next_due` are left out (`calendar._due_ahead`); a snooze or a due
+today is its own event. A range query runs in an executor thread. The calendar is read-only.
 
 ### Pure planners and HA drivers
 
