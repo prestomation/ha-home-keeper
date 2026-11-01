@@ -49,7 +49,7 @@
 | custom\_components/home\_keeper/problem\_tasks.py                |       77 |        0 |       30 |        0 |    100% |           |
 | custom\_components/home\_keeper/profiles.py                      |      106 |        1 |       50 |        1 |     99% |       132 |
 | custom\_components/home\_keeper/reconcile.py                     |      415 |        5 |      226 |        7 |     98% |309, 329, 435, 437, 438-\>441, 514, 909-\>917 |
-| custom\_components/home\_keeper/recurrence.py                    |      668 |        6 |      300 |        7 |     99% |385, 578-579, 634-\>643, 785-\>797, 1010, 1193, 1583-\>1585, 1669 |
+| custom\_components/home\_keeper/recurrence.py                    |      686 |        6 |      310 |        7 |     99% |392, 585-586, 641-\>650, 792-\>804, 1017, 1208, 1621-\>1623, 1707 |
 | custom\_components/home\_keeper/resolve.py                       |       62 |        0 |       18 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                        |      243 |       99 |       54 |        0 |     53% |79, 92-145, 228-229, 233-234, 238-261, 272-307, 384-387, 432-442, 445-449, 453-460, 483, 487-488 |
 | custom\_components/home\_keeper/sensor\_tasks.py                 |      193 |        2 |       82 |        3 |     98% |147, 180-\>175, 207 |
@@ -70,7 +70,7 @@
 | custom\_components/home\_keeper/todo\_list.py                    |      278 |        0 |      114 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list\_sync.py              |      147 |        2 |       54 |        2 |     98% |  199, 214 |
 | custom\_components/home\_keeper/todo\_sync\_driver.py            |      135 |        3 |       34 |        2 |     97% |282-283, 344 |
-| custom\_components/home\_keeper/transfer.py                      |      734 |        2 |      296 |        3 |     99% |891, 910, 1617-\>1616 |
+| custom\_components/home\_keeper/transfer.py                      |      735 |        2 |      296 |        3 |     99% |891, 910, 1618-\>1617 |
 | custom\_components/home\_keeper/transfer\_bundle.py              |      365 |        7 |      162 |        9 |     97% |136-\>128, 144, 183, 211, 311-312, 338, 341-\>340, 605-\>607, 745-\>776, 822 |
 | custom\_components/home\_keeper/transfer\_http.py                |      181 |       16 |       44 |        3 |     91% |56-58, 209-210, 226, 235, 240-241, 315-316, 323-328 |
 | custom\_components/home\_keeper/transfer\_runner.py              |      438 |       42 |      128 |       10 |     90% |95, 103-105, 146, 192, 203, 335-336, 408-410, 423, 464, 499-501, 510, 527, 529-\>533, 565-567, 606-608, 622-624, 644-646, 654-655, 674-681, 730-\>733, 744-751, 984-985 |
@@ -78,7 +78,7 @@
 | custom\_components/home\_keeper/trigger.py                       |       58 |       58 |        8 |        0 |      0% |    21-143 |
 | custom\_components/home\_keeper/trigger\_targets.py              |       47 |        0 |       12 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      717 |      717 |      106 |        0 |      0% |    8-2017 |
-| **TOTAL**                                                        | **13930** | **2813** | **4962** |  **306** | **81%** |           |
+| **TOTAL**                                                        | **13949** | **2813** | **4972** |  **306** | **81%** |           |
 
 
 ## Setup coverage badge
