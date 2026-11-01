@@ -273,6 +273,10 @@ describe('adopting and suspending a list', () => {
 
   it('keeps the rows of a list that shows the empty message', async () => {
     const panel = await mount(makeTasks(4));
+    // The intro gives the list a head, so the head has to come back with the rows.
+    panel._introDismissed = false;
+    panel._tasks = [...panel._tasks];
+    panel._render();
     const list = panel.shadowRoot.getElementById('hk-list');
     const row = list.querySelector('.hk-card[data-id="t1"]');
     suspendPatchedList(document.createElement('div'));
@@ -280,6 +284,8 @@ describe('adopting and suspending a list', () => {
     expect(list.querySelector('.hk-card')).toBeNull();
     panel._setQuery('');
     expect(list.querySelector('.hk-card[data-id="t1"]')).toBe(row);
+    expect(list.querySelectorAll('.hk-intro')).toHaveLength(1);
+    expect(list.firstElementChild.classList.contains('hk-intro')).toBe(true);
     expect(drawn(panel)).toBe(fresh(panel));
   });
 });

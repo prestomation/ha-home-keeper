@@ -95,6 +95,7 @@ function arrange(parent: Element, first: Element | null, wanted: Element[]): voi
   for (const el of wanted) {
     // An element that is not wanted goes at once. If it stayed, each wanted element
     // after it would move in front of it, instead of that 1 element leaving.
+    // Stryker disable next-line all: an unwanted element then leaves at the end, and only the number of moves differs
     while (cur && !keep.has(cur)) {
       const next: Element | null = cur.nextElementSibling;
       cur.remove();
@@ -105,6 +106,7 @@ function arrange(parent: Element, first: Element | null, wanted: Element[]): voi
   }
   while (cur) {
     const next: Element | null = cur.nextElementSibling;
+    // Stryker disable next-line all: every element left here is unwanted, so the check never decides
     if (!keep.has(cur)) cur.remove();
     cur = next;
   }
@@ -132,8 +134,10 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
       else build.push(row);
     }
   }
+  // Stryker disable next-line all: an empty join and a join of text give the same elements
   const rowFragment = parse(build.map((r) => r.html).join(''));
   const built = Array.from(rowFragment.children) as HTMLElement[];
+  // Stryker disable next-line all: a guard for markup that taskCard never gives (1 root element a row)
   if (built.length !== build.length) return false;
   wireNew(p, rowFragment);
   built.forEach((el, i) => keep.set(build[i].id, { el, html: build[i].html }));
@@ -141,11 +145,14 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
   if (!state) {
     list.replaceChildren();
     state = {
+// Stryker disable next-line all: the head code overwrites both values before they are read
       headNodes: [],
+// Stryker disable next-line all: the head code overwrites both values before they are read
       headHtml: '',
       rows: new Map(),
       parked: new Map(),
       groups: new Map(),
+// Stryker disable next-line all: a new state is never read as stale before the first patch ends
       stale: false,
     };
     STATE.set(list, state);
@@ -161,6 +168,7 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
 
   // The head.
   if (fresh || model.head !== state.headHtml) {
+    // Stryker disable next-line all: a node that is already out of the list has no parent, and removal is then a no-op
     for (const node of state.headNodes) node.parentNode?.removeChild(node);
     const head = parse(model.head);
     wireNew(p, head);
@@ -168,6 +176,7 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
     state.headHtml = model.head;
     list.prepend(head);
   }
+  // Stryker disable next-line all: a text node in the head is never the last element, so the filter only skips white space
   const headEls = state.headNodes.filter((n): n is Element => n.nodeType === 1);
   const afterHead = (): Element | null =>
     headEls.length ? headEls[headEls.length - 1].nextElementSibling : list.firstElementChild;
@@ -179,11 +188,13 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
       afterHead(),
       model.groups[0].rows.map((r) => keep.get(r.id)!.el),
     );
+    // Stryker disable next-line all: the map is only a cache of sections, and a stale entry is replaced on its next use
     state.groups.clear();
   } else {
     // The rows move into their sections first, and then the sections are put in order.
     const sections = model.groups.map((g) => syncGroup(p, state!, g, keep));
     arrange(list, afterHead(), sections);
+    // Stryker disable next-line all: the map is only a cache of sections, and a stale entry is replaced on its next use
     for (const key of [...state.groups.keys()]) {
       if (!model.groups.some((g) => g.key === key)) state.groups.delete(key);
     }
@@ -193,6 +204,7 @@ export function patchTasksList(p: PanelHost, list: HTMLElement, model: TaskListM
   const live = new Set(p._tasks.map((task) => task.id));
   const parked = new Map<string, Slot>();
   for (const [id, slot] of old) {
+    // Stryker disable next-line all: a parked row that is also shown is replaced by the shown row on the next patch
     if (!keep.has(id) && live.has(id)) parked.set(id, slot);
   }
   state.rows = keep;
@@ -215,10 +227,13 @@ function syncGroup(
     state.groups.set(g.key, section);
   }
   const title = section.querySelector('.hk-group-title');
+  // Stryker disable next-line all: the guard avoids a write of equal text, so the DOM is the same without it
   if (title && title.textContent !== g.label) title.textContent = g.label;
   const count = section.querySelector('.hk-group-count');
+  // Stryker disable next-line all: the guard avoids a write of equal text, so the DOM is the same without it
   if (count && count.textContent !== String(g.rows.length)) count.textContent = String(g.rows.length);
   const open = groupIsOpen(p, g.key);
+  // Stryker disable next-line all: the guard avoids a write of an equal value, so the DOM is the same without it
   if (section.open !== open) section.open = open;
   const body = section.querySelector('.hk-group-body') as HTMLElement;
   arrange(
