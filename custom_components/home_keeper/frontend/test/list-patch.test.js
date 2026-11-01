@@ -12,6 +12,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definePanelStubs, makeHass, mountPanel } from './panel-harness.js';
 import { tasksList } from '../src/panel-lists.ts';
+import { adoptPatchedList, isPatchedList, suspendPatchedList } from '../src/panel-list-patch.ts';
 
 vi.mock('../src/panel-styles.ts', () => ({ STYLES: '', TASK_CARD_INLINE_CHIPS: 2 }));
 
@@ -188,6 +189,97 @@ describe('a task that is gone is not kept', () => {
     panel._tasks = panel._tasks.filter((x) => x.id !== 't1');
     panel._setQuery('');
     expect(panel.shadowRoot.querySelector('.hk-card[data-id="t1"]')).toBeNull();
+    expect(drawn(panel)).toBe(fresh(panel));
+  });
+});
+
+describe('the groups and the head follow the tasks', () => {
+  const section = (panel, key) => panel.shadowRoot.querySelector(`details[data-group-key="${key}"]`);
+
+  it('updates a group count in the section that it keeps', async () => {
+    const panel = await mount(makeTasks(12));
+    const key = 'status:overdue';
+    const kept = section(panel, key);
+    const was = Number(kept.querySelector('.hk-group-count').textContent);
+    const gone = panel._tasks.find((x) => kept.contains(panel.shadowRoot.querySelector(`.hk-card[data-id="${x.id}"]`)));
+    panel._tasks = panel._tasks.filter((x) => x.id !== gone.id);
+    panel._render();
+    expect(section(panel, key)).toBe(kept);
+    expect(kept.querySelector('.hk-group-count').textContent).toBe(String(was - 1));
+  });
+
+  it('opens and shuts a kept section from the collapse memory, and a search opens it', async () => {
+    const panel = await mount(makeTasks(12));
+    const key = 'status:overdue';
+    const kept = section(panel, key);
+    expect(kept.open).toBe(true);
+    panel._collapsed.add(key);
+    panel._tasks = [...panel._tasks];
+    panel._render();
+    expect(section(panel, key)).toBe(kept);
+    expect(kept.open).toBe(false);
+    panel._setQuery('a');
+    expect(kept.open, 'a search opens every section').toBe(true);
+    panel._setQuery('');
+    expect(kept.open).toBe(false);
+  });
+
+  it('moves a row to the section of its new status and drops a section that is empty', async () => {
+    const panel = await mount(makeTasks(12));
+    const keys = () => [...panel.shadowRoot.querySelectorAll('details.hk-group')].map((d) => d.dataset.groupKey);
+    const before = keys();
+    panel._tasks = panel._tasks.map((x) => ({ ...x, next_due: new Date(Date.now() + 90 * DAY).toISOString() }));
+    panel._render();
+    expect(keys()).not.toEqual(before);
+    expect(keys().some((k) => k === 'status:overdue')).toBe(false);
+    panel._setGroupBy('none');
+    expect(panel.shadowRoot.querySelector('details.hk-group')).toBeNull();
+    expect(panel.shadowRoot.querySelectorAll('#hk-list > .hk-card').length).toBe(12);
+    panel._setGroupBy('status');
+    expect(panel.shadowRoot.querySelectorAll('#hk-list > .hk-card').length).toBe(0);
+  });
+
+  it('builds the head again when its markup changes, and keeps the rows', async () => {
+    const panel = await mount(makeTasks(12));
+    const row = panel.shadowRoot.querySelector('.hk-card[data-id="t1"]');
+    panel._introDismissed = false;
+    panel._tasks = [...panel._tasks];
+    panel._render();
+    expect(panel.shadowRoot.querySelector('#hk-list .hk-intro')).toBeTruthy();
+    expect(panel.shadowRoot.querySelector('.hk-card[data-id="t1"]')).toBe(row);
+    panel._introDismissed = true;
+    panel._tasks = [...panel._tasks];
+    panel._render();
+    expect(panel.shadowRoot.querySelector('#hk-list .hk-intro')).toBeNull();
+    expect(drawn(panel)).toBe(fresh(panel));
+  });
+});
+
+describe('adopting and suspending a list', () => {
+  it('adopts only a list that the patch built', async () => {
+    const panel = await mount(makeTasks(4));
+    const list = panel.shadowRoot.getElementById('hk-list');
+    expect(isPatchedList(list)).toBe(true);
+    const spot = document.createElement('div');
+    const plain = document.createElement('div');
+    document.body.append(spot);
+    expect(adoptPatchedList(null, spot)).toBe(false);
+    expect(adoptPatchedList(plain, spot)).toBe(false);
+    expect(spot.isConnected).toBe(true);
+    expect(adoptPatchedList(list, spot)).toBe(true);
+    expect(spot.isConnected).toBe(false);
+    expect(list.isConnected).toBe(true);
+  });
+
+  it('keeps the rows of a list that shows the empty message', async () => {
+    const panel = await mount(makeTasks(4));
+    const list = panel.shadowRoot.getElementById('hk-list');
+    const row = list.querySelector('.hk-card[data-id="t1"]');
+    suspendPatchedList(document.createElement('div'));
+    panel._setQuery('zzz');
+    expect(list.querySelector('.hk-card')).toBeNull();
+    panel._setQuery('');
+    expect(list.querySelector('.hk-card[data-id="t1"]')).toBe(row);
     expect(drawn(panel)).toBe(fresh(panel));
   });
 });
