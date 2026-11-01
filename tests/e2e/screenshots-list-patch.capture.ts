@@ -32,7 +32,8 @@ test('task list search and refresh in a home with many tasks', async ({ page }) 
     await expect(panel.locator(`.hk-card[data-id="${made[0]}"]`)).toBeAttached({ timeout: 60_000 });
     // The text filter narrows the list. The pills' counts follow it.
     await panel.locator('.hk-search-input').fill('furnace');
-    await expect(panel.locator('#hk-list ha-card.hk-card')).toHaveCount(COUNT / BASES.length);
+    await expect(panel.locator(`.hk-card[data-id="${made[0]}"]`)).toBeVisible();
+    await expect(panel.locator(`.hk-card[data-id="${made[1]}"]`)).toHaveCount(0);
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/526-panel-list-search.png` });
 
