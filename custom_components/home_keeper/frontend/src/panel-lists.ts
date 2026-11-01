@@ -102,21 +102,32 @@ function introCard(p: PanelHost): string {
       </div>`;
 }
 
-export function tasksList(p: PanelHost): string {
+/** What sits above the rows: the intro card, the preset nudge, the spend strip and the orphan banner. */
+function listHead(p: PanelHost): string {
   // The compact spend strip. A phone hides it and shows the spend button instead.
+  return `${introCard(p)}${presetNudgeCard(p)}${spendStrip(p, 'compact')}${orphanBanner(p)}`;
+}
+
+/** The tasks the list shows, by due date. The scope, the Profile and the search choose them. */
+function sortedListed(p: PanelHost, now: number): Task[] {
+  const tasks = listedTasks(p, now);
+  tasks.sort((a, b) => {
+    const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
+    const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
+    return ad - bd;
+  });
+  return tasks;
+}
+
+export function tasksList(p: PanelHost): string {
   const intro = introCard(p) + presetNudgeCard(p) + spendStrip(p, 'compact');
   if (!p._tasks.length) {
     const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
     return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
   }
   const now = Date.now();
-  const tasks = listedTasks(p, now);
+  const tasks = sortedListed(p, now);
   const profile = activeProfile(p);
-  tasks.sort((a, b) => {
-    const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
-    const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
-    return ad - bd;
-  });
   if (!tasks.length) {
     // Closing the loop the other way: an empty result carries the way back to the
     // full list, so the dead end is escapable even when it was a Profile rather
@@ -138,6 +149,46 @@ export function tasksList(p: PanelHost): string {
     return `${head}${renderBoard(groups, (task) => boardCard(p, task))}`;
   }
   return `${head}${renderGroups(p, groups, (task) => taskCard(p, task))}`;
+}
+
+/** One list row: the task id and the markup of its card. */
+export interface ListRow {
+  id: string;
+  html: string;
+}
+
+/** One group of rows. A list with no group heading is 1 group with an empty label. */
+export interface ListGroup {
+  key: string;
+  label: string;
+  rows: ListRow[];
+}
+
+/** The task list as data, so that `panel-list-patch.ts` can keep the rows that did not change. */
+export interface TaskListModel {
+  head: string;
+  groups: ListGroup[];
+}
+
+/**
+ * The task list as `tasksList` draws it, split into the head and the rows.
+ *
+ * Returns null where the list is not a list of rows: the empty states, and the tiles
+ * and the board, which are drawn as 1 string.
+ */
+export function taskListModel(p: PanelHost): TaskListModel | null {
+  if (p._taskLayout !== 'rows' || !p._tasks.length) return null;
+  const now = Date.now();
+  const tasks = sortedListed(p, now);
+  if (!tasks.length) return null;
+  return {
+    head: listHead(p),
+    groups: groupTasks(p, tasks, now).map((g) => ({
+      key: g.key,
+      label: g.label,
+      rows: g.items.map((task) => ({ id: task.id, html: taskCard(p, task) })),
+    })),
+  };
 }
 
 /**

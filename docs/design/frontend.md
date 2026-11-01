@@ -10,6 +10,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-icons.ts
   - custom_components/home_keeper/frontend/src/panel-indent.ts
   - custom_components/home_keeper/frontend/src/panel-lists.ts
+  - custom_components/home_keeper/frontend/src/panel-list-patch.ts
   - custom_components/home_keeper/frontend/src/panel-styles.ts
   - custom_components/home_keeper/frontend/src/panel-task-form.ts
   - custom_components/home_keeper/frontend/src/panel-types.ts
@@ -31,7 +32,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: a9fa76ba263c
+source_hash: e0e17976367f
 ---
 
 # Frontend
@@ -61,8 +62,7 @@ Rollup builds `src/index.ts` and `src/card-index.ts` into 2 IIFE files in `front
 serves static paths before authentication. Each module URL has a `?v=` content hash from
 `panel.cache_token`, so a rebuild busts caches. The panel has `require_admin=False`, and
 `HomeKeeperPanel._readOnly` hides each admin-only control from a non-admin.
-Both entry files check the registry before `customElements.define`, so a second load is safe.
-`global.d.ts` types the `panel-version` module that Rollup fills from `const.py`.
+Entry files check the registry before `customElements.define`; `global.d.ts` types `panel-version`.
 
 ### Panel: one element, flat regions
 
@@ -94,6 +94,7 @@ is an overlay with no URL. `utils.navigateTo` leaves the panel, with a visible m
 `api.ts` wraps the websocket commands and `types.ts` their shapes. `_refresh` loads all data.
 `_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
 open. `_lookUpDetail` loads again, with a spinner, for a detail id that the lists do not have.
+`panel-list-patch.ts` keeps unchanged Rows elements; `_render` keeps the page if only tasks changed.
 
 ### Task layouts, the list bar and preferences
 
@@ -136,10 +137,9 @@ as a parameter. Setup runs `backend_i18n.preload` in the executor, so reads neve
 
 ## Trade-offs
 
-- **Custom elements and string templates** over a framework: one small IIFE with no runtime
-  dependency, at the cost of the escape and focus rules above.
-- **Free functions over `PanelHost`** over sub-controller classes: no forwarding layer, and
-  each region's access to the panel is typed.
+- **Custom elements and string templates** over a framework: no runtime dependency, but the
+  escape and focus rules above.
+- **Free functions over `PanelHost`** over sub-controller classes: no forwarding layer.
 
 ## One-way doors
 
