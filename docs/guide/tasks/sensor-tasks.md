@@ -172,9 +172,9 @@ the part.
 
 Select the part in the **Linked consumables** field on the task form. The field lists
 the parts of the appliance that the task is attached to with **Attach to device**.
-The field is hidden if the appliance has no consumable parts. The
-`home_keeper.set_task_consumable` service sets the same link. Omit the ids to
-unlink. The task detail shows the linked part and its current stock.
+The field is hidden if there is no consumable part to offer. A task with no device
+still shows the parts that it links. The `home_keeper.set_task_consumable` service
+sets the same links. Send `parts: []` to unlink. The task detail shows the linked part and its current stock.
 
 ![The task form's Linked consumable picker: link a task to a stocked consumable](../../images/34-panel-create-linked-consumable.png)
 
