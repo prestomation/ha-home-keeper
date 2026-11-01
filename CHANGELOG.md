@@ -6,67 +6,40 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.35.0b7]
-
-### Fixed
-
-- **Faster task list.** The Tasks tab now keeps the rows that did not change. A search
-  keystroke and a refresh after a task changes use far less main thread time, so a
-  home with 1,000 tasks stays responsive.
-
-## [0.35.0b6]
-
-### Fixed
-
-- **Undo keeps moved dates.** Undo of a completion now brings back a date that you moved
-  before the completion. The task no longer shows a time that is on no schedule.
-
-## [0.35.0b5]
-
-### Fixed
-
-- **Responsive calendar.** The calendar page and Home Assistant stay quick when you view
-  a wide date range in a home with many tasks.
-
-## [0.35.0b4]
-
-### Fixed
-
-- **Fast card picker.** The Tasks card now shows at most 3 tasks in the card picker of
-  the dashboard editor, so the dialog opens fast in a home with many tasks. A card on a
-  dashboard still shows every task. (Fixes #524)
-
-## [0.35.0b3]
-
-### Fixed
-
-- **Persistent notification target.** The **Send to** list in **Settings → Notifications**
-  now shows `persistent_notification`, so a user with no phone can choose it. (Fixes #521)
-
-## [0.35.0b2]
+## [0.35.0] - 2026-11-01
 
 ### Added
 
 - **[Multiple consumables per task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks#several-consumables-on-1-task).**
   A task can take more than 1 consumable part with its own amount for each part.
   (Fixes #493) (Thanks @ebolly!)
+- **[Logbook user attribution](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
+  Home Keeper logbook rows and events now name the user or automation that made each
+  change. A task that stops being overdue gets an "is no longer overdue" row, so 1
+  Chronicle Card filter on "overdue" shows when each task was overdue.
 
 ### Changed
 
 - **Consumable links in task data.** Task events and `list_tasks` now show the linked parts
   of a task in the `source.parts` list, and completion entries keep `stock_drawn` and
   `last_replaced_before` as lists, so change an automation that reads `source.part` or the
-  old shape of those 2 fields. The `asset_id` and `part_id` fields of
-  `home_keeper.set_task_consumable` still work but log a warning.
+  old shape of those 2 fields. Make a backup before you upgrade, because 0.34 does not read
+  the new shapes.
 
-## [0.35.0b1]
+### Fixed
 
-### Added
-
-- **[Logbook user attribution](https://prestomation.github.io/ha-home-keeper/docs/guide/events#task-history-in-the-logbook).**
-  Home Keeper logbook rows and events now name the user or automation that made each
-  change. A task that stops being overdue gets an "is no longer overdue" row, so 1
-  Chronicle Card filter on "overdue" shows when each task was overdue.
+- **Persistent notification target.** The **Send to** list in **Settings → Notifications**
+  now shows `persistent_notification`, so a user with no phone can choose it. (Fixes #521)
+- **Fast card picker.** The Tasks card now shows at most 3 tasks in the card picker of
+  the dashboard editor, so the dialog opens fast in a home with many tasks. A card on a
+  dashboard still shows every task. (Fixes #524)
+- **Responsive calendar.** The calendar page and Home Assistant stay quick when you view
+  a wide date range in a home with many tasks.
+- **Moved dates after undo.** Undo of a completion now brings back a date that you moved
+  before the completion. The task no longer shows a time that is on no schedule.
+- **Faster task list.** The Tasks tab now keeps the rows that did not change. A search
+  keystroke and a refresh after a task changes use far less main thread time, so a
+  home with 1,000 tasks stays responsive.
 
 ## [0.34.0] - 2026-10-27
 
