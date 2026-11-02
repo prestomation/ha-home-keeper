@@ -98,6 +98,7 @@ stellantis_vehicles_life_low
 stiebel_eltron_isg_alert_binary_sensor_on
 sunseeker_life_low
 sunseeker_percent_low
+switchbot_wear_high
 syncthru_percent_low
 synology_dsm_reading_high
 syr_connect_reading_low

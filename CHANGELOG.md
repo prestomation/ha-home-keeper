@@ -8,6 +8,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [0.36.0b1]
 
+### Added
+
+- **[SwitchBot filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings#integration-presets).**
+  Home Keeper can now open a task to replace the filter of a SwitchBot air purifier when
+  the filter hours get high.
+
 ### Fixed
 
 - **Board scroll position.** The Tasks board now stays at the column that you scrolled to
