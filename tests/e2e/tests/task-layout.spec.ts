@@ -211,6 +211,56 @@ test.describe('Home Keeper panel — task list layouts', () => {
     expect(errors).toEqual([]);
   });
 
+  for (const [name, size] of [
+    ['phone', PHONE],
+    ['desktop', DESKTOP],
+  ] as const) {
+    test(`a press on a board card keeps the board's scroll position on a ${name}`, async ({
+      page,
+    }) => {
+      const errors = trackPanelErrors(page);
+      await page.setViewportSize(size);
+      const panel = await openPanelIn(page, 'board');
+      await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
+      // Wide columns, so that the seed's few columns scroll on a desktop too. A style
+      // on the board element is lost when the panel builds the board again, which is
+      // what this test must not hide, so the rule goes in the shadow root's sheet.
+      await panel.evaluate((el) => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync('.hk-board { grid-auto-columns: 480px !important; }');
+        el.shadowRoot!.adoptedStyleSheets = [...el.shadowRoot!.adoptedStyleSheets, sheet];
+      });
+      const board = (): Promise<{ left: number; max: number }> =>
+        panel.evaluate((el) => {
+          const b = el.shadowRoot?.querySelector('.hk-board') as HTMLElement | null;
+          return b ? { left: b.scrollLeft, max: b.scrollWidth - b.clientWidth } : { left: -1, max: -1 };
+        });
+      expect((await board()).max, 'the board should scroll sideways').toBeGreaterThan(100);
+
+      // Scroll to the last column, and press a card in it.
+      await panel.evaluate((el) => {
+        const b = el.shadowRoot?.querySelector('.hk-board') as HTMLElement;
+        b.style.scrollSnapType = 'none';
+        b.scrollLeft = b.scrollWidth;
+      });
+      const before = (await board()).left;
+      expect(before).toBeGreaterThan(100);
+      // Playwright may scroll a card a few pixels into view before it presses it.
+      const SLACK = 40;
+      await panel.locator('.hk-board-col:last-child .hk-bcard').first().click();
+      await expect(panel.locator('ha-adaptive-dialog[open]')).toHaveCount(1);
+      expect((await board()).left, 'the sheet should not reset the board').toBeGreaterThanOrEqual(
+        before - SLACK,
+      );
+
+      // Closing the sheet keeps it too.
+      await page.keyboard.press('Escape');
+      await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
+      expect((await board()).left).toBeGreaterThanOrEqual(before - SLACK);
+      expect(errors).toEqual([]);
+    });
+  }
+
   test('a press on a tile opens the actions that task allows', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);

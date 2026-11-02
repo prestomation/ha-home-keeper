@@ -32,7 +32,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 77c658d08040
+source_hash: 249739b4211f
 ---
 
 # Frontend
@@ -98,7 +98,7 @@ open. `_lookUpDetail` loads again, with a spinner, for a detail id that the list
 
 ### Task layouts, the list bar and preferences
 
-The Tasks tab draws a list as Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`).
+Tasks draws Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`); `_render` keeps its scroll.
 Above it, `panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add,
 and a chip for each active filter (`list-bar.ts`). The filter controls follow the bar. An
 observer on a sentinel marks a pinned bar `data-stuck`. A phone folds the filter controls.
