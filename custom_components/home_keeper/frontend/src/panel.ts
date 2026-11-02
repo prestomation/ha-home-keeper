@@ -2379,6 +2379,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // is open) starts that form at its top rather than wherever the last one was.
     const drawerScroll =
       this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
+    // The board is a string, so a new tree has a new board at scrollLeft 0. Opening the
+    // action sheet from a card in a far column used to throw the reader back to the
+    // first column. The position is put back below, before anything paints.
+    const boardScroll = this.shadowRoot.querySelector<HTMLElement>('.hk-board')?.scrollLeft ?? 0;
     // The old list leaves the tree first, so that replacing the tree does not free its
     // rows. It goes back in when the new tree stands.
     keptList?.remove();
@@ -2388,6 +2392,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (drawerScroll && drawerSubject && drawerSubject === this._renderedDrawerSubject) {
       const scroller = this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky');
       if (scroller) scroller.scrollTop = drawerScroll;
+    }
+    if (boardScroll) {
+      const board = this.shadowRoot.querySelector<HTMLElement>('.hk-board');
+      if (board) board.scrollLeft = boardScroll;
     }
     this._renderedDrawerSubject = drawerSubject;
     this._restoreFocus(focused);
