@@ -10,7 +10,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **[SwitchBot filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings#integration-presets).**
+- **[SwitchBot filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
   Home Keeper can now open a task to replace the filter of a SwitchBot air purifier when
   the filter hours get high.
 
