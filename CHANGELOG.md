@@ -6,13 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.36.0b1]
+## [0.36.0b2]
 
 ### Added
 
 - **[SwitchBot filter preset](https://prestomation.github.io/ha-home-keeper/docs/guide/views/settings#integration-presets).**
   Home Keeper can now open a task to replace the filter of a SwitchBot air purifier when
   the filter hours get high.
+
+## [0.36.0b1]
 
 ### Fixed
 
