@@ -7,7 +7,8 @@ Usage:
 
 Exit codes:
     0  no findings
-    1  at least one finding that is not in the allowlist
+    1  at least one finding that is not in the allowlist, or (with --lane) an
+       allowlist entry of that lane that matched nothing
     2  bad input (no log lines, bad allowlist, unreadable file)
 
 The script uses only the Python standard library. It knows nothing about one
@@ -35,6 +36,11 @@ comment that gives the reason. Entries without a reason are rejected.
 An allowlist regex is checked against every record and hides it from all
 the rules above. Keep each entry narrow: match the logger name or the full
 message, not a short word like "timeout".
+
+With ``--lane NAME`` the gate also fails on a stale entry: one that names this
+lane (a ``# lane: a, b`` comment before it, default ``integration``) and hid no
+finding in this run. An entry cannot outlive the test that needs it. Each lane
+checks only its own entries, because the lanes write different logs.
 """
 
 from __future__ import annotations
@@ -44,6 +50,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 DEFAULT_ALLOWLIST = Path(__file__).with_name("ha_log_allowlist.txt")
 
@@ -158,16 +165,45 @@ def names_domain(text: str, domain: str) -> bool:
     )
 
 
-def load_allowlist(path: Path) -> list[tuple[re.Pattern[str], str]]:
-    """Read allowlist entries. Raise ValueError on an entry without a reason."""
-    entries: list[tuple[re.Pattern[str], str]] = []
+DEFAULT_LANES = ("integration",)
+LANE_LINE = re.compile(r"^#\s*lane:\s*(?P<lanes>.+)$", re.IGNORECASE)
+
+
+class AllowEntry(NamedTuple):
+    pattern: re.Pattern[str]
+    reason: str
+    lanes: tuple[str, ...]
+    line_no: int
+
+
+def load_allowlist(path: Path) -> list[AllowEntry]:
+    """Read allowlist entries. Raise ValueError on an entry without a reason.
+
+    A comment line "# lane: integration, noise" before an entry names the CI lanes
+    whose log must contain the entry. Without one, the lane is "integration".
+    Any other comment line is part of the reason, and the lines before an entry
+    join. A blank line ends both.
+    """
+    entries: list[AllowEntry] = []
     reason: str | None = None
+    lanes: tuple[str, ...] = DEFAULT_LANES
     for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.strip()
         if not line:
             reason = None
+            lanes = DEFAULT_LANES
         elif line.startswith("#"):
-            reason = line.lstrip("#").strip() or None
+            lane_line = LANE_LINE.match(line)
+            if lane_line:
+                lanes = tuple(
+                    lane.strip()
+                    for lane in lane_line["lanes"].split(",")
+                    if lane.strip()
+                )
+            else:
+                text = line.lstrip("#").strip()
+                if text:
+                    reason = f"{reason} {text}" if reason else text
         else:
             if not reason:
                 raise ValueError(
@@ -175,7 +211,7 @@ def load_allowlist(path: Path) -> list[tuple[re.Pattern[str], str]]:
                     "on the line before it"
                 )
             try:
-                entries.append((re.compile(line), reason))
+                entries.append(AllowEntry(re.compile(line), reason, lanes, number))
             except re.error as err:
                 raise ValueError(f"{path}:{number}: bad regex: {err}") from err
     return entries
@@ -184,8 +220,14 @@ def load_allowlist(path: Path) -> list[tuple[re.Pattern[str], str]]:
 def check_records(
     records: list[Record],
     domain: str,
-    allowlist: list[tuple[re.Pattern[str], str]],
+    allowlist: list[AllowEntry],
+    used: set[int] | None = None,
 ) -> list[Finding]:
+    """Return the findings that the allowlist does not hide.
+
+    *used* collects the index of each entry that hid a finding, so a caller can
+    report an entry that hid nothing.
+    """
     findings: list[Finding] = []
     logger_prefix = f"custom_components.{domain}"
     for record in records:
@@ -207,7 +249,10 @@ def check_records(
                     rules.append(label)
         if not rules:
             continue
-        if any(p.search(text) for p, _ in allowlist):
+        hiding = [i for i, entry in enumerate(allowlist) if entry.pattern.search(text)]
+        if hiding:
+            if used is not None:
+                used.update(hiding)
             continue
         findings.append(Finding(record.line_no, "; ".join(rules), text))
     return findings
@@ -223,6 +268,29 @@ def group_findings(findings: list[Finding]) -> list[Group]:
         )
     # sorted() is stable, so groups of the same size keep the log order.
     return sorted(groups.values(), key=lambda g: -len(g.findings))
+
+
+def stale_entries(
+    allowlist: list[AllowEntry], used: set[int], lane: str
+) -> list[AllowEntry]:
+    """The entries of *lane* that hid no finding in this run."""
+    return [
+        entry
+        for index, entry in enumerate(allowlist)
+        if lane in entry.lanes and index not in used
+    ]
+
+
+def format_stale(stale: list[AllowEntry], lane: str) -> str:
+    lines = [f"{len(stale)} stale allowlist entry(ies) for lane '{lane}':"]
+    for entry in stale:
+        lines.append(f"  line {entry.line_no}: {entry.reason}")
+        lines.append(f"    {entry.pattern.pattern[:160]}")
+    lines.append(
+        "An entry that matches no record is stale. Delete it, or fix its pattern, "
+        "or give it the lane whose log shows it (a '# lane:' comment)."
+    )
+    return "\n".join(lines)
 
 
 def format_report(findings: list[Finding], example_count: int = 2) -> str:
@@ -269,6 +337,13 @@ def main(argv: list[str] | None = None) -> int:
         help=f"allowlist file (default: {DEFAULT_ALLOWLIST})",
     )
     parser.add_argument(
+        "--lane",
+        help=(
+            "name of this CI lane. With it, an allowlist entry of this lane that "
+            "hid nothing is stale and fails the gate"
+        ),
+    )
+    parser.add_argument(
         "log", nargs="?", default="-", help="log file, or - for stdin (default)"
     )
     args = parser.parse_args(argv)
@@ -299,7 +374,9 @@ def main(argv: list[str] | None = None) -> int:
         print_log_sample(lines)
         return 2
 
-    findings = check_records(records, args.domain, allowlist)
+    used: set[int] = set()
+    findings = check_records(records, args.domain, allowlist, used)
+    stale = stale_entries(allowlist, used, args.lane) if args.lane else []
     if findings:
         print(format_report(findings))
         # Same stream as the report, so the order of the output is stable.
@@ -307,6 +384,9 @@ def main(argv: list[str] | None = None) -> int:
             f"\n{len(findings)} problem(s) found for '{args.domain}'. "
             "Fix them, or add a reason and a pattern to the allowlist."
         )
+    if stale:
+        print(("\n" if findings else "") + format_stale(stale, args.lane))
+    if findings or stale:
         return 1
     print(f"OK: no problems found for '{args.domain}' in {len(records)} records")
     return 0

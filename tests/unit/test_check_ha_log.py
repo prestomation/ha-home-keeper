@@ -464,29 +464,185 @@ def _unknown_device(task: str, device: str) -> str:
 
 def test_shipped_allowlist_has_a_reason_for_each_entry_and_none_is_broad():
     assert len(SHIPPED) > 0
-    for pattern, reason in SHIPPED:
-        assert reason
+    for entry in SHIPPED:
+        assert entry.reason
         # Each entry names its logger, so none can hide a whole class of message.
-        assert r"\[custom_components\.home_keeper" in pattern.pattern
+        assert r"\[custom_components\.home_keeper" in entry.pattern.pattern
 
 
-def test_shipped_allowlist_hides_the_fixture_task_and_a_probe_device():
-    log = _unknown_device(FIXTURE_TASK, "5ff1f1bb41a19a763aa4ab750cd37c97")
-    log += _unknown_device(
+def test_shipped_allowlist_hides_a_probe_device():
+    log = _unknown_device(
         "11111111-2222-3333-4444-555555555555", "rename_probe_fake_device"
     )
     assert run(log, allowlist=SHIPPED) == []
 
 
+def test_shipped_allowlist_hides_the_seeded_fixture_task():
+    log = _unknown_device(FIXTURE_TASK, "5ff1f1bb41a19a763aa4ab750cd37c97")
+    assert run(log, allowlist=SHIPPED) == []
+
+
+def test_shipped_allowlist_reports_the_fixture_task_with_another_device():
+    log = _unknown_device(FIXTURE_TASK, "b70e86128ced632224d29f01dee4b3af")
+    assert len(run(log, allowlist=SHIPPED)) == 1
+
+
 def test_shipped_allowlist_still_reports_another_unknown_device():
-    # Another task with the fixture's device id, and the fixture task with another id.
     other_task = _unknown_device(
-        "11111111-2222-3333-4444-555555555555", "5ff1f1bb41a19a763aa4ab750cd37c97"
+        "11111111-2222-3333-4444-555555555555", "someone_elses_device"
     )
-    other_device = _unknown_device(FIXTURE_TASK, "someone_elses_device")
+    other_device = _unknown_device(
+        "11111111-2222-3333-4444-555555555555", "rename_probe_fake_device_2"
+    )
     assert len(run(other_task, allowlist=SHIPPED)) == 1
     assert len(run(other_device, allowlist=SHIPPED)) == 1
 
 
 def test_shipped_allowlist_never_hides_a_blocking_call():
     assert len(run(REAL_BLOCKING_LINE, allowlist=SHIPPED)) == 1
+
+
+# ---------------------------------------------------------------------------
+# A stale allowlist entry fails the gate
+# ---------------------------------------------------------------------------
+
+STALE_ALLOW = (
+    "# The companion fails on purpose.\n"
+    r"\[custom_components\.home_keeper\.transfer_runner\] Companion 'dogs'" + "\n"
+    "\n"
+    "# lane: noise\n"
+    "# Only the noise lane shows this one.\n"
+    r"\[custom_components\.home_keeper\.store\] noise only" + "\n"
+    "\n"
+    "# lane: integration, noise\n"
+    "# A line that never appears.\n"
+    r"\[custom_components\.home_keeper\.store\] never logged" + "\n"
+)
+
+
+@pytest.fixture
+def stale_allow(tmp_path):
+    path = tmp_path / "allow.txt"
+    path.write_text(STALE_ALLOW, encoding="utf-8")
+    return path, check_ha_log.load_allowlist(path)
+
+
+def test_an_entry_reads_its_lanes_and_defaults_to_integration(stale_allow):
+    _, entries = stale_allow
+    assert [e.lanes for e in entries] == [
+        ("integration",),
+        ("noise",),
+        ("integration", "noise"),
+    ]
+    assert [e.reason for e in entries][1] == "Only the noise lane shows this one."
+
+
+def test_an_entry_that_hid_a_finding_is_used_and_one_that_hid_nothing_is_stale(
+    stale_allow,
+):
+    _, entries = stale_allow
+    used: set[int] = set()
+    records = check_ha_log.parse_records(_companion_line("dogs").splitlines())
+    assert check_ha_log.check_records(records, "home_keeper", entries, used) == []
+    assert used == {0}
+    stale = check_ha_log.stale_entries(entries, used, "integration")
+    assert [e.line_no for e in stale] == [entries[2].line_no]
+
+
+def test_an_entry_of_another_lane_is_not_stale_here(stale_allow):
+    _, entries = stale_allow
+    stale = check_ha_log.stale_entries(entries, {0, 2}, "integration")
+    assert stale == []
+    assert [
+        e.line_no for e in check_ha_log.stale_entries(entries, {0, 2}, "noise")
+    ] == [entries[1].line_no]
+
+
+def test_an_entry_that_matches_a_record_that_is_no_finding_is_stale(tmp_path):
+    # The text is in the log, but the record is an INFO line: the entry hid nothing.
+    path = tmp_path / "allow.txt"
+    path.write_text("# Reason.\n\\[custom_components\\.home_keeper\\] hello\n")
+    entries = check_ha_log.load_allowlist(path)
+    used: set[int] = set()
+    log = f"{TS} INFO (MainThread) [custom_components.home_keeper] hello\n"
+    records = check_ha_log.parse_records(log.splitlines())
+    check_ha_log.check_records(records, "home_keeper", entries, used)
+    assert len(check_ha_log.stale_entries(entries, used, "integration")) == 1
+
+
+def _lane_cli(tmp_path, allow_path, *extra):
+    log = tmp_path / "ha.log"
+    log.write_text(CLEAN_LOG + _companion_line("dogs") + "\n")
+    return subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--domain",
+            "home_keeper",
+            "--allowlist",
+            str(allow_path),
+            *extra,
+            str(log),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_cli_fails_on_a_stale_entry_of_its_lane(tmp_path, stale_allow):
+    path, _ = stale_allow
+    result = _lane_cli(tmp_path, path, "--lane", "integration")
+    assert result.returncode == 1
+    assert "1 stale allowlist entry(ies) for lane 'integration'" in result.stdout
+    assert "A line that never appears." in result.stdout
+    assert "Only the noise lane" not in result.stdout
+
+
+def test_cli_without_a_lane_does_not_check_for_stale_entries(tmp_path, stale_allow):
+    path, _ = stale_allow
+    result = _lane_cli(tmp_path, path)
+    assert result.returncode == 0, result.stdout
+
+
+def test_cli_passes_when_each_entry_of_the_lane_was_used(tmp_path):
+    path = tmp_path / "allow.txt"
+    path.write_text(STALE_ALLOW.split("\n\n")[0] + "\n", encoding="utf-8")
+    result = _lane_cli(tmp_path, path, "--lane", "integration")
+    assert result.returncode == 0, result.stdout
+    assert "OK" in result.stdout
+
+
+def test_cli_reports_findings_and_stale_entries_together(tmp_path, stale_allow):
+    path, _ = stale_allow
+    log = tmp_path / "ha.log"
+    log.write_text(CLEAN_LOG + _companion_line("cats") + "\n")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--domain",
+            "home_keeper",
+            "--allowlist",
+            str(path),
+            "--lane",
+            "integration",
+            str(log),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "1 problem(s) found" in result.stdout
+    assert "stale allowlist entry(ies)" in result.stdout
+
+
+def test_a_reason_can_span_comment_lines(tmp_path):
+    path = tmp_path / "allow.txt"
+    path.write_text(
+        "# First half of the reason.\n# Second half.\n"
+        r"\[custom_components\.home_keeper\] x" + "\n"
+    )
+    (entry,) = check_ha_log.load_allowlist(path)
+    assert entry.reason == "First half of the reason. Second half."

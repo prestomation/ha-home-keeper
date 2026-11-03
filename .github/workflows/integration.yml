@@ -108,7 +108,7 @@ jobs:
 
       - name: Check Home Assistant log
         if: always()
-        run: python ci/check_ha_log.py --domain home_keeper ha.log
+        run: python ci/check_ha_log.py --domain home_keeper --lane integration ha.log
 
       # Last, so the container runs until the log is saved and checked.
       - name: Cleanup
@@ -164,7 +164,7 @@ jobs:
 
       - name: Check Home Assistant log
         if: always()
-        run: python ci/check_ha_log.py --domain home_keeper ha.log
+        run: python ci/check_ha_log.py --domain home_keeper --lane noise ha.log
 
       - name: Cleanup
         if: always()

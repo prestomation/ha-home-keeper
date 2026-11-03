@@ -1407,8 +1407,7 @@ test('capture managed and sensor tasks, layouts and the task form', async () => 
     await new Promise((r) => setTimeout(r, 1500));
     await hass.callService('home_keeper', 'set_task_consumable', {
       task_id: IDS.TASK.waterFilter,
-      asset_id: wh.id,
-      part_id: part.id,
+      parts: [{ asset_id: wh.id, part_id: part.id }],
     });
   }, { TASK, PART });
   // Reload so the panel re-reads the now-attached, linked task.

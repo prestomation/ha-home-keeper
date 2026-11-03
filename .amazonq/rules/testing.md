@@ -167,22 +167,22 @@ reload on each options change filled the logbook, and no test saw it.
 
 ## Blocking calls and the log gate
 
-Home Assistant logs `Detected blocking call` for a file read on the event loop (#247, #150).
-
+Home Assistant logs `Detected blocking call` for a file read on the event loop (#247).
 - **`blockbuster` in the unit tests.** An autouse fixture in `tests/unit/conftest.py` raises
-  `BlockingError` when a blocking call runs in a thread that runs a loop. A fake
-  `async_add_executor_job` runs the job in a real thread (`run_in_executor`), never inline.
+  `BlockingError` when a blocking call runs in a thread that runs a loop. It does nothing
+  on a bare install. A fake `async_add_executor_job` uses `run_in_executor`, never inline.
 - **Python dev mode in the Docker lanes.** `docker-compose.yml` sets `PYTHONDEVMODE` and
   `PYTHONASYNCIODEBUG` from `HK_DEVMODE`. Only the integration and noise lanes set it.
 - **The log gate.** Those 2 lanes save `ha.log` and run
-  `python ci/check_ha_log.py --domain home_keeper ha.log` as the last step, also after a
-  failed test. It fails on a warning or error from `custom_components.home_keeper`, on a
-  blocking call that names it, and on a known bad pattern (unawaited coroutine, slow
+  `python ci/check_ha_log.py --domain home_keeper --lane <lane> ha.log` as the last step,
+  also after a failed test. It fails on a warning or error from the integration's logger,
+  on a blocking call that names it, and on a known bad pattern (unawaited coroutine, slow
   callback, unclosed resource, deprecation).
-- `tests/integration/test_surfaces.py` calls diagnostics, the options form and each
-  service. Name a service that a probe could change in `SKIPPED`.
+- `tests/integration/test_surfaces.py` calls diagnostics, the options form and each service.
 - **Allowlist an expected warning** in `ci/ha_log_allowlist.txt`: a reason comment, then a
-  narrow regex (logger name and full message). Fix a real finding, a blocking call above all.
+  narrow regex (logger name and full message), for a warning that a test provokes on
+  purpose. Fix a real finding. An entry that hid nothing in a run of its lane (default
+  `integration`; `# lane: noise` sets another) is stale and fails the gate.
 
 ## Translations
 

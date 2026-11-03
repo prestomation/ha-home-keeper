@@ -8,8 +8,11 @@
 #
 
 # Each entry below is a deliberate input of a test. Add an entry only for that.
+# An entry that hid nothing in a run of its lane is stale and fails the gate. A
+# '# lane: a, b' comment before an entry names its lanes (default: integration).
 
-# The seeded fixture task acb13a18 names a device that is not in the registry (tests/integration/ha_config/.storage/home_keeper). The coordinator warns once per setup.
+# The seeded water filter task keeps a device id with no device, on purpose: its entities sit on a
+# self-owned device (test_triggers.py). Device ids are made at start and the registry is not in git.
 \[custom_components\.home_keeper\.coordinator\] Home Keeper task acb13a18-979a-4812-8a00-2e4a426df8db references unknown device_id 5ff1f1bb41a19a763aa4ab750cd37c97; falling back to a self-owned device
 
 # test_device_cleanup.py gives a task a device id that does not exist, on purpose.
@@ -24,13 +27,13 @@
 # test_task_enabled.py gives a task a device id that does not exist, on purpose.
 \[custom_components\.home_keeper\.coordinator\] Home Keeper task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} references unknown device_id pool_toggle_fake_device_344; falling back to a self-owned device
 
-# test_options_flow.py syncs a profile to a to-do list that does not exist, on purpose.
+# test_options_flow.py must keep this list missing: a live target would put the seeded tasks on a real list.
 \[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.options_flow_list\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
 
-# A to-do list sync test points a profile at a list that does not exist, on purpose.
+# test_b10_2 renames the list before it repoints the profile, as a user does. The old id is gone for a moment.
 \[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.family_chores\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
 
-# A to-do list sync test moves a profile to a list that does not exist, on purpose.
+# test_b10_2 renames the list back before it restores the profile. The moved id is gone for a moment.
 \[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.family_chores_moved\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
 
 # test_shopping_sync.py picks Home Keeper's own to-do list as the shopping list, on purpose.

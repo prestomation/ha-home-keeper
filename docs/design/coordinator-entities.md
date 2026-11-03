@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 911b7d19ec72
+source_hash: 10839c3ed138
 ---
 
 # Coordinator and entities
@@ -96,7 +96,7 @@ with no origin: a problem-sensor task, a self-clearing companion task, a tag-sca
 `coordinator.device_link_for_task` returns exactly 1 of `(DeviceInfo, DeviceEntry)`. If the
 `device_id` resolves through `device_compat.resolve_device`, the entity sets `device_entry`
 and links to the device without a claim. If not, it gets a self-owned device with the task
-name (warned once per task). On a shared device, `task_entities.entity_name_prefix` puts a
+name (warned once per task and run). On a shared device, `task_entities.entity_name_prefix` puts a
 label before each name: the companion name, or the task name without the device name.
 
 With the `task_device_entities` option off, `entity.HomeKeeperTaskEntity` sets

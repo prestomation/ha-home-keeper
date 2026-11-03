@@ -287,9 +287,9 @@ def test_b18_5_setup_starts_the_clock_for_the_entry():
 # warning hundreds of times in a test run.
 
 
-def _coord_with_device(known: set[str]) -> object:
+def _coord_with_device(known: set[str], hass: SimpleNamespace | None = None) -> object:
     coord = _coord()
-    coord._unknown_device_warned = set()
+    coord.hass = hass or SimpleNamespace(data={})
     coord._existing_device = lambda device_id: (
         SimpleNamespace(id=device_id) if device_id in known else None
     )
@@ -343,3 +343,14 @@ def test_a_task_with_no_device_is_never_reported(caplog):
     coord = _coord_with_device(set())
     coord.device_link_for_task(_task(device_id=None))
     assert _unknown_device_warnings(caplog) == []
+
+
+def test_a_reload_does_not_report_the_same_unknown_device_again(caplog):
+    # A reload makes a new coordinator on the same hass. The memory belongs to hass,
+    # so 1 stale id is 1 warning for each run, not 1 for each reload.
+    hass = SimpleNamespace(data={})
+    for _ in range(3):
+        coord = _coord_with_device(set(), hass)
+        coord.device_link_for_task(_task())
+        coord.device_link_for_task(_task())
+    assert len(_unknown_device_warnings(caplog)) == 1

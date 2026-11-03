@@ -851,7 +851,10 @@ def test_manual_consumable_link_consumes_stock_on_completion(ha):
         ha,
         "home_keeper",
         "set_task_consumable",
-        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+        {
+            "task_id": task_id,
+            "parts": [{"asset_id": asset["id"], "part_id": part["id"]}],
+        },
     )
     linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
     assert linked["source"]["parts"] == [
@@ -900,7 +903,10 @@ def test_manual_link_survives_reconcile_and_can_be_cleared(ha):
         ha,
         "home_keeper",
         "set_task_consumable",
-        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+        {
+            "task_id": task_id,
+            "parts": [{"asset_id": asset["id"], "part_id": part["id"]}],
+        },
     )
 
     # Editing the asset triggers a part-task reconcile.
@@ -912,8 +918,10 @@ def test_manual_link_survives_reconcile_and_can_be_cleared(ha):
         "a manually-linked task must survive reconcile"
     )
 
-    # Clearing the link (no asset/part) drops the source.
-    call_service(ha, "home_keeper", "set_task_consumable", {"task_id": task_id})
+    # Clearing the link (an empty parts list) drops the source.
+    call_service(
+        ha, "home_keeper", "set_task_consumable", {"task_id": task_id, "parts": []}
+    )
     cleared = next(t for t in _all_tasks(ha) if t["id"] == task_id)
     assert not (cleared.get("source") or {}).get("parts"), "link should be cleared"
 
@@ -928,7 +936,10 @@ def test_set_task_consumable_rejects_derived_task(ha):
     part_id = anode["source"]["part"]["part_id"]
     r = ha.post(
         f"{HA_URL}/api/services/home_keeper/set_task_consumable",
-        json={"task_id": anode["id"], "asset_id": asset_id, "part_id": part_id},
+        json={
+            "task_id": anode["id"],
+            "parts": [{"asset_id": asset_id, "part_id": part_id}],
+        },
     )
     assert r.status_code >= 400, (
         f"linking a derived task should be rejected, got {r.status_code}"
@@ -947,7 +958,10 @@ def test_manual_link_task_is_deletable(ha):
         ha,
         "home_keeper",
         "set_task_consumable",
-        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+        {
+            "task_id": task_id,
+            "parts": [{"asset_id": asset["id"], "part_id": part["id"]}],
+        },
     )
     # Deleting it must succeed (no "managed by an appliance wear part" rejection).
     call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
@@ -968,7 +982,10 @@ def test_deleting_asset_unlinks_manual_link_task(ha):
         ha,
         "home_keeper",
         "set_task_consumable",
-        {"task_id": task_id, "asset_id": asset["id"], "part_id": part["id"]},
+        {
+            "task_id": task_id,
+            "parts": [{"asset_id": asset["id"], "part_id": part["id"]}],
+        },
     )
     call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
     survivor = next((t for t in _all_tasks(ha) if t["id"] == task_id), None)
