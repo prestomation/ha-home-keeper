@@ -6,7 +6,44 @@
 # real problem, so fix the cause when you can. Keep each entry narrow: the logger name
 # and the full message, never a short word like "timeout".
 #
-# Example:
-#
-# A test creates a task with a bad rule on purpose, and the integration warns.
-# \[custom_components\.home_keeper\.models\] Task 'itest_\w+' has a bad rule
+
+# Each entry below is a deliberate input of a test. Add an entry only for that.
+
+# The seeded fixture task acb13a18 names a device that is not in the registry (tests/integration/ha_config/.storage/home_keeper). The coordinator warns once per setup.
+\[custom_components\.home_keeper\.coordinator\] Home Keeper task acb13a18-979a-4812-8a00-2e4a426df8db references unknown device_id 5ff1f1bb41a19a763aa4ab750cd37c97; falling back to a self-owned device
+
+# test_device_cleanup.py gives a task a device id that does not exist, on purpose.
+\[custom_components\.home_keeper\.coordinator\] Home Keeper task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} references unknown device_id device_cleanup_probe_fake_device; falling back to a self-owned device
+
+# test_entity_cleanup.py gives a task a device id that does not exist, on purpose.
+\[custom_components\.home_keeper\.coordinator\] Home Keeper task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} references unknown device_id cleanup_probe_fake_device_104; falling back to a self-owned device
+
+# test_lifecycle.py gives a task a device id that does not exist, on purpose.
+\[custom_components\.home_keeper\.coordinator\] Home Keeper task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} references unknown device_id rename_probe_fake_device; falling back to a self-owned device
+
+# test_task_enabled.py gives a task a device id that does not exist, on purpose.
+\[custom_components\.home_keeper\.coordinator\] Home Keeper task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} references unknown device_id pool_toggle_fake_device_344; falling back to a self-owned device
+
+# test_options_flow.py syncs a profile to a to-do list that does not exist, on purpose.
+\[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.options_flow_list\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
+
+# A to-do list sync test points a profile at a list that does not exist, on purpose.
+\[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.family_chores\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
+
+# A to-do list sync test moves a profile to a list that does not exist, on purpose.
+\[custom_components\.home_keeper\.todo_list_sync\] Home\ Keeper's\ synced\ to\-do\ list\ todo\.family_chores_moved\ does\ not\ exist;\ its\ tasks\ are\ not\ being\ kept\ in\ step
+
+# test_shopping_sync.py picks Home Keeper's own to-do list as the shopping list, on purpose.
+\[custom_components\.home_keeper\.shopping_sync\] Home\ Keeper\ cannot\ mirror\ buy\ reminders\ onto\ its\ own\ to\-do\ list\ \(todo\.home_keeper_tasks\);\ pick\ a\ different\ list\ in\ Settings
+
+# A test calls set_task_consumable with the deprecated fields, on purpose.
+\[custom_components\.home_keeper\] The\ asset_id,\ part_id\ and\ quantity\ fields\ of\ home_keeper\.set_task_consumable\ are\ deprecated\ and\ will\ be\ removed\ in\ a\ later\ release\.\ Send\ the\ `parts`\ list\ instead,\ for\ 1\ part\ or\ more\.\ Send\ `parts:\ \[\]`\ to\ clear\ the\ links\.
+
+# A test sends the deprecated fields to the websocket command, on purpose.
+\[custom_components\.home_keeper\] The\ asset_id,\ part_id\ and\ quantity\ fields\ of\ the\ home_keeper/set_task_consumable\ websocket\ command\ are\ deprecated\ and\ will\ be\ removed\ in\ a\ later\ release\.\ Send\ the\ `parts`\ list\ instead\.\ Send\ `parts:\ \[\]`\ to\ clear\ the\ links\.
+
+# test_sensor_watcher.py breaks a template on purpose ('stat' for 'state'): a template that does not render must decide nothing.
+\[custom_components\.home_keeper\.sensor_watcher\] Template\ trigger\ for\ Sensor\ watcher\ test\ \(binary_sensor\.hk_demo_water_tank_low\)\ did\ not\ render:\ UndefinedError:\ 'stat'\ is\ undefined
+
+# test_sensor_watcher.py runs the shipped last_seen template against a sensor with no state, on purpose.
+\[custom_components\.home_keeper\.sensor_watcher\] Template\ trigger\ for\ Sensor\ watcher\ test\ \(sensor\.hk_probe_last_seen\)\ did\ not\ render:\ TypeError:\ unsupported\ operand\ type\(s\)\ for\ \-:\ 'datetime\.datetime'\ and\ 'NoneType'

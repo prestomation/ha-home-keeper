@@ -444,3 +444,49 @@ def test_cli_prints_the_final_line_last_in_one_stream(tmp_path):
         "Fix them, or add a reason and a pattern to the allowlist."
     )
     assert "problem(s) found for 'home_keeper'" in lines[-1]
+
+
+# ---------------------------------------------------------------------------
+# The shipped allowlist hides only the deliberate test inputs
+# ---------------------------------------------------------------------------
+
+SHIPPED = check_ha_log.load_allowlist(SCRIPT.with_name("ha_log_allowlist.txt"))
+FIXTURE_TASK = "acb13a18-979a-4812-8a00-2e4a426df8db"
+
+
+def _unknown_device(task: str, device: str) -> str:
+    return (
+        f"{TS} WARNING (MainThread) [custom_components.home_keeper.coordinator] "
+        f"Home Keeper task {task} references unknown device_id {device}; "
+        "falling back to a self-owned device\n"
+    )
+
+
+def test_shipped_allowlist_has_a_reason_for_each_entry_and_none_is_broad():
+    assert len(SHIPPED) > 0
+    for pattern, reason in SHIPPED:
+        assert reason
+        # Each entry names its logger, so none can hide a whole class of message.
+        assert r"\[custom_components\.home_keeper" in pattern.pattern
+
+
+def test_shipped_allowlist_hides_the_fixture_task_and_a_probe_device():
+    log = _unknown_device(FIXTURE_TASK, "5ff1f1bb41a19a763aa4ab750cd37c97")
+    log += _unknown_device(
+        "11111111-2222-3333-4444-555555555555", "rename_probe_fake_device"
+    )
+    assert run(log, allowlist=SHIPPED) == []
+
+
+def test_shipped_allowlist_still_reports_another_unknown_device():
+    # Another task with the fixture's device id, and the fixture task with another id.
+    other_task = _unknown_device(
+        "11111111-2222-3333-4444-555555555555", "5ff1f1bb41a19a763aa4ab750cd37c97"
+    )
+    other_device = _unknown_device(FIXTURE_TASK, "someone_elses_device")
+    assert len(run(other_task, allowlist=SHIPPED)) == 1
+    assert len(run(other_device, allowlist=SHIPPED)) == 1
+
+
+def test_shipped_allowlist_never_hides_a_blocking_call():
+    assert len(run(REAL_BLOCKING_LINE, allowlist=SHIPPED)) == 1

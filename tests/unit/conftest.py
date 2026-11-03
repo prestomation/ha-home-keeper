@@ -40,7 +40,6 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from blockbuster import BlockBuster, blockbuster_ctx
 
 try:
     from hypothesis import HealthCheck, Phase, settings
@@ -91,10 +90,22 @@ else:
 # It does nothing in a test that runs no loop, so it is safe for every unit test: only
 # the tests that drive HA-facing code on a loop can trip it. The error names the file
 # and line of the call.
+#
+# blockbuster is optional here, like Hypothesis: a bare install of pytest and the
+# pure-core packages (and the schema gate in lint.yml) must still run the suite. Every
+# lane that installs requirements-test.txt has it, and tests/unit/test_blocking_calls.py
+# proves that the fixture is on there.
+try:
+    from blockbuster import blockbuster_ctx
+except ImportError:  # pragma: no cover - exercised by the bare-pytest install
+    blockbuster_ctx = None
 
 
 @pytest.fixture(autouse=True)
-def blockbuster() -> Iterator[BlockBuster]:
+def blockbuster() -> Iterator[object | None]:
     """Fail a test when code blocks the thread of a running event loop."""
+    if blockbuster_ctx is None:
+        yield None
+        return
     with blockbuster_ctx() as bb:
         yield bb

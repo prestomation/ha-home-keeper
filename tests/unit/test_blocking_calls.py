@@ -6,7 +6,10 @@ import asyncio
 import time
 
 import pytest
-from blockbuster import BlockingError
+
+# The fixture is a no-op without blockbuster (a bare install). Every lane that installs
+# requirements-test.txt has it, so these guard tests run there.
+BlockingError = pytest.importorskip("blockbuster").BlockingError
 
 
 def test_blockbuster_finds_a_blocking_call_on_the_loop():

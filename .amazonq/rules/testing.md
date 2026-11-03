@@ -19,7 +19,7 @@ Run the tests locally before you push. CI is not the test runner.
 | Noise budget | `tests/noise` (Docker HA) | `bash ci/test-noise.sh` |
 
 - The pure unit lane needs only
-  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil blockbuster`.
+  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
   The full unit suite adds `pytest-homeassistant-custom-component`. `ci/setup-ci-deps.sh`
   installs everything into `.venv`. The SessionStart hook puts `.venv/bin` first on `PATH`.
   Elsewhere, run `source .venv/bin/activate` first.
