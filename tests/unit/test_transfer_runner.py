@@ -143,12 +143,13 @@ def test_b03_3_the_import_reads_its_text_off_the_event_loop(monkeypatch):
 
     monkeypatch.setattr(tr, "parse_document", spy)
     loop_thread: list[int] = []
+    hass = _Hass()  # made before the loop: its temp dir is a blocking call
 
     async def run():
         loop_thread.append(threading.get_ident())
         runner.dr = types.SimpleNamespace(async_get=lambda hass: _OldRegistry())
         data = {"document": "home_keeper: {format: 1}\ntasks: []\n", "dry_run": True}
-        return await runner.async_import_document(_Hass(), _coord(), data)
+        return await runner.async_import_document(hass, _coord(), data)
 
     report = asyncio.run(run())
     assert report["ok"] is True
@@ -180,10 +181,11 @@ def test_b03_3_the_export_writes_its_yaml_off_the_event_loop(monkeypatch):
     task = tr.models.build_task({"name": "Furnace filter"}, now=NOW)
     store = _Store(tasks={task["id"]: task})
     loop_thread: list[int] = []
+    hass = _Hass()  # made before the loop: its temp dir is a blocking call
 
     async def run():
         loop_thread.append(threading.get_ident())
-        return await runner.async_export_document(_Hass(), _coord(store), {})
+        return await runner.async_export_document(hass, _coord(store), {})
 
     result = asyncio.run(run())
     ((thread, handed),) = calls

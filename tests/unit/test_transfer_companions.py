@@ -61,6 +61,16 @@ class Dogs:
         hass.services.register(domain, "import_data", self.import_data)
 
     @staticmethod
+    def _write_photo(files_dir: str) -> None:
+        Path(files_dir, "photos").mkdir()
+        Path(files_dir, "photos", "rex.jpg").write_bytes(b"rex")
+
+    @staticmethod
+    def _read_photo(files_dir: str) -> bytes | None:
+        photo = Path(files_dir, "photos", "rex.jpg")
+        return photo.read_bytes() if photo.is_file() else None
+
+    @staticmethod
     def _check_admin(context: Any) -> None:
         if context is not None and context.user_id != ADMIN.user_id:
             raise Unauthorized(context=context)
@@ -70,16 +80,15 @@ class Dogs:
         if self.fail_export:
             raise RuntimeError("the database is locked")
         if files_dir := data.get("files_dir"):
-            Path(files_dir, "photos").mkdir()
-            Path(files_dir, "photos", "rex.jpg").write_bytes(b"rex")
+            # Off the loop, as a real companion does its file work.
+            await asyncio.to_thread(self._write_photo, files_dir)
         return {"format": 1, "version": "1.0", "data": self.data, "skipped": {}}
 
     async def import_data(self, data: dict[str, Any], context: Any) -> dict:
         self._check_admin(context)
         self.imported.append(data)
         if files_dir := data.get("files_dir"):
-            photo = Path(files_dir, "photos", "rex.jpg")
-            self.file_seen = photo.read_bytes() if photo.is_file() else None
+            self.file_seen = await asyncio.to_thread(self._read_photo, files_dir)
         errors = [p for p in self.problems if p["level"] == "error"]
         return {
             "ok": not errors,

@@ -19,7 +19,7 @@ Run the tests locally before you push. CI is not the test runner.
 | Noise budget | `tests/noise` (Docker HA) | `bash ci/test-noise.sh` |
 
 - The pure unit lane needs only
-  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
+  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil blockbuster`.
   The full unit suite adds `pytest-homeassistant-custom-component`. `ci/setup-ci-deps.sh`
   installs everything into `.venv`. The SessionStart hook puts `.venv/bin` first on `PATH`.
   Elsewhere, run `source .venv/bin/activate` first.
@@ -164,6 +164,25 @@ reload on each options change filled the logbook, and no test saw it.
   writes the store, an entity or another integration says in a comment what stops its
   own write from coming back as an input (compare before write, an origin marker, a
   debounce, a fixed point). Name the guard in the PR body too.
+
+## Blocking calls and the log gate
+
+Home Assistant logs `Detected blocking call` for a file read on the event loop (#247, #150).
+
+- **`blockbuster` in the unit tests.** An autouse fixture in `tests/unit/conftest.py` raises
+  `BlockingError` when a blocking call runs in a thread that runs a loop. A fake
+  `async_add_executor_job` runs the job in a real thread (`run_in_executor`), never inline.
+- **Python dev mode in the Docker lanes.** `docker-compose.yml` sets `PYTHONDEVMODE` and
+  `PYTHONASYNCIODEBUG` from `HK_DEVMODE`. Only the integration and noise lanes set it.
+- **The log gate.** Those 2 lanes save `ha.log` and run
+  `python ci/check_ha_log.py --domain home_keeper ha.log` as the last step, also after a
+  failed test. It fails on a warning or error from `custom_components.home_keeper`, on a
+  blocking call that names it, and on a known bad pattern (unawaited coroutine, slow
+  callback, unclosed resource, deprecation).
+- `tests/integration/test_surfaces.py` calls diagnostics, the options form and each
+  service. Name a service that a probe could change in `SKIPPED`.
+- **Allowlist an expected warning** in `ci/ha_log_allowlist.txt`: a reason comment, then a
+  narrow regex (logger name and full message). Fix a real finding, a blocking call above all.
 
 ## Translations
 

@@ -16,6 +16,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="$(mktemp -d "${TMPDIR:-/tmp}/hk-noise-config.XXXXXX")"
 COMPOSE=(docker compose --project-name hk-noise -f "$ROOT/tests/integration/docker-compose.yml")
 export HA_CONFIG="$CONFIG"
+# Python dev mode in the container, so the log gate (ci/check_ha_log.py) can see a
+# blocking call. It changes timing only, never the counts that the probe reads.
+export HK_DEVMODE="${HK_DEVMODE:-1}"
 
 # Home Assistant runs as root in the container and writes root-owned files into the
 # config dir, so a runner user cannot always remove them. A container removes them,

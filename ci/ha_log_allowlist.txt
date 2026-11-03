@@ -1,0 +1,12 @@
+# Allowlist for ci/check_ha_log.py
+#
+# Each entry is a regular expression on its own line. The line before it must be a
+# comment that gives the reason. An entry matches a whole log record (the first line
+# plus its traceback lines) and hides it from every rule of the gate. An entry hides a
+# real problem, so fix the cause when you can. Keep each entry narrow: the logger name
+# and the full message, never a short word like "timeout".
+#
+# Example:
+#
+# A test creates a task with a bad rule on purpose, and the integration warns.
+# \[custom_components\.home_keeper\.models\] Task 'itest_\w+' has a bad rule

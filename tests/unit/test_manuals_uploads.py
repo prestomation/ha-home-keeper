@@ -146,7 +146,8 @@ class _Hass:
         self.data: dict = {}
 
     async def async_add_executor_job(self, func, *args):
-        return func(*args)
+        # A real thread, like Home Assistant. Inline would run file calls on the loop.
+        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
 
 
 class _Store:

@@ -37,6 +37,10 @@ run aborts the whole job, so the failure would depend on mutant ordering.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+
+import pytest
+from blockbuster import BlockBuster, blockbuster_ctx
 
 try:
     from hypothesis import HealthCheck, Phase, settings
@@ -78,3 +82,19 @@ else:
         ],
     )
     settings.load_profile(os.environ.get("HK_HYPOTHESIS_PROFILE", "dev"))
+
+
+# ── Blocking calls on the event loop ─────────────────────────────────────────
+# Home Assistant logs "Detected blocking call" at run time (#247, #150). This fixture
+# finds the same defect in the unit tests. blockbuster patches file, socket and sleep
+# calls and raises BlockingError when one runs in a thread that runs an event loop.
+# It does nothing in a test that runs no loop, so it is safe for every unit test: only
+# the tests that drive HA-facing code on a loop can trip it. The error names the file
+# and line of the call.
+
+
+@pytest.fixture(autouse=True)
+def blockbuster() -> Iterator[BlockBuster]:
+    """Fail a test when code blocks the thread of a running event loop."""
+    with blockbuster_ctx() as bb:
+        yield bb
