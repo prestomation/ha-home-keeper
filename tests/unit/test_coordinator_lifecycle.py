@@ -279,3 +279,67 @@ def test_b18_5_setup_starts_the_clock_for_the_entry():
     assert "entry.async_on_unload(coordinator.async_start_clock())" in _source_of(
         "__init__.py", "_async_setup_entry"
     )
+
+
+# ── An unknown device id is reported once per task ───────────────────────────
+# Each per-task entity asks for its device link, a task has several entities, and a
+# reload asks again for all of them. One bad ``device_id`` filled the log with the same
+# warning hundreds of times in a test run.
+
+
+def _coord_with_device(known: set[str]) -> object:
+    coord = _coord()
+    coord._unknown_device_warned = set()
+    coord._existing_device = lambda device_id: (
+        SimpleNamespace(id=device_id) if device_id in known else None
+    )
+    return coord
+
+
+def _task(task_id: str = "t1", device_id: str | None = "gone") -> dict:
+    return {"id": task_id, "name": "Filter", "device_id": device_id}
+
+
+def _unknown_device_warnings(caplog) -> list[str]:
+    return [r.getMessage() for r in caplog.records if "unknown device_id" in r.message]
+
+
+def test_an_unknown_device_is_reported_once_for_all_the_entities_of_a_task(caplog):
+    coord = _coord_with_device(set())
+    for _ in range(5):
+        info, device = coord.device_link_for_task(_task())
+        assert device is None
+        assert info is not None  # the self-owned fallback still applies each time
+    assert len(_unknown_device_warnings(caplog)) == 1
+
+
+def test_each_task_with_an_unknown_device_is_reported_on_its_own(caplog):
+    coord = _coord_with_device(set())
+    for task_id in ("t1", "t2", "t1", "t2"):
+        coord.device_link_for_task(_task(task_id))
+    assert len(_unknown_device_warnings(caplog)) == 2
+
+
+def test_a_task_that_points_at_another_unknown_device_is_reported_again(caplog):
+    coord = _coord_with_device(set())
+    coord.device_link_for_task(_task(device_id="gone"))
+    coord.device_link_for_task(_task(device_id="other"))
+    assert len(_unknown_device_warnings(caplog)) == 2
+
+
+def test_a_device_that_comes_back_and_goes_again_is_reported_again(caplog):
+    known: set[str] = set()
+    coord = _coord_with_device(known)
+    coord.device_link_for_task(_task())
+    known.add("gone")
+    info, device = coord.device_link_for_task(_task())
+    assert info is None and device is not None
+    known.discard("gone")
+    coord.device_link_for_task(_task())
+    assert len(_unknown_device_warnings(caplog)) == 2
+
+
+def test_a_task_with_no_device_is_never_reported(caplog):
+    coord = _coord_with_device(set())
+    coord.device_link_for_task(_task(device_id=None))
+    assert _unknown_device_warnings(caplog) == []

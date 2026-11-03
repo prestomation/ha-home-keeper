@@ -159,6 +159,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             config_entry=entry,
         )
         self.store = store
+        # ``(task id, device id)`` pairs already reported as an unknown device. Each
+        # per-task entity asks for its device link, so without it one bad id logs once
+        # per entity and again on every reload of the entry.
+        self._unknown_device_warned: set[tuple[str, str]] = set()
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
         # The declarative-companion reconciler, attached during async_setup_entry.
@@ -602,12 +606,15 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         device_id = task.get("device_id")
         device = self._existing_device(device_id)
         if device is not None:
+            # A device that returns is reported again if it goes again.
+            self._unknown_device_warned.discard((task["id"], device_id))
             return None, device
-        if device_id:
+        if device_id and (task["id"], device_id) not in self._unknown_device_warned:
+            self._unknown_device_warned.add((task["id"], device_id))
             _LOGGER.warning(
                 "Home Keeper task %s references unknown device_id %s; "
                 "falling back to a self-owned device",
-                task.get("id"),
+                task["id"],
                 device_id,
             )
         return (
