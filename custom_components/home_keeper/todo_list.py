@@ -104,6 +104,7 @@ from .todo_items import (
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
     UNCONFIRMED_GRACE,
+    ItemIndex,
     find_open,
     item_identity,
     item_is_open,
@@ -440,6 +441,11 @@ def plan_sync(
     # Item identities already spoken for this pass, so two tasks that read the
     # same — or two syncs on one list — can never fight over one line.
     claimed: set[tuple[str, str]] = set()
+    # Each list by uid and by text, built once: a lookup per entry would scan the
+    # whole list, and a pass would cost the square of its length on the event loop.
+    indexes = {
+        entity_id: ItemIndex(live) for entity_id, live in items_by_entity.items()
+    }
     # Keys pass one has finished with, which pass two must not put back on the
     # list. Only inbound completions land here: the household ticked the item off
     # and a second copy would undo exactly what they just did.
@@ -461,7 +467,7 @@ def plan_sync(
         entity_id = str(entry.get("entity_id") or "")
         summary = str(entry.get("summary") or "")
         profile = by_id.get(profile_id)
-        items = items_by_entity.get(entity_id)
+        items = indexes.get(entity_id)
 
         if profile is None or not _target(profile):
             # The profile was deleted, or its list was cleared. Turning a sync
@@ -683,7 +689,7 @@ def plan_sync(
         if profile is None:
             continue
         target = _target(profile)
-        items = items_by_entity.get(target)
+        items = indexes.get(target)
         if items is None:
             continue
         caps = capabilities.get(target, frozenset())

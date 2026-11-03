@@ -37,6 +37,7 @@ run aborts the whole job, so the failure would depend on mutant ordering.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
 
 import pytest
@@ -109,3 +110,28 @@ def blockbuster() -> Iterator[object | None]:
         return
     with blockbuster_ctx() as bb:
         yield bb
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _locale_data_is_loaded() -> None:
+    """Load the locale data that Home Keeper loads at setup, before any test runs.
+
+    ``__init__.async_setup_entry`` asks for ``assets.decimal_mark`` in an executor job
+    for the language of the instance, so Babel reads its locale files off the loop.
+    A unit test that formats a quantity on a loop has no setup. Without this, the
+    first such test of a run reads the files on the loop, and fails under blockbuster
+    when the file runs alone, though it passes after any test that warmed the cache.
+    """
+    try:
+        from babel import Locale
+        from babel.numbers import get_decimal_symbol
+    except ImportError:  # a bare install: no test here formats a quantity
+        pass
+    else:
+        for lang in ("en", "de"):
+            get_decimal_symbol(Locale.parse(lang))
+    # ``async_setup_entry`` also runs ``backend_i18n.preload`` in an executor, so the
+    # string tables are in memory before any call to ``resolve_string`` (#247).
+    backend_i18n = sys.modules.get("hk.backend_i18n")
+    if backend_i18n is not None:
+        backend_i18n.preload("en")

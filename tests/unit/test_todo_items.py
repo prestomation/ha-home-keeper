@@ -276,3 +276,97 @@ def test_an_item_with_no_title_matches_no_text():
             ti.find_open([untitled], entity_id=LIST, summary=text, claimed=set())
             is None
         )
+
+
+# ── ItemIndex ─────────────────────────────────────────────────────────────────
+# A pass builds 1 index for each list, so a lookup is not a scan of the list. The
+# index may only change the cost: the item that a lookup returns is the item that a
+# scan of the list returns.
+
+
+def test_an_index_groups_items_by_uid_and_by_text_in_list_order():
+    first, second = _item("Filter", uid="a"), _item(" FILTER ", uid="a")
+    other = _item("Brush", uid="b")
+    index = ti.ItemIndex([first, other, second])
+    assert index.by_uid == {"a": [first, second], "b": [other]}
+    assert index.by_text == {"filter": [first, second], "brush": [other]}
+
+
+def test_an_item_with_no_text_or_no_str_uid_is_indexed_by_what_it_has():
+    no_uid = {"uid": None, "summary": "Filter"}
+    number_uid = {"uid": 7, "summary": "Filter"}
+    no_text = {"uid": "x"}
+    index = ti.ItemIndex([no_uid, number_uid, no_text])
+    assert index.by_uid == {"x": [no_text]}
+    assert index.by_text == {"filter": [no_uid, number_uid], "": [no_text]}
+
+
+def test_a_claimed_uid_claims_every_item_that_carries_it():
+    # A claim is the identity of an item, and the identity is the uid.
+    first, second = _item("A", uid="dup"), _item("B", uid="dup")
+    index = ti.ItemIndex([first, second])
+    args = {"entity_id": LIST, "uid": "dup", "summary": "A"}
+    assert ti.resolve_tracked(index, claimed=set(), **args) is first
+    assert ti.resolve_tracked(index, claimed={(LIST, "dup")}, **args) is None
+
+
+def _lookup_cases():
+    items = [
+        _item("Change the filter", uid="u1"),
+        _done("change the FILTER", uid="u2"),
+        _item("Brush the dog", uid="u3"),
+        _item("  Brush  the dog ", uid="u4"),
+        {"summary": "No uid"},
+        {"uid": 5, "summary": "Number uid"},
+        _item("", uid="u6"),
+    ]
+    claimed_sets = [set(), {(LIST, "u1")}, {(LIST, "u3"), (LIST, "u4")}]
+    for claimed in claimed_sets:
+        for uid in ("u1", "u2", "u3", "u4", "nope", None, "", 5):
+            for summary in ("Change the filter", "brush the dog", "No uid", "Zzz", ""):
+                yield items, claimed, uid, summary
+
+
+def _scan(items, uid, summary, claimed):
+    """The lookup as it was written before the index: a scan of the whole list."""
+    if isinstance(uid, str) and uid:
+        for item in items:
+            if item.get("uid") == uid and (LIST, ti.item_identity(item)) not in claimed:
+                return item
+    found = sorted(
+        (
+            item
+            for item in items
+            if ti.same_text(str(item.get("summary") or ""), summary)
+            and (LIST, ti.item_identity(item)) not in claimed
+        ),
+        key=lambda item: (not ti.item_is_open(item), item.get("summary") != summary),
+    )
+    if found and ti.item_is_open(found[0]):
+        return found[0]
+    if isinstance(uid, str) and uid:
+        return None
+    return found[0] if found else None
+
+
+def test_an_index_finds_the_item_that_a_scan_finds_in_every_case():
+    for items, claimed, uid, summary in _lookup_cases():
+        want = _scan(items, uid, summary, claimed)
+        args = {"entity_id": LIST, "uid": uid, "summary": summary, "claimed": claimed}
+        assert ti.resolve_tracked(items, **args) is want, (uid, summary, claimed)
+        index = ti.ItemIndex(items)
+        assert ti.resolve_tracked(index, **args) is want, (uid, summary, claimed)
+
+
+def test_find_open_takes_an_index_as_well_as_a_list():
+    items = [
+        _done("Filter", uid="a"),
+        _item("filter", uid="b"),
+        _item("Filter", uid="c"),
+    ]
+    index = ti.ItemIndex(items)
+    args = {"entity_id": LIST, "summary": "Filter"}
+    assert ti.find_open(items, claimed=set(), **args) is items[2]
+    assert ti.find_open(index, claimed=set(), **args) is items[2]
+    assert ti.find_open(index, claimed={(LIST, "c")}, **args) is items[1]
+    assert ti.find_open(index, claimed={(LIST, "b"), (LIST, "c")}, **args) is None
