@@ -133,7 +133,8 @@ describe('F01-6: a panel that is not connected does not render', () => {
         ? Promise.resolve({ url: '/signed' })
         : callWS(msg);
     const { panel } = await mountPanel('/tasks', hass);
-    const list = panel.shadowRoot.querySelector('#hk-list');
+    // The list keeps its element through a render, so the toolbar shows a new tree.
+    const list = panel.shadowRoot.querySelector('.hk-toolbar');
     const upload = new AbortController();
     panel._uploadAbort = upload;
     panel._uploadShowTimer = setTimeout(() => {}, 100000);
@@ -143,7 +144,7 @@ describe('F01-6: a panel that is not connected does not render', () => {
     expect(panel._uploadShowTimer).toBeUndefined();
 
     panel._render();
-    expect(panel.shadowRoot.querySelector('#hk-list')).toBe(list);
+    expect(panel.shadowRoot.querySelector('.hk-toolbar')).toBe(list);
     expect(panel._sheetQuery).toBeNull();
 
     // A sign that ends after unmount does not arm the re-sign timer.
@@ -156,8 +157,8 @@ describe('F01-6: a panel that is not connected does not render', () => {
 
     // Attached again, it renders again.
     document.body.appendChild(panel);
-    await waitFor(() => panel.shadowRoot.querySelector('#hk-list') !== list);
-    expect(panel.shadowRoot.querySelector('#hk-list')).not.toBe(list);
+    await waitFor(() => panel.shadowRoot.querySelector('.hk-toolbar') !== list);
+    expect(panel.shadowRoot.querySelector('.hk-toolbar')).not.toBe(list);
   });
 });
 

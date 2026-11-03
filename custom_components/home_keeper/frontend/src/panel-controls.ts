@@ -507,6 +507,19 @@ function filterCounts(p: PanelHost, now = Date.now()): Record<TaskFilter, number
  * standing, so their listeners survive and the keyboard does not move. Only the
  * figure and the dimming change, by the same rules `seg` applies when it draws them.
  */
+/**
+ * The page markup without the numbers that `patchFilterCounts` keeps current.
+ *
+ * Two renders of the same page differ in these numbers whenever a task changes its
+ * status. `_render` compares this form, so that such a render can patch the counts in
+ * place and keep the rest of the page.
+ */
+export function shellMarkup(html: string): string {
+  return html
+    .replace(/(<span class="hk-seg-count">)[^<]*(<\/span>)/g, '$1$2')
+    .replace(/(class="hk-seg-btn[^"]*?) hk-seg-empty/g, '$1');
+}
+
 export function patchFilterCounts(p: PanelHost, root: ParentNode): void {
   // The pills are drawn on the tasks list, and not while a Profile is driving it.
   if (p._view !== 'tasks' || activeProfile(p)) return;
@@ -608,6 +621,47 @@ export function groupAssets(p: PanelHost, assets: Asset[]): Group<Asset>[] {
   return [{ key: '', label: '', items: assets }];
 }
 
+/**
+ * Whether a group's section is open. A search opens every section it drew. Two of
+ * them start collapsed — "Monitored" and "Completed" — and a monitored companion task
+ * is exactly what the reader is most often hunting for, so a match landing behind a
+ * shut heading would fail at the one job this filter has. The set is read, never
+ * written, so each section closes again the moment the box is cleared.
+ */
+export function groupIsOpen(p: PanelHost, key: string): boolean {
+  return !!p._query || !p._collapsed.has(key);
+}
+
+/**
+ * One collapsible group: its heading and the markup of its items.
+ *
+ * `renderGroups` and the list patch (`panel-list-patch.ts`) both build a group from
+ * this, so a patched list and a new one hold the same markup.
+ */
+export function groupShell(
+  p: PanelHost,
+  g: { key: string; label: string },
+  count: number,
+  itemsHtml: string,
+  itemsClass = '',
+): string {
+  // `data-bucket` lets the header take the section's status colour (Overdue reads
+  // red) without the label text having to carry that meaning on its own. The rule
+  // and the collapse caption are decorative: the whole summary is the hit target,
+  // so they are hidden from assistive tech rather than announced twice.
+  const bucket = g.key.startsWith('status:') ? g.key.slice('status:'.length) : '';
+  return `
+        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" data-bucket="${escapeHTML(bucket)}" ${groupIsOpen(p, g.key) ? 'open' : ''}>
+          <summary class="hk-group-head">
+            <span class="hk-group-title">${escapeHTML(g.label)}</span>
+            <span class="hk-group-count">${count}</span>
+            <span class="hk-group-rule" aria-hidden="true"></span>
+            <span class="hk-group-toggle" aria-hidden="true"></span>
+          </summary>
+          <div class="hk-group-body${itemsClass ? ` ${escapeHTML(itemsClass)}` : ''}">${itemsHtml}</div>
+        </details>`;
+}
+
 /** Render groups as collapsible sections, or bare items when ungrouped. */
 export function renderGroups<T>(
   p: PanelHost,
@@ -623,29 +677,7 @@ export function renderGroups<T>(
     return itemsClass ? `<div class="${escapeHTML(itemsClass)}">${items}</div>` : items;
   }
   return groups
-    .map((g) => {
-      // A search opens every section it drew. Two of them start collapsed —
-      // "Monitored" and "Completed" — and a monitored companion task is exactly what
-      // the reader is most often hunting for, so a match landing behind a shut
-      // heading would fail at the one job this filter has. The set is read, never
-      // written, so each section closes again the moment the box is cleared.
-      const open = p._query || !p._collapsed.has(g.key) ? 'open' : '';
-      // `data-bucket` lets the header take the section's status colour (Overdue reads
-      // red) without the label text having to carry that meaning on its own. The rule
-      // and the collapse caption are decorative: the whole summary is the hit target,
-      // so they are hidden from assistive tech rather than announced twice.
-      const bucket = g.key.startsWith('status:') ? g.key.slice('status:'.length) : '';
-      return `
-        <details class="hk-group" data-group-key="${escapeHTML(g.key)}" data-bucket="${escapeHTML(bucket)}" ${open}>
-          <summary class="hk-group-head">
-            <span class="hk-group-title">${escapeHTML(g.label)}</span>
-            <span class="hk-group-count">${g.items.length}</span>
-            <span class="hk-group-rule" aria-hidden="true"></span>
-            <span class="hk-group-toggle" aria-hidden="true"></span>
-          </summary>
-          <div class="hk-group-body${itemsClass ? ` ${escapeHTML(itemsClass)}` : ''}">${g.items.map(renderItem).join('')}</div>
-        </details>`;
-    })
+    .map((g) => groupShell(p, g, g.items.length, g.items.map(renderItem).join(''), itemsClass))
     .join('');
 }
 

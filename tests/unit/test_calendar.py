@@ -15,6 +15,7 @@ rather than drifting with today's date.
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import sys
 import types
@@ -640,3 +641,109 @@ def test_a_summer_anchor_is_not_a_snooze_in_winter(monkeypatch):
         datetime(2026, 11, 23, tzinfo=la), datetime(2026, 11, 26, tzinfo=la)
     )
     assert len(events) == 1
+
+
+# --- async_get_events runs off the event loop --------------------------------
+
+
+class _ExecutorHass:
+    """A ``hass`` whose ``async_add_executor_job`` uses a real worker thread."""
+
+    def __init__(self) -> None:
+        self.executor_calls = 0
+
+    async def async_add_executor_job(self, func, *args):
+        self.executor_calls += 1
+        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
+
+
+def test_async_get_events_runs_the_work_in_an_executor_thread(monkeypatch):
+    import threading
+
+    loop_thread = threading.get_ident()
+    threads: list[int] = []
+    real = cal._fixed_events
+
+    def spy(task, start, end):
+        threads.append(threading.get_ident())
+        return real(task, start, end)
+
+    monkeypatch.setattr(cal, "_fixed_events", spy)
+    entity = _entity({"t_fixed": _fixed_task(_dt(2026, 1, 1, 9))})
+    hass = _ExecutorHass()
+    start, end = _dt(2026, 3, 1), _dt(2026, 3, 8)
+    events = asyncio.run(entity.async_get_events(hass, start, end))
+    assert hass.executor_calls == 1
+    assert threads, "the fixed task was not expanded"
+    assert loop_thread not in threads
+    assert [e.start for e in events] == [_dt(2026, 3, d, 9) for d in range(1, 8)]
+
+
+def test_async_get_events_result_equals_the_sync_collection():
+    tasks = {
+        "a": _fixed_task(_dt(2026, 1, 1, 9), id="a"),
+        "b": _floating_task(_dt(2026, 3, 3, 8), id="b"),
+        "c": _fixed_task(_dt(2026, 1, 15, 7), freq="WEEKLY", id="c"),
+        "d": _floating_task(_dt(2026, 3, 4), id="d", enabled=False),
+    }
+    entity = _entity(tasks)
+    start, end = _dt(2026, 3, 1), _dt(2026, 3, 15)
+    got = asyncio.run(entity.async_get_events(_ExecutorHass(), start, end))
+
+    def key(events):
+        return [(e.uid, e.start, e.end, e.summary) for e in events]
+
+    assert key(got) == key(entity._collect_events(start, end))
+    assert len(got) > 10
+    assert [e.start for e in got] == sorted(e.start for e in got)
+
+
+def test_async_get_events_ignores_a_task_changed_after_the_snapshot():
+    """The worker reads a snapshot, so a later change in the loop cannot reach it."""
+    tasks = {"a": _fixed_task(_dt(2026, 1, 1, 9), id="a")}
+    entity = _entity(tasks)
+
+    class _Hass:
+        async def async_add_executor_job(self, func, *args):
+            tasks["a"]["name"] = "Renamed"  # the loop changes the task meanwhile
+            tasks["z"] = _floating_task(_dt(2026, 3, 2), id="z")
+            return func(*args)
+
+    got = asyncio.run(
+        entity.async_get_events(_Hass(), _dt(2026, 3, 1), _dt(2026, 3, 3))
+    )
+    assert {e.summary for e in got} == {"Fixed chore"}
+
+
+def test_async_get_events_ignores_nested_changes_after_the_snapshot():
+    """The store edits log entries in place, so the snapshot must copy deeply."""
+    task = _fixed_task(
+        _dt(2026, 1, 1, 9),
+        id="a",
+        completions=[{"ts": "2026-02-01T09:00:00-04:00", "note": "x"}],
+        skips=[],
+        moved_occurrences=[],
+    )
+    entity = _entity({"a": task})
+    seen: list[tuple] = []
+    real = cal.HomeKeeperCalendarEntity._collect_from
+
+    def spy(tasks, start, end):
+        seen.append(
+            (
+                tasks[0]["completions"][0]["note"],
+                len(tasks[0]["completions"]),
+                len(tasks[0]["skips"]),
+            )
+        )
+        return real(tasks, start, end)
+
+    class _Hass:
+        async def async_add_executor_job(self, func, *args):
+            task["completions"][0]["note"] = "changed"  # entry edited in place
+            task["completions"].append({"ts": "2026-02-02T09:00:00-04:00"})
+            task["skips"].append({"skipped_at": "2026-02-03T09:00:00-04:00"})
+            return spy(*args)
+
+    asyncio.run(entity.async_get_events(_Hass(), _dt(2026, 3, 1), _dt(2026, 3, 3)))
+    assert seen == [("x", 1, 0)]

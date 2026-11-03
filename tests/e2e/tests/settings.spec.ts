@@ -4,10 +4,21 @@ import {
   createTask,
   deleteTask,
   openPanel,
+  openSendTo,
   openSettingsSection,
   trackPanelErrors,
 } from './helpers';
 import { settleToasts } from '../shots';
+
+/**
+ * Block service workers. A fresh browser context loads Home Assistant, installs its
+ * service worker, and the page then reloads by itself about 8 seconds after the first
+ * load (seen on /home-keeper, /lovelace/0 and /profile/general, with no test action).
+ * A slow runner moves a test step across that moment: an `evaluate` dies with
+ * "Execution context was destroyed", a new document has no `hass` yet, and an open
+ * row or dialog is gone. With the worker blocked, no reload happens.
+ */
+test.use({ serviceWorkers: 'block' });
 
 test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () => {
   test('Settings tab renders the options form and deep-links', async ({ page }) => {
@@ -110,7 +121,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).not.toContainText('mobile apps');
       await expect(form).toContainText('no buttons');
       // The list offers it next to the phone service of the fixture.
-      await form.getByText('Send to', { exact: true }).first().click();
+      await openSendTo(form);
       await expect(page.getByText('persistent_notification', { exact: true }).first()).toBeVisible();
       await page.keyboard.press('Escape');
 
@@ -337,7 +348,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toBeVisible();
 
       // Pick it from the list, the way a user does.
-      await form.getByText('Send to', { exact: true }).first().click();
+      await openSendTo(form);
       await page.getByText('persistent_notification', { exact: true }).first().click();
       await page.keyboard.press('Escape');
       await expect

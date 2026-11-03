@@ -62,6 +62,13 @@ it back when the completion is undone. It does not travel in an export, because
 ``next_due`` does not travel either.
 """
 
+PRUNED_MOVES = "pruned_moves"
+"""Completion entry key: the ``moved_occurrences`` rows that the completion pruned.
+
+Store bookkeeping like :data:`PRIOR_DUE`. :func:`remove_completion` puts the rows back,
+so a ``prior_due`` that was a moved date is again backed by its move record.
+"""
+
 DEFERRED_FROM = "deferred_from"
 """Task key: the grid occurrence that a snooze or a due-today moved on a fixed task.
 
@@ -1173,7 +1180,15 @@ def apply_completion(
             completed_at.astimezone(now.tzinfo), task, due_time=due_time
         ).isoformat()
     elif rec_type == REC_FIXED:
+        moves_before = list(task.get("moved_occurrences") or [])
         task["next_due"] = _advance_fixed_schedule(task, now=now)
+        # The advance prunes past moves. Keep them on the entry, so an undo can put
+        # them back with the due date that they backed.
+        pruned = [
+            m for m in moves_before if m not in (task.get("moved_occurrences") or [])
+        ]
+        if pruned:
+            entry[PRUNED_MOVES] = pruned
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR, REC_USE):
         # A one-off is permanently complete; a triggered task clears its condition; a
         # sensor task's crossing has been actioned (and its meter reset by the store,
@@ -1342,6 +1357,27 @@ def _keeps_prior_due(
     return compute_next_due(task, now=now, due_time=due_time) != due
 
 
+def _restore_pruned_moves(task: dict, pruned: object) -> None:
+    """Put the moves that a completion pruned back in ``moved_occurrences``.
+
+    A row that is already there, or that has the same original date as a row there,
+    is not added again. The list keeps its cap.
+    """
+    if not isinstance(pruned, list):
+        return
+    moves = list(task.get("moved_occurrences") or [])
+    taken = {m.get("from") for m in moves if isinstance(m, dict)}
+    for move in pruned:
+        if (
+            isinstance(move, dict)
+            and move.get("from") not in taken
+            and len(moves) < MAX_MOVED_OCCURRENCES
+        ):
+            moves.append(dict(move))
+            taken.add(move.get("from"))
+    task["moved_occurrences"] = moves
+
+
 def remove_completion(
     task: dict, ts: str, *, now: datetime, due_time: time | None = None
 ) -> dict:
@@ -1382,6 +1418,8 @@ def remove_completion(
         # comes back as overdue (B07-1), and a snoozed or moved date comes back as
         # it was.
         task["next_due"] = prior_due
+        if rec_type == REC_FIXED:
+            _restore_pruned_moves(task, removed.get(PRUNED_MOVES))
     elif rec_type == REC_ONE_OFF:
         # Undoing the (final) completion of a do-once task re-arms it to its ``due``
         # date so it returns to every time surface; if any completion remains it

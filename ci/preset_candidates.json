@@ -19,6 +19,29 @@
       ],
       "reason": "not a duty: filtering is a DNS setting"
     },
+    "core:aerosmart": {
+      "keys": [
+        "sensor.air_condenser_solenoid_valve_operating_hours",
+        "sensor.coarse_dust_filter_maximum_conveyed_volume",
+        "sensor.coarse_dust_filter_operating_hours",
+        "sensor.coarse_dust_filter_service_life",
+        "sensor.compressor_motor_operating_hours",
+        "sensor.conveyed_air_volume_since_filter_change",
+        "sensor.electric_heating_element_operating_hours",
+        "sensor.extract_air_fan_operating_hours",
+        "sensor.fan_level_operating_hours",
+        "sensor.fine_dust_filter_operating_hours",
+        "sensor.fine_dust_filter_service_life",
+        "sensor.frost_protection_operating_hours",
+        "sensor.heating_stage_operating_hours",
+        "sensor.hot_gas_solenoid_valve_operating_hours",
+        "sensor.liquid_refrigerant_solenoid_valve_operating_hours",
+        "sensor.outdoor_air_brine_circuit_operating_hours",
+        "sensor.shading_operating_hours",
+        "sensor.supply_air_fan_operating_hours"
+      ],
+      "reason": "unclear semantics; skipped"
+    },
     "core:ambient_station": {
       "keys": [
         "sensor.lifetime_rain"
@@ -214,6 +237,18 @@
       ],
       "reason": "battery runtime is a reading, not a duty"
     },
+    "core:rituals_perfume_genie": {
+      "keys": [
+        "binary_sensor.cartridge"
+      ],
+      "reason": "cartridge is presence, not a duty"
+    },
+    "core:sanix": {
+      "keys": [
+        "sensor.service_date"
+      ],
+      "reason": "service_date not a duty"
+    },
     "core:sensibo": {
       "keys": [
         "binary_sensor.filter_clean",
@@ -222,12 +257,25 @@
       ],
       "reason": "added"
     },
+    "core:shelly": {
+      "keys": [
+        "sensor.lamp_life"
+      ],
+      "reason": "lamp_life is a wear sensor on few devices; skipped, unclear unit"
+    },
     "core:smarty": {
       "keys": [
         "button.reset_filters_timer",
         "sensor.filter_days_left"
       ],
       "reason": "days-left sensor in days; unit not safe for life_low hours, left for later"
+    },
+    "core:switchbot": {
+      "keys": [
+        "button.reset_filter_usage",
+        "sensor.filter_usage"
+      ],
+      "reason": "added"
     },
     "core:tami4": {
       "keys": [
@@ -244,6 +292,24 @@
         "sensor.remaining_time_for_filter"
       ],
       "reason": "remaining time unit is not hours-safe; left for later"
+    },
+    "core:vitesy": {
+      "keys": [
+        "button.filter_changed",
+        "button.fridge_cleaned",
+        "sensor.filter_change_due",
+        "sensor.fridge_cleaning_due"
+      ],
+      "reason": "filter due is a timestamp, not a wear reading; skipped"
+    },
+    "core:volvo": {
+      "keys": [
+        "sensor.distance_to_service",
+        "sensor.engine_time_to_service",
+        "sensor.service_warning",
+        "sensor.time_to_service"
+      ],
+      "reason": "car service, not a preset target"
     }
   }
 }

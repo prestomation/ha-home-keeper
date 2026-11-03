@@ -151,21 +151,24 @@ export class DeferMenus {
       else this.close();
     });
     menu.addEventListener('click', (e) => e.stopPropagation());
+    // A list keeps a row across a reload when the row's markup did not change, so the
+    // task is read again at click time. The one found at wire time can be an older copy.
+    const current = (): Task => this.host.taskById(task.id) ?? task;
     menu.querySelector('.hk-defer-snooze')?.addEventListener('click', () => {
       this.close();
-      this.host.onSnooze(task);
+      this.host.onSnooze(current());
     });
     menu.querySelector('.hk-defer-skip')?.addEventListener('click', () => {
       this.close();
-      this.host.onSkip(task);
+      this.host.onSkip(current());
     });
     menu.querySelector('.hk-defer-due-today')?.addEventListener('click', () => {
       this.close();
-      this.host.onDueToday(task);
+      this.host.onDueToday(current());
     });
     menu.querySelector('.hk-defer-details')?.addEventListener('click', () => {
       this.close();
-      this.host.onDetails?.(task);
+      this.host.onDetails?.(current());
     });
   }
 

@@ -2459,6 +2459,20 @@ def test_b07_1_a_newer_replayed_completion_carries_no_prior_due():
     assert payload["next_due"] == "2026-06-13T18:00:00-04:00"
 
 
+def test_a_replayed_completion_carries_no_pruned_moves_but_a_stored_one_does():
+    stored = _stored_fixed()
+    kept = [{"from": "2026-06-01T18:00:00-04:00", "to": "2026-06-01T19:00:00-04:00"}]
+    stored["completions"][0][tr.recurrence.PRUNED_MOVES] = kept
+    # An old move in the stored task is pruned when the replayed entry advances it.
+    stored["moved_occurrences"] = [
+        {"from": "2026-06-02T18:00:00-04:00", "to": "2026-06-02T19:00:00-04:00"}
+    ]
+    payload = _update(stored, [{"completed_at": "2026-06-13T09:00:00-04:00"}])
+    stored_entry, replayed = payload["completions"]
+    assert stored_entry[tr.recurrence.PRUNED_MOVES] == kept
+    assert tr.recurrence.PRUNED_MOVES not in replayed
+
+
 # ── A consumable link the user made (B09-4) ──────────────────────────────────
 
 
