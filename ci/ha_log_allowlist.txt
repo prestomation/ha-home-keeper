@@ -50,3 +50,7 @@
 
 # test_sensor_watcher.py runs the shipped last_seen template against a sensor with no state, on purpose.
 \[custom_components\.home_keeper\.sensor_watcher\] Template\ trigger\ for\ Sensor\ watcher\ test\ \(sensor\.hk_probe_last_seen\)\ did\ not\ render:\ TypeError:\ unsupported\ operand\ type\(s\)\ for\ \-:\ 'datetime\.datetime'\ and\ 'NoneType'
+
+# test_a_template_that_renders_a_number_never_arms_the_task uses {{ state }} on a number, on purpose,
+# and waits for this line: the watcher says why it decides nothing.
+\[custom_components\.home_keeper\.sensor_watcher\] Template trigger for Sensor watcher test \(input_number\.hk_demo_meter\) did not render: the template rendered -?\d+(\.\d+)?, which is not true or false
