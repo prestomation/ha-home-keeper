@@ -52,8 +52,10 @@ SKIPPED = {
     "add_declarative_companion": "a full call would add a companion",
 }
 
-# Bad-input and not-found calls are a 400. A 500 is an unhandled error.
-OK_STATUS = (200, 400)
+# A schema error is a 400. A handled error of a service (a missing id) is a 400 on
+# current Home Assistant and a 500 with no message on 2026.1, the oldest one that we
+# support. Any other status is an unhandled error. ``handled_error_status`` finds out
+# which one this Home Assistant answers, with a call that is known to be a not-found.
 
 
 ID_FIELDS = ("task_id", "asset_id", "part_id", "document_id", "photo_id", "id")
@@ -75,19 +77,27 @@ def _field_names(ha) -> dict[str, set[str]]:
     return {n: set(s.get("fields", {})) for n, s in domain["services"].items()}
 
 
+@pytest.fixture(scope="module")
+def handled_error_status(ha) -> int:
+    reply = _post(ha, "delete_task", {"task_id": MISSING}, with_response=False)
+    assert reply.status_code in (400, 500), (reply.status_code, reply.text[:300])
+    return reply.status_code
+
+
 def test_skipped_services_exist():
     assert set(SKIPPED) <= set(api_surface.SERVICE_NAMES)
 
 
 @pytest.mark.parametrize("name", PROBED)
-def test_each_service_answers_a_probe(ha, name):
+def test_each_service_answers_a_probe(ha, handled_error_status, name):
     spec = next(s for s in api_surface.SERVICES if s.name == name)
     data = READS.get(name)
     if data is None:
         # A missing id, for each id field that the service takes.
         data = {f: MISSING for f in ID_FIELDS if f in _field_names(ha)[name]}
     reply = _post(ha, name, data, with_response=spec.response == "only")
-    assert reply.status_code in OK_STATUS, (name, reply.status_code, reply.text[:300])
+    ok = (200, 400, handled_error_status)
+    assert reply.status_code in ok, (name, reply.status_code, reply.text[:300])
     if name in READS:
         assert reply.status_code == 200, (name, reply.text[:300])
 

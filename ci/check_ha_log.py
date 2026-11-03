@@ -22,7 +22,8 @@ follow it, such as a traceback):
 2. A "Detected blocking call" record that names the domain.
 3. A record that names the domain and has one of the known bad patterns:
    "was never awaited", "Task exception was never retrieved", a slow
-   callback ("Executing <Task ... took N seconds"), "Unclosed" resources,
+   callback ("Executing <Task ... took N seconds", from 0.5 s: see
+   --slow-callback-min), "Unclosed" resources,
    or a deprecation notice.
 
 A record "names the domain" when it contains ``custom_components/<domain>``,
@@ -78,6 +79,8 @@ SHAPE_WIDTH = 140
 
 BAD_LEVELS = {"WARNING", "ERROR", "CRITICAL"}
 
+SLOW_LABEL = "slow callback"
+
 # Patterns that are a problem when the record also names the domain.
 BAD_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("coroutine was never awaited", re.compile(r"was never awaited")),
@@ -85,12 +88,30 @@ BAD_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         "task exception was never retrieved",
         re.compile(r"Task exception was never retrieved"),
     ),
-    ("slow callback", re.compile(r"Executing <(?:Task|Handle)\b")),
+    (SLOW_LABEL, re.compile(r"Executing <(?:Task|Handle)\b")),
     ("unclosed resource", re.compile(r"\bUnclosed\b|ResourceWarning")),
     ("deprecation notice", re.compile(r"deprecat", re.IGNORECASE)),
 ]
 
 BLOCKING_CALL = re.compile(r"Detected blocking call")
+
+# asyncio debug mode reports each loop step that takes more than 0.1 s. On a shared
+# CI runner an ordinary step, such as the reload of an entry, reaches 0.3 s, and the
+# time is not the same in 2 runs. A slow step is a finding only from this many
+# seconds, so a timing line cannot fail the gate by chance. Change it with
+# --slow-callback-min.
+SLOW_CALLBACK_MIN = 0.5
+STEP_SECONDS = re.compile(r"\btook (?P<seconds>\d+(?:\.\d+)?) seconds")
+
+
+def slow_enough(text: str, slow_min: float) -> bool:
+    """Whether a slow-callback record is at or above *slow_min* seconds.
+
+    A record with no readable duration counts as slow, so it is never hidden.
+    """
+    match = STEP_SECONDS.search(text)
+    return match is None or float(match["seconds"]) >= slow_min
+
 
 # Warnings that Home Assistant writes for every custom integration.
 # They say nothing about the quality of our code.
@@ -222,6 +243,7 @@ def check_records(
     domain: str,
     allowlist: list[AllowEntry],
     used: set[int] | None = None,
+    slow_min: float = SLOW_CALLBACK_MIN,
 ) -> list[Finding]:
     """Return the findings that the allowlist does not hide.
 
@@ -245,8 +267,11 @@ def check_records(
             rules.append("blocking call in the event loop")
         if names_domain(text, domain):
             for label, pattern in BAD_PATTERNS:
-                if pattern.search(text):
-                    rules.append(label)
+                if not pattern.search(text):
+                    continue
+                if label == SLOW_LABEL and not slow_enough(text, slow_min):
+                    continue
+                rules.append(label)
         if not rules:
             continue
         hiding = [i for i, entry in enumerate(allowlist) if entry.pattern.search(text)]
@@ -337,6 +362,16 @@ def main(argv: list[str] | None = None) -> int:
         help=f"allowlist file (default: {DEFAULT_ALLOWLIST})",
     )
     parser.add_argument(
+        "--slow-callback-min",
+        type=float,
+        default=SLOW_CALLBACK_MIN,
+        metavar="SECONDS",
+        help=(
+            "a slow-callback record is a finding from this many seconds "
+            f"(default: {SLOW_CALLBACK_MIN})"
+        ),
+    )
+    parser.add_argument(
         "--lane",
         help=(
             "name of this CI lane. With it, an allowlist entry of this lane that "
@@ -375,7 +410,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     used: set[int] = set()
-    findings = check_records(records, args.domain, allowlist, used)
+    findings = check_records(
+        records, args.domain, allowlist, used, args.slow_callback_min
+    )
     stale = stale_entries(allowlist, used, args.lane) if args.lane else []
     if findings:
         print(format_report(findings))

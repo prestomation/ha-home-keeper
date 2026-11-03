@@ -110,7 +110,7 @@ def test_docker_compose_prefix_is_accepted():
         (
             "Executing <Task pending name='Task-9' coro=<run() running at "
             "/config/custom_components/home_keeper/coordinator.py:55>> "
-            "took 0.350 seconds"
+            "took 0.850 seconds"
         ),
         (
             "Unclosed client session client_session: <aiohttp.ClientSession> "
@@ -646,3 +646,76 @@ def test_a_reason_can_span_comment_lines(tmp_path):
     )
     (entry,) = check_ha_log.load_allowlist(path)
     assert entry.reason == "First half of the reason. Second half."
+
+
+# ---------------------------------------------------------------------------
+# A slow callback fails only above a duration
+# ---------------------------------------------------------------------------
+
+
+def _slow_line(seconds: str, domain_path: str = "home_keeper") -> str:
+    return (
+        f"{TS} WARNING (MainThread) [asyncio] Executing <Task finished name='Task-9' "
+        f"coro=<Coordinator._async_reload() done, defined at "
+        f"/config/custom_components/{domain_path}/coordinator.py:406> result=None> "
+        f"took {seconds} seconds\n"
+    )
+
+
+def _slow(log: str, **kwargs):
+    records = check_ha_log.parse_records(log.splitlines())
+    return check_ha_log.check_records(records, "home_keeper", [], **kwargs)
+
+
+def test_a_slow_step_under_the_limit_is_no_finding():
+    # asyncio debug mode reports any step above 0.1 s. On a shared CI runner a
+    # normal reload of the entry reaches 0.3 s, so the gate waits for 0.5 s.
+    assert _slow(_slow_line("0.320")) == []
+
+
+def test_a_slow_step_over_the_limit_is_a_finding():
+    (finding,) = _slow(_slow_line("0.620"))
+    assert finding.rule == "slow callback"
+
+
+def test_the_limit_itself_is_a_finding():
+    assert len(_slow(_slow_line("0.500"))) == 1
+
+
+def test_the_limit_can_be_changed():
+    assert len(_slow(_slow_line("0.320"), slow_min=0.3)) == 1
+    assert _slow(_slow_line("0.620"), slow_min=1.0) == []
+
+
+def test_a_slow_record_with_no_duration_is_a_finding():
+    log = (
+        f"{TS} WARNING (MainThread) [asyncio] Executing <Task pending "
+        "coro=<run() running at /config/custom_components/home_keeper/x.py:5>>\n"
+    )
+    assert len(_slow(log)) == 1
+
+
+def test_a_slow_step_of_other_code_is_still_ignored():
+    assert _slow(_slow_line("2.000", "other")) == []
+
+
+def test_the_limit_does_not_hide_another_rule_in_the_same_record():
+    log = _slow_line("0.320").rstrip() + " coroutine 'f' was never awaited\n"
+    (finding,) = _slow(log)
+    assert finding.rule == "coroutine was never awaited"
+
+
+def test_cli_takes_a_slow_callback_limit(tmp_path):
+    log = tmp_path / "ha.log"
+    log.write_text(CLEAN_LOG + _slow_line("0.320"))
+    base = [sys.executable, str(SCRIPT), "--domain", "home_keeper", str(log)]
+    quiet = subprocess.run(base, capture_output=True, text=True, check=False)
+    assert quiet.returncode == 0, quiet.stdout
+    strict = subprocess.run(
+        [*base[:-1], "--slow-callback-min", "0.2", str(log)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert strict.returncode == 1
+    assert "slow callback" in strict.stdout
