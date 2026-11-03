@@ -589,8 +589,9 @@ async def _async_apply_file(
         photo_id = documents.upload_document_id(
             action.item_id, (str(p.get("id")) for p in task_photos.photos_of(task))
         )
-        target = task_photos.photo_path(photos_root, action.owner_id, photo_id, safe)
-        thumb = task_photos.thumb_path(photos_root, action.owner_id, photo_id)
+        target, thumb = await hass.async_add_executor_job(
+            _photo_paths, photos_root, action.owner_id, photo_id, safe
+        )
         await hass.async_add_executor_job(_place_photo, source, target, thumb)
         try:
             await coord.store.add_task_photo(
@@ -609,8 +610,12 @@ async def _async_apply_file(
         return
     documents_root = Path(hass.config.path(MANUALS_SUBDIR))
     if action.kind == "part_file":
-        target = documents.document_path(
-            documents_root, action.owner_id, f"part_{action.item_id}", safe
+        target = await hass.async_add_executor_job(
+            documents.document_path,
+            documents_root,
+            action.owner_id,
+            f"part_{action.item_id}",
+            safe,
         )
         await hass.async_add_executor_job(_place_file, source, target)
         try:
@@ -627,7 +632,9 @@ async def _async_apply_file(
     document_id = documents.upload_document_id(
         action.item_id, (str(d.get("id")) for d in asset.get("documents") or [])
     )
-    target = documents.document_path(documents_root, action.owner_id, document_id, safe)
+    target = await hass.async_add_executor_job(
+        documents.document_path, documents_root, action.owner_id, document_id, safe
+    )
     await hass.async_add_executor_job(_place_file, source, target)
     try:
         await coord.store.add_asset_document(
@@ -644,6 +651,16 @@ async def _async_apply_file(
     except (KeyError, AssetValidationError):
         await hass.async_add_executor_job(_unlink_all, target)
         raise
+
+
+def _photo_paths(
+    photos_root: Path, task_id: str, photo_id: str, filename: str
+) -> tuple[Path, Path]:
+    """The guarded paths of a photo and its thumbnail. Blocking: it resolves them."""
+    return (
+        task_photos.photo_path(photos_root, task_id, photo_id, filename),
+        task_photos.thumb_path(photos_root, task_id, photo_id),
+    )
 
 
 def _make_dirs(path: Path) -> None:
