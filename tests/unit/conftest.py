@@ -37,6 +37,10 @@ run aborts the whole job, so the failure would depend on mutant ordering.
 from __future__ import annotations
 
 import os
+import sys
+from collections.abc import Iterator
+
+import pytest
 
 try:
     from hypothesis import HealthCheck, Phase, settings
@@ -78,3 +82,56 @@ else:
         ],
     )
     settings.load_profile(os.environ.get("HK_HYPOTHESIS_PROFILE", "dev"))
+
+
+# ── Blocking calls on the event loop ─────────────────────────────────────────
+# Home Assistant logs "Detected blocking call" at run time (#247, #150). This fixture
+# finds the same defect in the unit tests. blockbuster patches file, socket and sleep
+# calls and raises BlockingError when one runs in a thread that runs an event loop.
+# It does nothing in a test that runs no loop, so it is safe for every unit test: only
+# the tests that drive HA-facing code on a loop can trip it. The error names the file
+# and line of the call.
+#
+# blockbuster is optional here, like Hypothesis: a bare install of pytest and the
+# pure-core packages (and the schema gate in lint.yml) must still run the suite. Every
+# lane that installs requirements-test.txt has it, and tests/unit/test_blocking_calls.py
+# proves that the fixture is on there.
+try:
+    from blockbuster import blockbuster_ctx
+except ImportError:  # pragma: no cover - exercised by the bare-pytest install
+    blockbuster_ctx = None
+
+
+@pytest.fixture(autouse=True)
+def blockbuster() -> Iterator[object | None]:
+    """Fail a test when code blocks the thread of a running event loop."""
+    if blockbuster_ctx is None:
+        yield None
+        return
+    with blockbuster_ctx() as bb:
+        yield bb
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _locale_data_is_loaded() -> None:
+    """Load the locale data that Home Keeper loads at setup, before any test runs.
+
+    ``__init__.async_setup_entry`` asks for ``assets.decimal_mark`` in an executor job
+    for the language of the instance, so Babel reads its locale files off the loop.
+    A unit test that formats a quantity on a loop has no setup. Without this, the
+    first such test of a run reads the files on the loop, and fails under blockbuster
+    when the file runs alone, though it passes after any test that warmed the cache.
+    """
+    try:
+        from babel import Locale
+        from babel.numbers import get_decimal_symbol
+    except ImportError:  # a bare install: no test here formats a quantity
+        pass
+    else:
+        for lang in ("en", "de"):
+            get_decimal_symbol(Locale.parse(lang))
+    # ``async_setup_entry`` also runs ``backend_i18n.preload`` in an executor, so the
+    # string tables are in memory before any call to ``resolve_string`` (#247).
+    backend_i18n = sys.modules.get("hk.backend_i18n")
+    if backend_i18n is not None:
+        backend_i18n.preload("en")

@@ -17,6 +17,9 @@ hypothesis
 # photo_thumbs.py makes the task photo thumbnails. Home Assistant depends on it, so
 # the integration needs no requirement for it, but a bare unit lane does.
 Pillow
+# Fails a unit test that blocks a running event loop (tests/unit/conftest.py). HA logs
+# the same defect at run time as "Detected blocking call".
+blockbuster
 requests
 websockets
 

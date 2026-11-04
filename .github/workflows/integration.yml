@@ -21,6 +21,9 @@ jobs:
     # reads as a red check. 20 gives the tier room to grow before the cap is the
     # thing that fails a PR again.
     timeout-minutes: 20
+    env:
+      # Python dev mode in the container (see tests/integration/docker-compose.yml).
+      HK_DEVMODE: "1"
     steps:
       - uses: actions/checkout@v7
 
@@ -87,6 +90,27 @@ jobs:
         working-directory: tests/integration
         run: docker compose logs homeassistant
 
+      # The log gate: no warning or error from our code, no blocking call, no known
+      # bad pattern. It runs even when a test failed, and it runs last, so a failed
+      # test never hides what the log shows. Exceptions: ci/ha_log_allowlist.txt.
+      - name: Save Home Assistant log
+        if: always()
+        working-directory: tests/integration
+        run: docker compose logs --no-color homeassistant > "$GITHUB_WORKSPACE/ha.log"
+
+      - name: Upload Home Assistant log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ha-log-${{ matrix.ha }}
+          path: ha.log
+          if-no-files-found: warn
+
+      - name: Check Home Assistant log
+        if: always()
+        run: python ci/check_ha_log.py --domain home_keeper --lane integration ha.log
+
+      # Last, so the container runs until the log is saved and checked.
       - name: Cleanup
         if: always()
         working-directory: tests/integration
@@ -124,6 +148,23 @@ jobs:
       - name: Dump Home Assistant logs on failure
         if: failure()
         run: docker compose --project-name hk-noise -f tests/integration/docker-compose.yml logs homeassistant
+
+      # The log gate, as in the integration job. ci/test-noise.sh sets HK_DEVMODE.
+      - name: Save Home Assistant log
+        if: always()
+        run: docker compose --project-name hk-noise -f tests/integration/docker-compose.yml logs --no-color homeassistant > ha.log
+
+      - name: Upload Home Assistant log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ha-log-noise
+          path: ha.log
+          if-no-files-found: warn
+
+      - name: Check Home Assistant log
+        if: always()
+        run: python ci/check_ha_log.py --domain home_keeper --lane noise ha.log
 
       - name: Cleanup
         if: always()

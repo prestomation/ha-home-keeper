@@ -93,7 +93,8 @@ class _Hass:
         self.http = _Http()
 
     async def async_add_executor_job(self, func, *args):
-        return func(*args)
+        # A real thread, like Home Assistant. Inline would read files on the loop.
+        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
 
 
 def test_b20_5_static_path_is_registered_once_per_run():

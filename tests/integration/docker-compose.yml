@@ -29,5 +29,13 @@ services:
       - ./stubs/hk_demo_tab:/config/custom_components/hk_demo_tab:ro
     environment:
       - TZ=America/New_York
+      # Python dev mode and asyncio debug make Home Assistant log blocking calls on
+      # the event loop, slow callbacks, unawaited coroutines and unclosed resources.
+      # They are off unless HK_DEVMODE is set (an empty value turns each one off),
+      # because they slow Home Assistant down. The integration and noise lanes set it,
+      # and ci/check_ha_log.py reads the log they produce. e2e and the upgrade suite
+      # leave it off, so their timing does not change.
+      - PYTHONDEVMODE=${HK_DEVMODE:-}
+      - PYTHONASYNCIODEBUG=${HK_DEVMODE:-}
     tmpfs:
       - /tmp

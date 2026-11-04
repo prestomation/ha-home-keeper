@@ -2030,3 +2030,53 @@ def test_r7_live_date_reads_each_form_of_a_due_date():
     assert tm._live_date("2026-06-14T23:30:00", now=east) == DUE
     # A value that does not parse keeps its first 10 characters, as before.
     assert tm._live_date("2026-06-14 at noon", now=east) == DUE
+
+
+# ── cost of a pass ───────────────────────────────────────────────────────────
+# The planner runs on the event loop in 1 step. It looked up each tracked entry by a
+# scan of the whole list, so a list of N items cost N x N reads (1.4 s for 5000 tasks).
+
+
+class _CountingList(list):
+    """A list that counts each item that an iteration hands out."""
+
+    reads = 0
+
+    def __iter__(self):
+        for item in super().__iter__():
+            type(self).reads += 1
+            yield item
+
+
+def _settled(count):
+    """*count* tasks, each tracked and on the list: the planner has nothing to do."""
+    wants, tracked, items = [], {}, _CountingList()
+    for number in range(count):
+        tid, name = f"t{number}", f"Task {number}"
+        wants.append(_want(tid=tid, name=name))
+        entry = _entry(uid=f"u{number}", summary=name)
+        tracked[tm.sync_key(M1, tid)] = entry
+        items.append(_item(summary=name, uid=f"u{number}"))
+    return _desired(wants), tracked, items
+
+
+@pytest.mark.parametrize("count", [100, 400])
+def test_a_settled_pass_reads_each_item_a_few_times_not_once_per_entry(count):
+    desired, tracked, items = _settled(count)
+    _CountingList.reads = 0
+    plan = _plan(tracked=tracked, desired=desired, items=items)
+    assert plan.add == [] and plan.update == [] and plan.remove == []
+    assert _CountingList.reads <= 5 * count, _CountingList.reads
+
+
+def test_a_pass_that_adds_every_task_reads_the_list_a_few_times_not_once_per_task():
+    # The same holds for the add path: it asks whether an open item reads like the task.
+    count = 300
+    desired, _, _ = _settled(count)
+    items = _CountingList(
+        _item(summary=f"Other {n}", uid=f"o{n}") for n in range(count)
+    )
+    _CountingList.reads = 0
+    plan = _plan(tracked={}, desired=desired, items=items)
+    assert len(plan.add) == count
+    assert _CountingList.reads <= 5 * count, _CountingList.reads

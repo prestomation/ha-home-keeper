@@ -26,6 +26,7 @@ __all__ = [
     "STATUS_COMPLETED",
     "STATUS_NEEDS_ACTION",
     "UNCONFIRMED_GRACE",
+    "ItemIndex",
     "add_unconfirmed",
     "added_stamp",
     "find_open",
@@ -64,6 +65,11 @@ CAP_DESCRIPTION = "description"
 UNCONFIRMED_GRACE = timedelta(minutes=20)
 
 
+def _text_key(text: str) -> str:
+    """The form of *text* that :func:`same_text` compares."""
+    return "".join(text.split()).casefold()
+
+
 def same_text(live: str, ours: str) -> bool:
     """Whether the *live* text on a list is the text Home Keeper wrote as *ours*.
 
@@ -71,11 +77,35 @@ def same_text(live: str, ours: str) -> bool:
     stores a line ("500 ml" can come back as "500ML", a title can come back in
     lower case, a note can come back trimmed).
     """
-    return "".join(live.split()).casefold() == "".join(ours.split()).casefold()
+    return _text_key(live) == _text_key(ours)
+
+
+class ItemIndex:
+    """The items of 1 list by uid and by text, built once for a pass.
+
+    A planner asks about each tracked entry and each wanted task. Without an index,
+    each question scans the whole list, so a pass costs the square of the list
+    length, on the event loop. The index keeps the order of the list inside each
+    group, so the first match is the same item that a scan finds.
+    """
+
+    def __init__(self, items: list[dict[str, Any]]) -> None:
+        self.by_uid: dict[str, list[dict[str, Any]]] = {}
+        self.by_text: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            uid = item.get("uid")
+            if isinstance(uid, str):
+                self.by_uid.setdefault(uid, []).append(item)
+            key = _text_key(str(item.get("summary") or ""))
+            self.by_text.setdefault(key, []).append(item)
+
+
+def _index(items: list[dict[str, Any]] | ItemIndex) -> ItemIndex:
+    return items if isinstance(items, ItemIndex) else ItemIndex(items)
 
 
 def _by_text(
-    items: list[dict[str, Any]],
+    items: list[dict[str, Any]] | ItemIndex,
     *,
     entity_id: str,
     summary: str,
@@ -88,9 +118,8 @@ def _by_text(
     """
     found = [
         item
-        for item in items
-        if same_text(str(item.get("summary") or ""), summary)
-        and (entity_id, item_identity(item)) not in claimed
+        for item in _index(items).by_text.get(_text_key(summary), ())
+        if (entity_id, item_identity(item)) not in claimed
     ]
     return sorted(
         found,
@@ -116,7 +145,7 @@ def item_is_open(item: dict[str, Any]) -> bool:
 
 
 def resolve_tracked(
-    items: list[dict[str, Any]],
+    items: list[dict[str, Any]] | ItemIndex,
     *,
     entity_id: str,
     uid: Any,
@@ -137,13 +166,13 @@ def resolve_tracked(
     A ticked-off item with the same text is some earlier record, never ours, and
     reading it as our line turns a deleted item into a completed task (B09-1).
     """
+    index = _index(items)
     bound = isinstance(uid, str) and bool(uid)
     if bound:
-        for item in items:
-            claim = (entity_id, item_identity(item))
-            if item.get("uid") == uid and claim not in claimed:
+        for item in index.by_uid.get(uid, ()):
+            if (entity_id, item_identity(item)) not in claimed:
                 return item
-    by_summary = _by_text(items, entity_id=entity_id, summary=summary, claimed=claimed)
+    by_summary = _by_text(index, entity_id=entity_id, summary=summary, claimed=claimed)
     if by_summary and item_is_open(by_summary[0]):
         return by_summary[0]
     if bound:
@@ -152,7 +181,7 @@ def resolve_tracked(
 
 
 def find_open(
-    items: list[dict[str, Any]],
+    items: list[dict[str, Any]] | ItemIndex,
     *,
     entity_id: str,
     summary: str,

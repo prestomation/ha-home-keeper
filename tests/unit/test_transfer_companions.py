@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import io
 import os
+import threading
 import time
 import types
 import zipfile
@@ -61,6 +62,16 @@ class Dogs:
         hass.services.register(domain, "import_data", self.import_data)
 
     @staticmethod
+    def _write_photo(files_dir: str) -> None:
+        Path(files_dir, "photos").mkdir()
+        Path(files_dir, "photos", "rex.jpg").write_bytes(b"rex")
+
+    @staticmethod
+    def _read_photo(files_dir: str) -> bytes | None:
+        photo = Path(files_dir, "photos", "rex.jpg")
+        return photo.read_bytes() if photo.is_file() else None
+
+    @staticmethod
     def _check_admin(context: Any) -> None:
         if context is not None and context.user_id != ADMIN.user_id:
             raise Unauthorized(context=context)
@@ -70,16 +81,15 @@ class Dogs:
         if self.fail_export:
             raise RuntimeError("the database is locked")
         if files_dir := data.get("files_dir"):
-            Path(files_dir, "photos").mkdir()
-            Path(files_dir, "photos", "rex.jpg").write_bytes(b"rex")
+            # Off the loop, as a real companion does its file work.
+            await asyncio.to_thread(self._write_photo, files_dir)
         return {"format": 1, "version": "1.0", "data": self.data, "skipped": {}}
 
     async def import_data(self, data: dict[str, Any], context: Any) -> dict:
         self._check_admin(context)
         self.imported.append(data)
         if files_dir := data.get("files_dir"):
-            photo = Path(files_dir, "photos", "rex.jpg")
-            self.file_seen = photo.read_bytes() if photo.is_file() else None
+            self.file_seen = await asyncio.to_thread(self._read_photo, files_dir)
         errors = [p for p in self.problems if p["level"] == "error"]
         return {
             "ok": not errors,
@@ -634,6 +644,45 @@ def test_a_bundle_restores_the_records_the_files_and_the_companion(
         )
     )
     assert again["counts"]["files"] == {"created": 0, "unchanged": 3}
+
+
+def test_a_bundle_import_resolves_no_path_on_the_event_loop(
+    hass, registry, tmp_path, monkeypatch
+):
+    """``Path.resolve`` reads the file system, so no call to it runs on the loop.
+
+    The guarded paths of the restored files come from ``documents.resolve_under_root``.
+    The check records the thread of each ``resolve`` call, so it fails on any Python
+    version. blockbuster sees the same call as ``os.path.abspath`` on Python 3.12 only.
+    """
+    source = FakeHass(tmp_path / "source")
+    Dogs(source)
+    registry.register("dogs", "import_export")
+    exported = _run(
+        runner.async_export_bundle(
+            source, coordinator(_stored_with_files(source)), {}, context=ADMIN
+        )
+    )
+    Dogs(hass)
+    coord = coordinator(FakeStore())
+    hass.coord = coord
+    loop_thread = threading.get_ident()
+    threads: list[int] = []
+    original = Path.resolve
+
+    def spy(self, *args, **kwargs):
+        threads.append(threading.get_ident())
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", spy)
+    report = _run(
+        runner.async_import_bundle(
+            hass, coord, Path(exported["path"]), {}, context=ADMIN
+        )
+    )
+    assert report["counts"]["files"] == {"created": 3, "unchanged": 0}
+    assert threads, "the import resolved no path, so the check proves nothing"
+    assert loop_thread not in threads
 
 
 def test_an_unsafe_bundle_is_refused_and_its_run_folder_deleted(hass, registry):

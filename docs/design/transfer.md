@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 7c48189fa8ad
+source_hash: bdae2e76e435
 ---
 
 # Import and export

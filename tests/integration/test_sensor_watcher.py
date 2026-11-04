@@ -8,6 +8,7 @@ its target), and cleared again when the task is completed. Driving a real
 subscription + evaluation path that the pure unit tests can't.
 """
 
+import re
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -576,7 +577,10 @@ def test_clear_on_recover_draws_down_a_linked_consumable(ha):
             ha,
             "home_keeper",
             "set_task_consumable",
-            {"task_id": task_id, "asset_id": asset_id, "part_id": part_id},
+            {
+                "task_id": task_id,
+                "parts": [{"asset_id": asset_id, "part_id": part_id}],
+            },
         )
         _poll_task(ha, task_id, lambda t: (t.get("source") or {}).get("parts"))
 
@@ -1231,6 +1235,18 @@ def test_a_repaired_template_still_clears_the_task(ha):
         _set_flag(ha, False)
 
 
+def _wait_for_log(ha, pattern: str, timeout: float = 30) -> bool:
+    """Wait until the Home Assistant log holds a line that matches *pattern*."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        reply = ha.get(f"{HA_URL}/api/error_log", timeout=30)
+        reply.raise_for_status()
+        if re.search(pattern, reply.text):
+            return True
+        time.sleep(1)
+    return False
+
+
 def test_a_template_that_renders_a_number_never_arms_the_task(ha):
     """A number is not a verdict, whatever its value.
 
@@ -1255,6 +1271,13 @@ def test_a_template_that_renders_a_number_never_arms_the_task(ha):
         assert _get_task(ha, task_id)["next_due"] is None, (
             "a template that rendered a number armed the task"
         )
+        # The watcher says why it decides nothing. Waiting for the line makes the log
+        # of the run hold it every time: the log gate allows this one message, and
+        # without the wait it was there only when the watcher read the task before
+        # this test deleted it.
+        assert _wait_for_log(
+            ha, rf"\({METER}\) did not render: the template rendered 1100(\.0)?,"
+        ), "the watcher did not say that a number is not true or false"
         # Zero is not a verdict either — reading it as False was the other half of the
         # same wrong answer.
         _set_meter(ha, 0)

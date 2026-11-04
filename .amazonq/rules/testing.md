@@ -165,6 +165,25 @@ reload on each options change filled the logbook, and no test saw it.
   own write from coming back as an input (compare before write, an origin marker, a
   debounce, a fixed point). Name the guard in the PR body too.
 
+## Blocking calls and the log gate
+
+Home Assistant logs `Detected blocking call` for a file read on the event loop (#247).
+- **`blockbuster` in the unit tests.** An autouse fixture in `tests/unit/conftest.py` raises
+  `BlockingError` when a blocking call runs on a running loop. It does nothing on a bare
+  install. A fake `async_add_executor_job` uses `run_in_executor`, never inline.
+- **Python dev mode in the Docker lanes.** `docker-compose.yml` sets `PYTHONDEVMODE` and
+  `PYTHONASYNCIODEBUG` from `HK_DEVMODE`. Only the integration and noise lanes set it.
+- **The log gate.** Those 2 lanes save `ha.log` and run `python ci/check_ha_log.py --domain
+  home_keeper --lane <lane> ha.log` last, also after a failed test. It fails on a warning or
+  error from the integration's logger, on a blocking call that names it, and on a bad pattern
+  (unawaited coroutine, unclosed resource, deprecation, a slow callback of 0.5 s or more, set
+  by `--slow-callback-min`: shorter ones are chance on a shared runner, so never allowlist a
+  timing line). `test_surfaces.py` in `tests/integration` calls diagnostics, options and services.
+- **Allowlist an expected warning** in `ci/ha_log_allowlist.txt`: a reason comment, then a
+  narrow regex (logger name and full message), for a warning that a test provokes on
+  purpose. Fix a real finding. An entry that hid nothing in a run of its lane (default
+  `integration`; `# lane: noise` sets another) is stale and fails the gate.
+
 ## Translations
 
 `strings.json` and `frontend/src/locales/en.json` are the sources.

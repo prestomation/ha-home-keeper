@@ -12,7 +12,7 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
 | `lint.yml` | ruff, mypy (HA installed), vale, `docs-audit`, `changelog-release-gap` |
 | `test.yml` | vitest, pytest unit, HACS validation, hassfest |
 | `mutation.yml` | mutmut and Stryker on the changed code, 80% gate |
-| `integration.yml` | Docker integration tests, the noise budget ([testing.md](testing.md#noise-budget)), and the upgrade suite against `stable` |
+| `integration.yml` | Docker integration tests, the noise budget ([testing.md](testing.md#noise-budget)), and the upgrade suite against `stable`. The integration and noise jobs end with the log gate ([testing.md](testing.md#blocking-calls-and-the-log-gate)) |
 | `e2e.yml` | Docker and Playwright; uploads the report on a failure. The job limit is 25 min: shard the suite when a run takes more than 22 min, and never raise the limit again |
 | `walkthrough-preview.yml` | the walkthrough gif comment ([pr-workflow.md](pr-workflow.md#walkthrough-video)) |
 | `ha-beta.yml` | nightly against HA `beta`; gates nothing, files `ha-beta-regression` |
@@ -28,6 +28,7 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
   `ha-beta.yml` carry `continue-on-error: true`.
 - **A check that no PR runs shares its inputs with one that does.** `ha-beta.yml` runs
   only on a schedule, so its inputs come from files that a PR lane also reads.
+- `ruff` selects `ASYNC` (not `ASYNC109`). It is weak: it misses a `Path` built with `/`.
 - `ci/setup-ci-deps.sh` installs every CI dependency (Python into `.venv`, npm, vale,
   ffmpeg, Docker, Chromium). It is idempotent and safe to run again; `FORCE=1` reinstalls
   and `SKIP_*` leaves a part alone. A SessionStart hook runs it; the log is

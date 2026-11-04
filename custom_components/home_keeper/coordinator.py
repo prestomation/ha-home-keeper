@@ -75,6 +75,17 @@ SCAN_INTERVAL = timedelta(minutes=5)
 # coordinator object is recreated. A genuine HA *restart* starts with an empty
 # hass.data, which is how we still baseline silently on restart (no overdue storm).
 _EDGE_STATE_STORE = f"{DOMAIN}_edge_state"
+_UNKNOWN_DEVICE_STORE = f"{DOMAIN}_unknown_device_warned"
+
+
+def _unknown_device_store(hass: HomeAssistant) -> set[tuple[str, str]]:
+    """``(task id, device id)`` pairs already reported as an unknown device.
+
+    It belongs to ``hass``, not to a coordinator: each per-task entity asks for its
+    device link, and a reload makes a new coordinator, so a per-coordinator set would
+    warn again for each reload. A stale id now warns once for each run.
+    """
+    return hass.data.setdefault(_UNKNOWN_DEVICE_STORE, set())
 
 
 def _edge_state_store(hass: HomeAssistant) -> dict[str, transitions.StateMap]:
@@ -602,12 +613,16 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         device_id = task.get("device_id")
         device = self._existing_device(device_id)
         if device is not None:
+            # A device that returns is reported again if it goes again.
+            _unknown_device_store(self.hass).discard((task["id"], device_id))
             return None, device
-        if device_id:
+        warned = _unknown_device_store(self.hass)
+        if device_id and (task["id"], device_id) not in warned:
+            warned.add((task["id"], device_id))
             _LOGGER.warning(
                 "Home Keeper task %s references unknown device_id %s; "
                 "falling back to a self-owned device",
-                task.get("id"),
+                task["id"],
                 device_id,
             )
         return (
