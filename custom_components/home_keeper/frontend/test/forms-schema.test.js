@@ -1314,9 +1314,9 @@ describe('partSchema', () => {
     expect(sel('stock_unit')).toEqual(TEXT);
     // A part note is prose, so it gets the tall box.
     expect(sel('notes')).toEqual(MULTILINE);
-    // Money steps in whole units; the quantities do not — a part measured in
+    // Money takes cents (3.99), and so do the quantities — a part measured in
     // millilitres is as valid as one counted in whole filters.
-    expect(sel('cost')).toEqual({ number: { min: 0, mode: 'box' } });
+    expect(sel('cost')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
     expect(sel('stock')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
     expect(sel('reorder_at')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
     expect(sel('type')).toEqual(
@@ -1689,9 +1689,9 @@ describe('assetIdentitySchema', () => {
 });
 
 describe('structuredDetailsSchema', () => {
-  it('is the appliance value, as a whole-stepped number', () => {
+  it('is the appliance value, as a decimal number', () => {
     expect(structuredDetailsSchema()).toEqual([
-      { name: 'cost', selector: { number: { min: 0, mode: 'box' } } },
+      { name: 'cost', selector: { number: { min: 0, mode: 'box', step: 'any' } } },
     ]);
   });
 
@@ -2310,6 +2310,8 @@ describe('mergePartForm', () => {
       restock_quantity: '3',
     });
     expect(next.cost).toBe(12.5);
+    // Cents survive the string-to-number step with no rounding.
+    expect(mergePartForm(prev, { cost: '3.99' }).cost).toBe(3.99);
     expect(next.url).toBe('https://x.example');
     expect(next.stock_unit).toBe('ml');
     // Not auto-buying, so the restock quantity has nothing to attach to.

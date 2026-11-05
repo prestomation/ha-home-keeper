@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.36.0b3]
+
+### Fixed
+
+- **Decimal costs.** The cost boxes for a spare part, an appliance and a completion now
+  accept cents, such as 3.99. (Fixes #539)
+
 ## [0.36.0b2]
 
 ### Added

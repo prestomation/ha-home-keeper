@@ -41,6 +41,7 @@ import {
   selEntity,
   selIcon,
   selLabel,
+  selMoney,
   selNumber,
   selSelect,
   selText,
@@ -122,6 +123,12 @@ describe('selector factories', () => {
     expect(selSelect(options, true)).toEqual({
       select: { mode: 'dropdown', options, sort: false, multiple: true },
     });
+  });
+});
+
+describe('selMoney', () => {
+  it('takes cents, so 3.99 is a valid value', () => {
+    expect(selMoney()).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
   });
 });
 
