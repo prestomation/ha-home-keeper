@@ -391,3 +391,14 @@ def test_b06_7_non_finite_cost_reads_as_zero_in_the_totals(bad):
         "grand_total": 120.0,
     }
     assert report["assets"][1]["spares_value"] == 0.0
+
+
+def test_a_cost_with_cents_reaches_the_csv_unrounded():
+    asset = _asset(cost=3.99, parts=[{"name": "Filter", "cost": 2.5, "stock": 2}])
+    report = report_mod.build_report([asset], area_names={})
+    rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report))))
+    header, first = rows[0], rows[1]
+    # The row and the TOTAL row both keep the cents.
+    assert "3.99" in first
+    assert "3.99" in rows[-1]
+    assert len(header) == len(first)

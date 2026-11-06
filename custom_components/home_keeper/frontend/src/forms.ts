@@ -112,6 +112,9 @@ export const selNumber = (min = 0, step?: number | 'any', max?: number): Selecto
     ...(max === undefined ? {} : { max }),
   },
 });
+/** A money box. It takes cents (3.99); the whole-number step of `selNumber(0)` would
+ *  refuse them. */
+export const selMoney = (): Selector => selNumber(0, 'any');
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
 export const selDateTime = (): Selector => ({ datetime: {} });
@@ -2220,7 +2223,7 @@ export function assetIdentitySchema(
 /** Structured field that wires into HA: the asset's value (for the inventory).
  *  Gone when the appliance's owner sets it. */
 export function structuredDetailsSchema(locked: Set<string> = new Set()): FormField[] {
-  return dropLockedFields([{ name: 'cost', selector: selNumber(0) }], locked);
+  return dropLockedFields([{ name: 'cost', selector: selMoney() }], locked);
 }
 
 /**
@@ -2310,7 +2313,7 @@ export function partBaseSchema(locked = false): FormField[] {
       type: 'grid',
       schema: [
         { name: 'vendor', selector: selText() },
-        { name: 'cost', selector: selNumber(0) },
+        { name: 'cost', selector: selMoney() },
       ],
     },
     { name: 'part_url', selector: selText() },

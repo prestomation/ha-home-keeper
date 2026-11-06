@@ -23,7 +23,7 @@ import {
   isoToHaDateTime,
   selDateTime,
   selEntity,
-  selNumber,
+  selMoney,
   selText,
   sensorLive,
   type FormField,
@@ -484,7 +484,7 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   }
   schema.push(
     { name: 'note', required: req.has('note'), selector: selText(true) },
-    { name: 'cost', required: req.has('cost'), selector: selNumber(0) },
+    { name: 'cost', required: req.has('cost'), selector: selMoney() },
     { name: 'who', required: req.has('who'), selector: selEntity({ domain: 'person' }) },
   );
   // A sensor task in a numeric mode also logs where its meter stood. Home Keeper
