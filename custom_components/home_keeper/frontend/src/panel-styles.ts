@@ -2975,7 +2975,7 @@ export const STYLES = `
   .hk-pt-card { display: block; overflow: hidden; }
   .hk-pt-head, .hk-pt-row {
     display: grid; align-items: center; gap: 4px 12px; padding: 10px 16px;
-    grid-template-columns: minmax(0, 2.4fr) 8rem 11rem 5.5rem 10rem minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 2.2fr) 7.5rem 14rem 6rem 9rem minmax(0, 1.3fr);
   }
   .hk-pt-head {
     font-size: 0.69rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
@@ -3001,7 +3001,7 @@ export const STYLES = `
     color: var(--hk-accent-ink); font-size: 0.85rem; font-weight: 600;
     min-height: 24px; display: inline-flex; align-items: center;
   }
-  .hk-pt-next { font-size: 0.88rem; color: var(--hk-ink-2); }
+  .hk-pt-row .hk-pt-next { font-size: 0.88rem; color: var(--hk-ink-2); }
   .hk-mode .hk-seg-btn { min-width: 6.5rem; justify-content: center; }
   @media (max-width: 700px) {
     .hk-pt-head { display: none; }
@@ -3021,11 +3021,13 @@ export const STYLES = `
     .hk-pt-next { grid-area: next; justify-content: flex-end; text-align: right; }
     .hk-pt-reorder::before { content: attr(data-label) ": "; }
     .hk-pt-by-appliance .hk-pt-asset { display: block; }
-    .hk-pt-meter { width: 100%; }
+    .hk-meter.hk-part-meter.hk-pt-meter { width: 100%; }
     .hk-pt-buy { min-height: var(--hk-tap); }
     .hk-pt-filters .hk-seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .hk-pt-filters .hk-seg-btn { flex: none; }
-    .hk-mode .hk-seg { display: flex; flex-wrap: nowrap; gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill); overflow: hidden; background: var(--hk-surface); }
+    .hk-parts-controls .hk-menu { flex: 1 1 0; }
+    .hk-parts-controls .hk-menu-select { width: 100%; max-width: none; }
+    .hk-mode .hk-seg { display: flex; width: 100%; flex-wrap: nowrap; gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill); overflow: hidden; background: var(--hk-surface); }
     .hk-mode .hk-seg-btn { flex: 1 1 0; border: 0; border-left: 1px solid var(--hk-line); border-radius: 0; }
     .hk-mode .hk-seg-btn:first-child { border-left: 0; }
     .hk-mode .hk-seg-btn.active { background: var(--hk-accent-soft); color: var(--hk-accent-ink); }

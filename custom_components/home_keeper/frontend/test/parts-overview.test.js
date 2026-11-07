@@ -180,6 +180,48 @@ describe('sortParts', () => {
   });
 });
 
+describe('sortParts over every input order', () => {
+  const a = asset('a', 'Alpha', []);
+  const mk = (id, name, extra) => rowOf(a, part({ id, name, ...extra }));
+  const permutations = (list) =>
+    list.length <= 1
+      ? [list]
+      : list.flatMap((x, i) =>
+          permutations([...list.slice(0, i), ...list.slice(i + 1)]).map((rest) => [x, ...rest]),
+        );
+  const check = (rows, sort, expected) => {
+    for (const order of permutations(rows)) {
+      expect(sortParts(order, sort).map((r) => r.part.id)).toEqual(expected);
+    }
+  };
+  it('puts uncounted parts last and orders them by name', () => {
+    check(
+      [mk('1', 'D', { stock: 1 }), mk('2', 'C', { stock: 4 }), mk('3', 'B'), mk('4', 'A', { stock: null })],
+      'stock',
+      ['1', '2', '4', '3'],
+    );
+  });
+  it('puts never replaced parts last and orders them by name', () => {
+    check(
+      [
+        mk('1', 'D', { last_replaced: '2026-02-01' }),
+        mk('2', 'C', { last_replaced: '2026-01-01' }),
+        mk('3', 'B', { last_replaced: '' }),
+        mk('4', 'A'),
+      ],
+      'replaced',
+      ['2', '1', '4', '3'],
+    );
+  });
+  it('ignores stock and dates when the order is by name', () => {
+    check(
+      [mk('1', 'C', { stock: 1, last_replaced: '2026-03-01' }), mk('2', 'B', { stock: 9 }), mk('3', 'A', { last_replaced: '2026-01-01' })],
+      'name',
+      ['3', '2', '1'],
+    );
+  });
+});
+
 describe('groupParts', () => {
   const a = asset('a', 'Alpha', []);
   const b = asset('b', 'beta', []);
@@ -248,11 +290,23 @@ describe('task lookups', () => {
     name: 'Manual',
     source: { part: { asset_id: 'a', part_id: 'm', manual: true } },
   };
-  const tasks = [buy, wear, wearNoRole, use, manual];
+  const bare = { id: 'bare', name: 'No source' };
+  const emptySource = { id: 'empty', name: 'Empty source', source: {} };
+  // The same part id on another appliance: a lookup must read the appliance too.
+  const otherBuy = { id: 'o1', name: 'Buy', source: { buy: { asset_id: 'z', part_id: 'p' } } };
+  const otherWear = { id: 'o2', name: 'Replace', source: { part: { asset_id: 'z', part_id: 'p' } } };
+  const otherUse = {
+    id: 'o3',
+    name: 'Use',
+    recurrence_type: 'use',
+    source: { part: { asset_id: 'z', part_id: 'p', role: 'use' } },
+  };
+  const tasks = [bare, emptySource, otherBuy, otherWear, otherUse, buy, wear, wearNoRole, use, manual];
   it('finds the buy task of a part', () => {
     expect(buyTaskForPart(tasks, 'a', 'p')).toBe(buy);
     expect(buyTaskForPart(tasks, 'a', 'q')).toBeUndefined();
-    expect(buyTaskForPart(tasks, 'z', 'p')).toBeUndefined();
+    expect(buyTaskForPart(tasks, 'y', 'p')).toBeUndefined();
+    expect(buyTaskForPart(tasks, 'z', 'p')).toBe(otherBuy);
   });
   it('ignores a buy task that is already done', () => {
     const done = {
@@ -266,6 +320,7 @@ describe('task lookups', () => {
   it('finds the replace task, and reads a missing role as replace', () => {
     expect(replaceTaskForPart(tasks, 'a', 'p')).toBe(wear);
     expect(replaceTaskForPart(tasks, 'a', 'q')).toBe(wearNoRole);
+    expect(replaceTaskForPart(tasks, 'z', 'p')).toBe(otherWear);
   });
   it('does not take the use task or a manual link for the replace task', () => {
     expect(replaceTaskForPart([use], 'a', 'p')).toBeUndefined();
@@ -274,6 +329,7 @@ describe('task lookups', () => {
   it('finds the use task of a counted part', () => {
     expect(useTaskForPart(tasks, 'a', 'p')).toBe(use);
     expect(useTaskForPart(tasks, 'a', 'q')).toBeUndefined();
+    expect(useTaskForPart(tasks, 'z', 'p')).toBe(otherUse);
   });
 });
 

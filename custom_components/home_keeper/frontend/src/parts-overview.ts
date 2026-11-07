@@ -71,6 +71,8 @@ export function collectParts(
   for (const asset of assets) {
     if (Boolean(asset.archived_at) !== archived) continue;
     const title = titleOf(asset);
+    // Stryker disable next-line ArrayDeclaration: equivalent — a fallback element has no
+    // `id`, and the check below skips it, so no test can tell it from the empty array.
     for (const part of asset.parts ?? []) {
       if (part.id) rows.push({ asset, part, title });
     }

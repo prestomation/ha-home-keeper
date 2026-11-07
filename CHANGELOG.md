@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b1] - 2026-11-07
+
+### Added
+
+- **[Parts overview](https://prestomation.github.io/ha-home-keeper/docs/guide/parts-overview).**
+  The Appliances tab has a new Parts view that lists every part of every appliance in
+  1 place, with search, filters, sort and a stock stepper. A low part links to its Buy
+  task. (Fixes #547)
+
 ## [0.36.0] - 2026-11-07
 
 ### Added
