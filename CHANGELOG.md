@@ -6,14 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.36.0b3]
-
-### Fixed
-
-- **Decimal costs.** The cost boxes for a spare part, an appliance and a completion now
-  accept cents, such as 3.99. (Fixes #539)
-
-## [0.36.0b2]
+## [0.36.0] - 2026-11-07
 
 ### Added
 
@@ -21,13 +14,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Home Keeper can now open a task to replace the filter of a SwitchBot air purifier when
   the filter hours get high.
 
-## [0.36.0b1]
-
 ### Fixed
 
 - **Board scroll position.** The Tasks board now stays at the column that you scrolled to
   when you press a card. The action sheet no longer sends the board back to the first
   column. (Fixes #534)
+- **Decimal costs.** The cost boxes for a spare part, an appliance and a completion now
+  accept cents, such as 3.99. (Fixes #539)
 
 ## [0.35.0] - 2026-11-01
 
