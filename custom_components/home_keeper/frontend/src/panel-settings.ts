@@ -109,7 +109,9 @@ export function switchView(p: PanelHost, view: 'tasks' | 'appliances' | 'setting
   if (p._view === view && !p._detail && !p._settingsSection) return;
   // Switching tabs is a lateral move, not a drill-in: replace so Back doesn't
   // retrace every tab toggle.
-  p._navigate({ view, detail: null }, true);
+  // The Appliances tab opens in the mode that the user left it in.
+  const parts = view === 'appliances' && p._assetMode === 'parts';
+  p._navigate(parts ? { view, detail: null, parts } : { view, detail: null }, true);
 }
 
 /**

@@ -196,6 +196,12 @@ export const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 export const LS_PROFILE = 'home-keeper.profile';
 export const LS_ASSET_VIEW = 'home-keeper.assetView';
 export const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
+/** The Appliances tab's last mode, `appliances` or `parts` (`parts-overview.ts`). */
+export const LS_ASSET_MODE = 'home-keeper.assetMode';
+/** The Parts view's filter chip, group and sort. Per browser, like the keys above. */
+export const LS_PARTS_FILTER = 'home-keeper.partsFilter';
+export const LS_PARTS_GROUP = 'home-keeper.partsGroup';
+export const LS_PARTS_SORT = 'home-keeper.partsSort';
 export const LS_LABELS = 'home-keeper.labels';
 /** Whether the task list's filter controls are open on a phone: `open` or `folded`
  *  (see `list-bar.ts`). */
