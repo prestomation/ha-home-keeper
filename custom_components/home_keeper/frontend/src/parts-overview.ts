@@ -190,7 +190,10 @@ export function buyTaskForPart(tasks: Task[], assetId: string, partId: string): 
   return tasks.find(
     (task) =>
       isBuyTask(task) &&
+      // Stryker disable next-line OptionalChaining: equivalent — `isBuyTask` above already
+      // needs `source.buy` with both ids, so the chain can never meet a missing link.
       task.source?.buy?.asset_id === assetId &&
+      // Stryker disable next-line OptionalChaining: equivalent, for the same reason.
       task.source?.buy?.part_id === partId &&
       !isCompletedOneOff(task),
   );
@@ -201,6 +204,8 @@ function partTask(tasks: Task[], assetId: string, partId: string): Task[] {
     (task) =>
       !task.source?.part?.manual &&
       task.source?.part?.asset_id === assetId &&
+      // Stryker disable next-line OptionalChaining: equivalent — the line above is false
+      // unless `source.part` exists, so the chain never meets a missing link here.
       task.source?.part?.part_id === partId,
   );
 }

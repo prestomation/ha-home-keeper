@@ -1319,6 +1319,9 @@ describe('parseRoute', () => {
     expect(buildPath(loc)).toBe('/appliances/parts');
     expect(parseRoute(buildPath(loc))).toEqual(loc);
     expect(buildPath({ view: 'appliances', detail: null })).toBe('/appliances');
+    // The flag means something on the Appliances tab only.
+    expect(buildPath({ view: 'tasks', detail: null, parts: true })).toBe('/tasks');
+    expect(buildPath({ view: 'settings', detail: null, parts: true })).toBe('/settings');
   });
   it('F04-3: keeps a malformed escape as the raw segment instead of throwing', () => {
     expect(parseRoute('/tasks/%E0')).toEqual({
