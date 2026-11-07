@@ -1657,6 +1657,9 @@ export const RESERVED_TAB_IDS = [
   'search',
 ] as const;
 
+/** The segment after `/appliances` that names the Parts mode. */
+export const PARTS_SEGMENT = 'parts';
+
 /** A companion tab id, the same pattern as `panel_tabs.TAB_ID_PATTERN`. */
 export const PANEL_TAB_ID_RE = /^[a-z][a-z0-9-]{1,30}$/;
 
@@ -1786,6 +1789,9 @@ export interface PanelLocation {
   tab?: string;
   /** The path inside the companion tab (`/a/b`, or `''` for its root). */
   path?: string;
+  /** The Parts mode of the Appliances tab (`/appliances/parts`), when `view` is
+   *  `appliances` and no detail is open. */
+  parts?: boolean;
 }
 
 /**
@@ -1852,6 +1858,11 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
       ? { view, detail: null, section: raw as SettingsSection }
       : { view, detail: null };
   }
+  // `/appliances/parts` is the parts overview. Appliance ids are UUIDs, so the word
+  // can never be one, and `/appliances/<id>/parts` is unaffected.
+  if (view === 'appliances' && parts[1] === PARTS_SEGMENT) {
+    return { view, detail: null, parts: true };
+  }
   // Only the tasks/appliances lists drill into a detail page.
   if (parts[1]) {
     const kind = view === 'appliances' ? 'asset' : 'task';
@@ -1900,7 +1911,9 @@ export function buildPath(loc: PanelLocation): string {
   if (loc.view === 'settings') {
     return loc.section ? `/settings/${loc.section}` : '/settings';
   }
-  if (!loc.detail) return `/${loc.view}`;
+  if (!loc.detail) {
+    return loc.view === 'appliances' && loc.parts ? `/appliances/${PARTS_SEGMENT}` : `/${loc.view}`;
+  }
   const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
   const tab = loc.detail.tab;
   // A part is always written under an explicit parts tab, even though parts is the
