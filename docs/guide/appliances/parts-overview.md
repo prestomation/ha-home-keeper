@@ -28,10 +28,10 @@ back to the list of appliances. The panel keeps the last mode in this browser. T
 | Stock | The stock stepper. It has the same controls as the **Parts** tab of an appliance page. |
 | Reorder at | The stock level at which the part is low. |
 | Status | **Low stock** shows a low part. **In stock** shows a part above its reorder point. **Not counted** shows a part with no stock number. |
-| Next due | The due date of the task that replaces a wear item. A wear item that counts uses shows its use count. |
+| Next due | The due date of the task that replaces a wear item. For a wear item that counts uses this is the use count. |
 
-A part is low when its stock is at or below its reorder point. A part with no stock
-number has the status **Not counted**. It is never low.
+A part is low when its stock is at or below its reorder point. Parts without a stock
+number have the status **Not counted** and are never low.
 
 If a low part has a Buy task then the **Status** column has a **Buy** link. The link opens
 the Buy task. A low part with no Buy task has no link.
