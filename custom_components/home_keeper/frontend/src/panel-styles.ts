@@ -1294,8 +1294,10 @@ export const STYLES = `
      a border that existed on overdue rows alone, and a border is layout: an overdue
      row's content began 2px right of every other row's, which put the fixed rails
      below on two x positions instead of one. Reserved on all rows, it costs nothing
-     and the columns line up exactly. */
-  ha-card.hk-card { border-left: 3px solid transparent; }
+     and the columns line up exactly. The rail is the line colour when it is idle, not
+     transparent: a transparent left edge hid the outline on that side, and the rounded
+     corners then looked cut off. */
+  ha-card.hk-card { border-left: 3px solid var(--hk-line); }
   ha-card.hk-card.overdue {
     border-left-color: var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
@@ -1316,7 +1318,7 @@ export const STYLES = `
     display: flex;
     flex-direction: column;
     gap: 8px;
-    border-left: 3px solid transparent;
+    border-left: 3px solid var(--hk-line);
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
