@@ -1808,7 +1808,10 @@ export const STYLES = `
   .hk-master-detail { display: flex; align-items: flex-start; gap: 20px; }
   .hk-master {
     flex: 0 0 268px; position: sticky; top: 8px;
-    max-height: calc(100vh - 24px); overflow: auto; overscroll-behavior: contain;
+    /* 8px for the sticky offset, and the room that the page keeps below the pane (the
+       wrap's bottom padding and the version line). A taller pane is pushed up by its
+       container at the end of the page, and its first rows then sit above the window. */
+    max-height: calc(100vh - 56px); overflow: auto; overscroll-behavior: contain;
   }
   .hk-detail-pane { flex: 1 1 auto; min-width: 0; }
   /* In the pane the rows are a picker, not the page: tighter, and the selected one
