@@ -1294,8 +1294,10 @@ export const STYLES = `
      a border that existed on overdue rows alone, and a border is layout: an overdue
      row's content began 2px right of every other row's, which put the fixed rails
      below on two x positions instead of one. Reserved on all rows, it costs nothing
-     and the columns line up exactly. */
-  ha-card.hk-card { border-left: 3px solid transparent; }
+     and the columns line up exactly. The rail is the line colour when it is idle, not
+     transparent: a transparent left edge hid the outline on that side, and the rounded
+     corners then looked cut off. */
+  ha-card.hk-card { border-left: 3px solid var(--hk-line); }
   ha-card.hk-card.overdue {
     border-left-color: var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
@@ -1316,7 +1318,7 @@ export const STYLES = `
     display: flex;
     flex-direction: column;
     gap: 8px;
-    border-left: 3px solid transparent;
+    border-left: 3px solid var(--hk-line);
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
@@ -1808,7 +1810,10 @@ export const STYLES = `
   .hk-master-detail { display: flex; align-items: flex-start; gap: 20px; }
   .hk-master {
     flex: 0 0 268px; position: sticky; top: 8px;
-    max-height: calc(100vh - 24px); overflow: auto; overscroll-behavior: contain;
+    /* 8px for the sticky offset, and the room that the page keeps below the pane (the
+       wrap's bottom padding and the version line). A taller pane is pushed up by its
+       container at the end of the page, and its first rows then sit above the window. */
+    max-height: calc(100vh - 56px); overflow: auto; overscroll-behavior: contain;
   }
   .hk-detail-pane { flex: 1 1 auto; min-width: 0; }
   /* In the pane the rows are a picker, not the page: tighter, and the selected one
