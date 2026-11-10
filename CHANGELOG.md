@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b1] - 2026-11-10
+
+### Fixed
+
+- **Appliance list height.** The list beside an appliance now fits the window on a long
+  list, so its first rows stay in view at the end of the page. (Fixes #551)
+- **List row borders.** A list row now shows the left side of its outline, so the rounded
+  corners no longer look cut off. (Fixes #554)
+
 ## [0.36.0] - 2026-11-07
 
 ### Added
