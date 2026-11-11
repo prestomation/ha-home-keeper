@@ -813,8 +813,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //         parent/child nesting is visible, then switch back.
   await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
   await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
-  await page.waitForTimeout(BEAT * 2);
+  await page.waitForTimeout(BEAT);
   await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="flat"]').click();
+  await expect(panel.locator('.hk-name').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
+  // 4-parts. Parts view (#547) — the Appliances | Parts switch lists every part of every
+  //          appliance in 1 place. The Low stock chip keeps the 2 low parts, and the
+  //          switch goes back to the list.
+  await panel.locator('.hk-mode .hk-seg-btn[data-seg-val="parts"]').click();
+  await expect(panel.locator('.hk-parts-view')).toBeVisible();
+  await expect(panel.locator('.hk-pt-row.low').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('.hk-pt-filters [data-seg-val="low"]').click();
+  await expect(panel.locator('.hk-pt-row')).toHaveCount(2);
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('.hk-pt-filters [data-seg-val="all"]').click();
+  await panel.locator('.hk-mode .hk-seg-btn[data-seg-val="appliances"]').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
 
@@ -1362,7 +1377,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // the sync group is framed rather than trusting the row's own top.
   await openNotifyRow();
   await notifyRow.locator('.hk-item-actions').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT * 2);
 
   // 7c. Fold the row again. Each reminder keeps its own icon and color on the header,
   //     so the closed list says what each one is about without opening anything — the
@@ -1372,17 +1387,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // there are three, and picking one of them to call hidden says less than this does.
   await expect(notifyRow.locator('> .hk-item-body')).toBeHidden();
   await notifyCard.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT * 2);
 
   // 7d. Home Keeper triggers (#415). Home Assistant's own Add trigger dialog lists
   //     the Home Keeper triggers by name. Hold on the search for "overdue", then on
   //     the triggers of the water heater device under By target.
   let addTrigger = await openAddTrigger(page);
   await searchTriggers(addTrigger, 'overdue');
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT * 2);
   addTrigger = await openAddTrigger(page);
   await showDeviceTriggers(addTrigger, 'Garage water heater');
-  await page.waitForTimeout(BEAT * 3);
+  await page.waitForTimeout(BEAT * 2);
   await page.keyboard.press('Escape');
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
@@ -1567,6 +1582,16 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await gotoTab(panel, 'appliances');
   await expect(panel.locator('#hk-list')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+  // 5-parts. Parts view (#547): a card for each part, the Low stock chip, and back.
+  await panel.locator('.hk-mode .hk-seg-btn[data-seg-val="parts"]').click();
+  await expect(panel.locator('.hk-parts-view')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('.hk-pt-filters [data-seg-val="low"]').click();
+  await expect(panel.locator('.hk-pt-row.low').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('.hk-pt-filters [data-seg-val="all"]').click();
+  await panel.locator('.hk-mode .hk-seg-btn[data-seg-val="appliances"]').click();
+  await expect(panel.locator('#hk-list .hk-card[data-id]').first()).toBeVisible();
   await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await expect(panel.locator('.hk-subtab').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);

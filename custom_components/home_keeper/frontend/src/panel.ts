@@ -65,6 +65,16 @@ import {
   patchTasksList,
   suspendPatchedList,
 } from './panel-list-patch';
+import {
+  parsePartsFilter,
+  parsePartsGroup,
+  parsePartsMode,
+  parsePartsSort,
+  type AssetMode,
+  type PartsFilter,
+  type PartsGroup,
+  type PartsSort,
+} from './parts-overview';
 import { assetsList, renderActionSheet, taskListModel, tasksList, wireLists } from './panel-lists';
 import {
   exportedLine,
@@ -94,10 +104,14 @@ import {
 import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
+  LS_ASSET_MODE,
   LS_ASSET_VIEW,
   LS_CONTROLS,
   LS_FILTER,
   LS_GROUP,
+  LS_PARTS_FILTER,
+  LS_PARTS_GROUP,
+  LS_PARTS_SORT,
   LS_PROFILE,
   LS_TREE_COLLAPSED,
   TASK_FILTERS,
@@ -318,6 +332,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _filter: TaskFilter = 'all';
   _assetFilter: AssetFilter = 'active';
   _assetView: AssetView = 'flat';
+  // The Appliances tab's Parts mode. `_partsView` follows the URL (`/appliances/parts`);
+  // `_assetMode` is the last mode the user was in, kept in this browser, so the tab
+  // opens where they left it. The 3 choices below are per browser as well.
+  _partsView = false;
+  _assetMode: AssetMode = 'appliances';
+  _partsFilter: PartsFilter = 'all';
+  _partsGroup: PartsGroup = 'appliance';
+  _partsSort: PartsSort = 'name';
   _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
   _profile = '';
@@ -509,6 +531,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const changed =
       tabLoc?.id !== this._panelTab?.id ||
       loc.view !== this._view ||
+      Boolean(loc.parts) !== this._partsView ||
       loc.detail?.kind !== this._detail?.kind ||
       loc.detail?.id !== this._detail?.id ||
       loc.detail?.tab !== this._detail?.tab ||
@@ -531,6 +554,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       !this._pendingEdit &&
       !this._pendingAssetEdit;
     this._view = loc.view;
+    this._partsView = loc.view === 'appliances' && Boolean(loc.parts);
+    // The tab reopens in the mode the user left it in.
+    if (loc.view === 'appliances' && !loc.detail) {
+      this._assetMode = this._partsView ? 'parts' : 'appliances';
+      this._savePref(LS_ASSET_MODE, this._assetMode);
+    }
     this._detail = loc.detail;
     this._settingsSection = section;
     this._panelTab = tabLoc;
@@ -855,6 +884,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (af === 'active' || af === 'archived') this._assetFilter = af;
       const av = localStorage.getItem(LS_ASSET_VIEW);
       if (av === 'flat' || av === 'tree') this._assetView = av;
+      this._assetMode = parsePartsMode(localStorage.getItem(LS_ASSET_MODE));
+      this._partsFilter = parsePartsFilter(localStorage.getItem(LS_PARTS_FILTER));
+      this._partsGroup = parsePartsGroup(localStorage.getItem(LS_PARTS_GROUP));
+      this._partsSort = parsePartsSort(localStorage.getItem(LS_PARTS_SORT));
       const tc = localStorage.getItem(LS_TREE_COLLAPSED);
       if (tc) {
         try {
@@ -920,6 +953,42 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     } catch {
       /* ignore */
     }
+    this._render();
+  }
+
+  /** Move between the appliance list and the Parts mode. A lateral move, so it
+   *  replaces. The URL is the source of truth: `_applyLocation` adopts the mode. */
+  _setAssetMode(mode: AssetMode): void {
+    if ((mode === 'parts') === this._partsView) return;
+    this._navigate({ view: 'appliances', detail: null, parts: mode === 'parts' }, true);
+  }
+
+  private _savePref(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  _setPartsFilter(value: PartsFilter): void {
+    if (this._partsFilter === value) return;
+    this._partsFilter = value;
+    this._savePref(LS_PARTS_FILTER, value);
+    this._render();
+  }
+
+  _setPartsGroup(value: PartsGroup): void {
+    if (this._partsGroup === value) return;
+    this._partsGroup = value;
+    this._savePref(LS_PARTS_GROUP, value);
+    this._render();
+  }
+
+  _setPartsSort(value: PartsSort): void {
+    if (this._partsSort === value) return;
+    this._partsSort = value;
+    this._savePref(LS_PARTS_SORT, value);
     this._render();
   }
 

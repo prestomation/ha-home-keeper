@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: f75699e8903a
+source_hash: 3dcbf1663671
 ---
 
 # Profiles and notifications
