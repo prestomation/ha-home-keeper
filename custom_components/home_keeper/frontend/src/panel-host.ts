@@ -57,6 +57,7 @@ import type {
 } from './types';
 import type { TaskLayout } from './task-layout';
 import type { PanelTabRuntime } from './panel-tabs';
+import type { AssetMode, PartsFilter, PartsGroup, PartsSort } from './parts-overview';
 import type {
   AssetTab,
   BtnWeight,
@@ -85,6 +86,19 @@ export interface PanelHost extends HTMLElement {
   _assetTab(): AssetTab;
   /** Flat list or parent/child tree, for the appliance list. */
   _assetView: AssetView;
+  /** True while the Appliances tab shows the Parts mode (`/appliances/parts`). */
+  _partsView: boolean;
+  /** The mode the Appliances tab opens in: the one the user left it in. */
+  _assetMode: AssetMode;
+  /** The Parts mode's filter chip, grouping and sort. Per browser. */
+  _partsFilter: PartsFilter;
+  _partsGroup: PartsGroup;
+  _partsSort: PartsSort;
+  /** Switch the Appliances tab between its list and the Parts mode. */
+  _setAssetMode(mode: AssetMode): void;
+  _setPartsFilter(value: PartsFilter): void;
+  _setPartsGroup(value: PartsGroup): void;
+  _setPartsSort(value: PartsSort): void;
   /** Build a live Markdown preview under *host*, seeded with *initial*. The panel's
    *  only preview constructor: it registers each one for disposal (see the field
    *  comment on `_previews`), so a region must never build one itself. */

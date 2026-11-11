@@ -2968,4 +2968,68 @@ export const STYLES = `
     .hk-list-controls:not([data-open]) { display: none; }
     #hk-list .hk-spend-compact { display: none; }
   }
+
+  /* The Parts mode of the Appliances tab ('panel-parts.ts'). One markup: a table of
+     6 columns on a wide screen, and a card for each part on a phone. */
+  .hk-pt-filters { margin-bottom: 12px; }
+  .hk-pt-card { display: block; overflow: hidden; }
+  .hk-pt-head, .hk-pt-row {
+    display: grid; align-items: center; gap: 4px 12px; padding: 10px 16px;
+    grid-template-columns: minmax(0, 2.2fr) 7.5rem 14rem 6rem 9rem minmax(0, 1.3fr);
+  }
+  .hk-pt-head {
+    font-size: 0.69rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--hk-ink-2); border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-pt-group-title {
+    margin: 0; padding: 8px 16px; background: var(--hk-page);
+    border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-pt-row { border-bottom: 1px solid var(--hk-line-soft); min-width: 0; }
+  .hk-pt-group:last-child .hk-pt-row:last-child { border-bottom: 0; }
+  .hk-pt-row.low { box-shadow: inset 3px 0 0 var(--hk-danger); }
+  .hk-pt-cell { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+  .hk-pt-part { display: block; }
+  .hk-pt-title { font-weight: 600; overflow-wrap: anywhere; }
+  .hk-pt-name { color: var(--hk-accent-ink); text-decoration: none; }
+  .hk-pt-name:hover { text-decoration: underline; }
+  .hk-pt-sub { font-size: 0.8rem; color: var(--hk-ink-2); overflow-wrap: anywhere; }
+  .hk-pt-by-appliance .hk-pt-asset { display: none; }
+  .hk-pt-none { color: var(--hk-ink-2); }
+  .hk-pt-stock { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .hk-pt-buy {
+    color: var(--hk-accent-ink); font-size: 0.85rem; font-weight: 600;
+    min-height: 24px; display: inline-flex; align-items: center;
+  }
+  .hk-pt-row .hk-pt-next { font-size: 0.88rem; color: var(--hk-ink-2); }
+  .hk-mode .hk-seg-btn { min-width: 6.5rem; justify-content: center; }
+  @media (max-width: 700px) {
+    .hk-pt-head { display: none; }
+    .hk-pt-card { background: transparent; box-shadow: none; border: 0; overflow: visible; }
+    .hk-pt-group-title { background: transparent; border: 0; padding: 12px 2px 4px; }
+    .hk-pt-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "part stock" "type status" "reorder next";
+      background: var(--hk-surface); border: 1px solid var(--hk-line);
+      border-radius: var(--hk-r-row); margin-bottom: 8px; padding: 12px;
+    }
+    .hk-pt-part { grid-area: part; }
+    .hk-pt-stock { grid-area: stock; align-items: stretch; }
+    .hk-pt-type { grid-area: type; }
+    .hk-pt-status { grid-area: status; justify-content: flex-end; }
+    .hk-pt-reorder { grid-area: reorder; font-size: 0.85rem; color: var(--hk-ink-2); }
+    .hk-pt-next { grid-area: next; justify-content: flex-end; text-align: right; }
+    .hk-pt-reorder::before { content: attr(data-label) ": "; }
+    .hk-pt-by-appliance .hk-pt-asset { display: block; }
+    .hk-meter.hk-part-meter.hk-pt-meter { width: 100%; }
+    .hk-pt-buy { min-height: var(--hk-tap); }
+    .hk-pt-filters .hk-seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .hk-pt-filters .hk-seg-btn { flex: none; }
+    .hk-parts-controls .hk-menu { flex: 1 1 0; }
+    .hk-parts-controls .hk-menu-select { width: 100%; max-width: none; }
+    .hk-mode .hk-seg { display: flex; width: 100%; flex-wrap: nowrap; gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill); overflow: hidden; background: var(--hk-surface); }
+    .hk-mode .hk-seg-btn { flex: 1 1 0; border: 0; border-left: 1px solid var(--hk-line); border-radius: 0; }
+    .hk-mode .hk-seg-btn:first-child { border-left: 0; }
+    .hk-mode .hk-seg-btn.active { background: var(--hk-accent-soft); color: var(--hk-accent-ink); }
+  }
 `;

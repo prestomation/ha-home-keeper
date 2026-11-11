@@ -1292,6 +1292,37 @@ describe('assetsForTask / assetForTask', () => {
 });
 
 describe('parseRoute', () => {
+  it('reads /appliances/parts as the parts view, not as an appliance', () => {
+    expect(parseRoute('/appliances/parts')).toEqual({ view: 'appliances', detail: null, parts: true });
+    expect(parseRoute('/appliances/parts/')).toEqual({ view: 'appliances', detail: null, parts: true });
+    // Anything after it is ignored, so a stray segment still lands on the view.
+    expect(parseRoute('/appliances/parts/x')).toEqual({ view: 'appliances', detail: null, parts: true });
+  });
+  it('keeps /appliances/<id> and the tab of an id that only starts with parts', () => {
+    expect(parseRoute('/appliances/parts-1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'parts-1', tab: 'parts' },
+    });
+    expect(parseRoute('/appliances/abc/parts')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'abc', tab: 'parts' },
+    });
+  });
+  it('does not read parts under another view', () => {
+    expect(parseRoute('/tasks/parts')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'parts', tab: 'schedule' },
+    });
+  });
+  it('round-trips the parts view with buildPath', () => {
+    const loc = { view: 'appliances', detail: null, parts: true };
+    expect(buildPath(loc)).toBe('/appliances/parts');
+    expect(parseRoute(buildPath(loc))).toEqual(loc);
+    expect(buildPath({ view: 'appliances', detail: null })).toBe('/appliances');
+    // The flag means something on the Appliances tab only.
+    expect(buildPath({ view: 'tasks', detail: null, parts: true })).toBe('/tasks');
+    expect(buildPath({ view: 'settings', detail: null, parts: true })).toBe('/settings');
+  });
   it('F04-3: keeps a malformed escape as the raw segment instead of throwing', () => {
     expect(parseRoute('/tasks/%E0')).toEqual({
       view: 'tasks',
