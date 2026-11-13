@@ -1,5 +1,5 @@
 {
-  "hacs_default_ref": "94ae363e31684d0be81e97045e33a404e1ec5128",
+  "hacs_default_ref": "d6f386d173ffa2e0f92c773a88920d1422053539",
   "reviewed": {
     "core:accuweather": {
       "keys": [
@@ -310,6 +310,46 @@
         "sensor.time_to_service"
       ],
       "reason": "car service, not a preset target"
+    },
+    "hacs:1404423/ha-panasonic-laundry": {
+      "keys": [],
+      "reason": "not a duty: remaining is cycle time"
+    },
+    "hacs:1bobby-git/ha-ios-ancs": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:1orgar/ha_prom_graph": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:1orgar/ha_rotel_amp": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:3615nulsi/ha-tam-montpellier": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:3735943886/ildevice-homeassistant": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:3735943886/rustuya-local": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:3djupp/lukeroberts-homeassistant": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
+    },
+    "hacs:42bios/apc-rack-power": {
+      "keys": [],
+      "reason": "not added: UPS battery alert needs a new task name in 16 languages; left for the maintainer"
+    },
+    "hacs:42bios/ha-msn-weather": {
+      "keys": [],
+      "reason": "not a duty: no wear or maintenance keys"
     }
   }
 }
