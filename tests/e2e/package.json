@@ -9,6 +9,6 @@
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/ws": "^8.18.2",
-    "ws": "^8.22.1"
+    "ws": "^8.22.2"
   }
 }
