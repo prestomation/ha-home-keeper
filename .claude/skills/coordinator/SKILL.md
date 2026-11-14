@@ -115,8 +115,9 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
 ## PRs and merges
 
 - Open the PR as a draft. Follow `pr-workflow.md` and `changelog-and-release.md`.
-- A PR for a bug or feature that a human reported: the maintainer merges it. The coordinator
-  never merges it. The coordinator makes it green, fixes review findings, and reports it.
+- A PR for a bug or feature that a human reported: the maintainer merges it, unless it meets
+  the auto-merge rubric below. The coordinator makes it green, fixes review findings, and
+  reports it.
 - A dependency PR: the coordinator may squash merge it after every check is green. Read the
   checks yourself. Do not tag, release or bump a version.
 - A PR that changes only this skill: the coordinator may squash merge it after every check
@@ -127,7 +128,45 @@ A worker builds the Artifact. It must use the real UI, not a drawing.
   The coordinator never merges it.
 - Never merge on a red or running check. Fix a failure you did not cause, or report it.
 - Merge conflicts: merge the base branch into the PR. Never rewrite someone else's history.
-- Many PRs can be open. Watch for merge conflicts between them.
+
+## Auto-merge rubric
+
+The maintainer ordered this on 7 Nov 2026. The coordinator may build and merge a change with no
+review when it meets every "Merge without asking" item and no "Ask first" item is true. Review
+the rubric with the maintainer after 5 merges of kind 7.
+
+### Merge without asking (all items)
+1. The PR is only one of these kinds:
+   1. A dev-only dependency or GitHub Actions bump, minor or patch.
+   2. Docs only: README, `docs/`, website source. Never rules files or `AGENTS.md`.
+   3. Tests or CI only: no change under `custom_components/` or `frontend/src/`, and no
+      change to a gate threshold, allowlist or privilege test.
+   4. A dev pin move to a released tag.
+   5. Preset upkeep, after a separate worker reviews it alone. The worker checks that no
+      existing preset id or key is removed.
+   6. A release PR that only folds CHANGELOG sections and sets versions, when asked for.
+   7. A bug fix in 1 module (1 source file and its tests), with a failing-first test, mutation
+      80% or more where the gate applies, and screenshots (desktop, phone) for a UI change.
+2. The diff changes no service field, event payload, storage field, entity attribute,
+   websocket command, user-data key, trigger key, option key or preset id.
+3. The diff changes no admin gate. "Security" in the PR body says no surface changed.
+4. Every check is success or skipped. Read soft gates yourself. Run vale on a docs page as CI
+   does: CI reads table cells and lists as one text.
+5. No unresolved blocking finding. Amazon Q alone is never the gate.
+6. At most 10 files and 300 changed lines.
+
+### Ask first (any item)
+1. A new feature, a beta cut, or the `preview-release` label.
+2. A one-way door, a privilege change (even a tighter one), or a change to when an event fires.
+3. It deletes or rewrites user data, or a downgrade would lose data.
+4. More than 10 files or 300 lines.
+5. A needed check did not run, mutation is below 80%, or a UI change has no screenshots.
+6. A major build tool bump, or a need for Home Assistant internals (logbook, recorder, reloads).
+7. A change to this skill that widens what the coordinator may do. The maintainer merges it.
+
+Record each merge: squash merge with the head SHA pinned. Add 1 document to the `automerged`
+collection of the backlog Artifact: `repo`, `number`, `title`, `url`, `merged_at` (UTC), `tier`
+(kind number). The backlog page lists these, newest first. Send no separate notice.
 
 ## Mutation metrics
 
