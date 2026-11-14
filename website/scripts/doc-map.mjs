@@ -35,6 +35,7 @@ export const USER_SECTIONS = [
     group: 'tasks',
   },
   {slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
+  {slug: 'parts-overview', title: 'Parts overview', label: 'Parts overview', group: 'appliances'},
   {slug: 'qr-labels', title: 'QR code labels', label: 'QR code labels', group: 'appliances'},
   {slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},
   {slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},

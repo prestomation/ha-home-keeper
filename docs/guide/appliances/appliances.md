@@ -65,6 +65,8 @@ the to-do list and the calendar with a mark-done button and a next-due sensor. A
 completion sets the part's *last replaced* date. The **last replaced** date can be
 set to a past date so that the schedule starts from the real date.
 
+To see the parts of all appliances in 1 list, use the [Parts overview](parts-overview.md).
+
 The appliance edit drawer shows the parts list as collapsible rows. A collapsed row
 shows the part's name and a one-line summary. Only 1 row is open at a time, and a
 new part opens by itself.

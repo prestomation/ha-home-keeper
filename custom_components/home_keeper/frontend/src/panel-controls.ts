@@ -36,6 +36,12 @@ import {
   type TaskFilter,
 } from './panel-types';
 import { spendButton } from './panel-spend';
+import {
+  type AssetMode,
+  type PartsFilter,
+  type PartsGroup,
+  type PartsSort,
+} from './parts-overview';
 import { TASK_LAYOUTS, boardColumnLabel, parseTaskLayout } from './task-layout';
 import type { Asset, Profile, Task } from './types';
 import {
@@ -57,7 +63,65 @@ export function effectiveGroup(p: PanelHost): GroupBy {
   return p._groupBy;
 }
 
+/**
+ * The Appliances | Parts switch, on the Appliances list page only. An appliance page
+ * has its own list beside it, and the switch there would only add chrome.
+ */
+function modeControl(p: PanelHost): string {
+  if (p._view !== 'appliances' || p._detail) return '';
+  const current: AssetMode = p._partsView ? 'parts' : 'appliances';
+  return `<div class="hk-control hk-mode">${seg(
+    'assetMode',
+    current,
+    [
+      { value: 'appliances', label: t('tab.appliances') },
+      { value: 'parts', label: t('tab.parts') },
+    ],
+    t('parts.mode.label'),
+  )}</div>`;
+}
+
+/**
+ * The controls of the Parts mode: the switch, the Archived scope, search, Group by
+ * and Sort by. The filter chips sit with their counts in the list body. Add is
+ * missing on purpose: a part belongs to an appliance, and is added on its page.
+ */
+function partsControls(p: PanelHost): string {
+  const assetFilter = `<div class="hk-control">${seg(
+    'assetFilter',
+    p._assetFilter,
+    [
+      { value: 'active', label: t('filter.active') },
+      { value: 'archived', label: t('filter.archived') },
+    ],
+    t('filter.label'),
+  )}</div>`;
+  const group = menuControl(
+    'partsGroup',
+    t('group.by'),
+    p._partsGroup,
+    [
+      { value: 'appliance', label: t('parts.group.appliance') },
+      { value: 'type', label: t('field.type') },
+    ],
+  );
+  const sort = menuControl(
+    'partsSort',
+    t('parts.sort.label'),
+    p._partsSort,
+    [
+      { value: 'name', label: t('field.name') },
+      { value: 'stock', label: t('field.stock') },
+      { value: 'replaced', label: t('field.last_replaced') },
+    ],
+  );
+  return `<div class="hk-controls hk-parts-controls">${modeControl(p)}${assetFilter}${searchControl(
+    p,
+  )}${group}${sort}</div>`;
+}
+
 export function controls(p: PanelHost): string {
+  if (p._view === 'appliances' && p._partsView) return partsControls(p);
   const onTasks = p._view === 'tasks';
   const groupOpts: { value: GroupBy; label: string }[] = onTasks
     ? [
@@ -177,7 +241,7 @@ export function controls(p: PanelHost): string {
       )}</ha-button>
       ${addBtn}`;
   if (onTasks) return taskBar(p, { filterControl, menuPair, addBtn });
-  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
+  return `<div class="hk-controls">${modeControl(p)}${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
 
 /**
@@ -391,7 +455,7 @@ function menuControl(
  *  Each button states its own pressed-ness: which one is selected was otherwise
  *  carried by fill and font weight alone, which is nothing to a screen reader and
  *  nothing to someone who cannot separate the hues. */
-function seg(
+export function seg(
   name: string,
   current: string,
   options: { value: string; label: string; count?: number }[],
@@ -743,6 +807,8 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
       else if (segName === 'filter') p._setFilter(val as TaskFilter);
       else if (segName === 'assetFilter') p._setAssetFilter(val as AssetFilter);
       else if (segName === 'assetView') p._setAssetView(val as AssetView);
+      else if (segName === 'assetMode') p._setAssetMode(val as AssetMode);
+      else if (segName === 'partsFilter') p._setPartsFilter(val as PartsFilter);
     }),
   );
   // The dropdown-shaped controls (currently Group by) speak the same `data-seg`
@@ -756,6 +822,8 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
       else if (segName === 'assetFilter') p._setAssetFilter(val as AssetFilter);
       else if (segName === 'assetView') p._setAssetView(val as AssetView);
       else if (segName === 'layout') p._setTaskLayout(parseTaskLayout(val));
+      else if (segName === 'partsGroup') p._setPartsGroup(val as PartsGroup);
+      else if (segName === 'partsSort') p._setPartsSort(val as PartsSort);
     }),
   );
   // Saved-Profile filter dropdown.

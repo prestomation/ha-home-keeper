@@ -68,6 +68,45 @@ test.describe(
     expect(still.val).toBe('overdue');
   });
 
+  test('the Parts view names each control once and keeps the keyboard on a chip', async ({
+    page,
+  }) => {
+    // The Parts mode adds a switch, filter chips and 2 menus to the Appliances tab. Each
+    // needs its own name, and a chip press redraws the list, so focus must come back.
+    await page.goto('/home-keeper/appliances/parts', { waitUntil: 'domcontentloaded' });
+    const panel = panelOf(page);
+    await expect(panel.locator('.hk-parts-view')).toBeVisible({ timeout: 45_000 });
+    const names = await panel.evaluate((el) =>
+      Array.from(
+        el.shadowRoot!.querySelectorAll(
+          '.hk-seg[aria-label], .hk-menu-select[aria-label], .hk-search-input[aria-label]',
+        ),
+      ).map((n) => n.getAttribute('aria-label')),
+    );
+    expect(names.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(names).size, `duplicate control names: ${names.join(' / ')}`).toBe(names.length);
+    // Exactly 1 button is pressed in the switch and in the chips.
+    await expect(panel.locator('.hk-mode [aria-pressed="true"]')).toHaveCount(1);
+    await expect(panel.locator('.hk-pt-filters [aria-pressed="true"]')).toHaveCount(1);
+    await panel.locator('.hk-pt-filters [data-seg-val="wear"]').focus();
+    await page.keyboard.press('Enter');
+    await expect(panel.locator('.hk-pt-filters [data-seg-val="wear"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const still = await panel.evaluate(
+      (el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.getAttribute('data-seg-val'),
+    );
+    expect(still).toBe('wear');
+    // Every row's stepper buttons and amount carry a name.
+    for (const b of await panel.locator('.hk-pt-row .hk-stock ha-icon-button').all()) {
+      expect(await b.getAttribute('label')).toBeTruthy();
+    }
+    for (const i of await panel.locator('.hk-pt-row .hk-stock-input').all()) {
+      expect(await i.getAttribute('aria-label')).toBeTruthy();
+    }
+  });
+
   test('typing in the search box leaves the keyboard in the search box', async ({ page }) => {
     // The one control the render-and-restore dance above cannot serve: restoring
     // focus puts the caret back at the end, so a word typed into a rebuilt box comes

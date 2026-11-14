@@ -968,12 +968,18 @@ function partsSection(p: PanelHost, asset: Asset): string {
  * value becomes one `adjust_part_stock` call (see `wireStockSteppers`). The low
  * state keeps its colour *and* a word, so it never says it by colour alone.
  */
-function stockStepper(part: Part, low: boolean, onHand: string): string {
+export function stockStepper(
+  part: Part,
+  low: boolean,
+  onHand: string,
+  opts: { assetId?: string; lowWord?: boolean } = {},
+): string {
   const id = part.id || '';
   const stock = part.stock ?? 0;
   const unit = (part.stock_unit || '').trim();
   return (
     `<div class="hk-stock${low ? ' low' : ''}" role="group" data-part="${escapeHTML(id)}"` +
+    (opts.assetId ? ` data-asset="${escapeHTML(opts.assetId)}"` : '') +
     ` aria-label="${escapeHTML(t('field.stock'))}">` +
     `<ha-icon-button class="hk-stock-dec" label="${escapeHTML(t('btn.stockDec'))}"${
       stock <= 0 ? ' disabled' : ''
@@ -984,7 +990,9 @@ function stockStepper(part: Part, low: boolean, onHand: string): string {
     (unit ? `<span class="hk-stock-unit">${escapeHTML(unit)}</span>` : '') +
     `<ha-icon-button class="hk-stock-inc" label="${escapeHTML(t('btn.stockInc'))}"></ha-icon-button>` +
     `</div>` +
-    (low ? `<span class="hk-stock-low">${escapeHTML(t('part.low'))}</span>` : '')
+    (low && opts.lowWord !== false
+      ? `<span class="hk-stock-low">${escapeHTML(t('part.low'))}</span>`
+      : '')
   );
 }
 
@@ -996,8 +1004,16 @@ function stockStepper(part: Part, low: boolean, onHand: string): string {
  * — followed by a refresh; the input's id lets the panel's focus restore put the
  * caret back after that render.
  */
-function wireStockSteppers(p: PanelHost, root: ShadowRoot, asset: Asset): void {
-  root.querySelectorAll<HTMLElement>('.hk-stock[data-part]').forEach((box) => {
+export function wireStockSteppers(
+  p: PanelHost,
+  root: ParentNode,
+  assetOrLookup: Asset | ((assetId: string) => Asset | undefined),
+  selector = '.hk-stock[data-part]',
+): void {
+  root.querySelectorAll<HTMLElement>(selector).forEach((box) => {
+    const asset =
+      typeof assetOrLookup === 'function' ? assetOrLookup(box.dataset.asset ?? '') : assetOrLookup;
+    if (!asset) return;
     const partId = box.dataset.part;
     const part = asset.parts?.find((x) => x.id === partId);
     const input = box.querySelector<HTMLInputElement>('.hk-stock-input');

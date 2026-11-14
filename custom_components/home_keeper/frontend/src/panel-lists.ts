@@ -42,6 +42,7 @@ import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
 import { spendStrip, wireSpend } from './panel-spend';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
+import { partsBody, wirePartsView } from './panel-parts';
 import { LS_TREE_COLLAPSED } from './panel-types';
 import {
   sheetActions,
@@ -242,7 +243,7 @@ async function removeOrphans(p: PanelHost): Promise<void> {
  * has no way to add or change an appliance.
  */
 export function assetsList(p: PanelHost): string {
-  return `${viewOnlyBanner(p)}${assetsListBody(p)}`;
+  return `${viewOnlyBanner(p)}${p._partsView ? partsBody(p) : assetsListBody(p)}`;
 }
 
 /**
@@ -824,6 +825,7 @@ export function assetAncestry(p: PanelHost, assetId: string): string {
  * a source owns), the intro banner's dismiss, and the "+n" chip unfold.
  */
 export function wireLists(p: PanelHost, root: ParentNode): void {
+  wirePartsView(p, root);
   root
     .querySelector<HTMLElement>('#cleanup-orphans-btn')
     ?.addEventListener('click', () => cleanupOrphans(p));

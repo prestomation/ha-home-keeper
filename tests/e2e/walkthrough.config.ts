@@ -69,6 +69,11 @@ export default captureConfig('walkthrough.capture.ts', {
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
   //
+  // Re-measured for the Parts view (#547), which added 5 beats to the desktop walk and
+  // took 5 beats out of the notification and trigger holds, so the net is 0:
+  // **282s in the dev container** (the phone walk 60s), a 28% margin against the 360s
+  // cap. The cap stays. The next beat must shorten the walk first.
+  //
   // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s and
   // then 222s in the dev container**, against the 210s the same container gave before
   // them. 222s plus ~40% is ~311s, so 360s still holds and the number does not move. The
