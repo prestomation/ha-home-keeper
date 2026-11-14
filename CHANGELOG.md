@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b2] - 2026-11-11
+
+### Fixed
+
+- **Pura preset.** The Pura preset now finds the fragrance level of each of the 4
+  slots, so a low fragrance opens a task again.
+
 ## [0.37.0b1] - 2026-11-07
 
 ### Added
