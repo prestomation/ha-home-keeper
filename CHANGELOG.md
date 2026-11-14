@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.37.0b2] - 2026-11-10
+## [0.37.0b3] - 2026-11-14
 
 ### Fixed
 
@@ -14,6 +14,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   list, so its first rows stay in view at the end of the page. (Fixes #551)
 - **List row borders.** A list row now shows the left side of its outline, so the rounded
   corners no longer look cut off. (Fixes #554)
+
+## [0.37.0b2] - 2026-11-11
+
+### Fixed
+
+- **Pura preset.** The Pura preset now finds the fragrance level of each of the 4
+  slots, so a low fragrance opens a task again.
 
 ## [0.37.0b1] - 2026-11-07
 
