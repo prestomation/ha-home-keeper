@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b4] - 2026-11-15
+
+### Fixed
+
+- **Roborock sensor cleaning.** The "Clean the sensors" task now opens when the sensor
+  counter runs out, not 24 hours before. The sensor cycle is 30 hours. (Fixes #560)
+  (Thanks @dtsypkin!)
+
 ## [0.37.0b3] - 2026-11-14
 
 ### Fixed
