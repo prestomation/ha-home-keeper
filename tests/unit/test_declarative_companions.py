@@ -3200,8 +3200,9 @@ def test_xiaomi_miio_sensor_cleaning_opens_only_when_the_counter_runs_out():
 
 def test_xiaomi_miio_parts_keep_the_24_hour_warning():
     # Parts last 150 h or more, so 24 h is an early warning to order a part.
-    assert _time_left_opens("xiaomi_miio_life_low", "filter_left", 20) is True
-    assert _time_left_opens("xiaomi_miio_life_low", "filter_left", 30) is False
+    for key in ("main_brush_left", "side_brush_left", "filter_left"):
+        assert _time_left_opens("xiaomi_miio_life_low", key, 20) is True, key
+        assert _time_left_opens("xiaomi_miio_life_low", key, 30) is False, key
 
 
 def test_tplink_cleaning_tasks_open_only_when_the_counter_runs_out():
@@ -3214,5 +3215,6 @@ def test_tplink_cleaning_tasks_open_only_when_the_counter_runs_out():
 
 def test_tplink_parts_keep_the_24_hour_warning():
     # Parts last 200 h or more, so 24 h is an early warning to order a part.
-    assert _time_left_opens("tplink_life_low", "filter_remaining", 20) is True
-    assert _time_left_opens("tplink_life_low", "filter_remaining", 30) is False
+    for key in ("main_brush_remaining", "side_brush_remaining", "filter_remaining"):
+        assert _time_left_opens("tplink_life_low", key, 20) is True, key
+        assert _time_left_opens("tplink_life_low", key, 30) is False, key
