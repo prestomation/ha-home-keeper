@@ -31,7 +31,7 @@ def _preset_trigger(preset_id: str) -> dict[str, Any]:
     """The trigger of the shipped preset *preset_id*.
 
     The tests name presets with one plain limit, so the verdict depends on the reading
-    and the unit alone: Xiaomi Miio's time left is under 24 h, and a robot mower's wear
+    and the unit alone: Fumis's time to service is under 24 h, and a robot mower's wear
     counter is over 100 h.
     """
     preset = presets.preset_by_id(preset_id)
@@ -61,7 +61,7 @@ def _verdicts(
 
 
 def test_the_time_left_template_compares_every_unit_in_hours(ha):
-    trigger = _preset_trigger("xiaomi_miio_life_low")
+    trigger = _preset_trigger("fumis_life_low")
     assert trigger["mode"] == "template"
     assert trigger["template"].endswith("< 24 }}"), trigger
     rows = _verdicts(ha, trigger, rf"{FILTER}|{BRUSH}".replace(".", r"\."))
@@ -75,7 +75,7 @@ def test_the_time_left_template_reads_a_percentage_against_the_floor(ha):
     # Some models report the life left as a percentage under the same key. 42 % is
     # over the 10 % floor, so it is not low.
     rows = _verdicts(
-        ha, _preset_trigger("xiaomi_miio_life_low"), BATTERY.replace(".", r"\.")
+        ha, _preset_trigger("fumis_life_low"), BATTERY.replace(".", r"\.")
     )
     assert rows[BATTERY]["trigger_now"] is False, rows[BATTERY]
 
@@ -83,7 +83,7 @@ def test_the_time_left_template_reads_a_percentage_against_the_floor(ha):
 def test_the_time_left_template_decides_nothing_without_a_unit(ha):
     rows = _verdicts(
         ha,
-        _preset_trigger("xiaomi_miio_life_low"),
+        _preset_trigger("fumis_life_low"),
         r"input_number\.hk_demo_meter",
         domain="input_number",
     )
@@ -109,14 +109,14 @@ def test_the_preview_sends_each_reading_and_its_unit(ha):
     # the state and the unit Home Assistant has for it now.
     rows = _verdicts(
         ha,
-        _preset_trigger("xiaomi_miio_life_low"),
+        _preset_trigger("fumis_life_low"),
         rf"{FILTER}|{BRUSH}".replace(".", r"\."),
     )
     assert (rows[FILTER]["state"], rows[FILTER]["unit"]) == ("600", "min")
     assert (rows[BRUSH]["state"], rows[BRUSH]["unit"]) == ("3", "d")
     rows = _verdicts(
         ha,
-        _preset_trigger("xiaomi_miio_life_low"),
+        _preset_trigger("fumis_life_low"),
         r"input_number\.hk_demo_meter",
         domain="input_number",
     )

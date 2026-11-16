@@ -3054,17 +3054,18 @@ def test_limit_text_says_the_limit_in_a_short_phrase():
     assert call("tplink_life_low") is None
     # Roborock has a different limit for each key, so it has no one number to say.
     assert call("roborock_life_low") is None
+    assert call("xiaomi_miio_life_low") is None
     assert call("device_pulse") is None
     assert call("firmware_update_available") is None
 
 
 def test_limit_text_reads_well_in_english_and_german():
-    xiaomi = presets.preset_by_id("xiaomi_miio_life_low")
+    fumis = presets.preset_by_id("fumis_life_low")
     synology = presets.preset_by_id("synology_dsm_reading_high")
     zha = presets.preset_by_id("zha_wear_high")
-    assert xiaomi is not None and synology is not None and zha is not None
+    assert fumis is not None and synology is not None and zha is not None
     resolve = backend_i18n.resolve_string
-    assert presets.limit_text(xiaomi, "en", resolve) == "less than 24 hours left"
+    assert presets.limit_text(fumis, "en", resolve) == "less than 24 hours left"
     assert presets.limit_text(synology, "en", resolve) == "above 85"
     assert presets.limit_text(zha, "de", resolve) == "über 180 Tage"
 
@@ -3171,3 +3172,47 @@ def test_roborock_parts_keep_the_24_hour_warning():
     # Parts last 150 h or more, so 24 h is an early warning to order a part.
     assert _roborock_time_left_opens("filter_time_left", 20) is True
     assert _roborock_time_left_opens("filter_time_left", 30) is False
+
+
+def _time_left_opens(preset_id: str, key: str, hours: float) -> bool:
+    """Whether the shipped *preset_id* time-left trigger opens a task for *key*."""
+    import jinja2
+
+    trigger = presets.preset_by_id(preset_id)["default_spec"]["trigger"]
+    env = jinja2.Environment()
+    env.filters["float"] = lambda value: float(value)
+    rendered = env.from_string(trigger["template"]).render(
+        state=str(hours),
+        translation_key=key,
+        attributes={"unit_of_measurement": "h"},
+    )
+    return rendered == "True"
+
+
+def test_xiaomi_miio_sensor_cleaning_opens_only_when_the_counter_runs_out():
+    # The sensor cycle is 30 h (python-miio sensor_dirty_total), so a 24 h limit would
+    # open the task for most of it.
+    assert _time_left_opens("xiaomi_miio_life_low", "sensor_dirty_left", 20) is False
+    assert _time_left_opens("xiaomi_miio_life_low", "sensor_dirty_left", 5) is False
+    assert _time_left_opens("xiaomi_miio_life_low", "sensor_dirty_left", 0) is True
+    assert _time_left_opens("xiaomi_miio_life_low", "sensor_dirty_left", -2) is True
+
+
+def test_xiaomi_miio_parts_keep_the_24_hour_warning():
+    # Parts last 150 h or more, so 24 h is an early warning to order a part.
+    assert _time_left_opens("xiaomi_miio_life_low", "filter_left", 20) is True
+    assert _time_left_opens("xiaomi_miio_life_low", "filter_left", 30) is False
+
+
+def test_tplink_cleaning_tasks_open_only_when_the_counter_runs_out():
+    # Both cleaning cycles are 30 h (python-kasa), so 6 h is a fifth of each cycle.
+    for key in ("sensor_remaining", "charging_contacts_remaining"):
+        assert _time_left_opens("tplink_life_low", key, 5) is False, key
+        assert _time_left_opens("tplink_life_low", key, 0) is True, key
+        assert _time_left_opens("tplink_life_low", key, -2) is True, key
+
+
+def test_tplink_parts_keep_the_24_hour_warning():
+    # Parts last 200 h or more, so 24 h is an early warning to order a part.
+    assert _time_left_opens("tplink_life_low", "filter_remaining", 20) is True
+    assert _time_left_opens("tplink_life_low", "filter_remaining", 30) is False
