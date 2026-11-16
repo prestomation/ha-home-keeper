@@ -53,7 +53,7 @@ your topic before you change code or push.
 - **Read what a soft gate produced.** A `continue-on-error` step is always green.
 - **Always squash merge.**
 - **Run the tests locally before you push.** Never use CI as the test runner.
-  Pure unit tests: `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`,
+  Pure unit tests: `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil Jinja2`,
   then `pytest tests/unit`. Run `mypy` too
   ([ci-and-ha-versions.md](.amazonq/rules/ci-and-ha-versions.md)).
 - **Ask Amazon Q for a review after each push.** Post `/q review {request}` and ask for
