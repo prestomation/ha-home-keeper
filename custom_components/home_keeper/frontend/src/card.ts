@@ -57,6 +57,7 @@ import {
   unstage,
   uploadStaged,
 } from './photo-staging';
+import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
 import { TaskPhotoUrlCache, coverOf, taskPhotoKey } from './task-photos';
 import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
@@ -522,6 +523,8 @@ export class HomeKeeperCard extends HTMLElement {
   // record two completions.
   private _completing = new Set<string>();
   private _edit: EditState = { open: false, task: null };
+  // Which draft a save answer belongs to (see `draft-step.ts`).
+  private _draft: DraftState = INITIAL_DRAFT;
   // The note quick-view dialog: read-only, so it carries only which task it is
   // showing, unlike `_edit` (which also carries the form's draft).
   private _noteView: { open: boolean; task: Task | null } = { open: false, task: null };
@@ -979,11 +982,13 @@ export class HomeKeeperCard extends HTMLElement {
       open: true,
       task: { recurrence_type: 'floating', interval: 1, unit: 'months' },
     };
+    this._draft = draftStep(this._draft, { type: 'replace' });
     this._render();
   }
   private _closeForm(): void {
     releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = { open: false, task: null };
+    this._draft = draftStep(this._draft, { type: 'replace' });
     this._render();
   }
 
@@ -1015,6 +1020,13 @@ export class HomeKeeperCard extends HTMLElement {
     // live in the sidebar panel, so there's no update/delete path here. A second
     // press while the add runs (a device-linked add waits for a reload) must not
     // create a second task (X12-4).
+    // The form can close, and a new one can open, before the server answers. An answer
+    // for a draft that is no longer open changes nothing on the form that is open now.
+    const draftId = this._draft.current;
+    const isOpenDraft = (): boolean => {
+      this._draft = draftStep(this._draft, { type: 'answer', draftId });
+      return this._draft.verdict === 'fresh';
+    };
     await guardWrite(
       edit,
       async () => {
@@ -1029,11 +1041,16 @@ export class HomeKeeperCard extends HTMLElement {
                 api.uploadTaskPhoto(hass, created.id, photoId, file),
               )
             : { failed: [] };
-          this._closeForm();
+          if (isOpenDraft()) this._closeForm();
           if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
           await this._refresh();
         } catch (err) {
-          edit.error = String((err as { message?: string })?.message || err);
+          const message = String((err as { message?: string })?.message || err);
+          if (!isOpenDraft()) {
+            toast(this, message);
+            return;
+          }
+          edit.error = message;
           this._render();
         }
       },

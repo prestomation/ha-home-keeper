@@ -102,6 +102,7 @@ import {
   type PanelTabRuntime,
 } from './panel-tabs';
 import { releaseStaged, uploadStaged } from './photo-staging';
+import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_MODE,
@@ -277,6 +278,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // same object) and read back by `_submitAssetForm` — so a region must not replace the
   // object or hold a copy of it, or the save writes stale values.
   _assetEdit: AssetEditState = { open: false, asset: null };
+  // Which draft a save answer belongs to (see `draft-step.ts`). One per form.
+  private _taskDraft: DraftState = INITIAL_DRAFT;
+  private _assetDraft: DraftState = INITIAL_DRAFT;
   // Cancels the in-flight upload (see `_runUpload`); undefined when none is running.
   _uploadAbort?: AbortController;
   _uploadShowTimer?: ReturnType<typeof setTimeout>;
@@ -569,17 +573,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // An upload belongs to the draft it started in. Closing the draft cancels it, so
     // its result cannot land in a different draft (X12-8).
     this._abortUpload();
-    this._assetEdit = { open: false, asset: null };
+    this._setAssetEdit({ open: false, asset: null });
     this._noteEdit = null;
     // ...unless this navigation was initiated to open a form (edit from a detail
     // page): re-open it now that the location has settled.
     if (this._pendingEdit) {
-      this._edit = { open: true, task: this._pendingEdit };
+      this._setEdit({ open: true, task: this._pendingEdit });
       this._pendingEdit = null;
     }
     if (this._pendingAssetEdit) {
       // A view-only user gets the page under the form, not the form.
-      if (!this._readOnly()) this._assetEdit = { ...this._pendingAssetEdit, open: true };
+      if (!this._readOnly()) this._setAssetEdit({ ...this._pendingAssetEdit, open: true });
       this._pendingAssetEdit = null;
     }
     // Arriving at the task list is the other moment the suggestion dialog may open.
@@ -1430,6 +1434,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _setEdit(next: EditState): void {
     releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = next;
+    this._taskDraft = draftStep(this._taskDraft, { type: 'replace' });
+  }
+
+  /** Replace the appliance form's draft. An answer for the old draft is then stale. */
+  private _setAssetEdit(next: AssetEditState): void {
+    this._assetEdit = next;
+    this._assetDraft = draftStep(this._assetDraft, { type: 'replace' });
   }
 
   async _submitForm(button?: Element | null): Promise<void> {
@@ -1447,13 +1458,22 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       return;
     }
     const payload = buildTaskPayload(task);
+    // The form can close, and a new one can open, before the server answers. Each
+    // answer below counts only while this draft is the open one. A stale answer still
+    // finishes the save it belongs to, but it never touches the draft that is open now.
+    const draft = this._edit;
+    const draftId = this._taskDraft.current;
+    const isOpenDraft = (): boolean => {
+      this._taskDraft = draftStep(this._taskDraft, { type: 'answer', draftId });
+      return this._taskDraft.verdict === 'fresh';
+    };
     try {
       const saved = task.id
         ? await api.updateTask(this._hass, task.id, payload)
         : await api.addTask(this._hass, payload);
       // Record the id immediately: if the link step below throws, the form stays open
       // and a retry must *update* this task, not create a second one.
-      this._edit.task = { ...this._edit.task, id: saved.id };
+      if (isOpenDraft()) this._edit.task = { ...this._edit.task, id: saved.id };
       // The consumable links ride their own service (they set the task's source,
       // which update_task doesn't touch). Only call when they actually changed: the
       // desired list vs. the saved task's current links. A wear part's own task
@@ -1465,7 +1485,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // Photos picked in the New task form upload now that the task has an id. A
       // failed photo does not undo the task: the form closes, and the task page opens
       // so the user can add the photo again there.
-      const draft = this._edit;
       const staged = draft.photos ?? [];
       if (staged.length) {
         const hass = this._hass;
@@ -1474,7 +1493,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         );
         // A navigation during the upload replaced the draft. Leave the form that is
         // open now alone, and release this draft's previews here.
-        if (this._edit !== draft) {
+        if (!isOpenDraft()) {
           releaseStaged(staged, (url) => URL.revokeObjectURL(url));
           if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
           await this._refresh();
@@ -1488,10 +1507,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           return;
         }
       }
+      if (!isOpenDraft()) {
+        await this._refresh();
+        return;
+      }
       this._closeForm();
       await this._refresh();
     } catch (err) {
-      this._edit.error = String((err as { message?: string })?.message || err);
+      const message = String((err as { message?: string })?.message || err);
+      if (!isOpenDraft()) {
+        toast(this, message);
+        return;
+      }
+      this._edit.error = message;
       this._edit.revealError = true;
       this._render();
     }
@@ -1845,7 +1873,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (this._readOnly()) return;
     this._rememberDrawerOpener();
     this._abortUpload();
-    this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
+    this._setAssetEdit({ open: true, asset: { kind: 'virtual', parts: [] } });
     this._render();
   }
   _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void {
@@ -1882,7 +1910,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       : { open: true, asset: seeded };
     if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
       this._abortUpload();
-      this._assetEdit = state;
+      this._setAssetEdit(state);
       this._render();
     } else {
       this._pendingAssetEdit = state;
@@ -1891,7 +1919,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
   _closeAssetForm(): void {
     this._abortUpload();
-    this._assetEdit = { open: false, asset: null };
+    this._setAssetEdit({ open: false, asset: null });
     this._render();
   }
 
@@ -1924,13 +1952,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const { documents, ...rest } = a;
     const payload: Partial<Asset> = { ...rest, parts, metadata };
     if (!a.id) payload.documents = (documents || []).filter((d) => d.kind === 'link' && d.url);
+    // As in `_saveTaskForm`: an answer for a draft that is no longer open changes nothing.
+    const draftId = this._assetDraft.current;
+    const isOpenDraft = (): boolean => {
+      this._assetDraft = draftStep(this._assetDraft, { type: 'answer', draftId });
+      return this._assetDraft.verdict === 'fresh';
+    };
     try {
       if (a.id) await api.updateAsset(this._hass, a.id, payload);
       else await api.addAsset(this._hass, payload);
-      this._closeAssetForm();
+      if (isOpenDraft()) this._closeAssetForm();
       await this._refresh();
     } catch (err) {
-      setAssetError(this, String((err as { message?: string })?.message || err));
+      const message = String((err as { message?: string })?.message || err);
+      if (!isOpenDraft()) {
+        toast(this, message);
+        return;
+      }
+      setAssetError(this, message);
       this._render();
     }
   }

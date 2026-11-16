@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b5] - 2026-11-16
+
+### Fixed
+
+- **Form drafts kept.** A task, appliance or card form no longer closes or changes when a
+  slow save for an earlier form finishes. Text that you type in a new form stays.
+
 ## [0.37.0b4] - 2026-11-15
 
 ### Fixed

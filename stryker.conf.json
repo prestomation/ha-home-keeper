@@ -50,7 +50,8 @@
     "custom_components/home_keeper/frontend/src/panel-spend.ts",
     "custom_components/home_keeper/frontend/src/panel-list-patch.ts",
     "custom_components/home_keeper/frontend/src/list-bar.ts",
-    "custom_components/home_keeper/frontend/src/parts-overview.ts"
+    "custom_components/home_keeper/frontend/src/parts-overview.ts",
+    "custom_components/home_keeper/frontend/src/draft-step.ts"
   ],
   "thresholds": {
     "high": 90,
