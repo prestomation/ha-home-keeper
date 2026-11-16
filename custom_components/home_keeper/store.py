@@ -25,6 +25,7 @@ from . import (
     caller,
     declarative_companions,
     events,
+    lifecycle,
     models,
     notifications,
     recurrence,
@@ -65,9 +66,6 @@ from .const import (
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     ORIGIN_SENSOR_RECOVER,
-    REC_FIXED,
-    REC_SENSOR,
-    REC_TRIGGERED,
     SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
@@ -905,7 +903,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR):
+        if not lifecycle.allows(existing, lifecycle.TRIGGER):
             raise models.TaskValidationError(
                 "trigger_task is only valid for triggered or sensor-based tasks"
             )
@@ -944,7 +942,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("next_due") is None:
+        if not lifecycle.allows(existing, lifecycle.SNOOZE):
             # A dormant task (a completed one-off, or a condition/sensor task not yet
             # armed) has no due date to defer; snoozing it would silently re-arm
             # something that was intentionally off every time surface.
@@ -996,7 +994,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("recurrence_type") != REC_FIXED:
+        if not lifecycle.allows(existing, lifecycle.MOVE_OCCURRENCE):
             raise models.TaskValidationError(
                 "Only a task on a fixed schedule has dates to move. Snooze a task of "
                 "another kind instead."
@@ -1060,7 +1058,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("next_due") is None:
+        if not lifecycle.allows(existing, lifecycle.DUE_TODAY):
             # A dormant task (a completed one-off, or a condition/sensor task not yet
             # armed) has no scheduled due date to move; see snooze_task's identical
             # guard, which this mirrors.

@@ -21,6 +21,7 @@ import os
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+import hk_lifecycle as lifecycle
 import hk_models as models
 import hk_recurrence as r
 import pytest
@@ -95,6 +96,10 @@ class TaskLifeCycleAllTypes(RuleBasedStateMachine):
     def armed(self) -> bool:
         return self.task.get("next_due") is not None
 
+    def allows(self, action: str) -> bool:
+        """The gate of the store, read from the life cycle table."""
+        return lifecycle.allows(self.task, action)
+
     def _act(self, minutes: int) -> None:
         self.now = self.now + timedelta(minutes=minutes)
         self.before_done = None
@@ -120,7 +125,7 @@ class TaskLifeCycleAllTypes(RuleBasedStateMachine):
         self._act(minutes)
         r.skip_occurrence(self.task, now=self.now, due_time=self.due_time)
 
-    @precondition(lambda self: self.armed)
+    @precondition(lambda self: self.allows(lifecycle.SNOOZE))
     @rule(minutes=_MINUTES, length=st.integers(1, 60 * 24 * 5))
     def snooze(self, minutes, length):
         self._act(minutes)
@@ -129,13 +134,13 @@ class TaskLifeCycleAllTypes(RuleBasedStateMachine):
             until = r.snap_to_due_time(until, self.due_time, round_up=True)
         r.defer(self.task, until, now=self.now)
 
-    @precondition(lambda self: self.armed)
+    @precondition(lambda self: self.allows(lifecycle.DUE_TODAY))
     @rule(minutes=_MINUTES)
     def due_today(self, minutes):
         self._act(minutes)
         r.defer(self.task, self.now, now=self.now)
 
-    @precondition(lambda self: self.task["recurrence_type"] in ("triggered", "sensor"))
+    @precondition(lambda self: self.allows(lifecycle.TRIGGER))
     @rule(minutes=_MINUTES)
     def trigger(self, minutes):
         self._act(minutes)
