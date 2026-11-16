@@ -17,7 +17,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Repeated triggers.** A trigger of a task that is already due now keeps its due date, so
   each trigger no longer sends a new overdue event and notification.
 - **Undo notifications.** An undo of Done no longer sends the due soon or overdue
-  notification of the old date again. The due soon event also does not fire again.
+  notification of the old date again, and the due soon event does not fire again.
 - **Repeated appliance archive.** An archive of an archived appliance, or a restore of an
   appliance that is not archived, now changes nothing and fires no event.
 
