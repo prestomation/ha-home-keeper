@@ -2193,21 +2193,29 @@ class HomeKeeperStore:
 
         Unlike ``delete_asset`` this leaves the device registry entry, its
         entities, and any attached tasks untouched — archiving is reversible via
-        ``restore_asset``.
+        ``restore_asset``. An archived asset keeps its first stamp, with no save and
+        no event.
         """
         asset = self._assets.get(asset_id)
         if asset is None:
             return None
+        if asset.get("archived_at"):
+            return asset
         asset["archived_at"] = dt_util.utcnow().isoformat()
         await self._save()
         self._fire(EVENT_ASSET_ARCHIVED, events.asset_event_data(asset))
         return asset
 
     async def restore_asset(self, asset_id: str) -> dict[str, Any] | None:
-        """Undo ``archive_asset``, returning the asset to the default view."""
+        """Undo ``archive_asset``, returning the asset to the default view.
+
+        An asset that is not archived is returned as it is, with no save and no event.
+        """
         asset = self._assets.get(asset_id)
         if asset is None:
             return None
+        if not asset.get("archived_at"):
+            return asset
         asset["archived_at"] = None
         await self._save()
         self._fire(EVENT_ASSET_RESTORED, events.asset_event_data(asset))

@@ -6,6 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b5] - 2026-11-16
+
+### Fixed
+
+- **One-off undo.** An undo of Done on a one-off task now keeps an earlier skip or snooze.
+  A skipped task stays skipped, and a snoozed task is due again on its snooze date.
+- **Triggered task undo.** An undo of Done on a triggered or sensor task now makes the task
+  due again on its earlier date.
+- **Repeated triggers.** A trigger of a task that is already due now keeps its due date, so
+  each trigger no longer sends a new overdue event and notification.
+- **Undo notifications.** An undo of Done no longer sends the due soon or overdue
+  notification of the old date again. The due soon event also does not fire again.
+- **Repeated appliance archive.** An archive of an archived appliance, or a restore of an
+  appliance that is not archived, now changes nothing and fires no event.
+
 ## [0.37.0b4] - 2026-11-15
 
 ### Fixed

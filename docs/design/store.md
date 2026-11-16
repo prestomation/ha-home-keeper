@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/store.py
   - custom_components/home_keeper/lifecycle.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 3b56aed8994e
+source_hash: 9b82bc4c398f
 ---
 
 # Store

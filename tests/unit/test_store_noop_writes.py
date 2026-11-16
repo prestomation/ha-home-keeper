@@ -85,3 +85,44 @@ def test_an_update_asset_that_changes_a_field_saves_once(store):  # noqa: F811
     assert result["notes"] == "New notes"
     [event] = store._hass.bus.of(EVENT_ASSET_UPDATED)
     assert event["changed_fields"] == ["notes"]
+
+
+# ── C9: archive and restore ─────────────────────────────────────────────────────
+def test_archive_of_an_archived_appliance_does_not_save(store):  # noqa: F811
+    asset = _asset(store)
+    _run(store.archive_asset(asset["id"]))
+    stamp = asset["archived_at"]
+    saves = store._store.saves
+    fired = len(store._hass.bus.fired)
+
+    _run(store.archive_asset(asset["id"]))
+
+    assert store._store.saves == saves
+    assert len(store._hass.bus.fired) == fired
+    assert store._assets[asset["id"]]["archived_at"] == stamp
+
+
+def test_restore_of_an_appliance_that_is_not_archived_does_not_save(store):  # noqa: F811
+    asset = _asset(store)
+    saves = store._store.saves
+
+    result = _run(store.restore_asset(asset["id"]))
+
+    assert result == asset
+    assert store._store.saves == saves
+    assert store._hass.bus.fired == []
+
+
+def test_restore_of_an_archived_appliance_saves_once(store):  # noqa: F811
+    asset = _asset(store)
+    _run(store.archive_asset(asset["id"]))
+    saves = store._store.saves
+
+    _run(store.restore_asset(asset["id"]))
+
+    assert store._assets[asset["id"]]["archived_at"] is None
+    assert store._store.saves == saves + 1
+    assert [name for name, _ in store._hass.bus.fired] == [
+        "home_keeper_asset_archived",
+        "home_keeper_asset_restored",
+    ]

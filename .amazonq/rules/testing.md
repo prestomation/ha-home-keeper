@@ -57,13 +57,14 @@ Run the tests locally before you push. CI is not the test runner.
 - They live in `tests/unit/test_*_properties.py`, share
   `tests/unit/property_strategies.py`, and carry the `property` marker.
 - Build inputs with `models.build_task` or `assets.build_asset`. Never hand-roll a dict.
-- A property holds for every input it can draw, or its generator is scoped until it
-  does. Pin a real defect with `xfail(strict=True)` and an `@example` reproducer.
-  Never widen an assertion to swallow a failure.
-- `HK_HYPOTHESIS_PROFILE` picks `dev` (default), `ci` (derandomized) or `mutmut` (no
-  shrink). The runner scripts export it. Never cache `.hypothesis/` in CI.
-- The mutation gate scores property tests. Each one names the mutant it kills; prove it
-  by mutating the line and watching the test go red.
+- A property holds for every input it can draw, or its generator is scoped until it does. Pin a real
+  defect with `xfail(strict=True)` and an `@example` reproducer. Never widen an assertion to swallow
+  a failure.
+- `HK_HYPOTHESIS_PROFILE` picks `dev` (default), `ci` (derandomized) or `mutmut` (no shrink). The
+  runner scripts export it. Never cache `.hypothesis/` in CI. A `test_*_stateful.py` machine runs
+  600 fixed examples. `HK_STATEFUL_EXAMPLES` and `HK_STATEFUL_SEARCH=1` give a long search.
+- The mutation gate scores property tests. Each one names the mutant it kills; prove it by mutating
+  the line and watching the test go red.
 
 ## Writing a test that can fail
 
@@ -79,9 +80,8 @@ Run the tests locally before you push. CI is not the test runner.
   pre-split HA, seeds it, then boots the current HA on the same config dir. Never bump
   the frozen pin: it defines what users upgrade from. A PR that changes the split repair
   (`devices.py`, `store.py`) runs the upgrade suite before it merges.
-- **A panel assertion does not cover a native entity.** The panel and the `todo` and
-  `calendar` entities are separate views of the store. Assert on the surface that must
-  change.
+- **A panel assertion does not cover a native entity.** The panel and the `todo` and `calendar`
+  entities are separate views of the store. Assert on the surface that must change.
 - **Assert disappearance too.** Test a transition from both ends: present before, gone
   after (`expectAbsentFromActiveSurfaces`, `expectOnTodoList` in `tests/e2e/tests/helpers.ts`).
 - **A second delivery path needs a test that removes the first one.**
