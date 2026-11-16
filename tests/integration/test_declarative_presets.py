@@ -74,9 +74,7 @@ def test_the_time_left_template_compares_every_unit_in_hours(ha):
 def test_the_time_left_template_reads_a_percentage_against_the_floor(ha):
     # Some models report the life left as a percentage under the same key. 42 % is
     # over the 10 % floor, so it is not low.
-    rows = _verdicts(
-        ha, _preset_trigger("fumis_life_low"), BATTERY.replace(".", r"\.")
-    )
+    rows = _verdicts(ha, _preset_trigger("fumis_life_low"), BATTERY.replace(".", r"\."))
     assert rows[BATTERY]["trigger_now"] is False, rows[BATTERY]
 
 
