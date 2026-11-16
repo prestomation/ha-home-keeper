@@ -56,3 +56,20 @@ def test_an_unknown_type_accepts_no_action():
     assert (
         lc.allows({"recurrence_type": "weekly", "next_due": None}, "complete") is False
     )
+
+
+def test_arm_makes_a_dormant_task_due_now():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 3, 1, 9, tzinfo=UTC)
+    task = {"recurrence_type": "triggered", "next_due": None}
+    assert lc.arm(task, now=now) is True
+    assert task["next_due"] == now.isoformat()
+
+
+def test_arm_keeps_the_due_date_of_an_armed_task():
+    from datetime import UTC, datetime
+
+    task = {"recurrence_type": "triggered", "next_due": "2026-03-01T09:00:00+00:00"}
+    assert lc.arm(task, now=datetime(2026, 3, 2, tzinfo=UTC)) is False
+    assert task["next_due"] == "2026-03-01T09:00:00+00:00"

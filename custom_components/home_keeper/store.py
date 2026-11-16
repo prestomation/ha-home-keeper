@@ -895,10 +895,11 @@ class HomeKeeperStore:
         owner-facing counterpart to ``complete_task`` (which clears it back to
         dormant): an integration calls it when the condition it monitors becomes true
         again (e.g. a battery drops low after a prior replacement), and the sensor-task
-        watcher calls it when a bound reading meets the task's condition. Idempotent —
-        arming an already-active task just refreshes its trigger time. Only valid for
-        ``triggered`` / ``sensor`` tasks; rejects others so callers don't accidentally
-        strand a scheduled task on a fixed due date.
+        watcher calls it when a bound reading meets the task's condition. Idempotent:
+        an armed task keeps its due date (``lifecycle.arm``), so a repeated trigger
+        does not announce the task as overdue again. The triggered event fires for each
+        call. Only valid for ``triggered`` / ``sensor`` tasks; rejects others so callers
+        don't accidentally strand a scheduled task on a fixed due date.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -908,9 +909,9 @@ class HomeKeeperStore:
                 "trigger_task is only valid for triggered or sensor-based tasks"
             )
         _reject_synced_problem(existing, origin)
-        existing["next_due"] = dt_util.now().isoformat()
-        await self._save()
-        _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
+        if lifecycle.arm(existing, now=dt_util.now()):
+            await self._save()
+        _LOGGER.debug("Triggered task %s (due %s)", task_id, existing["next_due"])
         self._fire(EVENT_TASK_TRIGGERED, self._task_event_data(existing))
         return existing
 

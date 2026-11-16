@@ -12,7 +12,7 @@ The oracle is short and does not read the code under test:
    comes only after an open ``overdue``.
 2. A task announces ``due_soon`` 1 time for a date. A return to the date by an undo
    does not announce it again.
-3. A task sends 1 automatic notification of a kind for a date.
+3. A task sends 1 automatic notification of a kind for a date between 2 restarts.
 
 The plain tests at the end keep each sequence that the machine found as 1 step test.
 
@@ -25,6 +25,7 @@ import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import hk_lifecycle as lifecycle
 import hk_models as models
 import hk_recurrence as r
 import hk_transitions as t
@@ -51,7 +52,7 @@ _START = datetime(2026, 3, 1, 12, tzinfo=_TZ)
 _TYPES = ("floating", "fixed", "triggered")
 # How many dates a task keeps as announced. A date that is older than this can
 # announce again, so the oracle only checks a repeat inside this window.
-_MEMORY = getattr(t, "ANNOUNCED_MEMORY", 8)
+_MEMORY = t.ANNOUNCED_MEMORY
 
 
 def _payload(rec_type: str, now: datetime) -> dict:
@@ -184,8 +185,7 @@ class Announcements(RuleBasedStateMachine):
     def trigger(self, data):
         tid = self._ids(data, lambda task: task["recurrence_type"] == "triggered")
         self._act()
-        # store.trigger_task: arm the task at now.
-        self.tasks[tid]["next_due"] = self.now.isoformat()
+        lifecycle.arm(self.tasks[tid], now=self.now)
         self._pass()
 
     @precondition(lambda self: self.tasks)
@@ -214,6 +214,9 @@ class Announcements(RuleBasedStateMachine):
             tid: r.is_overdue(task, now=self.now) and task.get("enabled", True)
             for tid, task in self.tasks.items()
         }
+        # The announced dates are kept in memory only, so a restart forgets them.
+        self.seen = {}
+        self.pushed = {}
         for _name, payload in fired:
             pair = (
                 "overdue" if _name == EVENT_TASK_OVERDUE else "due_soon",
@@ -232,10 +235,11 @@ Announcements.TestCase.settings = settings(
     max_examples=int(os.environ.get("HK_STATEFUL_EXAMPLES", "600")),
     stateful_step_count=15,
     deadline=None,
-    derandomize=True,
+    # `HK_STATEFUL_SEARCH=1` draws new sequences on each run for a long search.
+    derandomize=not os.environ.get("HK_STATEFUL_SEARCH"),
     database=None,
 )
-TestAnnouncements = pytest.mark.xfail(strict=True)(Announcements.TestCase)
+TestAnnouncements = Announcements.TestCase
 
 
 # ── Sequences that the machine found ─────────────────────────────────────────
@@ -274,7 +278,6 @@ def _done_then_undo(task: dict) -> list[tuple[list, list]]:
     return passes
 
 
-@pytest.mark.xfail(strict=True, reason="F4: undo announces due soon again")
 def test_done_then_undo_does_not_announce_due_soon_again():
     task = _fixed(_NOW + timedelta(days=1))
     start, _done, undo = _done_then_undo(task)
@@ -282,7 +285,6 @@ def test_done_then_undo_does_not_announce_due_soon_again():
     assert undo == ([], [])
 
 
-@pytest.mark.xfail(strict=True, reason="F4: undo sends the overdue push again")
 def test_done_then_undo_does_not_push_overdue_again():
     task = _fixed(_NOW - timedelta(days=1))
     start, done, undo = _done_then_undo(task)

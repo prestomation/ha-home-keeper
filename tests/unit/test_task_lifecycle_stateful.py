@@ -144,8 +144,7 @@ class TaskLifeCycleAllTypes(RuleBasedStateMachine):
     @rule(minutes=_MINUTES)
     def trigger(self, minutes):
         self._act(minutes)
-        # store.trigger_task: arm the task at now.
-        self.task["next_due"] = self.now.isoformat()
+        lifecycle.arm(self.task, now=self.now)
 
     @precondition(lambda self: self.before_done is not None)
     @rule()
@@ -224,7 +223,8 @@ TaskLifeCycleAllTypes.TestCase.settings = settings(
     max_examples=int(os.environ.get("HK_STATEFUL_EXAMPLES", "600")),
     stateful_step_count=15,
     deadline=None,
-    derandomize=True,
+    # `HK_STATEFUL_SEARCH=1` draws new sequences on each run for a long search.
+    derandomize=not os.environ.get("HK_STATEFUL_SEARCH"),
     database=None,
 )
 TestTaskLifeCycleAllTypes = TaskLifeCycleAllTypes.TestCase

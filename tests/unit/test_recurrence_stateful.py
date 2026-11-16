@@ -162,7 +162,8 @@ TaskLifeCycle.TestCase.settings = settings(
     max_examples=int(os.environ.get("HK_STATEFUL_EXAMPLES", "600")),
     stateful_step_count=12,
     deadline=None,
-    derandomize=True,
+    # `HK_STATEFUL_SEARCH=1` draws new sequences on each run for a long search.
+    derandomize=not os.environ.get("HK_STATEFUL_SEARCH"),
     database=None,
 )
 TestTaskLifeCycle = TaskLifeCycle.TestCase

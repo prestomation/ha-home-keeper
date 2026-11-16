@@ -11,6 +11,7 @@ Home Assistant.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from .const import (
@@ -69,3 +70,14 @@ def allows(task: dict[str, Any], action: str) -> bool:
     rec_type = task.get("recurrence_type") or REC_FLOATING
     return action in ALLOWED.get((rec_type, phase(task)), frozenset())
 
+
+def arm(task: dict[str, Any], *, now: datetime) -> bool:
+    """Make a dormant *task* due at *now*. Return whether ``next_due`` changed.
+
+    An armed task keeps its due date. So a second trigger of an overdue task does not
+    announce it as overdue again, and a snooze stays.
+    """
+    if phase(task) == ARMED:
+        return False
+    task["next_due"] = now.isoformat()
+    return True

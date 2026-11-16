@@ -39,7 +39,6 @@ def _triggered(store):  # noqa: F811
     return task
 
 
-@pytest.mark.xfail(strict=True, reason="F3: a second trigger announces overdue again")
 def test_a_second_trigger_keeps_the_due_date_and_announces_no_overdue(store, clock):  # noqa: F811
     task = _triggered(store)
     tasks = store._tasks
