@@ -2283,7 +2283,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
                 "duty": "clean_sensors",
                 "shape": "life_low",
                 "keys": ["sensor_time_left"],
-                "limit": 24,
+                "limit": 1,
             },
             {
                 "duty": "replace_mop_pads",

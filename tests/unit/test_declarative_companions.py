@@ -3052,17 +3052,19 @@ def test_limit_text_says_the_limit_in_a_short_phrase():
     )
     # No limit, or a general preset: nothing to say.
     assert call("tplink_life_low") is None
+    # Roborock has a different limit for each key, so it has no one number to say.
+    assert call("roborock_life_low") is None
     assert call("device_pulse") is None
     assert call("firmware_update_available") is None
 
 
 def test_limit_text_reads_well_in_english_and_german():
-    roborock = presets.preset_by_id("roborock_life_low")
+    xiaomi = presets.preset_by_id("xiaomi_miio_life_low")
     synology = presets.preset_by_id("synology_dsm_reading_high")
     zha = presets.preset_by_id("zha_wear_high")
-    assert roborock is not None and synology is not None and zha is not None
+    assert xiaomi is not None and synology is not None and zha is not None
     resolve = backend_i18n.resolve_string
-    assert presets.limit_text(roborock, "en", resolve) == "less than 24 hours left"
+    assert presets.limit_text(xiaomi, "en", resolve) == "less than 24 hours left"
     assert presets.limit_text(synology, "en", resolve) == "above 85"
     assert presets.limit_text(zha, "de", resolve) == "über 180 Tage"
 
@@ -3140,3 +3142,32 @@ def test_f06_3_the_preview_reads_the_spec_as_a_draft():
         "dc.normalize_declarative_companion(msg['companion'], "
         "allow_missing_template=True, draft=True)"
     ) in ast.unparse(preview)
+
+
+def _roborock_time_left_opens(key: str, hours: float) -> bool:
+    """Whether the shipped Roborock time-left trigger opens a task for *key*."""
+    import jinja2
+
+    trigger = presets.preset_by_id("roborock_life_low")["default_spec"]["trigger"]
+    env = jinja2.Environment()
+    env.filters["float"] = lambda value: float(value)
+    rendered = env.from_string(trigger["template"]).render(
+        state=str(hours),
+        translation_key=key,
+        attributes={"unit_of_measurement": "h"},
+    )
+    return rendered == "True"
+
+
+def test_roborock_sensor_cleaning_opens_only_when_the_counter_runs_out():
+    # The sensor cycle is 30 h, so a 24 h limit would open the task for most of it.
+    assert _roborock_time_left_opens("sensor_time_left", 20.82) is False
+    assert _roborock_time_left_opens("sensor_time_left", 5) is False
+    assert _roborock_time_left_opens("sensor_time_left", 0) is True
+    assert _roborock_time_left_opens("sensor_time_left", -2) is True
+
+
+def test_roborock_parts_keep_the_24_hour_warning():
+    # Parts last 150 h or more, so 24 h is an early warning to order a part.
+    assert _roborock_time_left_opens("filter_time_left", 20) is True
+    assert _roborock_time_left_opens("filter_time_left", 30) is False
