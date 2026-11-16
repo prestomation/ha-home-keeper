@@ -17,9 +17,10 @@ from typing import Any, Literal
 from .const import (
     REC_FIXED,
     REC_FLOATING,
+    REC_ONE_OFF,
     REC_SENSOR,
     REC_TRIGGERED,
-    RECURRENCE_TYPES,
+    REC_USE,
 )
 
 Phase = Literal["armed", "dormant"]
@@ -37,26 +38,23 @@ MOVE_OCCURRENCE = "move_occurrence"
 # a late completion, and Skip on a dormant task only writes the log.
 _ALWAYS = frozenset({COMPLETE, SKIP})
 # Snooze and due today move a due date, so a dormant task has none to move.
-_DEFER = frozenset({SNOOZE, DUE_TODAY})
-# Only the owner or the watcher arms these types.
-_TRIGGERED_TYPES = frozenset({REC_TRIGGERED, REC_SENSOR})
+_ARMED = _ALWAYS | {SNOOZE, DUE_TODAY}
 
-
-def _row(rec_type: str, phase: Phase) -> frozenset[str]:
-    actions = set(_ALWAYS)
-    if phase == ARMED:
-        actions |= _DEFER
-    if rec_type in _TRIGGERED_TYPES:
-        actions.add(TRIGGER)
-    if rec_type == REC_FIXED:
-        actions.add(MOVE_OCCURRENCE)
-    return frozenset(actions)
-
-
+# 1 row for each recurrence type and phase. Only the owner or the watcher arms a
+# triggered or sensor task, and only a fixed schedule has dates to move.
 ALLOWED: dict[tuple[str, Phase], frozenset[str]] = {
-    (rec_type, phase): _row(rec_type, phase)
-    for rec_type in RECURRENCE_TYPES
-    for phase in (ARMED, DORMANT)
+    (REC_FLOATING, ARMED): _ARMED,
+    (REC_FLOATING, DORMANT): _ALWAYS,
+    (REC_FIXED, ARMED): _ARMED | {MOVE_OCCURRENCE},
+    (REC_FIXED, DORMANT): _ALWAYS | {MOVE_OCCURRENCE},
+    (REC_ONE_OFF, ARMED): _ARMED,
+    (REC_ONE_OFF, DORMANT): _ALWAYS,
+    (REC_TRIGGERED, ARMED): _ARMED | {TRIGGER},
+    (REC_TRIGGERED, DORMANT): _ALWAYS | {TRIGGER},
+    (REC_SENSOR, ARMED): _ARMED | {TRIGGER},
+    (REC_SENSOR, DORMANT): _ALWAYS | {TRIGGER},
+    (REC_USE, ARMED): _ARMED,
+    (REC_USE, DORMANT): _ALWAYS,
 }
 
 

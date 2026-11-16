@@ -257,3 +257,18 @@ def test_one_off_snooze_done_undo_gives_back_the_snooze_date():
     r.apply_completion(task, later, now=later)
     r.remove_completion(task, later.isoformat(), now=later)
     assert task["next_due"] == snoozed.isoformat()
+
+
+def test_a_task_with_no_type_completes_as_floating():
+    task = {"interval": 3, "unit": "days", "next_due": _NOW.isoformat()}
+    r.apply_completion(task, _NOW, now=_NOW)
+    assert task["next_due"] == (_NOW + timedelta(days=3)).isoformat()
+
+
+def test_a_log_edit_on_a_task_with_no_log_key():
+    task = {"recurrence_type": "floating", "interval": 3, "unit": "days"}
+    assert r.remove_completion(task, _NOW.isoformat(), now=_NOW)["completions"] == []
+    with pytest.raises(ValueError, match="no completion"):
+        r.move_completion(
+            {"recurrence_type": "floating"}, _NOW.isoformat(), "x", now=_NOW
+        )

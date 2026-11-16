@@ -479,3 +479,18 @@ def test_an_overdue_of_a_new_date_still_sends_a_push():
         (EVENT_TASK_OVERDUE, {"task_id": "t1", "next_due": "2026-01-01T00:00:00+00:00"})
     ]
     assert t.auto_crossings(prev, old) == []
+
+
+def test_a_held_back_overdue_does_not_stop_the_crossings_after_it():
+    prev = {"t1": {"announced": [("overdue", "2026-01-01T00:00:00+00:00")]}}
+    fired = [
+        (
+            EVENT_TASK_OVERDUE,
+            {"task_id": "t1", "next_due": "2026-01-01T00:00:00+00:00"},
+        ),
+        (
+            EVENT_TASK_OVERDUE,
+            {"task_id": "t2", "next_due": "2026-01-01T00:00:00+00:00"},
+        ),
+    ]
+    assert t.auto_crossings(prev, fired) == [("overdue", "t2")]

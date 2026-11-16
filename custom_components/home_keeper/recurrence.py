@@ -1424,10 +1424,10 @@ def remove_completion(
         # A one-off is due again only when no completion and no skip is left, the
         # same rule as ``remove_skip``. Then it gets back the date that the Done
         # replaced, so a snooze is kept, or else its ``due`` date.
-        if history or task.get("skips"):
-            task["next_due"] = None
-        else:
-            task["next_due"] = prior_due or compute_next_due(task, now=now).isoformat()
+        if not history and not task.get("skips"):
+            # A one-off is due at its ``due`` date, whatever ``now`` is.
+            due = compute_next_due(task, now=now)  # pragma: no mutate - see above
+            task["next_due"] = prior_due or due.isoformat()
     elif rec_type in (REC_TRIGGERED, REC_SENSOR):
         # Only the owner or the watcher moves an armed task. An undo arms a dormant
         # task again at the date that the Done replaced.
