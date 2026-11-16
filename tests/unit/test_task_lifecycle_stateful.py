@@ -222,9 +222,7 @@ TaskLifeCycleAllTypes.TestCase.settings = settings(
     derandomize=True,
     database=None,
 )
-TestTaskLifeCycleAllTypes = pytest.mark.xfail(strict=True)(
-    TaskLifeCycleAllTypes.TestCase
-)
+TestTaskLifeCycleAllTypes = TaskLifeCycleAllTypes.TestCase
 
 
 # ── Sequences that the machine found ─────────────────────────────────────────
@@ -236,7 +234,6 @@ def _one_off() -> dict:
     return models.build_task(_payload("one-off", _NOW), now=_NOW)
 
 
-@pytest.mark.xfail(strict=True, reason="F1: undo of Done ignores an earlier skip")
 def test_one_off_skip_done_undo_stays_dormant():
     task = _one_off()
     r.skip_occurrence(task, now=_NOW)
@@ -247,7 +244,6 @@ def test_one_off_skip_done_undo_stays_dormant():
     assert len(task["skips"]) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="F2: undo of Done loses the snooze date")
 def test_one_off_snooze_done_undo_gives_back_the_snooze_date():
     task = _one_off()
     snoozed = _NOW + timedelta(days=5)

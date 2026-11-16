@@ -12,7 +12,7 @@ implements:
 max_lines: 193
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 8fd92a95da69
+source_hash: 8a815745960d
 ---
 
 # Task model and recurrence
@@ -140,8 +140,8 @@ missed ones in 1 step. The entry keeps `prior_due` and, for a fixed task, `prune
 
 `recurrence.skip_occurrence` writes to `skips`, never to `completions`, and does not change
 `last_completed`. A floating task becomes due 1 interval from `now`. A fixed task moves as it
-does on completion. Every other type becomes dormant. `recurrence.remove_skip` re-arms a
-one-off at `due` only when it has no completion and no other skip.
+does on completion. Every other type becomes dormant. A one-off is due again only when its
+completion log and its skip log are both empty, after `remove_skip` or `remove_completion`.
 
 ### Snooze and due today
 
