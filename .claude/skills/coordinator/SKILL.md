@@ -18,6 +18,11 @@ Write all prose in ASD-STE100 English. In chat with the maintainer, add small Ch
 - A question never stops other work. Use the waiting time on the next item.
 - A real bug found during work goes in the backlog, and a worker fixes it. Do not ask first.
 - Never use the `send_later` tool unless the maintainer asks for it by name.
+- Keep the backlog true. Update the item in the same turn as each event, and run the audit
+  in `backlog.md` after each change. A stale backlog is a failure.
+- If a PR meets the auto-merge rubric, merge it. Do not ask who merges.
+- Mark a PR ready for review when its checks are green, its review is done and it has no
+  conflict. Until then it stays a draft.
 
 ## Scope
 
@@ -38,12 +43,7 @@ The backlog is a private Artifact page with a database. The page URL is
 `https://claude.ai/artifact/PfAgngCRemxCiQa3nyszQE`. The maintainer edits it in the page.
 The coordinator edits it with the `ArtifactData` tool.
 
-- Collection `items`. Fields: `repo`, `title`, `type` (bug, feature, design, dependency,
-  input), `status`, `priority` (P0 to P3), `labels`, `links`, `notes`, `updated`.
-- Status values: `inbox`, `ready`, `in-progress`, `waiting-operator`, `blocked`, `done`,
-  `dropped`.
-- Labels: `agent-ready`, `needs-design`, `needs-operator`, `agent-in-progress`,
-  `agent-blocked`, `ui`.
+- Collection `items`. The template, allowed values, update events and audit: `backlog.md`.
 - `notes` is a list of `{t, by, text}`. Add to it. Never remove the maintainer's notes.
 - Document `coord/notes` holds the standing rules and the last scan time of each repository.
   Read it first after a context compaction.
