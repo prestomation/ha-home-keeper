@@ -190,6 +190,16 @@ import {
 const LIVE_REFRESH_QUIET_MS = 2000;
 
 /**
+ * The URL that each history entry of this page load shows now, by the entry's
+ * `hkKey`. A replace changes the URL of an entry, and an entry above it keeps the
+ * old URL in `hkBelow`. This map has the URL after the replace. It is empty after a
+ * page load, and then `hkBelow` is the only record.
+ */
+const ENTRY_URLS = new Map<string, string>();
+let entrySeq = 0;
+const ENTRY_PAGE = Math.random().toString(36).slice(2, 8);
+
+/**
  * The Home Keeper panel is built entirely from Home Assistant's own web
  * components (the HA design language): `ha-form` for every form (which also
  * lazy-loads its selector widgets — text, number, select, date/time, and the
@@ -796,10 +806,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return typeof depth === 'number' && depth > 0 ? depth : 0;
   }
 
-  /** The URL of the entry below the current one, if the panel pushed the current one. */
+  /**
+   * The URL of the entry below the current one, if the panel pushed the current one.
+   * A replace on the entry below, after a Back, changes it. Then the URL from that
+   * replace counts, not the URL that the push wrote.
+   */
   private _hkBelow(): string | undefined {
-    const below = (history.state as { hkBelow?: unknown } | null)?.hkBelow;
-    return this._hkDepth() > 0 && typeof below === 'string' ? below : undefined;
+    const st = history.state as { hkBelow?: unknown; hkBelowKey?: unknown } | null;
+    if (this._hkDepth() === 0) return undefined;
+    const now = typeof st?.hkBelowKey === 'string' ? ENTRY_URLS.get(st.hkBelowKey) : undefined;
+    if (now !== undefined) return now;
+    return typeof st?.hkBelow === 'string' ? st.hkBelow : undefined;
+  }
+
+  /** The `hkKey` of the current entry. An entry that has none gets one now. */
+  private _entryKey(): string {
+    const st = (history.state ?? {}) as Record<string, unknown>;
+    if (typeof st.hkKey === 'string') return st.hkKey;
+    const key = `${ENTRY_PAGE}-${++entrySeq}`;
+    history.replaceState({ ...st, hkKey: key }, '');
+    ENTRY_URLS.set(key, location.pathname);
+    return key;
   }
 
   /** The full panel URL for a location, for a link a reader can open in a new tab. */
@@ -809,10 +836,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
+    const here = this._entryKey();
+    const st = history.state as { hkBelowKey?: unknown } | null;
     const state = replace
-      ? { hkDepth: this._hkDepth(), hkBelow: this._hkBelow() }
-      : { hkDepth: this._hkDepth() + 1, hkBelow: location.pathname };
+      ? {
+          hkDepth: this._hkDepth(),
+          hkBelow: this._hkBelow(),
+          hkKey: here,
+          hkBelowKey: st?.hkBelowKey,
+        }
+      : {
+          hkDepth: this._hkDepth() + 1,
+          hkBelow: location.pathname,
+          hkKey: `${ENTRY_PAGE}-${++entrySeq}`,
+          hkBelowKey: here,
+        };
     history[replace ? 'replaceState' : 'pushState'](state, '', url);
+    ENTRY_URLS.set(state.hkKey, url);
     this.dispatchEvent(
       new CustomEvent('location-changed', {
         detail: { replace },
