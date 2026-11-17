@@ -1,80 +1,92 @@
 {
-  "_comment": "The parity registry: each rule that Home Keeper writes twice, once in the Python core and once in the TypeScript panel or card. python and typescript name the file and the function (or constant) of each side, as path::name. cases is the shared case file that a Python test (tests/unit/test_shared_cases.py) and a vitest test (frontend/test/shared-cases.test.js) both run. corpus is true for a rule that the generated corpus (parity_corpus.json) also covers. Each side carries a '# parity: <id>' or '// parity: <id>' comment just above the definition. python3 ci/parity.py check enforces this file. See .amazonq/rules/testing.md.",
+  "_comment": "The parity registry: each rule that Home Keeper writes twice, once in the Python core and once in the TypeScript panel or card. python and typescript name the file and the function (or constant) of each side, as path::name. cases is the shared case file that a Python test (tests/unit/test_shared_cases.py) and a vitest test (frontend/test/shared-cases.test.js) both run. min_cases is the smallest number of cases that file may hold (3 when the field is missing). corpus is true for a rule that the generated corpus (parity_corpus.json) also covers. Each side carries a '# parity: <id>' or '// parity: <id>' comment just above the definition. python3 ci/parity.py check enforces this file. See .amazonq/rules/testing.md.",
   "rules": [
     {
       "id": "profile_filter",
       "python": "custom_components/home_keeper/profiles.py::matches_filter",
       "typescript": "custom_components/home_keeper/frontend/src/card-filter.ts::profileMatches",
       "cases": "tests/fixtures/profile_filter_cases.json",
+      "min_cases": 64,
       "corpus": true
     },
     {
       "id": "companion_keys",
       "python": "custom_components/home_keeper/profiles.py::companion_keys",
       "typescript": "custom_components/home_keeper/frontend/src/card-filter.ts::companionKeys",
-      "cases": "tests/fixtures/companion_keys_cases.json"
+      "cases": "tests/fixtures/companion_keys_cases.json",
+      "min_cases": 20
     },
     {
       "id": "quantity_format",
       "python": "custom_components/home_keeper/assets.py::format_quantity",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::formatQuantity",
       "cases": "tests/fixtures/quantity_format_cases.json",
+      "min_cases": 31,
       "corpus": true
     },
     {
       "id": "decimal_mark",
       "python": "custom_components/home_keeper/assets.py::decimal_mark",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::decimalMark",
-      "cases": "tests/fixtures/decimal_mark_cases.json"
+      "cases": "tests/fixtures/decimal_mark_cases.json",
+      "min_cases": 13
     },
     {
       "id": "part_low",
       "python": "custom_components/home_keeper/assets.py::part_is_low",
       "typescript": "custom_components/home_keeper/frontend/src/parts-overview.ts::isLowPart",
-      "cases": "tests/fixtures/part_low_cases.json"
+      "cases": "tests/fixtures/part_low_cases.json",
+      "min_cases": 11
     },
     {
       "id": "part_tracks_stock",
       "python": "custom_components/home_keeper/assets.py::part_tracks_stock",
       "typescript": "custom_components/home_keeper/frontend/src/parts-overview.ts::isUncountedPart",
-      "cases": "tests/fixtures/part_tracks_stock_cases.json"
+      "cases": "tests/fixtures/part_tracks_stock_cases.json",
+      "min_cases": 6
     },
     {
       "id": "icon",
       "python": "custom_components/home_keeper/notifications.py::normalize_icon",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::normalizeIcon",
       "cases": "tests/fixtures/icon_cases.json",
+      "min_cases": 24,
       "corpus": true
     },
     {
       "id": "snooze_hours",
       "python": "custom_components/home_keeper/notifications.py::snooze_hours_for",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::taskSnoozeHours",
-      "cases": "tests/fixtures/snooze_hours_cases.json"
+      "cases": "tests/fixtures/snooze_hours_cases.json",
+      "min_cases": 10
     },
     {
       "id": "buy_task",
       "python": "custom_components/home_keeper/reconcile.py::buy_source",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::isBuyTask",
-      "cases": "tests/fixtures/buy_task_cases.json"
+      "cases": "tests/fixtures/buy_task_cases.json",
+      "min_cases": 13
     },
     {
       "id": "use_count",
       "python": "custom_components/home_keeper/reconcile.py::uses_since_replacement",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::usesSinceReplacement",
-      "cases": "tests/fixtures/use_count_cases.json"
+      "cases": "tests/fixtures/use_count_cases.json",
+      "min_cases": 14
     },
     {
       "id": "usage_intervals",
       "python": "custom_components/home_keeper/sensor_tasks.py::usage_interval_stats",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::usageIntervalStats",
-      "cases": "tests/fixtures/usage_interval_cases.json"
+      "cases": "tests/fixtures/usage_interval_cases.json",
+      "min_cases": 12
     },
     {
       "id": "edge_sensor_modes",
       "python": "custom_components/home_keeper/sensor_tasks.py::holds_edge_state",
       "typescript": "custom_components/home_keeper/frontend/src/utils.ts::EDGE_SENSOR_MODES",
-      "cases": "tests/fixtures/edge_sensor_mode_cases.json"
+      "cases": "tests/fixtures/edge_sensor_mode_cases.json",
+      "min_cases": 8
     }
   ]
 }

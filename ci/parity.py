@@ -7,7 +7,8 @@ above its definition: ``# parity: <id>`` in Python, ``// parity: <id>`` in TypeS
 
 ``python3 ci/parity.py check`` fails when:
 
-* a registered file, function or case file is missing, or a case file has no cases;
+* a registered file, function or case file is missing, or a case file has fewer
+  cases than the rule's ``min_cases`` (3 when the field is missing);
 * a marker names an id that is not registered, or sits above the wrong definition;
 * a registered rule has no marker, or more than 1, on either side. A rule marked on 1
   side only is a twin that nothing holds to the other;
@@ -31,6 +32,7 @@ CORPUS = "tests/fixtures/parity_corpus.json"
 PY_DIR = "custom_components/home_keeper"
 TS_DIR = "custom_components/home_keeper/frontend/src"
 
+DEFAULT_MIN_CASES = 3
 _ID = re.compile(r"^[a-z][a-z0-9_]*$")
 _PY_MARK = re.compile(r"^#\s*parity:\s*(\S+)\s*$")
 _TS_MARK = re.compile(r"^//\s*parity:\s*(\S+)\s*$")
@@ -82,7 +84,7 @@ def _source_files(root: Path) -> list[tuple[Path, bool]]:
     return [(p, True) for p in py] + [(p, False) for p in ts]
 
 
-def _check_cases(root: Path, rule_id: str, rel: str) -> list[str]:
+def _check_cases(root: Path, rule_id: str, rel: str, minimum: int) -> list[str]:
     path = root / rel
     if not path.is_file():
         return [f"{rule_id}: the case file {rel} does not exist"]
@@ -98,6 +100,8 @@ def _check_cases(root: Path, rule_id: str, rel: str) -> list[str]:
         return [f"{rule_id}: each case in {rel} needs a name"]
     if len(set(names)) != len(names):
         return [f"{rule_id}: {rel} has 2 cases with the same name"]
+    if len(cases) < minimum:
+        return [f"{rule_id}: {rel} has {len(cases)} cases, min_cases is {minimum}"]
     return []
 
 
@@ -137,7 +141,11 @@ def check(root: Path = ROOT) -> list[str]:
             text = path.read_text(encoding="utf-8").splitlines()
             if not any(defines(line, name) for line in text):
                 errors.append(f"{rule_id}: {rel} does not define {name}")
-        errors.extend(_check_cases(root, rule_id, str(rule.get("cases", ""))))
+        minimum = rule.get("min_cases", DEFAULT_MIN_CASES)
+        if type(minimum) is not int or minimum < 1:
+            errors.append(f"{rule_id}: min_cases must be a whole number of 1 or more")
+            continue
+        errors.extend(_check_cases(root, rule_id, str(rule.get("cases", "")), minimum))
 
     seen: dict[tuple[str, bool], int] = {}
     for path, python in _source_files(root):

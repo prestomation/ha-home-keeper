@@ -185,3 +185,36 @@ def test_main_exit_codes(tree: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(parity.check, "__defaults__", (tree,))
     _edit(tree / parity.PY_DIR / "assets.py", "# parity: part_low\n", "")
     assert parity.main(["check"]) == 1
+
+
+def test_a_case_file_below_its_minimum_fails(tree: Path) -> None:
+    data = _registry(tree)
+    rule = next(r for r in data["rules"] if r["id"] == "part_low")
+    rule["min_cases"] = 12
+    _save(tree, data)
+    assert parity.check(tree) == [
+        "part_low: tests/fixtures/part_low_cases.json has 11 cases, min_cases is 12"
+    ]
+
+
+def test_a_missing_minimum_is_3(tree: Path) -> None:
+    data = _registry(tree)
+    rule = next(r for r in data["rules"] if r["id"] == "part_low")
+    rule.pop("min_cases", None)
+    _save(tree, data)
+    cases = [{"name": n, "input": {}, "expected": False} for n in ("a", "b")]
+    (tree / "tests/fixtures/part_low_cases.json").write_text(
+        json.dumps({"cases": cases})
+    )
+    assert parity.check(tree) == [
+        "part_low: tests/fixtures/part_low_cases.json has 2 cases, min_cases is 3"
+    ]
+
+
+def test_a_minimum_that_is_not_a_positive_int_fails(tree: Path) -> None:
+    data = _registry(tree)
+    data["rules"][0]["min_cases"] = 0
+    _save(tree, data)
+    assert parity.check(tree) == [
+        "profile_filter: min_cases must be a whole number of 1 or more"
+    ]
