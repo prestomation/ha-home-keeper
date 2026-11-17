@@ -155,9 +155,9 @@ describe('appliance list', () => {
   it('opens no appliance form for a non-admin', async () => {
     const panel = await mount('/appliances', makeHass({ admin: false }), '.hk-view-only-banner');
     panel._openCreateAsset();
-    expect(panel._assetEdit.open).toBe(false);
+    expect(panel._isOpen('assetForm')).toBe(false);
     panel._openEditAsset(ASSET);
-    expect(panel._assetEdit.open).toBe(false);
+    expect(panel._isOpen('assetForm')).toBe(false);
   });
 });
 
@@ -240,7 +240,8 @@ describe('appliance page', () => {
     await panel._archiveAsset(ASSET);
     await panel._restoreAsset(ARCHIVED);
     await panel._deleteAsset(ASSET);
-    panel._assetEdit = { open: true, asset: { ...ASSET } };
+    panel._assetEdit = { asset: { ...ASSET } };
+    panel._openOverlay('assetForm');
     await panel._submitAssetForm();
     const writes = calls.filter((c) => /_(asset|assets)$/.test(c) && c !== 'home_keeper/get_assets');
     expect(writes).toEqual([]);

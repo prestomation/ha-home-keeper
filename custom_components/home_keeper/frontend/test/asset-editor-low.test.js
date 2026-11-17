@@ -19,7 +19,7 @@ afterEach(() => {
 function host(asset) {
   const p = new EventTarget();
   Object.assign(p, {
-    _assetEdit: { open: true, asset },
+    _assetEdit: { asset },
     _render: vi.fn(),
   });
   return p;
@@ -88,7 +88,7 @@ describe('X12-8: an upload that outlives its draft', () => {
     );
     const firstAbort = p._uploadAbort;
     // The draft closes and a new one starts its own upload.
-    p._assetEdit = { open: true, asset: { id: 'B' } };
+    p._assetEdit = { asset: { id: 'B' } };
     const second = runUpload(p, 'document', file('b.pdf'), () => new Promise(() => {}));
     const secondAbort = p._uploadAbort;
     const secondState = p._assetEdit.upload;

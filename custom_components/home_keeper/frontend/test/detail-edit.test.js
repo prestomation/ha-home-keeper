@@ -100,7 +100,7 @@ describe('Editing from a detail page', () => {
 
     panel._openEdit(TASK);
 
-    expect(panel._edit.open, 'the form waits for the location to settle').toBe(false);
+    expect(panel._isOpen('taskForm'), 'the form waits for the location to settle').toBe(false);
     expect(panel._pendingEdit?.id).toBe('t1');
     expect(location.pathname).toBe('/home-keeper/tasks');
   });

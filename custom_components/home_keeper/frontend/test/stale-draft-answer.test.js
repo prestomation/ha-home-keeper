@@ -59,7 +59,7 @@ describe('a late answer for an old draft', () => {
     panel.shadowRoot.querySelector('#f-save').click();
     await waitFor(() => hass.calls.some((m) => m.type === 'home_keeper/add_task'));
     escape();
-    expect(panel._edit.open).toBe(false);
+    expect(panel._isOpen('taskForm')).toBe(false);
     panel.shadowRoot.querySelector('#add-btn').click();
     await waitFor(() => panel.shadowRoot.querySelector('#hk-task-form-basics'));
     emitChange(panel.shadowRoot.querySelector('#hk-task-form-basics'), { name: 'two' });
@@ -67,7 +67,7 @@ describe('a late answer for an old draft', () => {
     gate.resolve();
     await new Promise((r) => setTimeout(r, 100));
 
-    expect(panel._edit.open).toBe(true);
+    expect(panel._isOpen('taskForm')).toBe(true);
     expect(panel._edit.task.name).toBe('two');
     expect(panel._edit.task.id).toBeUndefined();
     expect(panel.shadowRoot.querySelector('#hk-task-form-basics')).toBeTruthy();
@@ -129,7 +129,7 @@ describe('a late answer for an old draft', () => {
     panel.shadowRoot.querySelector('#a-save').click();
     await waitFor(() => hass.calls.some((m) => m.type === 'home_keeper/add_asset'));
     escape();
-    expect(panel._assetEdit.open).toBe(false);
+    expect(panel._isOpen('assetForm')).toBe(false);
     open();
     await waitFor(() => panel.shadowRoot.querySelector('#hk-asset-form ha-form'));
     name('two');
@@ -137,7 +137,7 @@ describe('a late answer for an old draft', () => {
     gate.resolve();
     await new Promise((r) => setTimeout(r, 100));
 
-    expect(panel._assetEdit.open).toBe(true);
+    expect(panel._isOpen('assetForm')).toBe(true);
     expect(panel._assetEdit.asset.name).toBe('two');
   });
 

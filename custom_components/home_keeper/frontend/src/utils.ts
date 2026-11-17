@@ -1808,6 +1808,57 @@ function safeDecode(segment: string): string {
 }
 
 /**
+ * The mark that starts the URL form of a dot segment. {@link encodeRouteSegment}
+ * writes every other `~` as `%7E`, so the mark is never part of a value.
+ */
+const DOT_MARK = '~';
+
+/**
+ * The URL form of 1 path segment: an id, a part id or a segment of a tab path.
+ *
+ * `encodeURIComponent` keeps `.` and `~`. A browser removes a `.` or `..` segment from
+ * a URL, also as `%2E%2E`, so the ids `.` and `..` get the {@link DOT_MARK} in front.
+ */
+export function encodeRouteSegment(value: string): string {
+  if (value === '.' || value === '..') return DOT_MARK + value;
+  return encodeURIComponent(value).replace(/~/g, '%7E');
+}
+
+/** The value of 1 path segment: the inverse of {@link encodeRouteSegment}. */
+export function decodeRouteSegment(segment: string): string {
+  const dots = segment.slice(DOT_MARK.length);
+  if (segment.startsWith(DOT_MARK) && (dots === '.' || dots === '..')) return dots;
+  return safeDecode(segment);
+}
+
+/** The segments of a tab path with no empty, `.` or `..` segment. A backslash counts
+ *  as a slash. */
+function tabSegments(path: string): string[] {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((s) => s && s !== '.' && s !== '..');
+}
+
+/**
+ * The value of a companion tab path from the URL: {@link normalizeTabPath}, then each
+ * segment decoded. A segment that decodes to a slash or to a dot segment is cleaned
+ * again, so the result can never leave the tab.
+ */
+function decodeTabPath(raw: string): string {
+  const decoded = tabSegments(normalizeTabPath(raw)).map(decodeRouteSegment).join('/');
+  const segments = tabSegments(decoded);
+  return segments.length ? `/${segments.join('/')}` : '';
+}
+
+/** The URL form of a companion tab path: each segment encoded. */
+function encodeTabPath(path: string | undefined): string {
+  return tabSegments(String(path ?? ''))
+    .map((s) => `/${encodeRouteSegment(s)}`)
+    .join('');
+}
+
+/**
  * Parse the panel's route path (the part after the `/home-keeper` prefix that HA
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
@@ -1845,7 +1896,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // Only spaces and slashes come before the first segment, so its first match is it.
     const raw = String(path);
     const rest = raw.slice(raw.indexOf(first) + first.length);
-    return { view: 'tab', detail: null, tab: first, path: normalizeTabPath(rest) };
+    return { view: 'tab', detail: null, tab: first, path: decodeTabPath(rest) };
   }
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
@@ -1853,14 +1904,21 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // Short-circuit rather than falling back to '': an empty-string default is
     // indistinguishable from any other non-section string here, so it would only
     // add a mutant no test could ever kill.
-    const raw = parts[1] && safeDecode(parts[1]);
+    const raw = parts[1] && decodeRouteSegment(parts[1]);
     return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
       ? { view, detail: null, section: raw as SettingsSection }
       : { view, detail: null };
   }
-  // `/appliances/parts` is the parts overview. Appliance ids are UUIDs, so the word
-  // can never be one, and `/appliances/<id>/parts` is unaffected.
-  if (view === 'appliances' && parts[1] === PARTS_SEGMENT) {
+  // `/appliances/parts` is the parts overview, also with a stray segment after it. An
+  // appliance with the id `parts` has a sub-tab after it, because `buildPath` always
+  // writes its sub-tab.
+  if (
+    view === 'appliances' &&
+    parts[1] === PARTS_SEGMENT &&
+    // Stryker disable next-line StringLiteral: equivalent. Any text that is not a sub-tab
+    // gives the same result as no segment.
+    !(ASSET_TABS as readonly string[]).includes(decodeRouteSegment(parts[2] ?? ''))
+  ) {
     return { view, detail: null, parts: true };
   }
   // Only the tasks/appliances lists drill into a detail page.
@@ -1870,15 +1928,15 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
       // Short-circuit rather than defaulting to '', for the same reason the settings
       // branch does: an empty-string default is indistinguishable from any other
       // non-tab string, so it only adds a mutant no test could ever kill.
-      const raw = parts[2] && safeDecode(parts[2]);
+      const raw = parts[2] && decodeRouteSegment(parts[2]);
       const tab =
         raw && (ASSET_TABS as readonly string[]).includes(raw)
           ? (raw as AssetTab)
           : DEFAULT_ASSET_TAB;
-      const id = safeDecode(parts[1]);
+      const id = decodeRouteSegment(parts[1]);
       // A part segment counts only under an explicit parts tab, the one tab that
       // lists parts. A bogus tab falls back to parts, but its segment is no part.
-      const part = raw === 'parts' && parts[3] ? safeDecode(parts[3]) : '';
+      const part = raw === 'parts' && parts[3] ? decodeRouteSegment(parts[3]) : '';
       return part
         ? { view, detail: { kind, id, tab, part } }
         : { view, detail: { kind, id, tab } };
@@ -1886,10 +1944,10 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // A task page has sub-tabs of its own, resolved the same way.
     // Stryker disable next-line LogicalOperator: equivalent. With no segment, `||`
     // decodes "undefined", which is no tab, so the default tab is kept.
-    const raw = parts[2] && safeDecode(parts[2]);
+    const raw = parts[2] && decodeRouteSegment(parts[2]);
     const tab =
       raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
-    return { view, detail: { kind, id: safeDecode(parts[1]), tab } };
+    return { view, detail: { kind, id: decodeRouteSegment(parts[1]), tab } };
   }
   return { view, detail: null };
 }
@@ -1907,22 +1965,24 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
-  if (loc.view === 'tab') return `/${loc.tab ?? ''}${normalizeTabPath(loc.path)}`;
+  if (loc.view === 'tab') return `/${loc.tab ?? ''}${encodeTabPath(loc.path)}`;
   if (loc.view === 'settings') {
     return loc.section ? `/settings/${loc.section}` : '/settings';
   }
   if (!loc.detail) {
     return loc.view === 'appliances' && loc.parts ? `/appliances/${PARTS_SEGMENT}` : `/${loc.view}`;
   }
-  const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
+  const base = `/${loc.view}/${encodeRouteSegment(loc.detail.id)}`;
   const tab = loc.detail.tab;
   // A part is always written under an explicit parts tab, even though parts is the
   // default tab: `/appliances/<id>/<part_id>` would read as a sub-tab.
   if (loc.detail.kind === 'asset' && loc.detail.part && (tab ?? DEFAULT_ASSET_TAB) === 'parts') {
-    return `${base}/parts/${encodeURIComponent(loc.detail.part)}`;
+    return `${base}/parts/${encodeRouteSegment(loc.detail.part)}`;
   }
   const dflt = loc.detail.kind === 'asset' ? DEFAULT_ASSET_TAB : DEFAULT_TASK_TAB;
-  return tab && tab !== dflt ? `${base}/${tab}` : base;
+  // `/appliances/parts` is the parts overview, so that appliance keeps its sub-tab.
+  const keepTab = loc.detail.kind === 'asset' && loc.detail.id === PARTS_SEGMENT;
+  return keepTab || (tab && tab !== dflt) ? `${base}/${tab ?? dflt}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────

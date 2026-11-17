@@ -76,6 +76,13 @@ describe('card device chip (#446)', () => {
     expect(events).toHaveLength(1);
   });
 
+  it('opens the appliance page, not the parts overview, for an appliance with the id "parts"', async () => {
+    const { card } = mount({ admin: true, assets: [{ id: 'parts', name: 'Dishwasher', device_id: 'dev1' }] });
+    await waitFor(() => card.shadowRoot?.querySelector('.hk-device-chip'));
+    const chip = card.shadowRoot.querySelector('.hk-device-chip');
+    expect(chip.dataset.href).toBe('/home-keeper/appliances/parts/parts');
+  });
+
   it('opens the device page for an admin when no appliance has the device', async () => {
     const { card } = mount({ admin: true });
     await waitFor(() => card.shadowRoot?.querySelector('.hk-device-chip'));

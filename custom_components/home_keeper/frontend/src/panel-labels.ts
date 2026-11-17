@@ -72,7 +72,6 @@ export type LabelKind = 'asset' | 'task';
 
 /** The label dialog's state. `single` is the detail-page form: 1 object, no list. */
 export interface LabelDialogState {
-  open: boolean;
   kind: LabelKind;
   /** The objects the dialog offers, in list order. */
   ids: string[];
@@ -85,12 +84,13 @@ export interface LabelDialogState {
 }
 
 export function emptyLabelDialog(): LabelDialogState {
-  return { open: false, kind: 'asset', ids: [], picked: [], single: false, withTasks: false, skip: 0 };
+  return { kind: 'asset', ids: [], picked: [], single: false, withTasks: false, skip: 0 };
 }
 
 /** Open the dialog for 1 object, from its detail page. */
 export function openLabelDialog(p: PanelHost, kind: LabelKind, id: string): void {
-  p._labelDialog = { ...emptyLabelDialog(), open: true, kind, ids: [id], picked: [id], single: true };
+  p._labelDialog = { ...emptyLabelDialog(), kind, ids: [id], picked: [id], single: true };
+  p._openOverlay('label');
   p._render();
 }
 
@@ -118,7 +118,8 @@ export function openLabelPicker(p: PanelHost): void {
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((task) => task.id);
   }
-  p._labelDialog = { ...emptyLabelDialog(), open: true, kind, ids };
+  p._labelDialog = { ...emptyLabelDialog(), kind, ids };
+  p._openOverlay('label');
   p._render();
 }
 
@@ -129,6 +130,7 @@ export function wireLabelButton(p: PanelHost, root: ShadowRoot): void {
 
 function closeLabelDialog(p: PanelHost): void {
   p._labelDialog = emptyLabelDialog();
+  p._closeOverlay('label');
   p._render();
 }
 
@@ -399,7 +401,7 @@ export function renderLabelDialog(p: PanelHost, host: HTMLElement): void {
   if (s.single && !oneTarget) return;
   const title = oneTarget ? t('labels.titleOne', { name: oneTarget.src.name }) : t('labels.title');
   const { dialog, body, footer, mount } = makeDialog(title, () => {
-    if (p._labelDialog.open) closeLabelDialog(p);
+    if (p._isOpen('label')) closeLabelDialog(p);
   });
   dialog.classList.add('hk-label-dialog');
   body.classList.add('hk-label-body');

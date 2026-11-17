@@ -7,6 +7,7 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { overlayMembers } from './overlay-host.js';
 import {
   coerceCost,
   costSchema,
@@ -45,15 +46,15 @@ function spend(overrides = {}) {
   };
 }
 
-function host(overrides = {}) {
+function host({ sheetOpen = false, ...overrides } = {}) {
   const navigated = [];
   let renders = 0;
   return {
+    ...overlayMembers(sheetOpen ? ['spendSheet'] : [], '#hk-spend-btn'),
     _hass: { language: 'en', config: { currency: 'USD' }, states: {} },
     _options: {},
     _spend: spend(),
     _spendOpen: '',
-    _spendSheet: false,
     _lang: () => 'en',
     _navigate: (loc) => navigated.push(loc),
     _render: () => {
@@ -258,7 +259,7 @@ describe('wireSpend', () => {
   });
 
   it('a record opens the task history, or the appliance history', () => {
-    const p = host({ _spendOpen: SPEND_ALL });
+    const p = host({ _spendOpen: SPEND_ALL, sheetOpen: true });
     const links = [...wired(p).querySelectorAll('[data-spend-open]')];
     const ev = new MouseEvent('click', { bubbles: true, cancelable: true });
     links[0].dispatchEvent(ev);
@@ -268,6 +269,9 @@ describe('wireSpend', () => {
       { view: 'tasks', detail: { kind: 'task', id: 't1', tab: 'history' } },
       { view: 'appliances', detail: { kind: 'asset', id: 'heater', tab: 'history' } },
     ]);
+    // The sheet closes, and the keyboard goes with the new page, not to the spend button.
+    expect(p._isOpen('spendSheet')).toBe(false);
+    expect(p.overlayNow().focus).toBeNull();
   });
 
   it('a link with no id goes nowhere', () => {
@@ -281,10 +285,11 @@ describe('wireSpend', () => {
   });
 
   it('the purchases total opens the appliance list, and closes the sheet', () => {
-    const p = host({ _spendSheet: true });
+    const p = host({ sheetOpen: true });
     wired(p).querySelector('[data-spend-purchases]').click();
     expect(p.navigated).toEqual([{ view: 'appliances', detail: null }]);
-    expect(p._spendSheet).toBe(false);
+    expect(p._isOpen('spendSheet')).toBe(false);
+    expect(p.overlayNow().focus).toBeNull();
   });
 });
 
@@ -366,7 +371,7 @@ describe('the strip kinds, the spend button and the sheet (#488)', () => {
 
   it('the button and the sheet are empty with no data or a closed sheet', () => {
     expect(spendButton(host({ _spend: null }))).toBe('');
-    expect(spendSheet(host({ _spendSheet: true, _spend: null }))).toBe('');
+    expect(spendSheet(host({ sheetOpen: true, _spend: null }))).toBe('');
     expect(spendSheet(host())).toBe('');
   });
 
@@ -376,14 +381,14 @@ describe('the strip kinds, the spend button and the sheet (#488)', () => {
   });
 
   it('the button names the sheet in aria-controls only while the sheet is open', () => {
-    const closed = html(spendButton(host({ _spendSheet: false }))).querySelector('.hk-spend-btn');
+    const closed = html(spendButton(host({ sheetOpen: false }))).querySelector('.hk-spend-btn');
     expect(closed.hasAttribute('aria-controls')).toBe(false);
     expect(closed.getAttributeNames().sort()).toEqual(
       ['aria-expanded', 'aria-haspopup', 'aria-label', 'class', 'data-spend-btn', 'id', 'title', 'type'],
     );
     expect(closed.getAttribute('aria-expanded')).toBe('false');
     expect(closed.getAttribute('aria-haspopup')).toBe('dialog');
-    const p = host({ _spendSheet: true });
+    const p = host({ sheetOpen: true });
     const div = html(spendButton(p) + spendSheet(p));
     const open = div.querySelector('.hk-spend-btn');
     expect(open.getAttribute('aria-expanded')).toBe('true');
@@ -392,7 +397,7 @@ describe('the strip kinds, the spend button and the sheet (#488)', () => {
   });
 
   it('the sheet holds the full strip and a named Close', () => {
-    const div = html(spendSheet(host({ _spendSheet: true })));
+    const div = html(spendSheet(host({ sheetOpen: true })));
     const sheet = div.querySelector('.hk-spend-sheet');
     expect(sheet.querySelector('.hk-spend-help')).toBeTruthy();
     expect(sheet.querySelectorAll('.hk-spend-count')).toHaveLength(4);

@@ -5,12 +5,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderLabelDialog, openLabelDialog } from '../src/panel-labels.ts';
 import { LS_LABELS } from '../src/panel-types.ts';
+import { overlayMembers } from './overlay-host.js';
 
 const ASSET = { id: 'a1', name: 'Water heater', manufacturer: 'Rheem', model: 'XE50' };
 const BROWSER_UA = navigator.userAgent;
 
 function host(hass = {}) {
   return {
+    ...overlayMembers(),
     _view: 'appliances',
     _tasks: [],
     _assets: [ASSET],

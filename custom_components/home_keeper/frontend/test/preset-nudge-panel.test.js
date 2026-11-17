@@ -386,7 +386,7 @@ describe('adding from the dialog', () => {
     const dlg = await waitFor(() => dialog(panel));
     companions.push({ id: 'elsewhere', preset_id: 'firmware_update_available' });
     dlg.querySelector('.hk-preset-dialog-add').click();
-    await waitFor(() => !panel._presetDialog.busy && !panel._presetDialog.open);
+    await waitFor(() => !panel._presetDialog.busy && !panel._isOpen('preset'));
     await new Promise((r) => setTimeout(r, 50));
     expect(calls.adds).toEqual([]);
     expect(toasts).toEqual([]);

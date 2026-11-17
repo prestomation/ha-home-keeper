@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { openLabelPicker } from '../src/panel-labels.ts';
+import { overlayMembers } from './overlay-host.js';
 
 const DAY_MS = 86_400_000;
 const at = (offsetDays) => new Date(Date.now() + offsetDays * DAY_MS).toISOString();
@@ -16,6 +17,7 @@ const TASKS = [
 
 function host(over = {}) {
   return {
+    ...overlayMembers(),
     _view: 'tasks',
     _tasks: TASKS,
     _assets: [],

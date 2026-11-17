@@ -236,7 +236,7 @@ describe('the spend button', () => {
     expect(panel.shadowRoot.activeElement?.id).toBe('hk-spend-btn');
     // The listener goes with the sheet.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(panel._spendSheet).toBe(false);
+    expect(panel._isOpen('spendSheet')).toBe(false);
   });
 
   it('closes from the scrim and from Close', async () => {
@@ -268,7 +268,7 @@ describe('the spend button', () => {
     (await waitFor(() => $(panel, '#hk-spend-btn'))).click();
     $(panel, '.hk-spend-sheet [data-spend="w30"]').click();
     $(panel, '.hk-spend-sheet [data-spend-open]').click();
-    expect(panel._spendSheet).toBe(false);
+    expect(panel._isOpen('spendSheet')).toBe(false);
   });
 });
 

@@ -41,29 +41,30 @@ import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 /** Open the completion-details dialog to log a new completion for *task*. */
 export function openCompletionDialog(p: PanelHost, task: Task): void {
   p._completion = {
-    open: true,
     task,
     data: {},
     required:
       task.completion_detail === 'required' ? task.completion_required_fields || ['note'] : [],
   };
+  p._openOverlay('completion');
   p._render();
 }
 
 /** Open the dialog to edit an already-recorded completion's metadata. */
 export function openCompletionEdit(p: PanelHost, task: Task, c: Completion): void {
   p._completion = {
-    open: true,
     task,
     ts: c.ts,
     data: { note: c.note, cost: c.cost, photo: c.photo, who: c.who, reading: c.reading },
     required: [],
   };
+  p._openOverlay('completion');
   p._render();
 }
 
 function closeCompletionDialog(p: PanelHost): void {
-  p._completion = { open: false, task: null, data: {}, required: [] };
+  p._completion = { task: null, data: {}, required: [] };
+  p._closeOverlay('completion');
   p._render();
 }
 
@@ -73,12 +74,14 @@ function closeCompletionDialog(p: PanelHost): void {
  * via `api.moveCompletion`, never `api.updateCompletion`.
  */
 export function openMoveCompletion(p: PanelHost, task: Task, ts: string): void {
-  p._moveCompletion = { open: true, task, ts, newTs: ts, kind: 'completion' };
+  p._moveCompletion = { task, ts, newTs: ts, kind: 'completion' };
+  p._openOverlay('moveCompletion');
   p._render();
 }
 
 function closeMoveCompletion(p: PanelHost): void {
-  p._moveCompletion = { open: false, task: null, ts: '' };
+  p._moveCompletion = { task: null, ts: '' };
+  p._closeOverlay('moveCompletion');
   p._render();
 }
 
@@ -195,18 +198,9 @@ export function openConfirmDialog(
   // Drop any prior scrim (and its keydown listener) before opening a new one, so a
   // second open — or a stale scrim — can't orphan the earlier overlay + handler.
   teardownOverlay(p);
-  p._confirmDelete = { open: true, label, body, onConfirm };
+  p._confirmDelete = { label, body, onConfirm };
+  p._openOverlay('confirm');
   renderConfirmDeleteDialog(p);
-}
-
-/** The element that had the keyboard when a confirmation opened, per panel. */
-const confirmOpeners = new WeakMap<PanelHost, HTMLElement>();
-
-/** The focused element, looking through open shadow roots to the real control. */
-function deepActiveElement(): Element | null {
-  let active: Element | null = document.activeElement;
-  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
-  return active;
 }
 
 /**
@@ -218,22 +212,23 @@ function deepActiveElement(): Element | null {
  */
 export function openBlockedDialog(p: PanelHost, label: string, body: string): void {
   teardownOverlay(p);
-  p._confirmDelete = { open: true, label, body, onConfirm: null };
+  p._confirmDelete = { label, body, onConfirm: null };
+  p._openOverlay('confirm');
   renderConfirmDeleteDialog(p);
 }
 
 function closeConfirmDialog(p: PanelHost): void {
-  p._confirmDelete = { open: false, label: '', body: '', onConfirm: null };
+  p._confirmDelete = { label: '', body: '', onConfirm: null };
+  p._closeOverlay('confirm');
   teardownOverlay(p);
   // Opening the confirmation took the drawer's Escape handler away, so that one
   // Escape could not close both overlays at once. Give it back: without this, a
   // Delete the reader thought better of left the drawer standing with no way out
   // but the mouse, for the rest of that edit.
   p._syncDrawerModality();
-  // Give the keyboard back to the control that opened the dialog (X11-1).
-  const opener = confirmOpeners.get(p);
-  confirmOpeners.delete(p);
-  if (opener?.isConnected) opener.focus();
+  // Give the keyboard back to the control that opened the dialog (X11-1). It is found
+  // again by its selector, because a render can have replaced it.
+  p._flushOverlayFocus();
 }
 
 function renderConfirmDeleteDialog(p: PanelHost): void {
@@ -325,6 +320,8 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
   const buttons = [...row.children] as HTMLElement[];
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
+      // 1 press closes 1 overlay: a handler of an overlay under this one does not run.
+      e.stopImmediatePropagation();
       closeConfirmDialog(p);
       return;
     }
@@ -338,8 +335,6 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
   p._confirmOnKey = onKey;
   document.addEventListener('keydown', onKey);
 
-  const opener = deepActiveElement();
-  if (opener instanceof HTMLElement && opener !== document.body) confirmOpeners.set(p, opener);
   p._confirmScrim = scrim;
   document.body.appendChild(scrim);
   // Cancel (or Close) takes the keyboard: the safe choice for a destructive dialog.
@@ -469,7 +464,7 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   const { dialog, body, footer, mount } = makeDialog(
     editing ? t('completion.edit') : t('completion.title', { name: c.task.name }),
     () => {
-      if (p._completion.open) closeCompletionDialog(p);
+      if (p._isOpen('completion')) closeCompletionDialog(p);
     },
   );
 
@@ -540,7 +535,7 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   if (!customElements.get('ha-picture-upload')) {
     const task = c.task;
     void loadPictureUpload(p._hass).then((ok) => {
-      if (ok && p._completion.open && p._completion.task === task) p._render();
+      if (ok && p._isOpen('completion') && p._completion.task === task) p._render();
     });
   } else {
     const label = document.createElement('div');
@@ -610,7 +605,7 @@ export function renderMoveCompletionDialog(p: PanelHost, host: HTMLElement): voi
   const m = p._moveCompletion;
   if (!m.task) return;
   const { dialog, body, footer, mount } = makeDialog(t('completion.moveDate'), () => {
-    if (p._moveCompletion.open) closeMoveCompletion(p);
+    if (p._isOpen('moveCompletion')) closeMoveCompletion(p);
   });
 
   const schema: FormField[] = [{ name: 'completedAt', required: true, selector: selDateTime() }];
