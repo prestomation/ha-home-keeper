@@ -1173,7 +1173,8 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
  */
 export function isBuyTask(task: Task): boolean {
   const buy: unknown = task.source?.buy;
-  if (!buy || typeof buy !== 'object' || Array.isArray(buy)) return false;
+  // A list is an object too, but it has no `asset_id` key, so `in` answers false for it.
+  if (!buy || typeof buy !== 'object') return false;
   return 'asset_id' in buy && 'part_id' in buy;
 }
 
