@@ -250,7 +250,9 @@ def test_passes_run_one_at_a_time_and_a_burst_folds_into_one_more():
     import asyncio
 
     store = _SlowStore()
-    entry = types.SimpleNamespace(options={"sync_problem_sensors": False}, entry_id="e1")
+    entry = types.SimpleNamespace(
+        options={"sync_problem_sensors": False}, entry_id="e1"
+    )
 
     async def _refresh() -> None:
         return None

@@ -12,12 +12,13 @@ changes which tasks exist, only their armed/dormant state and meter baseline.
 Edge state for the threshold/state modes (was-the-condition-true, when-it-crossed)
 lives in ``hass.data`` per config entry, so a reload keeps it, and a restart takes a
 silent baseline (``async_baseline``) that never replays a spurious arm — mirroring how
-the coordinator keeps and baselines the overdue/due-soon transitions. A binding with a ``for_seconds`` hold also gets a timer.
-The hold ends in its own time, so the watcher books one re-evaluation per task for the
-moment the pure evaluator says the hold is due, and releases every pending timer on
-unload. Without that timer the hold ends nowhere: the only things that re-evaluate the
-task are the next state change of the bound entity — which an entity that has gone
-unavailable never sends — and the coordinator's five-minute tick.
+the coordinator keeps and baselines the overdue/due-soon transitions. A binding with a
+``for_seconds`` hold also gets a timer. The hold ends in its own time, so the watcher
+books one re-evaluation per task for the moment the pure evaluator says the hold is
+due, and releases every pending timer on unload. Without that timer the hold ends
+nowhere: the only things that re-evaluate the task are the next state change of the
+bound entity — which an entity that has gone unavailable never sends — and the
+coordinator's five-minute tick.
 
 Completion normally flows through the user surfaces; the
 one exception is a binding with ``clear_on_recover``, where the watcher completes the
