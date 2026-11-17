@@ -36,7 +36,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 2f297dc27422
+source_hash: 325970b7d3e1
 ---
 
 # Frontend

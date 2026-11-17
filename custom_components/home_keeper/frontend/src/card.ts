@@ -1775,10 +1775,12 @@ export class HomeKeeperCard extends HTMLElement {
     actions.className = 'hk-form-actions';
     const save = document.createElement('ha-button');
     save.id = 'hk-create';
-    save.setAttribute('raised', '');
+    // The 1 primary action of the form. Cancel is tertiary (frontend rules).
+    setBtnWeight(save, 'primary');
     save.textContent = t('btn.create');
     save.addEventListener('click', () => void this._submitForm(save));
     const cancel = document.createElement('ha-button');
+    setBtnWeight(cancel, 'tertiary');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());
     actions.append(save, cancel);
