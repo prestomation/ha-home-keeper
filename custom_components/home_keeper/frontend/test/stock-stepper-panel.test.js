@@ -109,6 +109,21 @@ describe('stock stepper: taps while a save runs', () => {
     expect(ctl.store.parts[0].stock).toBe(4);
   });
 
+  it('says that a save failed when it drops the taps that waited', async () => {
+    const { panel, ctl } = await setup();
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    tap(panel, 1);
+    await waitFor(() => ctl.saves.length === 1);
+    tap(panel, 1);
+    tap(panel, 1);
+    ctl.pending.shift().fail();
+    await settle(STOCK_SETTLE_MS + 100);
+    expect(toasts).toEqual(['nope']);
+    expect(ctl.saves).toEqual([1]);
+    expect(shown(panel)).toBe('2');
+  });
+
   it('puts the stored count back after a failed save', async () => {
     const { panel, ctl } = await setup();
     tap(panel, 1);

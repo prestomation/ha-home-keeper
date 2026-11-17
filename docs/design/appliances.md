@@ -11,7 +11,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
   - custom_components/home_keeper/frontend/src/stock-stepper.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: 972d80f8a7f1
+source_hash: 117e55226ef7
 ---
 
 # Appliances and parts

@@ -7,7 +7,9 @@
  * save runs move `target` again, so they are kept, and the host sends 1 more save for
  * all of them when the first one ends. The backend answers with the count that it
  * stored, which can include a change from another surface. The taps that came during
- * the save stay on top of that answer. A failed save puts `target` back to `stored`.
+ * the save stay on top of that answer. A failed save puts `target` back to `stored`,
+ * and so drops the taps that waited: they were made on a count that the backend did not
+ * store, and the host shows the error, so the user taps again from the stored count.
  *
  * Pure: no Home Assistant code, no DOM and no clock.
  */
