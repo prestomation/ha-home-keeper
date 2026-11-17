@@ -25,6 +25,7 @@ from . import (
     caller,
     declarative_companions,
     events,
+    lifecycle,
     models,
     notifications,
     recurrence,
@@ -65,9 +66,6 @@ from .const import (
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     ORIGIN_SENSOR_RECOVER,
-    REC_FIXED,
-    REC_SENSOR,
-    REC_TRIGGERED,
     SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
@@ -897,22 +895,23 @@ class HomeKeeperStore:
         owner-facing counterpart to ``complete_task`` (which clears it back to
         dormant): an integration calls it when the condition it monitors becomes true
         again (e.g. a battery drops low after a prior replacement), and the sensor-task
-        watcher calls it when a bound reading meets the task's condition. Idempotent —
-        arming an already-active task just refreshes its trigger time. Only valid for
-        ``triggered`` / ``sensor`` tasks; rejects others so callers don't accidentally
-        strand a scheduled task on a fixed due date.
+        watcher calls it when a bound reading meets the task's condition. Idempotent:
+        an armed task keeps its due date (``lifecycle.arm``), so a repeated trigger
+        does not announce the task as overdue again. The triggered event fires for each
+        call. Only valid for ``triggered`` / ``sensor`` tasks; rejects others so callers
+        don't accidentally strand a scheduled task on a fixed due date.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("recurrence_type") not in (REC_TRIGGERED, REC_SENSOR):
+        if not lifecycle.allows(existing, lifecycle.TRIGGER):
             raise models.TaskValidationError(
                 "trigger_task is only valid for triggered or sensor-based tasks"
             )
         _reject_synced_problem(existing, origin)
-        existing["next_due"] = dt_util.now().isoformat()
-        await self._save()
-        _LOGGER.debug("Triggered task %s (armed, due now)", task_id)
+        if lifecycle.arm(existing, now=dt_util.now()):
+            await self._save()
+        _LOGGER.debug("Triggered task %s (due %s)", task_id, existing["next_due"])
         self._fire(EVENT_TASK_TRIGGERED, self._task_event_data(existing))
         return existing
 
@@ -944,7 +943,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("next_due") is None:
+        if not lifecycle.allows(existing, lifecycle.SNOOZE):
             # A dormant task (a completed one-off, or a condition/sensor task not yet
             # armed) has no due date to defer; snoozing it would silently re-arm
             # something that was intentionally off every time surface.
@@ -996,7 +995,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("recurrence_type") != REC_FIXED:
+        if not lifecycle.allows(existing, lifecycle.MOVE_OCCURRENCE):
             raise models.TaskValidationError(
                 "Only a task on a fixed schedule has dates to move. Snooze a task of "
                 "another kind instead."
@@ -1061,7 +1060,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
-        if existing.get("next_due") is None:
+        if not lifecycle.allows(existing, lifecycle.DUE_TODAY):
             # A dormant task (a completed one-off, or a condition/sensor task not yet
             # armed) has no scheduled due date to move; see snooze_task's identical
             # guard, which this mirrors.
@@ -2197,21 +2196,29 @@ class HomeKeeperStore:
 
         Unlike ``delete_asset`` this leaves the device registry entry, its
         entities, and any attached tasks untouched — archiving is reversible via
-        ``restore_asset``.
+        ``restore_asset``. An archived asset keeps its first stamp, with no save and
+        no event.
         """
         asset = self._assets.get(asset_id)
         if asset is None:
             return None
+        if asset.get("archived_at"):
+            return asset
         asset["archived_at"] = dt_util.utcnow().isoformat()
         await self._save()
         self._fire(EVENT_ASSET_ARCHIVED, events.asset_event_data(asset))
         return asset
 
     async def restore_asset(self, asset_id: str) -> dict[str, Any] | None:
-        """Undo ``archive_asset``, returning the asset to the default view."""
+        """Undo ``archive_asset``, returning the asset to the default view.
+
+        An asset that is not archived is returned as it is, with no save and no event.
+        """
         asset = self._assets.get(asset_id)
         if asset is None:
             return None
+        if not asset.get("archived_at"):
+            return asset
         asset["archived_at"] = None
         await self._save()
         self._fire(EVENT_ASSET_RESTORED, events.asset_event_data(asset))

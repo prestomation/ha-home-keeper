@@ -37,6 +37,8 @@ _PURE_MODULES = (
     "const",
     "backend_i18n",
     "recurrence",
+    # The arm and dormant gates of a task. Imports only ``const``.
+    "lifecycle",
     "models",
     "assets",
     "documents",

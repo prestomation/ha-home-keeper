@@ -93,6 +93,9 @@ also_copy = [
 # omitted from coverage).
 only_mutate = [
     "custom_components/home_keeper/recurrence.py",
+    # The arm and dormant gates of a task. Pure, and driven by tests/unit/test_lifecycle.py
+    # and test_task_lifecycle_stateful.py.
+    "custom_components/home_keeper/lifecycle.py",
     "custom_components/home_keeper/models.py",
     "custom_components/home_keeper/assets.py",
     "custom_components/home_keeper/reconcile.py",

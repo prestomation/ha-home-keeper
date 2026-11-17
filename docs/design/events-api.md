@@ -19,7 +19,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 58b8148fbb7b
+source_hash: cf5249f1d3ff
 ---
 
 # Events and API surface
@@ -70,19 +70,19 @@ command, upload or entity action), so the logbook names the user, and keeps it p
 
 ### Edge-triggered transitions
 
-`transitions.detect_transitions` is pure. It takes the previous edge state, the task map and an
-injected `now`, and returns the events plus the next state. The state per task is `{"next_due",
-"due_soon_fired", "overdue_fired"}`. A changed `next_due` clears both flags, but `due_soon_fired`
-stays true if the old date announced and the new one is in the window. No `next_due`, or disabled:
-no crossing fires. `DUE_SOON_WINDOW` is 3 days. A task with `overdue_fired` that is not overdue now
-fires `overdue_resolved` once and clears the flag. A deleted task fires nothing. Its context is
-`store.caller_of`, the change that ended the period. `coordinator._async_update_data` runs the
-detector on each periodic and post-mutation refresh. Until setup calls
-`coordinator.enable_transition_events`, it keeps the detected state as a silent baseline. The edge
-state lives in `hass.data` per config entry, so a reload keeps it. `transitions.auto_crossings`
-drops a due-soon crossing that a snooze or a completion caused, before notifications use the list.
-`assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop to 0 fires
-only `home_keeper_part_out_of_stock`. A part with no `reorder_at` fires only that event.
+`transitions.detect_transitions` is pure. It maps the previous edge state, the task map and an
+injected `now` to the events and the next state. The state per task is `next_due`, `due_soon_fired`,
+`overdue_fired` and `announced`, the last `ANNOUNCED_MEMORY` announced `(kind, next_due)` pairs. A
+changed `next_due` clears both flags. `due_soon_fired` stays true if the old date announced and the
+new one is in the window, or if the new date is in `announced`. No `next_due`, or disabled: no
+crossing fires. `DUE_SOON_WINDOW` is 3 days. A task with `overdue_fired` that is not overdue now
+fires `overdue_resolved` once and clears the flag. Its context is `store.caller_of`, the change that
+ended the period. `coordinator._async_update_data` runs the detector on each refresh. Until setup
+calls `coordinator.enable_transition_events`, it keeps the detected state as a silent baseline. The
+edge state lives in `hass.data` per config entry, so a reload keeps it. `transitions.auto_crossings`
+drops a due-soon crossing that a snooze or a completion caused, and an overdue crossing of a date in
+`announced`. `assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop
+to 0 fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` fires only that event.
 
 ### Triggers
 

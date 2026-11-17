@@ -102,7 +102,7 @@ the latest as backfill: it moves neither `last_completed` nor a floating or fixe
   Only a floating task recomputes `next_due`, and only if the latest entry changed. It
   fires `home_keeper_task_uncompleted` then `home_keeper_task_completed`.
 - **Delete.** `store.delete_completion` calls `recurrence.remove_completion`. A latest entry
-  with a `prior_due` puts it back, a one-off re-arms if its log is empty, and stock and the
+  puts its `prior_due` back, except on an armed triggered or sensor task. Stock and the
   meter baseline return. Event: `home_keeper_task_uncompleted` with the removed `ts`.
 
 `panel-history.ts` wires these 3 row buttons. A sync-owned problem-sensor task refuses all 3.
