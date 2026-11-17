@@ -20,6 +20,9 @@ MODE="${1:---changed}"
 BASE="${MUTATION_BASE_REF:-origin/main}"
 REPORT="reports/mutation/mutation.json"
 
+# Few fast-check runs for each mutant (tests/frontend/fc-profile.js).
+export HK_FC_PROFILE="${HK_FC_PROFILE:-stryker}"
+
 STRYKER_ARGS=()
 
 if [ "$MODE" = "--all" ]; then

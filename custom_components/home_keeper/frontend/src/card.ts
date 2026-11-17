@@ -58,6 +58,7 @@ import {
   uploadStaged,
 } from './photo-staging';
 import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
+import { INITIAL_REFRESH, refreshStep, shouldLoad, type RefreshState } from './refresh-machine';
 import { TaskPhotoUrlCache, coverOf, taskPhotoKey } from './task-photos';
 import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
@@ -518,7 +519,8 @@ export class HomeKeeperCard extends HTMLElement {
   // Set when the last load failed (e.g. integration not set up); rendered as an
   // error instead of an endless spinner. Cleared on the next successful load.
   private _error = false;
-  private _signal = '';
+  // What the shown tasks cover, and whether a load must follow (`refresh-machine.ts`).
+  private _live: RefreshState = INITIAL_REFRESH;
   // Task ids with a completion request in flight, so a double-tap of Done can't
   // record two completions.
   private _completing = new Set<string>();
@@ -612,11 +614,23 @@ export class HomeKeeperCard extends HTMLElement {
     }
     // Refresh when any Home Keeper entity changes (completion, add/edit/delete
     // from any surface) — cheap signal over the relevant states.
-    const sig = this._stateSignal(hass);
-    if (sig !== this._signal) {
-      this._signal = sig;
-      if (this._loaded) void this._refresh();
-    }
+    this._live = refreshStep(this._live, {
+      type: 'signal',
+      sig: this._stateSignal(hass),
+      busy: !this._loaded,
+      now: Date.now(),
+    });
+    this._loadIfPending();
+  }
+
+  /** A pushed event says that the tasks changed. A load that runs now does not cover it. */
+  private _noteChange(): void {
+    this._live = refreshStep(this._live, { type: 'change' });
+    this._loadIfPending();
+  }
+
+  private _loadIfPending(): void {
+    if (shouldLoad(this._live, !this._loaded, Date.now())) void this._refresh();
   }
   get hass(): Hass | undefined {
     return this._hass;
@@ -705,7 +719,7 @@ export class HomeKeeperCard extends HTMLElement {
     this._subscribing = true;
     try {
       const unsub = await conn.subscribeEvents(
-        () => void this._refresh(),
+        () => this._noteChange(),
         'home_keeper_task_completed',
       );
       // If we detached during the await, the subscription would leak on a dead
@@ -751,7 +765,7 @@ export class HomeKeeperCard extends HTMLElement {
             first = false;
             return;
           }
-          if (this._loaded) void this._refresh();
+          this._noteChange();
         },
         { type: 'todo/item/subscribe', entity_id: todoEntityId(this._hass) },
       );
@@ -772,6 +786,8 @@ export class HomeKeeperCard extends HTMLElement {
   private async _refresh(): Promise<void> {
     if (!this._hass || this._refreshing) return;
     this._refreshing = true;
+    this._live = refreshStep(this._live, { type: 'start', sig: this._stateSignal(this._hass) });
+    let ok = false;
     try {
       this._tasks = await api.getTasks(this._hass);
       // The skip/snooze switches. Best-effort and non-fatal: the card is not
@@ -793,7 +809,7 @@ export class HomeKeeperCard extends HTMLElement {
       await this._signDocuments();
       await this._signCovers();
       this._error = false;
-      this._signal = this._stateSignal(this._hass);
+      ok = true;
     } catch (err) {
       // Surface an error rather than spinning forever. We still mark the card
       // "loaded" so the live-refresh path keeps retrying on the next state
@@ -804,8 +820,10 @@ export class HomeKeeperCard extends HTMLElement {
     } finally {
       this._loaded = true;
       this._refreshing = false;
+      this._live = refreshStep(this._live, { type: 'done', ok, now: Date.now(), echoMs: 0 });
     }
     this._renderAfterRefresh();
+    this._loadIfPending();
   }
 
   /**

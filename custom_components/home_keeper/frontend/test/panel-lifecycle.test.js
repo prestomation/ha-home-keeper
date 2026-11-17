@@ -211,25 +211,25 @@ describe('X12-7: the panel loads again after a change on another surface', () =>
     // An unrelated hass push does not load.
     panel.hass = { ...panel.hass };
     expect(loads()).toBe(1);
-    panel._reloadedAt = 0;
+    panel._live = { ...panel._live, echoUntil: 0 };
     push('2026-10-01T10:00:00Z');
     await waitFor(() => loads() === 2);
     expect(loads()).toBe(2);
     // The same fingerprint again does not load again.
     await waitFor(() => !panel._refreshing);
-    panel._reloadedAt = 0;
+    panel._live = { ...panel._live, echoUntil: 0 };
     push('2026-10-01T10:00:00Z');
     expect(loads()).toBe(1 + 1);
   });
 
   it('waits while a form is open, and loads on the first push after it closes', async () => {
     const { panel, push, loads } = await setup();
-    panel._reloadedAt = 0;
+    panel._live = { ...panel._live, echoUntil: 0 };
     panel._openEdit(task);
     push('2026-10-01T11:00:00Z');
     expect(loads()).toBe(1);
     panel._closeForm();
-    panel._reloadedAt = 0;
+    panel._live = { ...panel._live, echoUntil: 0 };
     push('2026-10-01T11:00:00Z');
     await waitFor(() => loads() === 2);
     expect(loads()).toBe(2);
@@ -237,11 +237,11 @@ describe('X12-7: the panel loads again after a change on another surface', () =>
 
   it('takes a change right after its own load as the echo of that load', async () => {
     const { panel, push, loads } = await setup();
-    // `_reloadedAt` is now: the initial load just ended.
+    // The echo window opened when the initial load ended.
     push('2026-10-01T12:00:00Z');
     expect(loads()).toBe(1);
     // The echo is consumed, so it does not load later either.
-    panel._reloadedAt = 0;
+    panel._live = { ...panel._live, echoUntil: 0 };
     push('2026-10-01T12:00:00Z');
     expect(loads()).toBe(1);
   });

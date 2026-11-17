@@ -103,6 +103,7 @@ import {
 } from './panel-tabs';
 import { releaseStaged, uploadStaged } from './photo-staging';
 import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
+import { INITIAL_REFRESH, refreshStep, shouldLoad, type RefreshState } from './refresh-machine';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_MODE,
@@ -457,10 +458,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     else this._liveRefresh(hass);
   }
 
-  // The Home Keeper entity fingerprint the panel last loaded against, and when its
-  // last load ended. See `_liveRefresh`.
-  private _signal = '';
-  private _reloadedAt = 0;
+  // What the data on screen covers, and whether a load must follow. See `_liveRefresh`.
+  private _live: RefreshState = INITIAL_REFRESH;
 
   /**
    * Load the data again when a task changed on another surface (X12-7).
@@ -470,26 +469,33 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * second Done recorded a second completion. The trigger is the fingerprint the card
    * uses (`hkStateSignal`), so it also covers a restart and a reconnect.
    *
-   * It waits while the user is busy: a form, a dialog or a deferral menu is open, or
-   * a load runs. The fingerprint stays unconsumed then, so a later `hass` push tries
-   * again. A change within `LIVE_REFRESH_QUIET_MS` of the panel's own load is the echo
-   * of that load's own action, so it is consumed without a second load.
+   * `refresh-machine.ts` decides. It waits while the user is busy: a form, a dialog or
+   * a deferral menu is open. The change stays pending then, so a later `hass` push
+   * tries again. A change that arrives while a load runs causes 1 more load after it.
+   * A change within `LIVE_REFRESH_QUIET_MS` of the panel's own load is the echo of
+   * that load's own action, so it does not cause a second load.
    */
   private _liveRefresh(hass: Hass): void {
-    if (!this._loaded || !this.isConnected) return;
-    const sig = hkStateSignal(hass.states);
-    if (sig === this._signal) return;
-    if (
-      this._refreshing ||
+    const busy = this._liveBusy();
+    const now = Date.now();
+    this._live = refreshStep(this._live, {
+      type: 'signal',
+      sig: hkStateSignal(hass.states),
+      busy,
+      now,
+    });
+    if (shouldLoad(this._live, busy, now)) void this._refresh();
+  }
+
+  /** True when a live refresh must wait: the panel is not up, or the user is busy. */
+  private _liveBusy(): boolean {
+    return (
+      !this._loaded ||
+      !this.isConnected ||
       this._editingOpen() ||
       this._confirmDelete.open ||
       this._deferMenus.isOpen
-    ) {
-      return;
-    }
-    this._signal = sig;
-    if (Date.now() - this._reloadedAt < LIVE_REFRESH_QUIET_MS) return;
-    void this._refresh();
+    );
   }
   get hass(): Hass | undefined {
     return this._hass;
@@ -1330,6 +1336,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // still waits for a completed reload + render (a blanket early-return would let a
     // caller proceed against an unrendered view).
     if (this._refreshing) return this._refreshing;
+    this._live = refreshStep(this._live, {
+      type: 'start',
+      sig: hkStateSignal(this._hass?.states),
+    });
     this._refreshing = (async () => {
       try {
         const wasLoaded = this._loaded;
@@ -1346,8 +1356,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._render();
       } finally {
         this._refreshing = null;
-        this._signal = hkStateSignal(this._hass?.states);
-        this._reloadedAt = Date.now();
+        // A change that came while this load ran, or before a load that failed, is
+        // still pending. `shouldLoad` starts the next load, or a later push does.
+        const now = Date.now();
+        this._live = refreshStep(this._live, {
+          type: 'done',
+          ok: !this._loadError,
+          now,
+          echoMs: LIVE_REFRESH_QUIET_MS,
+        });
+        if (shouldLoad(this._live, this._liveBusy(), now)) void this._refresh();
       }
     })();
     return this._refreshing;

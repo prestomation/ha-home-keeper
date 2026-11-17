@@ -14,6 +14,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // The run settings of the `fast-check` model tests (`HK_FC_PROFILE`).
+    setupFiles: ['tests/frontend/fc-profile.js'],
     include: [
       'tests/frontend/**/*.test.js',
       'custom_components/home_keeper/frontend/test/**/*.test.js',

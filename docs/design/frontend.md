@@ -4,6 +4,7 @@ summary: The sidebar panel, the dashboard task card, and the text both show in t
 implements:
   - custom_components/home_keeper/frontend/src/panel.ts
   - custom_components/home_keeper/frontend/src/draft-step.ts
+  - custom_components/home_keeper/frontend/src/refresh-machine.ts
   - custom_components/home_keeper/frontend/src/panel-host.ts
   - custom_components/home_keeper/frontend/src/panel-chips.ts
   - custom_components/home_keeper/frontend/src/panel-controls.ts
@@ -35,7 +36,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 2a86a24237f4
+source_hash: e0d4381b804a
 ---
 
 # Frontend
@@ -68,16 +69,15 @@ each admin-only control from a non-admin. Entry files check the registry before 
 
 ### Panel: one element, flat regions
 
-`panel.ts` holds the `HomeKeeperPanel` class: `set hass`, `set route`, `_render`, `_hydrate`,
-the lifecycle callbacks and the form lifecycles. Each other region is a flat `panel-*.ts` module
-of free functions over `PanelHost` (`panel-host.ts`), such as `panel-lists.tasksList`. A region
-that adds listeners exports `wireXxx(p, root)`; `_hydrate` calls these in a fixed order. Add a
-`PanelHost` member only for live panel state.
-`_render` rebuilds the shadow tree from strings, so every user value goes through
-`utils.escapeHTML` first. It records the focused control (`_focusKey`) and restores it after the
-rebuild. The task form has sections (`forms.taskSchemaSections`), and each gets only its own
-fields (`forms.pickFormData`), so it cannot write stale values over another. A changed
-`forms.taskFormSchemaKey` renders the drawer again. `dialogs.makeDialog` builds each dialog.
+`panel.ts` holds the `HomeKeeperPanel` class: `set hass`, `set route`, `_render`, `_hydrate`, the
+lifecycle callbacks and the form lifecycles. Each other region is a flat `panel-*.ts` module of free
+functions over `PanelHost` (`panel-host.ts`), such as `panel-lists.tasksList`. A region that adds
+listeners exports `wireXxx(p, root)`; `_hydrate` calls these in a fixed order. Add a `PanelHost`
+member only for live panel state. `_render` rebuilds the shadow tree from strings, so every user
+value goes through `utils.escapeHTML` first. It records the focused control (`_focusKey`) and
+restores it after the rebuild. The task form has sections (`forms.taskSchemaSections`), and each
+gets only its own fields (`forms.pickFormData`), so it cannot write stale values over another. A
+changed `forms.taskFormSchemaKey` renders the drawer again. `dialogs.makeDialog` builds each dialog.
 Each form numbers its draft (`draft-step.ts`); a late save answer for a replaced draft is ignored.
 
 ### Routes
@@ -94,17 +94,17 @@ group rules. The last mode, chip, group and sort are per browser (`LS_ASSET_MODE
 
 ### Data and refresh
 
-`api.ts` wraps the websocket commands and `types.ts` their shapes. `_refresh` loads all data.
-`_liveRefresh` loads again on a new `utils.hkStateSignal`, but not while a form or a dialog is
-open. `_lookUpDetail` loads again, with a spinner, for an unknown detail id.
-`panel-list-patch.ts` keeps unchanged row elements, so only a task change redraws the list.
+`api.ts` wraps the websocket commands and `types.ts` their shapes. `refresh-machine.refreshStep`
+tells the panel and the card when to load again. A load covers the changes (`utils.hkStateSignal`,
+pushes) seen at its start, so a change during a load or before a failed one loads again. The panel
+waits while a form or dialog is open; a change within 2 s of its own clean load is its echo.
+`_lookUpDetail` loads an unknown detail id. `panel-list-patch.ts` redraws only the changed rows.
 
 ### Task layouts, the list bar and preferences
 
 Tasks draws Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`). Above it,
 `panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add, and a chip
 for each active filter (`list-bar.ts`). A sentinel observer marks a pinned bar `data-stuck`.
-
 A choice about this screen is per browser (`localStorage`, `LS_*` in `panel-types.ts`). A choice
 about the person (task layout, intro dismissed) is per user, in HA frontend user data under a
 `home_keeper_<pref>` key, through `api.getTaskLayout` and peers.
