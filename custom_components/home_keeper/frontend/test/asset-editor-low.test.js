@@ -102,6 +102,28 @@ describe('X12-8: an upload that outlives its draft', () => {
     void second;
   });
 
+  it('does not start a second upload in the same draft while one runs', async () => {
+    const p = host({ id: 'A' });
+    let finishFirst;
+    const first = runUpload(p, 'document', file('a.pdf'), () =>
+      new Promise((resolve) => {
+        finishFirst = resolve;
+      }),
+    );
+    const firstAbort = p._uploadAbort;
+    const firstState = p._assetEdit.upload;
+    const sent = vi.fn(() => Promise.resolve({ id: 'A' }));
+    const second = await runUpload(p, 'part:p1', file('b.pdf'), sent);
+    expect(second).toBeUndefined();
+    expect(sent).not.toHaveBeenCalled();
+    // The first upload keeps its state and can still be cancelled.
+    expect(p._uploadAbort).toBe(firstAbort);
+    expect(p._assetEdit.upload).toBe(firstState);
+    finishFirst({ id: 'A' });
+    expect(await first).toEqual({ id: 'A' });
+    expect(p._uploadAbort).toBeUndefined();
+  });
+
   it('is cancelled when the panel closes or replaces the appliance form', async () => {
     const { panel } = await mountPanel('/appliances', makeHass());
     for (const replace of [
