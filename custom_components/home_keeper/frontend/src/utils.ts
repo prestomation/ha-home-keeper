@@ -1261,6 +1261,8 @@ function cycleStart(replaceTask?: Task): number {
  * it in the viewer's own zone, and the count would change with the viewer.
  */
 function utcInstant(value: string | null | undefined): number {
+  // Stryker disable next-line StringLiteral: equivalent — any fallback text without a
+  // date in it parses to NaN, the same as the empty string.
   const text = value ?? '';
   return new Date(TS_HAS_OFFSET.test(text) ? text : `${text}Z`).getTime();
 }

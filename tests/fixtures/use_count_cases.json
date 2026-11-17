@@ -223,6 +223,22 @@
         }
       },
       "expected": 0
+    },
+    {
+      "name": "a later replacement stamp with no offset still starts the cycle",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T01:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T02:00:00"
+        }
+      },
+      "expected": 0
     }
   ]
 }
