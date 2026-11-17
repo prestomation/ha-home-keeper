@@ -109,8 +109,13 @@ test.describe('Home Keeper — Parts view', { tag: '@responsive' }, () => {
     try {
       await aaa.locator('.hk-stock-inc').click();
       await expect(row(panel, PART.aaa).locator('.hk-stock-input')).toHaveValue('3');
-      const aaaNow = (await activeParts()).find((p) => p.id === PART.aaa);
-      expect(aaaNow?.stock).toBe(3);
+      // The row shows the asked count at once, and the stepper sends the save after a
+      // short wait, so quick taps make 1 save (`stock-stepper.ts`). The store gets 3.
+      await expect
+        .poll(async () => (await activeParts()).find((p) => p.id === PART.aaa)?.stock)
+        .toBe(3);
+      await expect(row(panel, PART.aaa).locator('.hk-stock')).not.toHaveAttribute('data-busy', '');
+      await expect(row(panel, PART.aaa).locator('.hk-stock-input')).toHaveValue('3');
     } finally {
       const now = (await activeParts()).find((p) => p.id === PART.aaa);
       const drift = 2 - Number(now?.stock);
