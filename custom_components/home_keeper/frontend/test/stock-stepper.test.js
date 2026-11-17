@@ -46,6 +46,12 @@ describe('stockStep', () => {
     expect(run(more, SEND)).toBe(more);
   });
 
+  it('is pending while a save runs, also when the taps since are back at the stored count', () => {
+    const s = run(initialStock(2), tap(1), SEND, tap(-1));
+    expect(s).toEqual({ stored: 2, target: 2, sending: 3 });
+    expect(stockPending(s)).toBe(true);
+  });
+
   it('keeps the taps that came during a save, on top of the stored answer', () => {
     const s = run(initialStock(2), tap(1), SEND, tap(1), tap(1), tap(1), ok(3));
     expect(s).toEqual({ stored: 3, target: 6, sending: null });
