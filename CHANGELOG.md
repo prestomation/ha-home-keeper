@@ -10,16 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **One-off undo.** An undo of Done on a one-off task now keeps an earlier skip or snooze.
-  A skipped task stays skipped, and a snoozed task is due again on its snooze date.
-- **Triggered task undo.** An undo of Done on a triggered or sensor task now makes the task
-  due again on its earlier date.
-- **Repeated triggers.** A trigger of a task that is already due now keeps its due date, so
-  each trigger no longer sends a new overdue event and notification.
-- **Undo notifications.** An undo of Done no longer sends the due soon or overdue
-  notification of the old date again, and the due soon event does not fire again.
-- **Repeated appliance archive.** An archive of an archived appliance, or a restore of an
-  appliance that is not archived, now changes nothing and fires no event.
+- **Xiaomi Miio sensor cleaning.** The "Clean the sensors" task now opens when the sensor
+  counter runs out, not 24 hours before. The sensor cycle is 30 hours.
+- **TP-Link cleaning tasks.** The "Clean the sensors" and "Clean the charging contacts"
+  tasks now open when their counters run out, not 6 hours before. Each cycle is 30 hours.
 
 ## [0.37.0b4] - 2026-11-15
 
