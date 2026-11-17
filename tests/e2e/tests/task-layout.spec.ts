@@ -222,7 +222,9 @@ test.describe('Home Keeper panel — task list layouts', () => {
       await page.setViewportSize(size);
       const panel = await openPanelIn(page, 'board');
       await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
-      // Wide columns, so that the seed's few columns scroll on a desktop too. No snap,
+      // Wide columns, so that the seed's few columns scroll on a desktop too. A column
+      // stays narrower than the window: Playwright scrolls a card that it cannot see
+      // whole into view before it presses it, and that move is not the panel's. No snap,
       // so that the test can stop at the end of the board: a phone snaps to the start of
       // a column, and the end is not a snap point. A style on the board element is lost
       // when the panel builds the board again, which is what this test must not hide, so
@@ -230,7 +232,7 @@ test.describe('Home Keeper panel — task list layouts', () => {
       await panel.evaluate((el) => {
         const sheet = new CSSStyleSheet();
         sheet.replaceSync(
-          '.hk-board { grid-auto-columns: 480px !important; scroll-snap-type: none !important; }',
+          '.hk-board { grid-auto-columns: min(480px, 70vw) !important; scroll-snap-type: none !important; }',
         );
         el.shadowRoot!.adoptedStyleSheets = [...el.shadowRoot!.adoptedStyleSheets, sheet];
       });
@@ -246,11 +248,25 @@ test.describe('Home Keeper panel — task list layouts', () => {
         const b = el.shadowRoot?.querySelector('.hk-board') as HTMLElement;
         b.scrollLeft = b.scrollWidth;
       });
-      const before = (await board()).left;
-      expect(before).toBeGreaterThan(100);
-      // Playwright may scroll a card a few pixels into view before it presses it.
-      const SLACK = 40;
+      expect((await board()).left).toBeGreaterThan(100);
+      // The position at the press itself, after any scroll that Playwright makes to
+      // bring the card into view. From there on, only the panel can move the board.
+      await panel.evaluate((el) => {
+        const root = el.shadowRoot!;
+        root.addEventListener(
+          'pointerdown',
+          () => {
+            const b = root.querySelector('.hk-board') as HTMLElement;
+            (el as unknown as { __pressLeft: number }).__pressLeft = b.scrollLeft;
+          },
+          { capture: true, once: true },
+        );
+      });
+      // A browser can round the restored position by a pixel.
+      const SLACK = 2;
       await panel.locator('.hk-board-col:last-child .hk-bcard').first().click();
+      const before = await panel.evaluate((el) => (el as unknown as { __pressLeft: number }).__pressLeft);
+      expect(before, 'the press should come at the end of the board').toBeGreaterThan(100);
       await expect(panel.locator('ha-adaptive-dialog[open]')).toHaveCount(1);
       expect((await board()).left, 'the sheet should not reset the board').toBeGreaterThanOrEqual(
         before - SLACK,
