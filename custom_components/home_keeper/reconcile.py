@@ -256,6 +256,7 @@ def has_link_form(data: Mapping[str, Any]) -> bool:
     return "parts" in data or ("asset_id" in data and "part_id" in data)
 
 
+# parity: buy_task
 def buy_source(task: dict[str, Any]) -> dict[str, Any] | None:
     """Return a buy task's ``{asset_id, part_id}`` provenance, or None.
 
@@ -362,6 +363,7 @@ def cycle_start(replace_task: dict[str, Any]) -> str | None:
     return best
 
 
+# parity: use_count
 def uses_since_replacement(
     use_task: dict[str, Any], replace_task: dict[str, Any]
 ) -> int:

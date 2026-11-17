@@ -1,0 +1,45 @@
+{
+  "_comment": "Shared cases for 'is this part counted'. Python (assets.part_tracks_stock) says true when stock is set; TypeScript (parts-overview.isUncountedPart) says the opposite question, so the TypeScript test negates it. 0 is a count.",
+  "cases": [
+    {
+      "name": "a count",
+      "input": {
+        "stock": 3
+      },
+      "expected": true
+    },
+    {
+      "name": "zero is a count",
+      "input": {
+        "stock": 0
+      },
+      "expected": true
+    },
+    {
+      "name": "a fraction is a count",
+      "input": {
+        "stock": 0.25
+      },
+      "expected": true
+    },
+    {
+      "name": "no stock key",
+      "input": {},
+      "expected": false
+    },
+    {
+      "name": "a null stock",
+      "input": {
+        "stock": null
+      },
+      "expected": false
+    },
+    {
+      "name": "a reorder point alone is not a count",
+      "input": {
+        "reorder_at": 1
+      },
+      "expected": false
+    }
+  ]
+}

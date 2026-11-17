@@ -1,0 +1,139 @@
+{
+  "_comment": "Shared cases for 'is this task a buy reminder'. Python (reconcile.buy_source) returns the buy block when source.buy is a mapping that has both an asset_id key and a part_id key; TypeScript (utils.isBuyTask) answers the same question as a boolean. The keys must be present; their values are not checked. expected is the boolean.",
+  "cases": [
+    {
+      "name": "a buy block with both ids",
+      "input": {
+        "source": {
+          "buy": {
+            "asset_id": "a",
+            "part_id": "p"
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "no source",
+      "input": {},
+      "expected": false
+    },
+    {
+      "name": "a null source",
+      "input": {
+        "source": null
+      },
+      "expected": false
+    },
+    {
+      "name": "a source with no buy block",
+      "input": {
+        "source": {
+          "part": {
+            "asset_id": "a",
+            "part_id": "p"
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a buy block with no part_id",
+      "input": {
+        "source": {
+          "buy": {
+            "asset_id": "a"
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a buy block with no asset_id",
+      "input": {
+        "source": {
+          "buy": {
+            "part_id": "p"
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty buy block",
+      "input": {
+        "source": {
+          "buy": {}
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a null buy block",
+      "input": {
+        "source": {
+          "buy": null
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a buy block that is text",
+      "input": {
+        "source": {
+          "buy": "asset_id part_id"
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "a buy block that is a list",
+      "input": {
+        "source": {
+          "buy": [
+            "asset_id",
+            "part_id"
+          ]
+        }
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty asset_id still names the key",
+      "input": {
+        "source": {
+          "buy": {
+            "asset_id": "",
+            "part_id": "p"
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "a null part_id still names the key",
+      "input": {
+        "source": {
+          "buy": {
+            "asset_id": "a",
+            "part_id": null
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "name": "extra keys do not matter",
+      "input": {
+        "source": {
+          "buy": {
+            "asset_id": "a",
+            "part_id": "p",
+            "x": 1
+          }
+        }
+      },
+      "expected": true
+    }
+  ]
+}

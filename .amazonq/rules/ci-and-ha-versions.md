@@ -9,7 +9,7 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
 
 | Workflow | What it does |
 |---|---|
-| `lint.yml` | ruff, mypy (HA installed), vale, `docs-audit`, `changelog-release-gap` |
+| `lint.yml` | ruff, mypy (HA installed), vale, `docs-audit` (also `python3 ci/parity.py check`), `changelog-release-gap` |
 | `test.yml` | vitest, pytest unit, HACS validation, hassfest |
 | `mutation.yml` | mutmut and Stryker on the changed code, 80% gate |
 | `integration.yml` | Docker integration tests, the noise budget ([testing.md](testing.md#noise-budget)), and the upgrade suite against `stable`. The integration and noise jobs end with the log gate ([testing.md](testing.md#blocking-calls-and-the-log-gate)) |

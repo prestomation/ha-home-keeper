@@ -1,0 +1,88 @@
+{
+  "_comment": "Shared cases for low stock. Python (assets.part_is_low) and TypeScript (parts-overview.isLowPart) say a part is low when it has both a stock and a reorder point and the stock is at or below the reorder point.",
+  "cases": [
+    {
+      "name": "below the reorder point",
+      "input": {
+        "stock": 1,
+        "reorder_at": 2
+      },
+      "expected": true
+    },
+    {
+      "name": "at the reorder point",
+      "input": {
+        "stock": 2,
+        "reorder_at": 2
+      },
+      "expected": true
+    },
+    {
+      "name": "above the reorder point",
+      "input": {
+        "stock": 3,
+        "reorder_at": 2
+      },
+      "expected": false
+    },
+    {
+      "name": "zero stock with a zero reorder point",
+      "input": {
+        "stock": 0,
+        "reorder_at": 0
+      },
+      "expected": true
+    },
+    {
+      "name": "a fraction at the reorder point",
+      "input": {
+        "stock": 0.5,
+        "reorder_at": 0.5
+      },
+      "expected": true
+    },
+    {
+      "name": "a fraction just above",
+      "input": {
+        "stock": 0.501,
+        "reorder_at": 0.5
+      },
+      "expected": false
+    },
+    {
+      "name": "no reorder point",
+      "input": {
+        "stock": 0
+      },
+      "expected": false
+    },
+    {
+      "name": "a null reorder point",
+      "input": {
+        "stock": 0,
+        "reorder_at": null
+      },
+      "expected": false
+    },
+    {
+      "name": "no stock",
+      "input": {
+        "reorder_at": 2
+      },
+      "expected": false
+    },
+    {
+      "name": "a null stock",
+      "input": {
+        "stock": null,
+        "reorder_at": 2
+      },
+      "expected": false
+    },
+    {
+      "name": "an empty part",
+      "input": {},
+      "expected": false
+    }
+  ]
+}

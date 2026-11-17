@@ -182,6 +182,7 @@ def with_status(filt: dict[str, Any], status: str | None) -> dict[str, Any]:
 # ── filtering & queueing ────────────────────────────────────────────────────────
 
 
+# parity: companion_keys
 def companion_keys(task: dict[str, Any]) -> set[str]:
     """The Profile ``companions`` values that name the source of *task*.
 
@@ -215,6 +216,7 @@ def companion_keys(task: dict[str, Any]) -> set[str]:
     return keys
 
 
+# parity: profile_filter
 def matches_filter(
     task: dict[str, Any],
     filt: dict[str, Any],

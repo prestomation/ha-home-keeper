@@ -1,0 +1,129 @@
+{
+  "_comment": "Shared cases for the stored icon rule. Python (notifications.normalize_icon) is the authority; TypeScript (utils.normalizeIcon) keeps the panel from writing a value that the store would only throw away. A value that is not text is never an icon. The ends are stripped of the characters that Python's str.strip removes, which is a different set from what JavaScript's trim removes.",
+  "cases": [
+    {
+      "name": "a plain icon is kept",
+      "input": "mdi:home",
+      "expected": "mdi:home"
+    },
+    {
+      "name": "a name with a hyphen and digits is kept",
+      "input": "mdi:water-pump-2",
+      "expected": "mdi:water-pump-2"
+    },
+    {
+      "name": "case and outer spaces are folded",
+      "input": "  MDI:Home  ",
+      "expected": "mdi:home"
+    },
+    {
+      "name": "a tab and a newline at the ends are stripped",
+      "input": "\tmdi:fan\n",
+      "expected": "mdi:fan"
+    },
+    {
+      "name": "a no-break space at the start is stripped",
+      "input": "\u00a0mdi:home",
+      "expected": "mdi:home"
+    },
+    {
+      "name": "an information separator is whitespace in Python",
+      "input": "\u001cmdi:home\u001f",
+      "expected": "mdi:home"
+    },
+    {
+      "name": "a next-line character is whitespace in Python",
+      "input": "mdi:home\u0085",
+      "expected": "mdi:home"
+    },
+    {
+      "name": "a byte order mark is not whitespace in Python",
+      "input": "\ufeffmdi:home",
+      "expected": ""
+    },
+    {
+      "name": "a prefix with no name is empty",
+      "input": "mdi:",
+      "expected": ""
+    },
+    {
+      "name": "a name with no prefix is empty",
+      "input": "home",
+      "expected": ""
+    },
+    {
+      "name": "another icon set is empty",
+      "input": "hass:home",
+      "expected": ""
+    },
+    {
+      "name": "a space inside the name is empty",
+      "input": "mdi:home outline",
+      "expected": ""
+    },
+    {
+      "name": "a quote inside the name is empty",
+      "input": "mdi:home\"x",
+      "expected": ""
+    },
+    {
+      "name": "a second colon is empty",
+      "input": "mdi:mdi:home",
+      "expected": ""
+    },
+    {
+      "name": "an underscore is empty",
+      "input": "mdi:home_x",
+      "expected": ""
+    },
+    {
+      "name": "a letter outside ASCII is empty",
+      "input": "mdi:k\u00e4se",
+      "expected": ""
+    },
+    {
+      "name": "the Kelvin sign folds to an ASCII k",
+      "input": "mdi:\u212aey",
+      "expected": "mdi:key"
+    },
+    {
+      "name": "an empty string is empty",
+      "input": "",
+      "expected": ""
+    },
+    {
+      "name": "only spaces is empty",
+      "input": "\t\n\u000b\f\r",
+      "expected": ""
+    },
+    {
+      "name": "null is empty",
+      "input": null,
+      "expected": ""
+    },
+    {
+      "name": "a number is empty",
+      "input": 42,
+      "expected": ""
+    },
+    {
+      "name": "a boolean is empty",
+      "input": true,
+      "expected": ""
+    },
+    {
+      "name": "a list that holds an icon is empty",
+      "input": [
+        "mdi:home"
+      ],
+      "expected": ""
+    },
+    {
+      "name": "an object is empty",
+      "input": {
+        "icon": "mdi:home"
+      },
+      "expected": ""
+    }
+  ]
+}

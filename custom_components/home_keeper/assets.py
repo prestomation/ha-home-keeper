@@ -1047,6 +1047,7 @@ def clear_part_file(asset: dict, part_id: str) -> dict | None:
     return None
 
 
+# parity: part_tracks_stock
 def part_tracks_stock(part: dict) -> bool:
     """True when a part carries an on-hand spare count (gets a stock ``number``).
 
@@ -1066,6 +1067,7 @@ def part_has_reorder(part: dict) -> bool:
     return part.get("stock") is not None and part.get("reorder_at") is not None
 
 
+# parity: part_low
 def part_is_low(part: dict) -> bool:
     """True when a stock-tracked part is at or below its reorder threshold."""
     stock = part.get("stock")
@@ -1166,6 +1168,7 @@ def part_restock_quantity(part: dict) -> float:
     return _positive_quantity(part.get("restock_quantity"), 1)
 
 
+# parity: decimal_mark
 @functools.cache
 def decimal_mark(lang: str | None) -> str:
     """The decimal mark for *lang*: ``"."`` in English, ``","`` in German.
@@ -1182,6 +1185,7 @@ def decimal_mark(lang: str | None) -> str:
         return "."
 
 
+# parity: quantity_format
 def format_quantity(value: float, unit: str = "", lang: str | None = None) -> str:
     """A spare quantity as text, with *unit* appended when the part has one.
 

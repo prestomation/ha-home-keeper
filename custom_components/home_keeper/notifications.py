@@ -251,6 +251,7 @@ def split_targets(value: Any) -> tuple[list[str], list[str]]:
     return accepted, rejected
 
 
+# parity: icon
 def normalize_icon(value: Any) -> str:
     """Coerce *value* to a stored ``mdi:<name>`` icon, or to ``""``.
 
@@ -731,6 +732,7 @@ def _overdue_phrase(
     return _tn(lang, "due_in", days, days=days)
 
 
+# parity: snooze_hours
 def snooze_hours_for(
     task: dict[str, Any] | None, notification: dict[str, Any] | None
 ) -> int:

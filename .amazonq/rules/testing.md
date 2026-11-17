@@ -5,8 +5,6 @@ summary: Which test tier covers what, how to write a test that can fail, and the
 
 # Testing rules
 
-Run the tests locally before you push. CI is not the test runner.
-
 ## Tiers and how to run them
 
 | Tier | Where | Run |
@@ -78,6 +76,10 @@ Run the tests locally before you push. CI is not the test runner.
 - **Check that a new test can fail.** Mutate the line and watch it go red. A fake that can
   only produce the passing case reports coverage that the code does not have.
 - A known-broken contract gets `xfail(strict=True)`, never a weaker assertion.
+- **A rule in Python and in TypeScript needs an entry in the
+  [parity registry](../../tests/fixtures/parity.json) and a shared case file.** Python is the
+  authority: on a disagreement, write the failing case, then fix the wrong side. Mark each side
+  `# parity: <id>` or `// parity: <id>`. After a `corpus` rule changes, run `ci/parity-corpus.sh`.
 - **A framework contract needs an integration test.** Device registry, entity registry
   and device automation behavior is invisible to a unit test that mocks the framework.
 - **Cross-version behavior needs an upgrade test.** `tests/upgrade` boots a frozen
@@ -142,8 +144,7 @@ Run the tests locally before you push. CI is not the test runner.
 
 `tests/noise` counts what each action writes: logbook rows, flips to and from
 `unavailable`, `home_keeper_*` events, store writes and entry reloads. It compares the
-counts with `tests/noise/baseline.json`. Issue #467 is why: a restart rename loop and a
-reload on each options change filled the logbook, and no test saw it.
+counts with `tests/noise/baseline.json`.
 
 - `ci/test-noise.sh` runs it on its own Home Assistant, on a temporary copy of the fixture with the
   test-only `hk_noise_probe` integration added. The scenarios share state and run in file order. The
@@ -187,8 +188,7 @@ Home Assistant logs `Detected blocking call` for a file read on the event loop (
 ## Translations
 
 `strings.json` and `frontend/src/locales/en.json` are the sources.
-`tests/unit/test_translations_parity.py` and `frontend/test/i18n.test.js` enforce for
-each locale:
+`tests/unit/test_translations_parity.py` and `frontend/test/i18n.test.js` enforce for each locale:
 
 - the same keys as English, and the same `{token}` placeholders per key;
 - no value identical to English, except the global `INTENTIONALLY_IDENTICAL` list and a

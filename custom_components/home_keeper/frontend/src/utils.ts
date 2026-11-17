@@ -33,15 +33,26 @@ export function escapeHTML(value: unknown): string {
 }
 
 /**
+ * The characters at each end that Python's `str.strip` removes. JavaScript's `trim`
+ * removes a different set: it keeps U+001C to U+001F and U+0085, and it removes U+FEFF.
+ */
+const PY_SPACE =
+  '[\\t\\n\\v\\f\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
+const PY_STRIP = new RegExp(`^${PY_SPACE}+|${PY_SPACE}+$`, 'g');
+
+// parity: icon
+/**
  * Clamp a value to a stored `mdi:<name>` icon, or to `''`. Mirrors
  * `notifications.normalize_icon` in the backend, which is the authority — this copy
  * keeps the panel from writing a value the store would only throw away, and keeps a
  * name with a quote or an angle bracket out of an `ha-icon` attribute.
+ *
+ * A value that is not text is never an icon, as in Python: `String(['mdi:home'])` would
+ * make one. The ends are stripped as Python strips them (`PY_STRIP`).
  */
 export function normalizeIcon(value: unknown): string {
-  const icon = String(value ?? '')
-    .trim()
-    .toLowerCase();
+  if (typeof value !== 'string') return '';
+  const icon = value.replace(PY_STRIP, '').toLowerCase();
   return /^mdi:[a-z0-9-]+$/.test(icon) ? icon : '';
 }
 
@@ -450,6 +461,7 @@ export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
 }
 
+// parity: edge_sensor_modes
 /** The sensor modes that watch a *condition* rather than count a meter — the panel's
  *  twin of `sensor_tasks.holds_edge_state`. Listed rather than derived by excluding
  *  `usage`, so a mode added later does not silently join them.
@@ -524,6 +536,7 @@ export function round1(value: number): number {
 
 const decimalMarks = new Map<string, string>();
 
+// parity: decimal_mark
 /**
  * The decimal mark *lang* writes numbers with: "." in English, "," in German.
  *
@@ -552,6 +565,7 @@ export function decimalMark(lang?: string): string {
   return mark;
 }
 
+// parity: quantity_format
 /**
  * A spare quantity as text, with the part's unit appended when it has one.
  *
@@ -1139,6 +1153,7 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
   return new Date(task.next_due).getTime() <= now.getTime();
 }
 
+// parity: buy_task
 /**
  * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
  *
@@ -1148,13 +1163,8 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
  * browser for the panel and the card, and in Python for a notification — and
  * `tests/fixtures/profile_filter_cases.json` holds them to it.
  *
- * The agreement is on a *missing* id, which is what the fixture pins and what the
- * reconciler can actually produce. On an id present but **empty** the two part
- * company: this asks for truthy, `buy_source` only for the key. Left alone rather
- * than papered over, because nothing can reach it — the reconciler mints real uuids,
- * and `models.build_task` is the only other way in. Worth knowing if that ever stops
- * being true, since the divergence would show as a task one surface excludes and
- * another does not.
+ * As in `buy_source`, the 2 keys must be present in a `buy` mapping, and their values
+ * are not checked. `tests/fixtures/buy_task_cases.json` holds the 2 sides to it.
  *
  * Lives here beside `isOverdue` because the two are read together: a buy reminder is
  * *also* overdue, and every surface that draws a status has to know which of the two
@@ -1162,8 +1172,10 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
  * the pure list-shaping code.
  */
 export function isBuyTask(task: Task): boolean {
-  const buy = task.source?.buy;
-  return Boolean(buy && buy.asset_id && buy.part_id);
+  const buy: unknown = task.source?.buy;
+  // A list is an object too, but it has no `asset_id` key, so `in` answers false for it.
+  if (!buy || typeof buy !== 'object') return false;
+  return 'asset_id' in buy && 'part_id' in buy;
 }
 
 /**
@@ -1238,11 +1250,24 @@ function cycleStart(replaceTask?: Task): number {
     // `?? ''` rather than a falsy guard, so a missing value and an unreadable one take
     // the same road out: `new Date('')` is an Invalid Date, and so is `new Date` of
     // any string that is not a timestamp.
-    .map((value) => new Date(value ?? '').getTime())
+    .map((value) => utcInstant(value))
     .filter((at) => !Number.isNaN(at));
   return stamps.length ? Math.max(...stamps) : Number.NaN;
 }
 
+/**
+ * A stored stamp as an instant, or `NaN` when it does not parse. A stamp with no UTC
+ * offset reads as UTC, as `reconcile._sortable` reads it: `new Date` alone would read
+ * it in the viewer's own zone, and the count would change with the viewer.
+ */
+function utcInstant(value: string | null | undefined): number {
+  // Stryker disable next-line StringLiteral: equivalent — any fallback text without a
+  // date in it parses to NaN, the same as the empty string.
+  const text = value ?? '';
+  return new Date(TS_HAS_OFFSET.test(text) ? text : `${text}Z`).getTime();
+}
+
+// parity: use_count
 /**
  * How many uses a counted wear item has recorded since its cycle started.
  *
@@ -1256,7 +1281,7 @@ export function usesSinceReplacement(useTask: Task, replaceTask?: Task): number 
   const marker = cycleStart(replaceTask);
   if (Number.isNaN(marker)) return completions.length;
   return completions.filter((entry) => {
-    const at = new Date(entry.ts).getTime();
+    const at = utcInstant(entry.ts);
     // An unparseable entry does **not** count once the cycle has a marker, matching
     // the backend: `reconcile._sortable` sorts such a row oldest, so it is never
     // later than the marker and is the first thing the trim drops. It counts only
@@ -2060,6 +2085,7 @@ export function snoozePresetForHours(hours: number): SnoozePresetId | null {
   return SNOOZE_PRESETS.find((p) => snoozePresetHours(p.id) === hours)?.id ?? null;
 }
 
+// parity: snooze_hours
 /**
  * A task's own snooze length in whole hours, or `null` when it has none.
  *
@@ -2143,6 +2169,7 @@ export interface UsageIntervalStats {
 // of it, so the parse filter below rejects it either way.
 const TS_HAS_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
+// parity: usage_intervals
 /**
  * The usage between consecutive completions — "the last oil change ran 15,400 km".
  *

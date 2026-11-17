@@ -11,7 +11,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
   - custom_components/home_keeper/frontend/src/stock-stepper.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: 117e55226ef7
+source_hash: d6fa205bbe53
 ---
 
 # Appliances and parts
@@ -111,11 +111,11 @@ Consumable links (`reconcile.consumable_links`) are outside its scope.
   `next_due` is always `None`, and a dormant `triggered` replacement task. A use completion
   records only a completion (`reconcile.is_use_task` gates the stamp).
 
-`reconcile.uses_since_replacement` counts use completions after `reconcile.cycle_start`,
-the last completion or skip of the replacement task. `reconcile.counted_uses` adds an
-imported `carried_uses` until the first cycle starts. `reconcile.settle_use_tasks` picks
-replacement tasks at the target or past the `replace_also_every` backstop, and
-`store.settle_use_tasks` arms them. `reconcile.trim_use_completions` keeps
+`reconcile.uses_since_replacement` counts use completions after `reconcile.cycle_start`, the last
+completion or skip of the replacement task, as instants (a stamp with no offset is UTC).
+`reconcile.counted_uses` adds an imported `carried_uses` until the first cycle starts.
+`reconcile.settle_use_tasks` picks replacement tasks at the target or past the `replace_also_every`
+backstop, and `store.settle_use_tasks` arms them. `reconcile.trim_use_completions` keeps
 `assets.use_retention_cap` entries and never trims the live count.
 
 ### Appliance report and panel

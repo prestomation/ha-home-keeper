@@ -1,0 +1,276 @@
+{
+  "_comment": "Shared cases for the Profile companion keys of a task. Python (profiles.companion_keys) and TypeScript (card-filter.companionKeys) must give the same keys for each input task. The order of the keys is not part of the rule, so each side sorts its result before it compares. Only a task that Home Keeper owns has its source read, and only a mapping counts as a source block.",
+  "cases": [
+    {
+      "name": "a task with no owner has no key",
+      "input": {
+        "id": "t"
+      },
+      "expected": []
+    },
+    {
+      "name": "an outside companion gives its domain",
+      "input": {
+        "managed_by": {
+          "integration": "battery_notes"
+        }
+      },
+      "expected": [
+        "battery_notes"
+      ]
+    },
+    {
+      "name": "a null managed_by gives no key",
+      "input": {
+        "managed_by": null
+      },
+      "expected": []
+    },
+    {
+      "name": "managed_by with no integration gives no key",
+      "input": {
+        "managed_by": {}
+      },
+      "expected": []
+    },
+    {
+      "name": "an empty integration gives no key",
+      "input": {
+        "managed_by": {
+          "integration": ""
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "a declarative companion task adds its spec key",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": {
+            "spec_id": "filter"
+          }
+        }
+      },
+      "expected": [
+        "home_keeper",
+        "home_keeper:declarative:filter"
+      ]
+    },
+    {
+      "name": "a synced problem sensor adds the problem key",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "problem_sensor": {
+            "entity_id": "binary_sensor.leak"
+          }
+        }
+      },
+      "expected": [
+        "home_keeper",
+        "home_keeper:problem_sensors"
+      ]
+    },
+    {
+      "name": "an empty problem_sensor mapping still counts",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "problem_sensor": {}
+        }
+      },
+      "expected": [
+        "home_keeper",
+        "home_keeper:problem_sensors"
+      ]
+    },
+    {
+      "name": "both source blocks add both keys",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": {
+            "spec_id": "s1"
+          },
+          "problem_sensor": {}
+        }
+      },
+      "expected": [
+        "home_keeper",
+        "home_keeper:declarative:s1",
+        "home_keeper:problem_sensors"
+      ]
+    },
+    {
+      "name": "an outside companion's source is never read",
+      "input": {
+        "managed_by": {
+          "integration": "battery_notes"
+        },
+        "source": {
+          "declarative_companion": {
+            "spec_id": "x"
+          },
+          "problem_sensor": {}
+        }
+      },
+      "expected": [
+        "battery_notes"
+      ]
+    },
+    {
+      "name": "a declarative block with no spec_id adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": {}
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "an empty spec_id adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": {
+            "spec_id": ""
+          }
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a declarative block that is text adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": "filter"
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a declarative block that is a list adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "declarative_companion": [
+            {
+              "spec_id": "x"
+            }
+          ]
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a problem_sensor that is text adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "problem_sensor": "yes"
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a problem_sensor that is a list adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "problem_sensor": []
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a null problem_sensor adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "problem_sensor": null
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a null source adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": null
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a source that is a list adds nothing",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": []
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    },
+    {
+      "name": "a buy source gives only the domain",
+      "input": {
+        "managed_by": {
+          "integration": "home_keeper"
+        },
+        "source": {
+          "buy": {
+            "asset_id": "a",
+            "part_id": "p"
+          }
+        }
+      },
+      "expected": [
+        "home_keeper"
+      ]
+    }
+  ]
+}

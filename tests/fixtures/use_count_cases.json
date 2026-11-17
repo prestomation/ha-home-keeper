@@ -1,0 +1,244 @@
+{
+  "_comment": "Shared cases for the use count of a counted wear item. Python (reconcile.uses_since_replacement) and TypeScript (utils.usesSinceReplacement) count the use task's completions that are later than the start of the cycle: the later of the replacement task's last_completed and its newest skip. Timestamps are compared as instants. A stamp with no UTC offset reads as UTC on both sides. A case may name a tz: the TypeScript test runs it with that zone as the local zone, so a stamp read in local time shows. input.use and input.replace are the 2 tasks; a null replace is a part with no replacement task.",
+  "cases": [
+    {
+      "name": "no cycle start counts every use",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-01-01T00:00:00+00:00"
+            },
+            {
+              "ts": "2026-02-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {}
+      },
+      "expected": 2
+    },
+    {
+      "name": "no replacement task counts every use",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-01-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": null
+      },
+      "expected": 1
+    },
+    {
+      "name": "no completions counts 0",
+      "input": {
+        "use": {},
+        "replace": {
+          "last_completed": "2026-01-01T00:00:00+00:00"
+        }
+      },
+      "expected": 0
+    },
+    {
+      "name": "only uses after the replacement count",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-01-01T00:00:00+00:00"
+            },
+            {
+              "ts": "2026-03-01T00:00:00+00:00"
+            },
+            {
+              "ts": "2026-04-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T00:00:00+00:00"
+        }
+      },
+      "expected": 2
+    },
+    {
+      "name": "a use at the same instant as the replacement does not count",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T00:00:00+00:00"
+        }
+      },
+      "expected": 0
+    },
+    {
+      "name": "a newer skip starts the cycle",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-15T00:00:00+00:00"
+            },
+            {
+              "ts": "2026-03-15T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T00:00:00+00:00",
+          "skips": [
+            {
+              "ts": "2026-03-01T00:00:00+00:00"
+            }
+          ]
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "an older skip does not move the start",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-15T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T00:00:00+00:00",
+          "skips": [
+            {
+              "ts": "2026-01-01T00:00:00+00:00"
+            }
+          ]
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "mixed offsets compare as instants",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T01:30:00+02:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-01-31T23:00:00+00:00"
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "an unreadable use does not count once a cycle started",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "garbage"
+            },
+            {
+              "ts": "2026-03-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T00:00:00+00:00"
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "an unreadable use counts while no cycle started",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "garbage"
+            }
+          ]
+        },
+        "replace": {}
+      },
+      "expected": 1
+    },
+    {
+      "name": "an unreadable last_completed is no start",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-03-01T00:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "garbage"
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "a stamp with no offset reads as UTC",
+      "input": {
+        "tz": "America/Los_Angeles",
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T03:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T02:00:00"
+        }
+      },
+      "expected": 1
+    },
+    {
+      "name": "a use with no offset reads as UTC",
+      "input": {
+        "tz": "America/Los_Angeles",
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T02:00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T03:00:00+00:00"
+        }
+      },
+      "expected": 0
+    },
+    {
+      "name": "a later replacement stamp with no offset still starts the cycle",
+      "input": {
+        "use": {
+          "completions": [
+            {
+              "ts": "2026-02-01T01:00:00+00:00"
+            }
+          ]
+        },
+        "replace": {
+          "last_completed": "2026-02-01T02:00:00"
+        }
+      },
+      "expected": 0
+    }
+  ]
+}

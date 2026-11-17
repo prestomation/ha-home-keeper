@@ -86,6 +86,7 @@ _EDGE_MODES = (
 )
 
 
+# parity: edge_sensor_modes
 def holds_edge_state(mode: Any) -> bool:
     """Whether a binding in *mode* carries rising-edge state between evaluations.
 
@@ -317,6 +318,7 @@ def usage_intervals(task: dict[str, Any]) -> list[float]:
     return [gap for gap in gaps if gap >= 0]
 
 
+# parity: usage_intervals
 def usage_interval_stats(task: dict[str, Any]) -> dict[str, float]:
     """Summary figures over :func:`usage_intervals`, or ``{}`` when there are none.
 

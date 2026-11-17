@@ -1,0 +1,232 @@
+{
+  "_comment": "Shared cases for the usage between completions of a usage meter task. Python (sensor_tasks.usage_interval_stats) and TypeScript (utils.usageIntervalStats) order the completions that carry a numeric reading and a UTC offset by time, take the difference of each pair in a row, and drop a negative one. input is the completions list. expected holds last, average, shortest and longest, or is empty when there is no interval.",
+  "cases": [
+    {
+      "name": "2 readings give 1 interval",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 100
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 250
+        }
+      ],
+      "expected": {
+        "last": 150,
+        "average": 150,
+        "shortest": 150,
+        "longest": 150
+      }
+    },
+    {
+      "name": "1 reading gives nothing",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 100
+        }
+      ],
+      "expected": {}
+    },
+    {
+      "name": "no completions gives nothing",
+      "input": [],
+      "expected": {}
+    },
+    {
+      "name": "entries are ordered by time, not by position",
+      "input": [
+        {
+          "ts": "2026-03-01T00:00:00+00:00",
+          "reading": 300
+        },
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 100
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 150
+        }
+      ],
+      "expected": {
+        "last": 150,
+        "average": 100,
+        "shortest": 50,
+        "longest": 150
+      }
+    },
+    {
+      "name": "a reset drops the negative difference",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 500
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 20
+        },
+        {
+          "ts": "2026-03-01T00:00:00+00:00",
+          "reading": 70
+        }
+      ],
+      "expected": {
+        "last": 50,
+        "average": 50,
+        "shortest": 50,
+        "longest": 50
+      }
+    },
+    {
+      "name": "a zero difference is kept",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 10
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 10
+        }
+      ],
+      "expected": {
+        "last": 0,
+        "average": 0,
+        "shortest": 0,
+        "longest": 0
+      }
+    },
+    {
+      "name": "a reading that is text is dropped",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": "100"
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 150
+        },
+        {
+          "ts": "2026-03-01T00:00:00+00:00",
+          "reading": 175
+        }
+      ],
+      "expected": {
+        "last": 25,
+        "average": 25,
+        "shortest": 25,
+        "longest": 25
+      }
+    },
+    {
+      "name": "a boolean reading is dropped",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": true
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 3
+        },
+        {
+          "ts": "2026-03-01T00:00:00+00:00",
+          "reading": 5
+        }
+      ],
+      "expected": {
+        "last": 2,
+        "average": 2,
+        "shortest": 2,
+        "longest": 2
+      }
+    },
+    {
+      "name": "an entry with no reading is dropped",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00"
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 3
+        }
+      ],
+      "expected": {}
+    },
+    {
+      "name": "a stamp with no offset is dropped",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00",
+          "reading": 1
+        },
+        {
+          "ts": "2026-02-01T00:00:00+00:00",
+          "reading": 3
+        },
+        {
+          "ts": "2026-03-01T00:00:00Z",
+          "reading": 7
+        }
+      ],
+      "expected": {
+        "last": 4,
+        "average": 4,
+        "shortest": 4,
+        "longest": 4
+      }
+    },
+    {
+      "name": "mixed offsets order as instants",
+      "input": [
+        {
+          "ts": "2026-01-01T01:00:00+02:00",
+          "reading": 50
+        },
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 80
+        },
+        {
+          "ts": "2026-01-02T00:00:00+00:00",
+          "reading": 90
+        }
+      ],
+      "expected": {
+        "last": 10,
+        "average": 20,
+        "shortest": 10,
+        "longest": 30
+      }
+    },
+    {
+      "name": "fractions average",
+      "input": [
+        {
+          "ts": "2026-01-01T00:00:00+00:00",
+          "reading": 0
+        },
+        {
+          "ts": "2026-01-02T00:00:00+00:00",
+          "reading": 1
+        },
+        {
+          "ts": "2026-01-03T00:00:00+00:00",
+          "reading": 3
+        }
+      ],
+      "expected": {
+        "last": 2,
+        "average": 1.5,
+        "shortest": 1,
+        "longest": 2
+      }
+    }
+  ]
+}

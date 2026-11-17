@@ -1338,32 +1338,6 @@ def test_format_quantity_never_raises(value, expected):
     assert a.format_quantity(value, "ml") == f"{expected} ml"
 
 
-def test_conformance_fixture_format_quantity():
-    """Run the shared cross-language cases through the Python formatter.
-
-    The same fixture drives the TypeScript ``formatQuantity`` test (see
-    ``frontend/test/utils.test.js``). A quantity is rendered twice — here for the
-    line Home Keeper puts on a household's shopping list, and in the panel for the
-    same part — so the two must agree on every case. If you add one, both sides
-    must still pass it.
-    """
-    import json
-    from pathlib import Path
-
-    fixture = (
-        Path(__file__).resolve().parents[1] / "fixtures" / "quantity_format_cases.json"
-    )
-    cases = json.loads(fixture.read_text())["cases"]
-    assert cases, "the conformance fixture must not be empty"
-    for case in cases:
-        got = a.format_quantity(case["value"], case["unit"], case.get("lang"))
-        assert got == case["expected"], (
-            f"{case['name']}: format_quantity({case['value']!r}, {case['unit']!r}, "
-            f"{case.get('lang')!r}) "
-            f"== {got!r}, expected {case['expected']!r}"
-        )
-
-
 def test_consume_part_stock_draws_the_parts_own_amount():
     # The reported case: a bottle topped up a third at a time must last three
     # completions, not one.
