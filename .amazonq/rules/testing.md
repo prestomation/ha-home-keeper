@@ -65,6 +65,10 @@ Run the tests locally before you push. CI is not the test runner.
   600 fixed examples. `HK_STATEFUL_EXAMPLES` and `HK_STATEFUL_SEARCH=1` give a long search.
 - The mutation gate scores property tests. Each one names the mutant it kills; prove it by mutating
   the line and watching the test go red.
+- **A frontend state machine is a pure step module with a `fast-check` model test**
+  (`fc.commands`), and 1 test on the real element (`fc.asyncModelRun`). The model reads the truth
+  from its fakes, never from the machine's fields. `HK_FC_PROFILE` picks `ci` (default, fixed
+  seed), `long` (random seeds, by hand) or `stryker` (few runs): `tests/frontend/fc-profile.js`.
 
 ## Writing a test that can fail
 
@@ -93,10 +97,9 @@ Run the tests locally before you push. CI is not the test runner.
 
 ## Browser tests
 
-- Auth and onboarding are in `tests/e2e/global-setup.ts`. It also writes
-  `PRESET_NUDGE_SEEN` to `home_keeper_preset_nudge`, so no spec meets the preset dialog.
-  A step that shows the suggestions clears the key and writes it back after
-  (`tests/e2e/user-data.ts`).
+- Auth and onboarding are in `tests/e2e/global-setup.ts`. It also writes `PRESET_NUDGE_SEEN` to
+  `home_keeper_preset_nudge`, so no spec meets the preset dialog. A step that shows the suggestions
+  clears the key and writes it back after (`tests/e2e/user-data.ts`).
 - **A spec owns what it creates.** The container's task store is the committed seed
   fixture. Delete created ids in `afterEach` (`createTask`, `deleteTask` in `helpers.ts`)
   and give fixtures stable names, never a `Date.now()` suffix.
@@ -128,9 +131,8 @@ Run the tests locally before you push. CI is not the test runner.
 - Never name a tab bar in a spec. Use `gotoTab()`, `expectTabActive()` and
   `openSettingsSection()`, because CSS picks which bar shows.
 - A viewport project sets the viewport only, never a device descriptor.
-- A phone folds the task list's filter controls. A spec or a capture that uses a scope
-  pill, Profile, Group by, Layout or Print labels on the Tasks tab calls
-  `openListFilters(panel)` first.
+- A phone folds the task list's filter controls. A spec or a capture that uses a scope pill,
+  Profile, Group by, Layout or Print labels on the Tasks tab calls `openListFilters(panel)` first.
 - A capture config pins the desktop project with `captureConfig()` from
   `tests/e2e/capture-config.ts`. `--list` must show 1 project.
 - Measure layout by relations (A is above B), never by coordinates. Assert that a list is
@@ -143,15 +145,13 @@ Run the tests locally before you push. CI is not the test runner.
 counts with `tests/noise/baseline.json`. Issue #467 is why: a restart rename loop and a
 reload on each options change filled the logbook, and no test saw it.
 
-- `ci/test-noise.sh` runs it on its own Home Assistant, on a temporary copy of the
-  fixture with the test-only `hk_noise_probe` integration added. The scenarios share
-  state and run in file order. The `Noise budget` job in `integration.yml` runs it on
-  each PR.
+- `ci/test-noise.sh` runs it on its own Home Assistant, on a temporary copy of the fixture with the
+  test-only `hk_noise_probe` integration added. The scenarios share state and run in file order. The
+  `Noise budget` job in `integration.yml` runs it on each PR.
 - **A budget is a maximum.** Some counters are `pinned` at 0 (a restart, an idle tick, a
   no-op call). A pinned counter changes only by hand, with a reason in the PR.
-- **Change a budget on purpose.** `HK_NOISE_UPDATE=1 bash ci/test-noise.sh` writes the
-  measured numbers, except pinned counters and known bugs. Commit the diff and say why
-  in the PR body.
+- **Change a budget on purpose.** `HK_NOISE_UPDATE=1 bash ci/test-noise.sh` writes the measured
+  numbers, except pinned counters and known bugs. Commit the diff and say why in the PR body.
 - **A known bug is a `known` entry** with the bug id, a `target` and a `now` per counter.
   It is a strict xfail for each counter, and `now` is exact: only a count equal to `now`
   is an expected failure. Above `now` fails. At or below `target` fails, so the PR that

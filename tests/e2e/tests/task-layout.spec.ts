@@ -222,12 +222,16 @@ test.describe('Home Keeper panel — task list layouts', () => {
       await page.setViewportSize(size);
       const panel = await openPanelIn(page, 'board');
       await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
-      // Wide columns, so that the seed's few columns scroll on a desktop too. A style
-      // on the board element is lost when the panel builds the board again, which is
-      // what this test must not hide, so the rule goes in the shadow root's sheet.
+      // Wide columns, so that the seed's few columns scroll on a desktop too. No snap,
+      // so that the test can stop at the end of the board: a phone snaps to the start of
+      // a column, and the end is not a snap point. A style on the board element is lost
+      // when the panel builds the board again, which is what this test must not hide, so
+      // both rules go in the shadow root's sheet.
       await panel.evaluate((el) => {
         const sheet = new CSSStyleSheet();
-        sheet.replaceSync('.hk-board { grid-auto-columns: 480px !important; }');
+        sheet.replaceSync(
+          '.hk-board { grid-auto-columns: 480px !important; scroll-snap-type: none !important; }',
+        );
         el.shadowRoot!.adoptedStyleSheets = [...el.shadowRoot!.adoptedStyleSheets, sheet];
       });
       const board = (): Promise<{ left: number; max: number }> =>
@@ -240,7 +244,6 @@ test.describe('Home Keeper panel — task list layouts', () => {
       // Scroll to the last column, and press a card in it.
       await panel.evaluate((el) => {
         const b = el.shadowRoot?.querySelector('.hk-board') as HTMLElement;
-        b.style.scrollSnapType = 'none';
         b.scrollLeft = b.scrollWidth;
       });
       const before = (await board()).left;
