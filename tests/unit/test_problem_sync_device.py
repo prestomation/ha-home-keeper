@@ -216,3 +216,62 @@ def test_467_eligible_says_which_name_is_live(monkeypatch):
         "binary_sensor.restored": False,
         "binary_sensor.gone": False,
     }
+
+
+# ── one pass at a time ───────────────────────────────────────────────────────
+class _SlowStore:
+    """A reconcile that suspends in its save, as the real store does."""
+
+    def __init__(self) -> None:
+        self.running = 0
+        self.most = 0
+        self.calls = 0
+
+    async def reconcile_problem_sensor_tasks(self, eligible, *, config_entry_id):
+        import asyncio
+
+        self.calls += 1
+        self.running += 1
+        self.most = max(self.most, self.running)
+        for _ in range(3):
+            await asyncio.sleep(0)
+        self.running -= 1
+        return False
+
+
+def test_passes_run_one_at_a_time_and_a_burst_folds_into_one_more():
+    """A burst of state changes ran 1 full pass each, all at the same time.
+
+    The store reconcile changes task dicts in place, so a pass that ran while
+    another one waited for its save changed the tasks that the first pass then
+    put in its events. Passes now run 1 at a time. The requests that come during
+    a pass give 1 more pass, which reads the newest state.
+    """
+    import asyncio
+
+    store = _SlowStore()
+    entry = types.SimpleNamespace(options={"sync_problem_sensors": False}, entry_id="e1")
+
+    async def _refresh() -> None:
+        return None
+
+    coordinator = types.SimpleNamespace(store=store, async_request_refresh=_refresh)
+
+    async def _run() -> None:
+        tasks: list[asyncio.Task] = []
+        hass = types.SimpleNamespace(
+            async_create_task=lambda coro: tasks.append(asyncio.ensure_future(coro))
+        )
+        sync = problem_sync.ProblemSensorSync(hass, entry, coordinator=coordinator)
+        for _ in range(4):
+            sync._handle_state_change(None)
+        await asyncio.gather(*tasks)
+        assert store.most == 1
+        assert store.calls == 2
+        # An options change during a pass waits for it too.
+        sync._resubscribe_state = lambda: None
+        sync._handle_state_change(None)
+        await asyncio.gather(sync.async_apply_options(), *tasks)
+        assert store.most == 1
+
+    asyncio.run(_run())

@@ -117,18 +117,18 @@ false/no/off/disable; a number is an error. Each error is logged once per task.
 
 ### Problem-sensor sync
 
-`ProblemSensorSync` runs when the `sync_problem_sensors` option is on. It lists each
-enabled problem `binary_sensor` except Home Keeper's own and the exclusions (entity,
-device, area, label). `problem_sync._is_problem` gives `True`, `False` or `None`. The name
-is the trimmed sensor `friendly_name`, but with no live state a mirror keeps its name.
+`ProblemSensorSync` runs when `sync_problem_sensors` is on. It lists each enabled problem
+`binary_sensor` except Home Keeper's own and the exclusions (entity, device, area, label).
+`problem_sync._is_problem` gives `True`, `False` or `None`. The name is the trimmed sensor
+`friendly_name`, but with no live state a mirror keeps its name. Passes run 1 at a time
+(`_pass_lock`); the requests during a pass give 1 more pass.
 
 `problem_tasks.reconcile_problem_tasks` is the pure diff. It returns the new task map,
 ordered ops (`created`, `deleted`, `updated`, `armed`, `cleared`) and a changed flag.
 `None` never arms or clears. `cleared` records a completion with the sync origin.
 `problem_tasks.build_managed_by` locks the name, type, device and area and sets
-`completion_blocked`. `store._reject_synced_problem` refuses complete, skip and trigger
-from users; snooze is allowed. `notes` stays editable and is kept by entity id in
-`problem_notes`, so a mirror made again gets its note back.
+`completion_blocked`. `store._reject_synced_problem` refuses complete, skip and trigger from
+users; snooze is allowed. `notes` is editable and kept by entity id in `problem_notes`.
 `problem_tasks.rename_problem_entity` moves a mirror to a renamed id. A created or deleted
 mirror, or a new name or device, reloads once (also after an options change); else refresh.
 
