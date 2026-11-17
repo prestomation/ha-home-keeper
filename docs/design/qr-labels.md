@@ -6,7 +6,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-labels.ts
   - custom_components/home_keeper/frontend/src/qrcodegen.ts
 related: [frontend, appliances]
-source_hash: 0407b383ec67
+source_hash: 0eed817ad109
 ---
 
 # QR code labels

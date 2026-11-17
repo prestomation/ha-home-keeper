@@ -214,8 +214,8 @@ describe('live refresh model on the real panel', () => {
         m.push();
       }),
     ),
-    fc.constant(cmd('OpenForm', (m) => !m.panel._edit.open, (m) => m.panel._openEdit(task('x')))),
-    fc.constant(cmd('CloseForm', (m) => m.panel._edit.open, (m) => m.panel._closeForm())),
+    fc.constant(cmd('OpenForm', (m) => !m.panel._isOpen('taskForm'), (m) => m.panel._openEdit(task('x')))),
+    fc.constant(cmd('CloseForm', (m) => m.panel._isOpen('taskForm'), (m) => m.panel._closeForm())),
     fc.integer({ min: 0, max: 15_000 }).map((ms) =>
       cmd(`Wait(${ms})`, () => true, (m) => {
         m.advance(ms);
@@ -234,7 +234,7 @@ describe('live refresh model on the real panel', () => {
         try {
           await fc.asyncModelRun(() => ({ model: m, real: {} }), cmds);
           // The user goes idle, all waits end, and each load succeeds.
-          if (m.panel._edit.open) m.panel._closeForm();
+          if (m.panel._isOpen('taskForm')) m.panel._closeForm();
           m.advance(60_000);
           m.push();
           await ticks();

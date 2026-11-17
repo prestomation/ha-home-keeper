@@ -451,7 +451,7 @@ function taskCard(p: PanelHost, task: Task): string {
     : '';
   // While the drawer is editing this task, the row stays lit and undimmed so the
   // thing being edited is visible next to the form editing it.
-  const editing = p._edit.open && !!task.id && p._edit.task?.id === task.id;
+  const editing = p._isOpen('taskForm') && !!task.id && p._edit.task?.id === task.id;
   // The cover thumbnail rides inside the clickable name block, so the row's grid
   // layouts (wide and phone) keep the same tracks (#399).
   const cover = listCoverHtml(p, task);
@@ -533,25 +533,24 @@ function boardCard(p: PanelHost, task: Task): string {
       </button>`;
 }
 
-/** Open the action sheet for *task*. */
-export function openActionSheet(p: PanelHost, task: Task): void {
-  p._actionSheet = { open: true, task };
+/** Open the action sheet for *task*. *opener* is the tile or the card that was
+ *  pressed. A click does not focus a button in every browser, so it is given. */
+export function openActionSheet(p: PanelHost, task: Task, opener?: HTMLElement): void {
+  p._actionSheet = { task };
+  p._openOverlay('actionSheet', opener);
   p._render();
 }
 
-/** Close the action sheet. */
+/**
+ * Close the action sheet. `_render` draws the list again, so the card that opened
+ * the sheet is a new element. The overlay state finds it again by its selector and
+ * gives it the keyboard, so a keyboard user continues from the same task. A sheet
+ * row that opens a dialog hands the card over to that dialog.
+ */
 export function closeActionSheet(p: PanelHost): void {
-  const id = p._actionSheet.task?.id;
-  p._actionSheet = { open: false, task: null };
+  p._actionSheet = { task: null };
+  p._closeOverlay('actionSheet');
   p._render();
-  // `_render` draws the list again, so the card that opened the sheet is a new
-  // element and focus went back to the page. Put it on the card again, so a
-  // keyboard user continues from the same task.
-  if (id) {
-    p.shadowRoot
-      ?.querySelector<HTMLElement>(`.hk-press[data-id="${CSS.escape(id)}"]`)
-      ?.focus();
-  }
 }
 
 /** The icon and the label each sheet row carries. */
@@ -583,7 +582,7 @@ export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
   const { dialog, body, footer, mount } = makeDialog(
     task.name,
     () => {
-      if (p._actionSheet.open) closeActionSheet(p);
+      if (p._isOpen('actionSheet')) closeActionSheet(p);
     },
     tag,
   );
@@ -703,7 +702,7 @@ export function wirePressCards(p: PanelHost, root: ParentNode): void {
         return;
       }
       const task = taskOf();
-      if (task) openActionSheet(p, task);
+      if (task) openActionSheet(p, task, card);
     };
     card.addEventListener('click', activate);
     card.addEventListener('keydown', (e) => {

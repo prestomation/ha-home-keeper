@@ -59,12 +59,21 @@ import {
 } from './photo-staging';
 import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
 import { INITIAL_REFRESH, refreshStep, shouldLoad, type RefreshState } from './refresh-machine';
+import {
+  NO_OVERLAY,
+  isBusy,
+  isOpen,
+  overlayStep,
+  type OverlayKind,
+  type OverlayState,
+} from './overlay-state';
 import { TaskPhotoUrlCache, coverOf, taskPhotoKey } from './task-photos';
 import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
   assetForTask,
+  buildPath,
   deviceName,
   dueLabel,
   escapeHTML,
@@ -409,7 +418,6 @@ const STYLES = `
 `;
 
 interface EditState {
-  open: boolean;
   task: Partial<Task> | null;
   error?: string;
   /** Photos picked in the form. They upload after Create (#399). */
@@ -456,6 +464,18 @@ function isInCardPicker(el: HTMLElement): boolean {
   return root instanceof ShadowRoot && root.host.localName === 'hui-card-picker';
 }
 
+/**
+ * A selector that finds *el* again after the card renders: its id, or its first
+ * `hk-` class with the `data-id` of its task. Null when neither fits.
+ */
+function cardKeyFor(el: HTMLElement | null): string | null {
+  if (!el) return null;
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  const cls = Array.from(el.classList).find((c) => c.startsWith('hk-'));
+  const id = el.getAttribute('data-id');
+  return cls && id !== null ? `.${CSS.escape(cls)}[data-id="${CSS.escape(id)}"]` : null;
+}
+
 export class HomeKeeperCard extends HTMLElement {
   /** Home Assistant sets this on a card that it draws as a preview, for example in
    *  the card picker. A preview shows only a few rows, so a home with many tasks
@@ -496,7 +516,33 @@ export class HomeKeeperCard extends HTMLElement {
     rerender: () => this._render(),
     refresh: () => this._refresh(),
     notify: (message) => toast(this, message),
+    shown: (s) =>
+      (s === this._snooze && this._isOpen('snooze')) || (s === this._skip && this._isOpen('skip')),
   };
+
+  /** The open form and dialogs, and where the keyboard goes when one closes
+   *  (`overlay-state.ts`, the same rules as the panel). */
+  private _overlay: OverlayState = NO_OVERLAY;
+
+  private _isOpen(kind: OverlayKind): boolean {
+    return isOpen(this._overlay, kind);
+  }
+
+  /** The 1 busy rule: the create form or a dialog is open. */
+  private _busy(): boolean {
+    return isBusy(this._overlay);
+  }
+
+  /** Mark *kind* open. The control that has the keyboard now is its opener. */
+  private _openOverlay(kind: OverlayKind): void {
+    const el = (this.shadowRoot?.activeElement as HTMLElement | null) ?? null;
+    this._overlay = overlayStep(this._overlay, { type: 'open', kind, opener: cardKeyFor(el) });
+  }
+
+  /** Mark *kind* closed. The next render gives the keyboard back to its opener. */
+  private _closeOverlay(kind: OverlayKind): void {
+    this._overlay = overlayStep(this._overlay, { type: 'close', kind });
+  }
 
   private _config: HomeKeeperCardConfig = { type: '' };
   private _tasks: Task[] = [];
@@ -524,12 +570,12 @@ export class HomeKeeperCard extends HTMLElement {
   // Task ids with a completion request in flight, so a double-tap of Done can't
   // record two completions.
   private _completing = new Set<string>();
-  private _edit: EditState = { open: false, task: null };
+  private _edit: EditState = { task: null };
   // Which draft a save answer belongs to (see `draft-step.ts`).
   private _draft: DraftState = INITIAL_DRAFT;
   // The note quick-view dialog: read-only, so it carries only which task it is
   // showing, unlike `_edit` (which also carries the form's draft).
-  private _noteView: { open: boolean; task: Task | null } = { open: false, task: null };
+  private _noteView: { task: Task | null } = { task: null };
   // The keys of the closed groups. `_seeded` holds the keys already decided from the
   // collapse options (#435): each group is decided once, so a refresh never closes a
   // group the user is reading and a toggle by the user always wins.
@@ -869,10 +915,6 @@ export class HomeKeeperCard extends HTMLElement {
     return !!this._config.profile && !this._profile();
   }
 
-  /** Whether the create form or a dialog is open on the card. */
-  private _overlayOpen(): boolean {
-    return this._edit.open || this._snooze.open || this._skip.open || this._noteView.open;
-  }
 
   /**
    * Show the result of a refresh (X11-3).
@@ -888,8 +930,8 @@ export class HomeKeeperCard extends HTMLElement {
    */
   private _renderAfterRefresh(): void {
     const noteGone =
-      this._noteView.open && !this._tasks.some((x) => x.id === this._noteView.task?.id);
-    if (this._overlayOpen() && !noteGone && this._patchBody()) return;
+      this._isOpen('note') && !this._tasks.some((x) => x.id === this._noteView.task?.id);
+    if (this._busy() && !noteGone && this._patchBody()) return;
     this._render();
   }
 
@@ -976,7 +1018,7 @@ export class HomeKeeperCard extends HTMLElement {
     }
     if (task.completion_detail === 'required') {
       toast(this, t('done.needsDetails'));
-      navigateTo(`/home-keeper/tasks/${encodeURIComponent(task.id)}`);
+      navigateTo(`/home-keeper${buildPath({ view: 'tasks', detail: { kind: 'task', id: task.id } })}`);
       return;
     }
     const prompt = task.managed_by?.completion_prompt;
@@ -1018,16 +1060,17 @@ export class HomeKeeperCard extends HTMLElement {
 
   private _openCreate(): void {
     this._edit = {
-      open: true,
       task: { recurrence_type: 'floating', interval: 1, unit: 'months' },
     };
     this._draft = draftStep(this._draft, { type: 'replace' });
+    this._openOverlay('taskForm');
     this._render();
   }
   private _closeForm(): void {
     releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
-    this._edit = { open: false, task: null };
+    this._edit = { task: null };
     this._draft = draftStep(this._draft, { type: 'replace' });
+    this._closeOverlay('taskForm');
     this._render();
   }
 
@@ -1037,11 +1080,13 @@ export class HomeKeeperCard extends HTMLElement {
    * panel-only, so this dialog offers no form, only Close.
    */
   private _openNote(task: Task): void {
-    this._noteView = { open: true, task };
+    this._noteView = { task };
+    this._openOverlay('note');
     this._render();
   }
   private _closeNote(): void {
-    this._noteView = { open: false, task: null };
+    this._noteView = { task: null };
+    this._closeOverlay('note');
     this._render();
   }
 
@@ -1105,7 +1150,9 @@ export class HomeKeeperCard extends HTMLElement {
   private _ensureMarkdown(): void {
     if (markdownReady()) return;
     void ensureMarkdown(2000).then((ok) => {
-      if (ok) this._render();
+      // Never while the form or a dialog is open: the render would take the field
+      // that has the keyboard away. The next render upgrades the notes.
+      if (ok && !this._busy()) this._render();
     });
   }
 
@@ -1137,6 +1184,12 @@ export class HomeKeeperCard extends HTMLElement {
         <div class="hk-body">${body}</div>
       </ha-card>`;
     this._hydrate();
+    // An overlay that closed gives the keyboard back to the control that opened it.
+    const back = this._overlay.focus;
+    if (back !== null) {
+      this._overlay = overlayStep(this._overlay, { type: 'focused' });
+      this.shadowRoot.querySelector<HTMLElement>(back)?.focus();
+    }
   }
 
   /** Collapse the card when `hide_when_empty` applies (see getCardSize). */
@@ -1458,7 +1511,7 @@ export class HomeKeeperCard extends HTMLElement {
       return `<ha-assist-chip label="${label}"></ha-assist-chip>`;
     }
     const href = asset
-      ? `/home-keeper/appliances/${encodeURIComponent(asset.id)}`
+      ? `/home-keeper${buildPath({ view: 'appliances', detail: { kind: 'asset', id: asset.id } })}`
       : `/config/devices/device/${encodeURIComponent(task.device_id)}`;
     const tip = escapeHTML(asset ? t('chip.device.appliance.tip') : t('chip.device.tip'));
     return `<ha-assist-chip class="hk-device-chip hk-link-chip" role="link" tabindex="0" data-href="${escapeHTML(
@@ -1483,24 +1536,26 @@ export class HomeKeeperCard extends HTMLElement {
     }
 
     const host = root.getElementById('hk-form-host');
-    if (host && this._edit.open) this._renderForm(host);
+    if (host && this._isOpen('taskForm')) this._renderForm(host);
 
     const body = root.querySelector<HTMLElement>('.hk-body');
     if (body) this._hydrateList(body);
 
-    if (host && this._snooze.open) {
+    if (host && this._isOpen('snooze')) {
       renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
         this._snooze = emptySnoozeState();
+        this._closeOverlay('snooze');
         this._render();
       });
     }
-    if (host && this._skip.open) {
+    if (host && this._isOpen('skip')) {
       renderSkipDialog(this._deferHost, this._skip, host, () => {
         this._skip = emptySkipState();
+        this._closeOverlay('skip');
         this._render();
       });
     }
-    if (host && this._noteView.open) this._renderNoteDialog(host);
+    if (host && this._isOpen('note')) this._renderNoteDialog(host);
   }
 
   /**
@@ -1583,10 +1638,12 @@ export class HomeKeeperCard extends HTMLElement {
     };
     wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
       this._snooze = snoozeStateFor(task, undefined, setDueTime(this._options));
+      this._openOverlay('snooze');
       this._render();
     });
     wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {
-      this._skip = { ...emptySkipState(), open: true, task };
+      this._skip = { ...emptySkipState(), task };
+      this._openOverlay('skip');
       this._render();
     });
     wireAction(
@@ -1652,11 +1709,13 @@ export class HomeKeeperCard extends HTMLElement {
       // Clear the state rather than call `_closeNote`: this runs inside `_hydrate`,
       // and that would re-render the card part way through hydrating it. This pass
       // already draws no dialog, so there is nothing to undo.
-      this._noteView = { open: false, task: null };
+      this._noteView = { task: null };
+      this._overlay = overlayStep(this._overlay, { type: 'close', kind: 'note' });
+      this._overlay = overlayStep(this._overlay, { type: 'focused' });
       return;
     }
     const { dialog, body, footer, mount } = makeDialog(t('note.viewTitle', { name: task.name }), () => {
-      if (this._noteView.open) this._closeNote();
+      if (this._isOpen('note')) this._closeNote();
     });
     body.classList.add('hk-note-body');
     body.innerHTML = markdownBlock(task.notes);

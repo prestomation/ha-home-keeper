@@ -31,13 +31,13 @@ function setup(state) {
     },
     refresh: async () => {},
     notify: () => {},
+    shown: (s) => s === state,
   };
   host.rerender();
   return { root, calls };
 }
 
 const fixedState = () => ({
-  open: true,
   preset: '1d',
   task: { id: 't1', recurrence_type: 'fixed', next_due: DUE },
 });
@@ -70,7 +70,7 @@ describe('the snooze dialog of a fixed task', () => {
   });
 
   it('shows no date list for a floating task', () => {
-    const state = { open: true, preset: '1d', task: { id: 't2', recurrence_type: 'floating' } };
+    const state = { preset: '1d', task: { id: 't2', recurrence_type: 'floating' } };
     const { root, calls } = setup(state);
     expect(rows(root)).toHaveLength(0);
     expect(calls).toHaveLength(0);

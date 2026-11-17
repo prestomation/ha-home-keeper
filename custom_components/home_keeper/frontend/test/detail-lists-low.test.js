@@ -73,7 +73,7 @@ describe('F07-1: skip rows on the appliance History tab', () => {
       expect(b.path, `${cls} should have an icon`).toBeTruthy();
     }
     q(panel, '.hk-hist-skip-edit').click();
-    expect(panel._skip.open).toBe(true);
+    expect(panel._isOpen('skip')).toBe(true);
     expect(panel._skip.ts).toBe('2026-09-01T10:00:00+00:00');
   });
 });

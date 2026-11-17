@@ -181,7 +181,6 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
 export interface SnoozeState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
-  open: boolean;
   task: Task | null;
   preset: SnoozePresetId;
   customAt?: string;
@@ -203,7 +202,6 @@ export interface SnoozeState {
 export interface SkipState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
-  open: boolean;
   task: Task | null;
   ts?: string;
   data: { note?: string; who?: string; reading?: number };
@@ -211,12 +209,11 @@ export interface SkipState {
 }
 
 export const emptySnoozeState = (): SnoozeState => ({
-  open: false,
   task: null,
   preset: DEFAULT_SNOOZE_PRESET,
 });
 
-export const emptySkipState = (): SkipState => ({ open: false, task: null, data: {} });
+export const emptySkipState = (): SkipState => ({ task: null, data: {} });
 
 /**
  * The snooze dialog's opening state for *task*.
@@ -235,14 +232,13 @@ export function snoozeStateFor(
   const dueTime = task.recurrence_type === 'floating' ? setDueTime : null;
   const snap = dueTime ? { dueTime } : {};
   const hours = taskSnoozeHours(task);
-  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET, ...snap };
+  if (hours == null) return { task, preset: DEFAULT_SNOOZE_PRESET, ...snap };
   const preset = snoozePresetForHours(hours);
-  if (preset) return { open: true, task, preset, ...snap };
+  if (preset) return { task, preset, ...snap };
   const at = new Date(snoozeFrom(task, now).getTime() + hours * 3_600_000);
   const customAt = isoToHaDateTime(at.toISOString());
   // With a set due time the custom choice is a date only.
   return {
-    open: true,
     task,
     preset: 'custom',
     customAt: dueTime ? customAt?.slice(0, 10) : customAt,

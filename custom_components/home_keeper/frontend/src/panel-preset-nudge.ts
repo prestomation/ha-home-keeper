@@ -72,7 +72,7 @@ function savePresetNudge(p: PanelHost): void {
 export function presetNudgeCard(p: PanelHost): string {
   // Hidden while the dialog is open, and while its add runs after an early close.
   // A view-only user does not get it: the preset add is admin-only.
-  if (p._readOnly() || !p._presetNudge || p._presetDialog.open || p._presetDialog.busy) return '';
+  if (p._readOnly() || !p._presetNudge || p._isOpen('preset') || p._presetDialog.busy) return '';
   const presets = cardPresets(usable(p), p._presetNudge);
   if (!presets.length) return '';
   const rows = presets
@@ -149,7 +149,7 @@ export function wirePresetNudge(p: PanelHost, root: ParentNode): void {
  */
 export function maybeOpenPresetDialog(p: PanelHost): void {
   const state = p._presetNudge;
-  if (p._presetDialog.open || p._presetDialog.busy || !state) return;
+  if (p._isOpen('preset') || p._presetDialog.busy || !state) return;
   if (p._view !== 'tasks' || p._detail) return;
   // The first-run intro speaks first. The dialog waits for the next visit after it,
   // and the card waits for the dialog.
@@ -162,7 +162,10 @@ export function maybeOpenPresetDialog(p: PanelHost): void {
   );
   if (!owned.length && !newPresets(found, state).length) return;
   const ids = dialogPresets(found, state).map((x) => x.id);
-  if (ids.length) p._presetDialog = { open: true, ids, selected: [...ids], busy: false };
+  if (ids.length) {
+    p._presetDialog = { ids, selected: [...ids], busy: false };
+    p._openOverlay('preset');
+  }
   // Marked when offered, so a reload does not offer them again. A preset too big for
   // the dialog is offered by the card alone.
   p._presetNudge = markShown(state, [...owned, ...found.map((x) => x.id)]);
@@ -170,7 +173,8 @@ export function maybeOpenPresetDialog(p: PanelHost): void {
 }
 
 function closePresetDialog(p: PanelHost): void {
-  p._presetDialog = { open: false, ids: [], selected: [], busy: false };
+  p._presetDialog = { ids: [], selected: [], busy: false };
+  p._closeOverlay('preset');
   p._render();
 }
 
@@ -181,10 +185,10 @@ export function renderPresetDialog(p: PanelHost, host: HTMLElement): void {
     .map((id) => p._declarativePresets?.find((x) => x.id === id))
     .filter((x): x is DeclarativeCompanionPreset => Boolean(x));
   const { dialog, body, footer, mount } = makeDialog(t('tasks.presets.dialogTitle'), () => {
-    if (!p._presetDialog.open) return;
+    if (!p._isOpen('preset')) return;
     // Closed while an add runs: the add goes on and reports with its toast.
     if (p._presetDialog.busy) {
-      p._presetDialog.open = false;
+      p._closeOverlay('preset');
       p._render();
       return;
     }
@@ -326,7 +330,8 @@ export async function addSelectedPresets(p: PanelHost): Promise<void> {
       results.push({ ok: false, error: errorMessage(err), timedOut: err instanceof PresetCallTimeout });
     }
   }
-  p._presetDialog = { open: false, ids: [], selected: [], busy: false };
+  p._presetDialog = { ids: [], selected: [], busy: false };
+  p._closeOverlay('preset');
   await p._refresh();
   const outcome = addOutcome(results);
   if (!outcome.total) return;

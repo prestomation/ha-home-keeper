@@ -46,11 +46,13 @@ export function deferMenu(
 
 export function openSnooze(p: PanelHost, task: Task): void {
   p._snooze = snoozeStateFor(task, undefined, setDueTime(p._options));
+  p._openOverlay('snooze');
   p._render();
 }
 
 export function closeSnooze(p: PanelHost): void {
   p._snooze = emptySnoozeState();
+  p._closeOverlay('snooze');
   p._render();
 }
 
@@ -59,16 +61,17 @@ export function closeSnooze(p: PanelHost): void {
 export function openSkip(p: PanelHost, task: Task, ts?: string): void {
   const entry = ts ? (task.skips ?? []).find((x) => x.ts === ts) : undefined;
   p._skip = {
-    open: true,
     task,
     ts,
     data: entry ? { note: entry.note, who: entry.who, reading: entry.reading } : {},
   };
+  p._openOverlay('skip');
   p._render();
 }
 
 export function closeSkip(p: PanelHost): void {
   p._skip = emptySkipState();
+  p._closeOverlay('skip');
   p._render();
 }
 
@@ -92,7 +95,8 @@ export async function setDueToday(p: PanelHost, task: Task): Promise<void> {
 
 /** Re-date a logged skip. Same dialog as a completion's — see the state's `kind`. */
 export function openMoveSkip(p: PanelHost, task: Task, ts: string): void {
-  p._moveCompletion = { open: true, task, ts, newTs: ts, kind: 'skip' };
+  p._moveCompletion = { task, ts, newTs: ts, kind: 'skip' };
+  p._openOverlay('moveCompletion');
   p._render();
 }
 
@@ -137,6 +141,8 @@ function dialogHost(p: PanelHost): DeferDialogHost {
     rerender: () => p._render(),
     refresh: () => p._refresh(),
     notify: (message) => toast(p, message),
+    shown: (s) =>
+      (s === p._snooze && p._isOpen('snooze')) || (s === p._skip && p._isOpen('skip')),
   };
 }
 

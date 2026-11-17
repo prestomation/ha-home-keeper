@@ -32,8 +32,9 @@ integration. Wear parts generate maintenance tasks, and the part counts the spar
 
 ## Non-goals
 
-- Linking task entities to a device (`coordinator-entities`), file storage (`documents-photos`),
-  backup (`transfer`), completions (`completions`), events (`events-api`).
+- Linking task entities to a device (`coordinator-entities`), file storage
+  (`documents-photos`), backup (`transfer`), completions (`completions`), events
+  (`events-api`).
 
 ## Design
 
@@ -124,8 +125,7 @@ replacement tasks at the target or past the `replace_also_every` backstop, and
 headers and escapes formula-like cells. The `export_appliance_report` service is admin-only.
 
 `panel-asset-form.ts` renders the drawer and hides locked fields. The editors in
-`panel-asset-editors.ts` change `_assetEdit.asset` in place for the save to read.
-`stock-stepper.ts` merges the taps of a stock stepper into 1 save at a time.
+`panel-asset-editors.ts` change `_assetEdit.asset` in place. `stock-stepper.ts` merges stock taps.
 
 ## Trade-offs
 

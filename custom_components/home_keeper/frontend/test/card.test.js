@@ -194,7 +194,8 @@ describe('HomeKeeperCard completion guard', () => {
       },
     };
     await waitFor(() => sr(card)?.querySelector('.hk-done'));
-    card._edit = { open: true, task: { name: 'Clean gutters', recurrence_type: 'floating' } };
+    card._edit = { task: { name: 'Clean gutters', recurrence_type: 'floating' } };
+    card._openOverlay('taskForm');
     card._render();
     const create = sr(card).querySelector('.hk-form-actions ha-button');
     create.click();
@@ -203,8 +204,8 @@ describe('HomeKeeperCard completion guard', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(addCalls, 'only one add should be sent').toBe(1);
     resolveAdd?.();
-    await waitFor(() => !card._edit.open);
-    expect(card._edit.open).toBe(false);
+    await waitFor(() => !card._isOpen('taskForm'));
+    expect(card._isOpen('taskForm')).toBe(false);
   });
 });
 

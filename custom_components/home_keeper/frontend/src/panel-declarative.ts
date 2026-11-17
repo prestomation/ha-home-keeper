@@ -451,7 +451,8 @@ async function openPresetPicker(p: PanelHost): Promise<void> {
     }
   }
   await ensureIntegrations(p);
-  p._declDialog = { open: true, kind: 'picker', draft: null };
+  p._declDialog = { kind: 'picker', draft: null };
+  p._openOverlay('declarative');
   p._render();
 }
 
@@ -467,7 +468,8 @@ export async function openDeclarativeForm(
   const draft = seed
     ? (JSON.parse(JSON.stringify(seed)) as DeclarativeCompanion)
     : emptyDeclarativeCompanion();
-  p._declDialog = { open: true, kind: 'form', draft };
+  p._declDialog = { kind: 'form', draft };
+  p._openOverlay('declarative');
   p._render();
 }
 
@@ -476,7 +478,8 @@ export function seededFrom(preset: DeclarativeCompanionPreset): DeclarativeCompa
 }
 
 function closeDeclarativeDialog(p: PanelHost): void {
-  p._declDialog = { open: false, kind: 'picker', draft: null };
+  p._declDialog = { kind: 'picker', draft: null };
+  p._closeOverlay('declarative');
   p._render();
 }
 
@@ -491,7 +494,8 @@ async function saveDeclarative(p: PanelHost, draft: DeclarativeCompanion): Promi
       void _drop;
       await api.addDeclarativeCompanion(p._hass, body);
     }
-    p._declDialog = { open: false, kind: 'picker', draft: null };
+    p._declDialog = { kind: 'picker', draft: null };
+    p._closeOverlay('declarative');
     await p._refresh();
   } catch (err) {
     p._declDialog.error = errorMessage(err);
@@ -504,7 +508,7 @@ async function saveDeclarative(p: PanelHost, draft: DeclarativeCompanion): Promi
 /** Build whichever declarative dialog is open into *host*; a no-op when none is. */
 export function renderDeclarativeDialog(p: PanelHost, host: HTMLElement): void {
   const d = p._declDialog;
-  if (!d.open) return;
+  if (!p._isOpen('declarative')) return;
   if (d.kind === 'picker') renderPresetPicker(p, host);
   else if (d.draft) renderDeclarativeForm(p, host, d.draft);
 }
@@ -513,7 +517,7 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
   const { dialog, body, footer, mount } = makeDialog(
     t('declarative.companions.preset_picker_title'),
     () => {
-      if (p._declDialog.open && p._declDialog.kind === 'picker') closeDeclarativeDialog(p);
+      if (p._isOpen('declarative') && p._declDialog.kind === 'picker') closeDeclarativeDialog(p);
     },
   );
   dialog.classList.add('hk-decl-picker');
@@ -655,7 +659,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       ? t('declarative.companions.edit_title', { name: draft.name })
       : t('declarative.companions.add_title'),
     () => {
-      if (p._declDialog.open && p._declDialog.kind === 'form') closeDeclarativeDialog(p);
+      if (p._isOpen('declarative') && p._declDialog.kind === 'form') closeDeclarativeDialog(p);
     },
   );
   dialog.classList.add('hk-decl-dialog');

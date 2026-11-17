@@ -16,6 +16,8 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   closing a detail or deleting an object replaces.
 - Keep `parseRoute` and `buildPath` pure in `utils.ts`. An unknown path falls back to the
   task list. A detail URL for a deleted object shows the gone notice.
+- **Build every panel link with `buildPath`**, also in the card. It encodes each segment, so an
+  id with any text, `..` or `parts` comes back from the URL the same.
 - **A companion tab owns the URLs below `/home-keeper/<id>`.** A first segment with the
   shape of a tab id waits for the tab list, then falls back to the task list. A move inside
   the open tab only sets the element's `route`, with no redraw. A tab moves only through
@@ -90,6 +92,10 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - `_render()` restores focus through `_focusKey()` and `_restoreFocus()`. Give every
   control a stable `data-*` attribute.
 - Focus an HA element through `_focus()`, never `el.focus()`.
+- **Open and close a dialog, form, sheet or menu through `_openOverlay` and `_closeOverlay`**
+  (`overlay-state.ts`). Never add an `open` flag. `_busy()` is the 1 busy rule. Pass the opener
+  when a click opens it, because a click does not focus a button in every browser. A document
+  Escape handler acts only for the top overlay (`_onTop`).
 - State shown by color has a text equivalent.
 - Do not declare a widget role that you have not implemented. Navigation between URLs is
   buttons with `aria-current="page"`.

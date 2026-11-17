@@ -105,6 +105,15 @@ import { releaseStaged, uploadStaged } from './photo-staging';
 import { INITIAL_DRAFT, draftStep, type DraftState } from './draft-step';
 import { INITIAL_REFRESH, refreshStep, shouldLoad, type RefreshState } from './refresh-machine';
 import {
+  NO_OVERLAY,
+  isBusy,
+  isOpen,
+  overlayStep,
+  topOverlay,
+  type OverlayKind,
+  type OverlayState,
+} from './overlay-state';
+import {
   LS_ASSET_FILTER,
   LS_ASSET_MODE,
   LS_ASSET_VIEW,
@@ -190,6 +199,16 @@ import {
 const LIVE_REFRESH_QUIET_MS = 2000;
 
 /**
+ * The URL that each history entry of this page load shows now, by the entry's
+ * `hkKey`. A replace changes the URL of an entry, and an entry above it keeps the
+ * old URL in `hkBelow`. This map has the URL after the replace. It is empty after a
+ * page load, and then `hkBelow` is the only record.
+ */
+const ENTRY_URLS = new Map<string, string>();
+let entrySeq = 0;
+const ENTRY_PAGE = Math.random().toString(36).slice(2, 8);
+
+/**
  * The Home Keeper panel is built entirely from Home Assistant's own web
  * components (the HA design language): `ha-form` for every form (which also
  * lazy-loads its selector widgets — text, number, select, date/time, and the
@@ -227,19 +246,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _tasks: Task[] = [];
   _assets: Asset[] = [];
   _completion: CompletionDialogState = {
-    open: false,
     task: null,
     data: {},
     required: [],
   };
   _moveCompletion: MoveCompletionDialogState = {
-    open: false,
     task: null,
     ts: '',
   };
   _snooze: SnoozeState = emptySnoozeState();
   _skip: SkipState = emptySkipState();
-  _actionSheet: ActionSheetState = { open: false, task: null };
+  _actionSheet: ActionSheetState = { task: null };
   // The open deferral menu and the document handlers dismissing it. One at a time:
   // opening a second closes the first, so this never holds a stale pair.
   private readonly _deferMenus = new DeferMenus({
@@ -248,14 +265,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onSkip: (task) => openSkip(this, task),
     onDueToday: (task) => void setDueToday(this, task),
     onDetails: (task) => openCompletionDialog(this, task),
+    onOpen: (caret) => this._openOverlay('deferMenu', caret),
+    onClose: (keyboard) => this._closeOverlay('deferMenu', keyboard),
   });
   _confirmDelete: {
-    open: boolean;
     label: string;
     body: string;
     onConfirm: (() => void) | null;
   } = {
-    open: false,
     label: '',
     body: '',
     onConfirm: null,
@@ -270,7 +287,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // config entry ids that are currently loaded, for managed-task orphan detection.
   // Null until known, or when the lookup failed: then no task reads as orphaned.
   _loadedEntryIds: Set<string> | null = null;
-  _edit: EditState = { open: false, task: null };
+  _edit: EditState = { task: null };
   // One in-flight guard per task id for the quick Done button (X12-3).
   _completing: Record<string, WriteGuard> = {};
   // On `PanelHost`, so `panel-history.collapsibleSection` can remember which advanced
@@ -278,7 +295,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // mutated **in place** by the appliance editors (each field handler merges into the
   // same object) and read back by `_submitAssetForm` — so a region must not replace the
   // object or hold a copy of it, or the save writes stale values.
-  _assetEdit: AssetEditState = { open: false, asset: null };
+  _assetEdit: AssetEditState = { asset: null };
   // Which draft a save answer belongs to (see `draft-step.ts`). One per form.
   private _taskDraft: DraftState = INITIAL_DRAFT;
   private _assetDraft: DraftState = INITIAL_DRAFT;
@@ -311,11 +328,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // it loads, and then nothing is suggested), the one-time dialog, and the queue that
   // keeps the writes in order.
   _presetNudge: PresetNudgeState | null = null;
-  _presetDialog: PresetDialogState = { open: false, ids: [], selected: [], busy: false };
+  _presetDialog: PresetDialogState = { ids: [], selected: [], busy: false };
   _labelDialog: LabelDialogState = emptyLabelDialog();
   _presetNudgeSaving: Promise<void> = Promise.resolve();
   _installedIntegrations: string[] | null = null;
-  _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
+  _declDialog: DeclarativeDialogState = { kind: 'picker', draft: null };
   _transfer: TransferState = {
     text: '',
     report: null,
@@ -389,9 +406,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // The spend totals and the total whose records are open (see `panel-spend.ts`).
   _spend: SpendSummary | null = null;
   _spendOpen = '';
-  // The spend sheet of a phone (#488): open or closed, and its document-level Escape
-  // handler while it is open (see `_syncSpendSheet`).
-  _spendSheet = false;
+  // The document-level Escape handler of the spend sheet (#488) while it is open
+  // (see `_syncSpendSheet`). The `spendSheet` overlay says if it is open.
   private _spendOnKey: ((e: KeyboardEvent) => void) | null = null;
   // The task list bar (#488). The fold of the filter controls is per browser
   // (`LS_CONTROLS`). Whether the bar is pinned comes from an observer on the sentinel
@@ -499,13 +515,71 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** True when a live refresh must wait: the panel is not up, or the user is busy. */
   private _liveBusy(): boolean {
-    return (
-      !this._loaded ||
-      !this.isConnected ||
-      this._editingOpen() ||
-      this._confirmDelete.open ||
-      this._deferMenus.isOpen
-    );
+    return !this._loaded || !this.isConnected || this._busy();
+  }
+
+  // ── overlays ────────────────────────────────────────────────────────────────
+  /** The open dialogs, forms, sheets and menus, and where the keyboard goes when one
+   *  closes. `overlay-state.ts` holds the rules. */
+  _overlay: OverlayState = NO_OVERLAY;
+
+  /** Whether the overlay *kind* is open. */
+  _isOpen(kind: OverlayKind): boolean {
+    return isOpen(this._overlay, kind);
+  }
+
+  /** Whether *kind* is the overlay on top, which takes Escape and the keyboard. */
+  _onTop(kind: OverlayKind): boolean {
+    return topOverlay(this._overlay) === kind;
+  }
+
+  /**
+   * The 1 busy rule: an overlay is open. A render then would destroy what the user is
+   * working on, so a live load, a late Markdown upgrade and the preset suggestion wait.
+   */
+  _busy(): boolean {
+    return isBusy(this._overlay);
+  }
+
+  /** Mark *kind* open. *opener*, or else the control that has the keyboard now, is
+   *  its opener. */
+  _openOverlay(kind: OverlayKind, opener?: HTMLElement): void {
+    const active = opener ?? (this.shadowRoot?.activeElement as HTMLElement | null) ?? null;
+    this._overlay = overlayStep(this._overlay, {
+      type: 'open',
+      kind,
+      opener: this._openerKeyFor(active),
+    });
+  }
+
+  /**
+   * Mark *kind* closed. The next render gives the keyboard back to its opener. A
+   * close with no render calls `_flushOverlayFocus`. With *keyboard* false, the
+   * keyboard stays where it is: the user moved it, for example with a click outside.
+   * When the last overlay closes, a change that waited loads now.
+   */
+  _closeOverlay(kind: OverlayKind, keyboard = true): void {
+    if (!this._isOpen(kind)) return;
+    this._overlay = overlayStep(this._overlay, { type: 'close', kind });
+    if (!keyboard) this._overlay = overlayStep(this._overlay, { type: 'focused' });
+    if (!this._busy()) this._loadIfDue();
+  }
+
+  /** The selector that the last close asks the keyboard to go to, taken once. */
+  private _takeOverlayFocus(): string | null {
+    const key = this._overlay.focus;
+    if (key !== null) this._overlay = overlayStep(this._overlay, { type: 'focused' });
+    return key;
+  }
+
+  /** Give the keyboard to the opener of the overlay that closed, with no render. */
+  _flushOverlayFocus(): void {
+    this._restoreFocus(this._takeOverlayFocus());
+  }
+
+  /** Start a live load if a change waits and nothing is in the way. */
+  private _loadIfDue(): void {
+    if (shouldLoad(this._live, this._liveBusy(), Date.now())) void this._refresh();
   }
   get hass(): Hass | undefined {
     return this._hass;
@@ -568,8 +642,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._view === 'settings' &&
       !loc.detail &&
       !this._detail &&
-      !this._edit.open &&
-      !this._assetEdit.open &&
+      !this._isOpen('taskForm') &&
+      !this._isOpen('assetForm') &&
       !this._noteEdit &&
       !this._pendingEdit &&
       !this._pendingAssetEdit;
@@ -590,7 +664,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // its result cannot land in a different draft (X12-8).
     this._abortUpload();
     this._setAssetEdit({ open: false, asset: null });
-    this._noteEdit = null;
+    this._setNoteEdit(null);
+    // The spend sheet belongs to the task list.
+    this._closeOverlay('spendSheet', false);
     // ...unless this navigation was initiated to open a form (edit from a detail
     // page): re-open it now that the location has settled.
     if (this._pendingEdit) {
@@ -640,8 +716,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // The preset add is admin-only, so a view-only user does not get the dialog.
     if (this._readOnly()) return;
     if (!this._loaded || this._loadError) return;
-    if (this._editingOpen()) return;
-    if (this._confirmDelete.open) return;
+    if (this._busy()) return;
     maybeOpenPresetDialog(this);
   }
 
@@ -759,8 +834,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private _mountDrawerForm(root: ShadowRoot): void {
     const host = root.getElementById('hk-form-host');
     if (!host) return;
-    if (this._view === 'tasks' && this._edit.open) renderTaskForm(this, host);
-    else if (this._view === 'appliances' && this._assetEdit.open) renderAssetForm(this, host);
+    if (this._view === 'tasks' && this._isOpen('taskForm')) renderTaskForm(this, host);
+    else if (this._view === 'appliances' && this._isOpen('assetForm')) renderAssetForm(this, host);
     // Bring the row being edited on screen. Editing beside the list rather than on
     // top of it only buys anything if the row is visible — open the twentieth task
     // and the highlighted row is below the fold, which is a modal with a hole in it.
@@ -804,10 +879,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return typeof depth === 'number' && depth > 0 ? depth : 0;
   }
 
-  /** The URL of the entry below the current one, if the panel pushed the current one. */
+  /**
+   * The URL of the entry below the current one, if the panel pushed the current one.
+   * A replace on the entry below, after a Back, changes it. Then the URL from that
+   * replace counts, not the URL that the push wrote.
+   */
   private _hkBelow(): string | undefined {
-    const below = (history.state as { hkBelow?: unknown } | null)?.hkBelow;
-    return this._hkDepth() > 0 && typeof below === 'string' ? below : undefined;
+    const st = history.state as { hkBelow?: unknown; hkBelowKey?: unknown } | null;
+    if (this._hkDepth() === 0) return undefined;
+    const now = typeof st?.hkBelowKey === 'string' ? ENTRY_URLS.get(st.hkBelowKey) : undefined;
+    if (now !== undefined) return now;
+    return typeof st?.hkBelow === 'string' ? st.hkBelow : undefined;
+  }
+
+  /** The `hkKey` of the current entry. An entry that has none gets one now. */
+  private _entryKey(): string {
+    const st = (history.state ?? {}) as Record<string, unknown>;
+    if (typeof st.hkKey === 'string') return st.hkKey;
+    const key = `${ENTRY_PAGE}-${++entrySeq}`;
+    history.replaceState({ ...st, hkKey: key }, '');
+    ENTRY_URLS.set(key, location.pathname);
+    return key;
   }
 
   /** The full panel URL for a location, for a link a reader can open in a new tab. */
@@ -817,10 +909,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
+    const here = this._entryKey();
+    const st = history.state as { hkBelowKey?: unknown } | null;
     const state = replace
-      ? { hkDepth: this._hkDepth(), hkBelow: this._hkBelow() }
-      : { hkDepth: this._hkDepth() + 1, hkBelow: location.pathname };
+      ? {
+          hkDepth: this._hkDepth(),
+          hkBelow: this._hkBelow(),
+          hkKey: here,
+          hkBelowKey: st?.hkBelowKey,
+        }
+      : {
+          hkDepth: this._hkDepth() + 1,
+          hkBelow: location.pathname,
+          hkKey: `${ENTRY_PAGE}-${++entrySeq}`,
+          hkBelowKey: here,
+        };
     history[replace ? 'replaceState' : 'pushState'](state, '', url);
+    ENTRY_URLS.set(state.hkKey, url);
     this.dispatchEvent(
       new CustomEvent('location-changed', {
         detail: { replace },
@@ -1118,16 +1223,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Open the spend sheet over the task list. `_syncSpendSheet` moves focus into it. */
   _openSpendSheet(): void {
-    this._spendSheet = true;
+    // A click does not focus a button in every browser, so the opener is named.
+    const button = this.shadowRoot?.querySelector<HTMLElement>('#hk-spend-btn');
+    this._openOverlay('spendSheet', button ?? undefined);
     this._render();
   }
 
-  /** Close the spend sheet and give the keyboard back to the spend button. */
+  /** Close the spend sheet. The render gives the keyboard back to the spend button. */
   _closeSpendSheet(): void {
-    if (!this._spendSheet) return;
-    this._spendSheet = false;
+    if (!this._isOpen('spendSheet')) return;
+    this._closeOverlay('spendSheet');
     this._render();
-    this._focus(this.shadowRoot?.querySelector<HTMLElement>('#hk-spend-btn') ?? null);
   }
 
   // ── detail page lifecycle ───────────────────────────────────────────────────
@@ -1478,16 +1584,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * preview URLs of its picked photos are always released, also when a navigation
    * or a new form replaces it instead of Cancel.
    */
-  private _setEdit(next: EditState): void {
+  private _setEdit({ open, ...next }: EditState & { open: boolean }): void {
     releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = next;
     this._taskDraft = draftStep(this._taskDraft, { type: 'replace' });
+    if (open) this._openOverlay('taskForm');
+    else this._closeOverlay('taskForm');
   }
 
   /** Replace the appliance form's draft. An answer for the old draft is then stale. */
-  private _setAssetEdit(next: AssetEditState): void {
+  private _setAssetEdit({ open, ...next }: AssetEditState & { open: boolean }): void {
     this._assetEdit = next;
     this._assetDraft = draftStep(this._assetDraft, { type: 'replace' });
+    if (open) this._openOverlay('assetForm');
+    else this._closeOverlay('assetForm');
+  }
+
+  /** Open the inline note editor on *target*, or close it with null. */
+  private _setNoteEdit(target: NoteTarget | null): void {
+    this._noteEdit = target;
+    if (target) this._openOverlay('note');
+    else this._closeOverlay('note');
   }
 
   async _submitForm(button?: Element | null): Promise<void> {
@@ -1579,13 +1696,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Open the inline notes editor on *target* (closing any other one). */
   private _openNoteEditor(target: NoteTarget): void {
-    this._noteEdit = target;
+    this._setNoteEdit(target);
     this._render();
   }
 
   /** Close the inline notes editor, discarding whatever was typed. */
   private _closeNoteEditor(): void {
-    this._noteEdit = null;
+    this._setNoteEdit(null);
     this._render();
   }
 
@@ -1606,7 +1723,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       } else {
         await api.updateAsset(this._hass, target.id, { notes });
       }
-      this._noteEdit = null;
+      this._setNoteEdit(null);
       await this._refresh();
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -1948,16 +2065,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     };
     const state: AssetEditState = reveal
       ? {
-          open: true,
           asset: seeded,
           openPart,
           revealPart: reveal.part === 'new' ? 'focus' : 'scroll',
           openSections: { parts: true },
         }
-      : { open: true, asset: seeded };
+      : { asset: seeded };
     if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
       this._abortUpload();
-      this._setAssetEdit(state);
+      this._setAssetEdit({ ...state, open: true });
       this._render();
     } else {
       this._pendingAssetEdit = state;
@@ -2292,42 +2408,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // Nothing is lost by waiting: each live preview re-checks `markdownReady()` when
       // it paints, so the open form upgrades on the next keystroke, and the panel-wide
       // upgrade lands on the next render.
-      if (this._editingOpen()) return;
+      if (this._busy()) return;
       this._render();
     });
   }
 
-  /**
-   * Whether the user is editing something that a re-render would destroy — a form or a
-   * dialog with fields in it. Background refreshes that only improve the rendering
-   * (never the data the user is looking at) stand down while this is true.
-   */
-  private _editingOpen(): boolean {
-    return Boolean(
-      this._edit.open ||
-        this._assetEdit.open ||
-        this._noteEdit ||
-        this._completion.open ||
-        this._moveCompletion.open ||
-        this._presetDialog.open ||
-        // The label dialog has a number field and a checklist (see _labelDialog).
-        this._labelDialog.open ||
-        // The skip note and the declarative dialog have text fields too. A render
-        // while one is open drops focus to `<body>` mid-word (F10-4).
-        this._snooze.open ||
-        this._skip.open ||
-        this._declDialog.open,
-    );
-  }
-
-  /** Whether the side drawer holds a form right now. Narrower than `_editingOpen`:
+  /** Whether the side drawer holds a form right now. Narrower than `_busy`:
    *  the note editor and the completion dialogs are their own surfaces, and neither
    *  belongs in — or should dim the list behind — the drawer. Mirrors the condition
    *  `_hydrate` uses to decide which form to mount into the drawer host. */
   private _drawerOpen(): boolean {
     return (
-      (this._view === 'tasks' && this._edit.open) ||
-      (this._view === 'appliances' && this._assetEdit.open)
+      (this._view === 'tasks' && this._isOpen('taskForm')) ||
+      (this._view === 'appliances' && this._isOpen('assetForm'))
     );
   }
 
@@ -2337,8 +2430,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *  the draft *inside* it — `mergeAsset` replaces `_assetEdit.asset` on every
    *  keystroke, which is why the draft is not the key). */
   private get _drawerSubject(): object | null {
-    if (this._view === 'tasks' && this._edit.open) return this._edit;
-    if (this._view === 'appliances' && this._assetEdit.open) return this._assetEdit;
+    if (this._view === 'tasks' && this._isOpen('taskForm')) return this._edit;
+    if (this._view === 'appliances' && this._isOpen('assetForm')) return this._assetEdit;
     return null;
   }
   // The session the last render drew the drawer for, so the next one can tell "the
@@ -2464,6 +2557,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const drawerOpen = this._drawerOpen();
     // The spend sheet sits outside `.hk-wrap`, so the page under it can go inert.
     const sheet = this._loaded && onTasks && !this._detail ? spendSheet(this) : '';
+    // A sheet with no spend to show is not on screen, so it does not keep the panel busy.
+    if (!sheet) this._closeOverlay('spendSheet', false);
     const html = `
       <style>${STYLES}</style>
       <div class="hk-toolbar">
@@ -2493,20 +2588,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // dialog stands over it, and none did at the last render. Then only the list and the
     // counts on the scope pills need to change, and the rest of the page stays as it is.
     // That page holds the list, and a list that moves to a new page is laid out again.
-    const overlay =
-      drawerOpen ||
-      sheet !== '' ||
-      [
-        this._completion,
-        this._moveCompletion,
-        this._snooze,
-        this._skip,
-        this._actionSheet,
-        this._declDialog,
-        this._presetDialog,
-        this._labelDialog,
-        this._confirmDelete,
-      ].some((d) => d.open);
+    const overlay = this._busy();
     const shellKey = shellMarkup(html);
     if (
       listModel &&
@@ -2517,6 +2599,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._applyQuery(listModel)
     ) {
       void this._signFiles();
+      this._flushOverlayFocus();
       return;
     }
     this._renderedShell = shellKey;
@@ -2558,7 +2641,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (board) board.scrollLeft = boardScroll;
     }
     this._renderedDrawerSubject = drawerSubject;
-    this._restoreFocus(focused);
+    // An overlay that closed gives the keyboard back to its opener. Else the keyboard
+    // goes back to the control that had it before the render.
+    this._restoreFocus(this._takeOverlayFocus() ?? focused);
     this._syncDrawerModality();
     this._syncSpendSheet();
     this._observeBar();
@@ -2606,8 +2691,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     for (const el of root.querySelectorAll('.hk-wrap, .hk-bottombar')) el.setAttribute('inert', '');
     if (!this._spendOnKey) {
       this._spendOnKey = (e: KeyboardEvent): void => {
-        if (e.key !== 'Escape' || !this._spendSheet) return;
+        // Only the overlay on top takes Escape, so 1 press closes 1 overlay.
+        if (e.key !== 'Escape' || !this._onTop('spendSheet')) return;
         e.stopPropagation();
+        e.stopImmediatePropagation();
         this._closeSpendSheet();
       };
       document.addEventListener('keydown', this._spendOnKey);
@@ -2655,7 +2742,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * which is enough to find the same control in the new tree.
    */
   private _focusKey(): string | null {
-    const el = this.shadowRoot?.activeElement as HTMLElement | null;
+    return this._keyOf(this.shadowRoot?.activeElement as HTMLElement | null);
+  }
+
+  /** The `_focusKey` selector of *el*. */
+  private _keyOf(el: HTMLElement | null): string | null {
     if (!el) return null;
     // A spend total is drawn twice, in the strip above the list and in the sheet, so
     // the key names which of the 2 the keyboard was on.
@@ -2731,18 +2822,6 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     });
   }
 
-  /**
-   * A selector for the control that opened the drawer, so closing it can hand the
-   * keyboard back.
-   *
-   * Deliberately a selector rather than the element: opening the drawer renders, and
-   * `_render()` replaces the whole shadow tree, so the element captured on the way in
-   * is detached by the time the drawer closes. Holding it meant `isConnected` was
-   * always false and focus was never returned — every Escape, Cancel and close button
-   * dropped the keyboard on `<body>`. A selector is resolved against the tree that is
-   * actually on screen at close time, and holds no reference to a dead node.
-   */
-  private _drawerOpenerKey: string | null = null;
   // Escape closes the sheet; held at document level because the sheet is fixed and a
   // keydown inside it would not otherwise reach us once focus is on a form field.
   _drawerOnKey: ((e: KeyboardEvent) => void) | null = null;
@@ -2790,14 +2869,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (drawer) {
       if (!this._drawerOnKey) {
         this._drawerOnKey = (e: KeyboardEvent): void => {
-          if (e.key === 'Escape' && this.shadowRoot?.querySelector('.hk-drawer[data-open]')) {
+          const form = this._onTop('taskForm') || this._onTop('assetForm');
+          if (e.key === 'Escape' && form && this.shadowRoot?.querySelector('.hk-drawer[data-open]')) {
             e.stopPropagation();
+            e.stopImmediatePropagation();
             // Close only the one that is open. Closing both ran two renders back to
             // back, and the second replaced the tree the first had just handed the
             // keyboard back to — so Escape, alone among the three ways out, left
             // focus on `<body>`.
-            if (this._edit.open) this._closeForm();
-            else if (this._assetEdit.open) this._closeAssetForm();
+            if (this._isOpen('taskForm')) this._closeForm();
+            else if (this._isOpen('assetForm')) this._closeAssetForm();
           }
         };
         document.addEventListener('keydown', this._drawerOnKey);
@@ -2813,33 +2894,58 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._focus(drawer);
       }
     } else if (this._drawerOnKey) {
+      // The keyboard goes back to the opener through the overlay state.
       document.removeEventListener('keydown', this._drawerOnKey);
       this._drawerOnKey = null;
-      const key = this._drawerOpenerKey;
-      this._drawerOpenerKey = null;
-      if (key) this._focus(root.querySelector<HTMLElement>(key));
     }
   }
 
   /**
-   * A selector that will find *this* control again in the tree a later render builds.
+   * A selector that finds *this* control again in the tree that a later render builds.
    *
-   * The drawer's openers are an id (`#add-btn`) or a detail page's action class
-   * (`.d-edit`), both of which survive a rebuild. Anything else returns null and the
-   * keyboard simply stays where the browser left it, which is what happened before.
+   * A selector, not the element: a render replaces the whole shadow tree, so the
+   * element that opened an overlay is gone when the overlay closes. In order: an id
+   * (`#add-btn`), a detail page action (`.d-edit`), a control with the `data-id` of its
+   * task (`.hk-press[data-id="A"]`), a control inside the element with that `data-id`
+   * (the caret of a split button), the keys of `_focusKey`, and last a mark that this
+   * puts on the control. Null with no control.
    */
   private _openerKeyFor(el: HTMLElement | null): string | null {
-    if (!el) return null;
+    if (!el || el === (this as HTMLElement)) return null;
     if (el.id) return `#${CSS.escape(el.id)}`;
-    const cls = Array.from(el.classList).find((c) => c.startsWith('d-'));
-    return cls ? `.${CSS.escape(cls)}` : null;
+    const classes = Array.from(el.classList);
+    const action = classes.find((c) => c.startsWith('d-'));
+    if (action) return `.${CSS.escape(action)}`;
+    const cls = classes.find((c) => c.startsWith('hk-'));
+    const own = el.getAttribute('data-id');
+    if (cls && own !== null) return `.${CSS.escape(cls)}[data-id="${CSS.escape(own)}"]`;
+    const holder = el.parentElement?.closest<HTMLElement>('[data-id]');
+    const id = holder?.getAttribute('data-id');
+    if (cls && holder && id != null) {
+      const at = Array.from(holder.classList).find((c) => c.startsWith('hk-'));
+      const scope = at ? `.${CSS.escape(at)}` : '';
+      return `${scope}[data-id="${CSS.escape(id)}"] .${CSS.escape(cls)}`;
+    }
+    const key = this._keyOf(el);
+    if (key || !this.shadowRoot?.contains(el)) return key;
+    // A control with no stable key gets a mark. The mark finds it while no render
+    // replaced it, for example in a form under a confirmation.
+    el.setAttribute('data-hk-opener', String(++this._openerSeq));
+    return `[data-hk-opener="${this._openerSeq}"]`;
   }
+  private _openerSeq = 0;
 
-  /** Remember what to hand the keyboard back to when the drawer closes. */
+  /**
+   * Make sure that the next drawer form that opens takes the control that has the
+   * keyboard now as its opener. An Edit on a second row, while a form is open,
+   * replaces the form, and the keyboard goes back to that second row when it closes.
+   */
   private _rememberDrawerOpener(): void {
-    this._drawerOpenerKey = this._openerKeyFor(
-      (this.shadowRoot?.activeElement as HTMLElement) ?? null,
-    );
+    for (const kind of ['taskForm', 'assetForm'] as const) {
+      if (!this._isOpen(kind)) continue;
+      this._overlay = overlayStep(this._overlay, { type: 'close', kind });
+      this._overlay = overlayStep(this._overlay, { type: 'focused' });
+    }
   }
 
   /** The top tab bar (Tasks / Appliances / Settings), with the active tab marked. */
@@ -2902,14 +3008,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
     // The completion-details dialog overlays any view, so build it first.
     const dialogHost = root.getElementById('hk-dialog-host');
-    if (dialogHost && this._completion.open) renderCompletionDialog(this, dialogHost);
-    if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
-    if (dialogHost && this._snooze.open) renderSnooze(this, dialogHost);
-    if (dialogHost && this._skip.open) renderSkip(this, dialogHost);
-    if (dialogHost && this._actionSheet.open) renderActionSheet(this, dialogHost);
-    if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
-    if (dialogHost && this._presetDialog.open) renderPresetDialog(this, dialogHost);
-    if (dialogHost && this._labelDialog.open) renderLabelDialog(this, dialogHost);
+    const dialogs: [OverlayKind, (p: PanelHost, host: HTMLElement) => void][] = [
+      ['completion', renderCompletionDialog],
+      ['moveCompletion', renderMoveCompletionDialog],
+      ['snooze', renderSnooze],
+      ['skip', renderSkip],
+      ['actionSheet', renderActionSheet],
+      ['declarative', renderDeclarativeDialog],
+      ['preset', renderPresetDialog],
+      ['label', renderLabelDialog],
+    ];
+    for (const [kind, draw] of dialogs) if (dialogHost && this._isOpen(kind)) draw(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
@@ -3021,7 +3130,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._detail?.kind === 'task'
         ? this._tasks.find((task) => task.id === this._detail?.id)
         : undefined;
-    const logging = this._completion.open && this._completion.ts == null;
+    const logging = this._isOpen('completion') && this._completion.ts == null;
     const photoRefs = [
       ...coverRefs(this._tasks),
       ...(detailTask ? detailRefs(detailTask) : []),

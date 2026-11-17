@@ -5,6 +5,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel.ts
   - custom_components/home_keeper/frontend/src/draft-step.ts
   - custom_components/home_keeper/frontend/src/refresh-machine.ts
+  - custom_components/home_keeper/frontend/src/overlay-state.ts
   - custom_components/home_keeper/frontend/src/panel-host.ts
   - custom_components/home_keeper/frontend/src/panel-chips.ts
   - custom_components/home_keeper/frontend/src/panel-controls.ts
@@ -36,7 +37,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 325970b7d3e1
+source_hash: ec1e84a65f47
 ---
 
 # Frontend
@@ -72,48 +73,49 @@ each admin-only control from a non-admin. Entry files check the registry before 
 `panel.ts` holds the `HomeKeeperPanel` class: `set hass`, `set route`, `_render`, `_hydrate`, the
 lifecycle callbacks and the form lifecycles. Each other region is a flat `panel-*.ts` module of free
 functions over `PanelHost` (`panel-host.ts`), such as `panel-lists.tasksList`. A region that adds
-listeners exports `wireXxx(p, root)`; `_hydrate` calls these in a fixed order. Add a `PanelHost`
-member only for live panel state. `_render` rebuilds the shadow tree from strings, so every user
-value goes through `utils.escapeHTML` first. It records the focused control (`_focusKey`) and
-restores it after the rebuild. The task form has sections (`forms.taskSchemaSections`), and each
-gets only its own fields (`forms.pickFormData`), so it cannot write stale values over another. A
-changed `forms.taskFormSchemaKey` renders the drawer again. `dialogs.makeDialog` builds each dialog.
-Each form numbers its draft (`draft-step.ts`); a late save answer for a replaced draft is ignored.
+listeners exports `wireXxx(p, root)`; `_hydrate` calls these in a fixed order. `_render` rebuilds
+the shadow tree from strings, so every user value goes through `utils.escapeHTML` first. It records
+the focused control (`_focusKey`) and restores it after the rebuild. The task form has sections
+(`forms.taskSchemaSections`), and each gets only its own fields (`forms.pickFormData`). A changed
+`forms.taskFormSchemaKey` renders the drawer again. `dialogs.makeDialog` builds each dialog. Each
+form numbers its draft (`draft-step.ts`); a late save answer for a replaced draft is ignored.
+`overlay-state.ts` stacks the open dialogs, forms, sheets and menus with their openers, also in the
+card. `_busy()` is the 1 busy rule, only the top overlay takes Escape, and a close gives the
+keyboard back to its opener.
 
 ### Routes
 
-`utils.parseRoute` and `utils.buildPath` are pure and round-trip. Paths: `/tasks`, `/tasks/<id>`,
-`/appliances`, `/appliances/parts`, `/appliances/<id>`, `/appliances/<id>/<tab>` (`ASSET_TABS`),
-`/settings/<section>` (`SETTINGS_SECTIONS`) and `/<tab id>/<path>` for a companion tab
-([panel-tabs](panel-tabs.md)). Other paths give the task list. Only `set route` changes `_view`,
-`_detail` and `_partsView` (`_applyLocation`). `_navigate(loc, replace)`: a detail pushes; a tab
-or mode switch, a close or a delete replaces. A form is an overlay with no URL.
-`/appliances/parts` is a mode of the Appliances tab, not a detail: an id is a UUID, so no clash.
-`panel-parts.partsBody` draws it and `parts-overview.ts` holds its pure filter, count, sort and
-group rules. The last mode, chip, group and sort are per browser (`LS_ASSET_MODE`, `LS_PARTS_*`).
+`utils.parseRoute` and `utils.buildPath` are pure and round-trip through the URL parser of the
+browser. Paths: `/tasks`, `/tasks/<id>`, `/appliances`, `/appliances/parts`, `/appliances/<id>`,
+`/appliances/<id>/<tab>` (`ASSET_TABS`), `/settings/<section>` (`SETTINGS_SECTIONS`) and
+`/<tab id>/<path>` for a companion tab ([panel-tabs](panel-tabs.md)). Other paths give the task
+list. `utils.encodeRouteSegment` encodes each id and path segment: `.` and `..` become `~.` and
+`~..`. An appliance with the id `parts` keeps its sub-tab in the URL. Only `set route` changes
+`_view`, `_detail` and `_partsView` (`_applyLocation`). `_navigate(loc, replace)`: a detail pushes;
+a tab or mode switch, a close or a delete replaces. The panel keeps the URL that each history entry
+(`hkKey`) shows now, so the back arrow of a section pops only to the index. A form is an overlay
+with no URL. The Parts mode (`panel-parts.partsBody`, `parts-overview.ts`) keeps its choices per
+browser (`LS_PARTS_*`).
 
 ### Data and refresh
 
 `api.ts` wraps the websocket commands. `refresh-machine.refreshStep` tells the panel and the card
 when to load. A load covers the changes seen at its start (`utils.hkStateSignal`, pushes), so a
-change during a load or before a failed one loads again, and a `_refresh` call during a load waits
-for the next one. The panel waits while a form or dialog is open; a change within 2 s of its own
-clean load is its echo. `panel-list-patch.ts` redraws changed rows.
+change during a load or before a failed one loads again, and a `_refresh` during a load waits for
+the next one. The panel waits while `_busy()`, and loads when the last overlay closes. A change in
+2 s of its own clean load is its echo. `panel-list-patch.ts` redraws changed rows.
 
-### Task layouts, the list bar and preferences
+### Task layouts, the list bar, preferences and styles
 
 Tasks draws Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`). Above it,
 `panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add, and a chip
 for each active filter (`list-bar.ts`). A sentinel observer marks a pinned bar `data-stuck`.
 A choice about this screen is per browser (`localStorage`, `LS_*` in `panel-types.ts`). A choice
 about the person (task layout, intro dismissed) is per user, in HA frontend user data under a
-`home_keeper_<pref>` key, through `api.getTaskLayout` and peers.
-
-### Styles and the phone layout
-
-`panel-styles.STYLES` starts with `--hk-*` tokens on `:host`, each mapped to a Home Assistant
-theme variable. Media queries change the layout at 1150px (sheet drawer), 1000px (Settings
-index) and 700px (bottom tabs, folded filters, stacked rows and parts cards).
+`home_keeper_<pref>` key, through `api.getTaskLayout` and peers. `panel-styles.STYLES` starts with
+`--hk-*` tokens on `:host`, each mapped to a Home Assistant theme variable. Media queries change the
+layout at 1150px (sheet drawer), 1000px (Settings index) and 700px (bottom tabs, folded filters,
+stacked rows and parts cards).
 
 ### Dashboard card
 
@@ -121,25 +123,23 @@ index) and 700px (bottom tabs, folded filters, stacked rows and parts cards).
 refreshes from `todo/item/subscribe`; an admin also listens for `home_keeper_task_completed`. Rows
 show [task photos](task-photos.md). A `profile` picks tasks; `labels` narrow them. A toggle beats
 `startsCollapsed`. The card picker (or `preview`) draws `PREVIEW_MAX_ITEMS` rows.
-
-`card.async_register_card` uses one delivery path per install: a Lovelace resource in storage
-mode, else `frontend.add_extra_js_url`. Both at once race the scoped element registry.
+`card.async_register_card` uses one delivery path per install: a Lovelace resource in storage mode,
+else `frontend.add_extra_js_url`. Both at once race the scoped element registry.
 `card_resource.plan_card_resource` matches rows on the URL path without the `?v=` token and plans
-the changes that leave exactly one row. Write `res_type`, read `type`. Panel and card
-registrations live for the whole run; only `async_remove_entry` removes them.
+the changes that leave exactly one row. Write `res_type`, read `type`. Panel and card registrations
+live for the whole run; only `async_remove_entry` removes them.
 
 ### Translations
 
-`i18n.ts` gives `t`, `tn` (CLDR plurals) and `tlist`. `locales/index.ts` puts 16 JSON tables
-in the bundle, so no fetch occurs. A lookup falls back to English, then to the key.
-`backend_i18n.py` builds final text in Python: `resolve_exception` reads the `exceptions` group
-of `strings.json`, and `resolve_string` reads `backend_strings/<lang>.json`, such as CSV headers.
-Pure callers take `lang`. Setup runs `backend_i18n.preload` in the executor.
+`i18n.ts` gives `t`, `tn` (CLDR plurals) and `tlist`. `locales/index.ts` bundles 16 JSON tables, so
+no fetch occurs. A lookup falls back to English, then to the key. `backend_i18n.py` builds final
+text: `resolve_exception` reads the `exceptions` group of `strings.json`, and `resolve_string` reads
+`backend_strings/<lang>.json`, such as CSV headers. Setup loads them in the executor.
 
 ## Trade-offs
 
 - **String templates, not a framework:** no runtime dependency, but the escape and focus rules.
-  **Free functions over `PanelHost`:** no forwarding layer.
+- **Free functions over `PanelHost`:** no forwarding layer.
 
 ## One-way doors
 

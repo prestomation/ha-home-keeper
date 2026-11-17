@@ -130,7 +130,7 @@ describe('double submit: Move of a later date in the snooze dialog', () => {
         return { occurrences: [{ start: DUE, moved_from: null }, { start: LATER, moved_from: null }] };
       },
     };
-    const state = { open: true, preset: '1d', task: { id: 't1', recurrence_type: 'fixed', next_due: DUE } };
+    const state = { preset: '1d', task: { id: 't1', recurrence_type: 'fixed', next_due: DUE } };
     const root = document.createElement('div');
     let open = true;
     const host = {
@@ -145,6 +145,8 @@ describe('double submit: Move of a later date in the snooze dialog', () => {
       },
       refresh: async () => {},
       notify: () => {},
+      // The dialog of this state is open until it closes.
+      shown: (s) => s === state && open,
     };
     host.rerender();
     await new Promise((r) => setTimeout(r, 0));
