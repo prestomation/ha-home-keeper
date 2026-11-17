@@ -1,0 +1,45 @@
+{
+  "_comment": "Shared cases for the sensor modes that hold edge state. Python (sensor_tasks.holds_edge_state) says which modes carry a rising edge; TypeScript reads the same list in utils.isMonitoredDormant, so its test asks about a dormant sensor task in that mode. An absent or unknown mode reads as usage: no edge.",
+  "cases": [
+    {
+      "name": "state",
+      "input": "state",
+      "expected": true
+    },
+    {
+      "name": "threshold",
+      "input": "threshold",
+      "expected": true
+    },
+    {
+      "name": "availability",
+      "input": "availability",
+      "expected": true
+    },
+    {
+      "name": "template",
+      "input": "template",
+      "expected": true
+    },
+    {
+      "name": "usage is a meter",
+      "input": "usage",
+      "expected": false
+    },
+    {
+      "name": "an absent mode reads as usage",
+      "input": null,
+      "expected": false
+    },
+    {
+      "name": "an unknown mode",
+      "input": "pulse",
+      "expected": false
+    },
+    {
+      "name": "case matters",
+      "input": "State",
+      "expected": false
+    }
+  ]
+}

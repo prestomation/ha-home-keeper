@@ -1,0 +1,70 @@
+{
+  "_comment": "Shared cases for the decimal mark of a language. Python (assets.decimal_mark) reads it from Babel and TypeScript (utils.decimalMark) reads it from Intl; both read CLDR with Latin digits. A missing, empty or unknown language reads as English. input is the language tag or null.",
+  "cases": [
+    {
+      "name": "English",
+      "input": "en",
+      "expected": "."
+    },
+    {
+      "name": "German",
+      "input": "de",
+      "expected": ","
+    },
+    {
+      "name": "French",
+      "input": "fr",
+      "expected": ","
+    },
+    {
+      "name": "Dutch",
+      "input": "nl",
+      "expected": ","
+    },
+    {
+      "name": "a region tag",
+      "input": "en-GB",
+      "expected": "."
+    },
+    {
+      "name": "a region tag with a comma",
+      "input": "de-CH",
+      "expected": "."
+    },
+    {
+      "name": "Brazilian Portuguese",
+      "input": "pt-BR",
+      "expected": ","
+    },
+    {
+      "name": "Persian keeps the Latin mark",
+      "input": "fa",
+      "expected": "."
+    },
+    {
+      "name": "Arabic keeps the Latin mark",
+      "input": "ar",
+      "expected": "."
+    },
+    {
+      "name": "null reads as English",
+      "input": null,
+      "expected": "."
+    },
+    {
+      "name": "an empty tag reads as English",
+      "input": "",
+      "expected": "."
+    },
+    {
+      "name": "an unknown language reads as English",
+      "input": "zz",
+      "expected": "."
+    },
+    {
+      "name": "text that is not a tag reads as English",
+      "input": "not a language",
+      "expected": "."
+    }
+  ]
+}

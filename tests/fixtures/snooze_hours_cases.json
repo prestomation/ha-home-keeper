@@ -1,0 +1,75 @@
+{
+  "_comment": "Shared cases for a task's own snooze length. Python (notifications.snooze_hours_for) uses the task's snooze_hours when it is a whole number of 1 or more, else the notification's length; TypeScript (utils.taskSnoozeHours) gives the task's own length or null. expected is the task's own length, or null for 'none of its own'. A float such as 2.0 is not a case: the store keeps an int (models.normalize_snooze_hours), and JSON cannot tell 2.0 from 2 in the browser.",
+  "cases": [
+    {
+      "name": "no key means none",
+      "input": {},
+      "expected": null
+    },
+    {
+      "name": "null means none",
+      "input": {
+        "snooze_hours": null
+      },
+      "expected": null
+    },
+    {
+      "name": "1 hour is the smallest length",
+      "input": {
+        "snooze_hours": 1
+      },
+      "expected": 1
+    },
+    {
+      "name": "a day is kept",
+      "input": {
+        "snooze_hours": 24
+      },
+      "expected": 24
+    },
+    {
+      "name": "0 is ignored",
+      "input": {
+        "snooze_hours": 0
+      },
+      "expected": null
+    },
+    {
+      "name": "a negative length is ignored",
+      "input": {
+        "snooze_hours": -2
+      },
+      "expected": null
+    },
+    {
+      "name": "a fraction is ignored",
+      "input": {
+        "snooze_hours": 1.5
+      },
+      "expected": null
+    },
+    {
+      "name": "text is ignored",
+      "input": {
+        "snooze_hours": "3"
+      },
+      "expected": null
+    },
+    {
+      "name": "a boolean is ignored",
+      "input": {
+        "snooze_hours": true
+      },
+      "expected": null
+    },
+    {
+      "name": "a list is ignored",
+      "input": {
+        "snooze_hours": [
+          2
+        ]
+      },
+      "expected": null
+    }
+  ]
+}

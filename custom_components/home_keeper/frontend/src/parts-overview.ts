@@ -47,11 +47,13 @@ export function parsePartsMode(value: unknown): AssetMode {
   return oneOf(ASSET_MODES, value, 'appliances');
 }
 
+// parity: part_low
 /** Low stock: a count at or below the reorder point. Needs both numbers. */
 export function isLowPart(part: Part): boolean {
   return part.stock != null && part.reorder_at != null && part.stock <= part.reorder_at;
 }
 
+// parity: part_tracks_stock
 /** Not counted: the part tracks no stock. */
 export function isUncountedPart(part: Part): boolean {
   return part.stock == null;

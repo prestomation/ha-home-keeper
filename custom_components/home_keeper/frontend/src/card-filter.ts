@@ -331,6 +331,7 @@ export interface ProfileFilter {
   exclude_shopping?: boolean;
 }
 
+// parity: companion_keys
 /**
  * The Profile `companions` values that name the source of *task* — the twin of
  * `profiles.companion_keys`, pinned to it by `profile_filter_cases.json`.
@@ -352,9 +353,12 @@ export function companionKeys(task: Task): string[] {
   const specId = (source?.declarative_companion as { spec_id?: string } | null | undefined)
     ?.spec_id;
   if (specId) keys.push(`${COMPANION_KEY_DECLARATIVE_PREFIX}${specId}`);
-  // A mapping, as on the Python side, which reads nothing else as a synced problem.
+  // A mapping, as on the Python side, which reads nothing else as a synced problem: a
+  // list is an object in JavaScript, but it is not a mapping.
   const problem = source?.problem_sensor;
-  if (problem && typeof problem === 'object') keys.push(COMPANION_KEY_PROBLEM_SENSORS);
+  if (problem && typeof problem === 'object' && !Array.isArray(problem)) {
+    keys.push(COMPANION_KEY_PROBLEM_SENSORS);
+  }
   return keys;
 }
 
@@ -371,6 +375,7 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
   return list?.includes(id) ?? false;
 }
 
+// parity: profile_filter
 /**
  * Whether *task* matches a saved profile's *filter*. Mirrors the backend
  * `profiles.matches_filter` so a Profile selects the same tasks here (card / admin

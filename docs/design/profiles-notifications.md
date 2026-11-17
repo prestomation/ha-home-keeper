@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: 56ab4428d18f
+source_hash: c07756b248f6
 ---
 
 # Profiles and notifications
@@ -53,14 +53,14 @@ their own. `profiles.due_queue` sorts the matches by `next_due`, then by name.
 
 ### Effective ids and the TypeScript twin (`card-filter.ts`)
 
-A task inherits labels from its device and its area, and an area from its device.
-`profileMatches` in `card-filter.ts` resolves these inline with `taskLabelIds` and
-`taskAreaId`. `notifier.effective_filter_tasks` writes the same effective ids onto task
-copies before the pure matcher runs. `DUE_SOON_DAYS` (3) mirrors the backend window and
-is different from the card's 7-day `soon` section. `tests/fixtures/profile_filter_cases.json`
-holds the shared cases. The card `profile` setting and the active profile in
-`panel-lists.ts` use `profileMatches` in place of their own filters. The card keeps its own
-`labels` and `label_match` on top of a profile (`matchesCardLabels`).
+A task inherits labels from its device and its area, and an area from its device. `profileMatches`
+in `card-filter.ts` resolves these inline with `taskLabelIds` and `taskAreaId`.
+`notifier.effective_filter_tasks` writes the same effective ids onto task copies before the pure
+matcher runs. `DUE_SOON_DAYS` (3) mirrors the backend window and is different from the card's 7-day
+`soon` section. The matcher and `companionKeys` are in the parity registry
+(`tests/fixtures/parity.json`) with their shared cases. The card `profile` setting and the active
+profile in `panel-lists.ts` use `profileMatches` in place of their own filters. The card keeps its
+own `labels` and `label_match` on top of a profile (`matchesCardLabels`).
 
 ### Notification model (`notifications.py`)
 

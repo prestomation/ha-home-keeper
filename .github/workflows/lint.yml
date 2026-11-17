@@ -103,6 +103,8 @@ jobs:
       - run: pip install PyYAML
       - name: Check the docs (drift, coverage, length, history, links)
         run: python3 ci/docs.py check --base origin/${{ github.base_ref || 'main' }}
+      - name: Check the parity registry (rules in Python and in TypeScript)
+        run: python3 ci/parity.py check
 
   changelog-release-gap:
     runs-on: ubuntu-latest
