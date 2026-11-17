@@ -65,6 +65,7 @@ import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './ty
 import {
   areaName,
   assetForTask,
+  buildPath,
   deviceName,
   dueLabel,
   escapeHTML,
@@ -976,7 +977,7 @@ export class HomeKeeperCard extends HTMLElement {
     }
     if (task.completion_detail === 'required') {
       toast(this, t('done.needsDetails'));
-      navigateTo(`/home-keeper/tasks/${encodeURIComponent(task.id)}`);
+      navigateTo(`/home-keeper${buildPath({ view: 'tasks', detail: { kind: 'task', id: task.id } })}`);
       return;
     }
     const prompt = task.managed_by?.completion_prompt;
@@ -1458,7 +1459,7 @@ export class HomeKeeperCard extends HTMLElement {
       return `<ha-assist-chip label="${label}"></ha-assist-chip>`;
     }
     const href = asset
-      ? `/home-keeper/appliances/${encodeURIComponent(asset.id)}`
+      ? `/home-keeper${buildPath({ view: 'appliances', detail: { kind: 'asset', id: asset.id } })}`
       : `/config/devices/device/${encodeURIComponent(task.device_id)}`;
     const tip = escapeHTML(asset ? t('chip.device.appliance.tip') : t('chip.device.tip'));
     return `<ha-assist-chip class="hk-device-chip hk-link-chip" role="link" tabindex="0" data-href="${escapeHTML(
