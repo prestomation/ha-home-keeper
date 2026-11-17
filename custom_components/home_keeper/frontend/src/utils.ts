@@ -1915,6 +1915,8 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
   if (
     view === 'appliances' &&
     parts[1] === PARTS_SEGMENT &&
+    // Stryker disable next-line StringLiteral: equivalent. Any text that is not a sub-tab
+    // gives the same result as no segment.
     !(ASSET_TABS as readonly string[]).includes(decodeRouteSegment(parts[2] ?? ''))
   ) {
     return { view, detail: null, parts: true };

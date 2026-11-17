@@ -50,7 +50,7 @@ function host({ sheetOpen = false, ...overrides } = {}) {
   const navigated = [];
   let renders = 0;
   return {
-    ...overlayMembers(sheetOpen ? ['spendSheet'] : []),
+    ...overlayMembers(sheetOpen ? ['spendSheet'] : [], '#hk-spend-btn'),
     _hass: { language: 'en', config: { currency: 'USD' }, states: {} },
     _options: {},
     _spend: spend(),
@@ -259,7 +259,7 @@ describe('wireSpend', () => {
   });
 
   it('a record opens the task history, or the appliance history', () => {
-    const p = host({ _spendOpen: SPEND_ALL });
+    const p = host({ _spendOpen: SPEND_ALL, sheetOpen: true });
     const links = [...wired(p).querySelectorAll('[data-spend-open]')];
     const ev = new MouseEvent('click', { bubbles: true, cancelable: true });
     links[0].dispatchEvent(ev);
@@ -269,6 +269,9 @@ describe('wireSpend', () => {
       { view: 'tasks', detail: { kind: 'task', id: 't1', tab: 'history' } },
       { view: 'appliances', detail: { kind: 'asset', id: 'heater', tab: 'history' } },
     ]);
+    // The sheet closes, and the keyboard goes with the new page, not to the spend button.
+    expect(p._isOpen('spendSheet')).toBe(false);
+    expect(p._overlay.focus).toBeNull();
   });
 
   it('a link with no id goes nowhere', () => {
@@ -286,6 +289,7 @@ describe('wireSpend', () => {
     wired(p).querySelector('[data-spend-purchases]').click();
     expect(p.navigated).toEqual([{ view: 'appliances', detail: null }]);
     expect(p._isOpen('spendSheet')).toBe(false);
+    expect(p._overlay.focus).toBeNull();
   });
 });
 

@@ -71,6 +71,29 @@ describe('route encoding: odd characters and odd ids', () => {
     }
   });
 
+  it('decodes the escape mark only in front of a dot segment', () => {
+    expect(parseRoute('/tasks/~abc').detail.id).toBe('~abc');
+    expect(parseRoute('/tasks/a..').detail.id).toBe('a..');
+    expect(parseRoute('/tasks/x.').detail.id).toBe('x.');
+    expect(parseRoute('/tasks/~..').detail.id).toBe('..');
+  });
+
+  it('cleans a tab path segment that decodes to a slash or a dot segment', () => {
+    expect(parseRoute('/garden/a%5Cb').path).toBe('/a/b');
+    expect(parseRoute('/garden/x/%2E/y').path).toBe('/x/y');
+    expect(parseRoute('/garden/x/%2E%2E').path).toBe('/x');
+    expect(buildPath({ view: 'tab', detail: null, tab: 'garden', path: '/x/./y/../z' })).toBe(
+      '/garden/x/y/z',
+    );
+  });
+
+  it('writes the sub-tab only for an appliance with the id "parts", not for a task', () => {
+    expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'parts' } })).toBe('/tasks/parts');
+    expect(buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'parts' } })).toBe(
+      '/appliances/parts/parts',
+    );
+  });
+
   it('reads the old links the same as before', () => {
     expect(parseRoute('/tasks/abc%20d')).toEqual({
       view: 'tasks',
