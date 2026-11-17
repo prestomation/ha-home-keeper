@@ -908,10 +908,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (af === 'active' || af === 'archived') this._assetFilter = af;
       const av = localStorage.getItem(LS_ASSET_VIEW);
       if (av === 'flat' || av === 'tree') this._assetView = av;
-      this._assetMode = parsePartsMode(localStorage.getItem(LS_ASSET_MODE));
-      this._partsFilter = parsePartsFilter(localStorage.getItem(LS_PARTS_FILTER));
-      this._partsGroup = parsePartsGroup(localStorage.getItem(LS_PARTS_GROUP));
-      this._partsSort = parsePartsSort(localStorage.getItem(LS_PARTS_SORT));
+      // A key that the browser does not have leaves the choice of this visit as it is.
+      // A browser that refuses writes has no key, and a return to the panel must not
+      // put the defaults back over the choices of this visit.
+      const read = <T>(key: string, parse: (raw: string) => T, keep: T): T => {
+        const raw = localStorage.getItem(key);
+        return raw === null ? keep : parse(raw);
+      };
+      this._assetMode = read(LS_ASSET_MODE, parsePartsMode, this._assetMode);
+      this._partsFilter = read(LS_PARTS_FILTER, parsePartsFilter, this._partsFilter);
+      this._partsGroup = read(LS_PARTS_GROUP, parsePartsGroup, this._partsGroup);
+      this._partsSort = read(LS_PARTS_SORT, parsePartsSort, this._partsSort);
       const tc = localStorage.getItem(LS_TREE_COLLAPSED);
       if (tc) {
         try {
@@ -919,10 +926,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           if (Array.isArray(arr)) this._treeCollapsed = new Set(arr.filter((x: unknown) => typeof x === 'string'));
         } catch { /* ignore malformed */ }
       }
-      this._profile = localStorage.getItem(LS_PROFILE) ?? '';
-      this._controlsOpen = parseControlsOpen(localStorage.getItem(LS_CONTROLS));
+      this._profile = read(LS_PROFILE, (raw) => raw, this._profile);
+      this._controlsOpen = read(LS_CONTROLS, parseControlsOpen, this._controlsOpen);
     } catch {
-      // localStorage unavailable (e.g. private mode) — fall back to defaults.
+      // localStorage unavailable (e.g. private mode): the choices stay as they are.
     }
   }
 
