@@ -126,6 +126,11 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - Keep `hk-task-form` on the wrapper `<div>`. A test dispatches `value-changed` at the
   section that owns the field.
 - A failed action shows inline next to its control and in a `_toast(...)`.
+- **Guard each write button with `guardWrite`**, so a double press sends 1 request. A
+  control that saves on each tap merges the taps into 1 save (`stock-stepper.ts`).
+- **A busy dialog waits for a call with a time limit** (`utils.withTimeout`), so a call that
+  never answers does not keep it busy.
+- An autosave debounce runs its pending save when the panel leaves the page (`pagehide`).
 - A backend limit that the panel checks is mirrored in `limits.ts` and guarded by
   `tests/unit/test_upload_limit_parity.py`. The backend stays the authority.
 
@@ -153,6 +158,8 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   `home_keeper_<pref>`.
 - A user-data key and its values are a one-way door. Store a choice that can grow as a
   string, never a boolean, and read an unknown value as the default.
+- A `localStorage` key that is not there leaves the choice of this visit as it is. A browser
+  that refuses writes must not lose a choice on a return to the panel.
 
 ## Home Assistant elements
 

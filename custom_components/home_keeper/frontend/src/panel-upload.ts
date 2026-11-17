@@ -95,6 +95,10 @@ export async function runUpload<T>(
   run: (opts: api.UploadOptions) => Promise<T>,
   limit: number = MAX_DOCUMENT_BYTES,
 ): Promise<T | undefined> {
+  // 1 upload at a time in a draft. Every upload control is off while one runs, and a
+  // pick that comes all the same does not start a second upload: that one would take
+  // the place of the first, so the first could no longer be cancelled (X12-8).
+  if (p._assetEdit.upload) return undefined;
   // A previous failure is stale the moment a new upload starts.
   p._assetEdit.uploadError = undefined;
   setAssetError(p, undefined);

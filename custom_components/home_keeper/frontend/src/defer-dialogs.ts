@@ -387,7 +387,7 @@ export function renderSnoozeDialog(
     if (s.picked) {
       renderMoveTo(host, s, body, mountTo);
       errorAlert(body, s.error);
-      footerButtons(footer, t('btn.move'), () => void submitMove(host, s, close), close);
+      footerButtons(footer, t('btn.move'), (b) => void submitMove(host, s, close, b), close);
       mount();
       mountTo.appendChild(dialog);
       return;
@@ -553,24 +553,34 @@ export async function submitMove(
   host: DeferDialogHost,
   s: SnoozeState,
   close: () => void,
+  button?: Element | null,
 ): Promise<void> {
   const to = moveTarget(s);
   const hass = host.hass();
-  if (!hass || !s.task) return;
-  if (!s.picked || !to) {
+  const task = s.task;
+  if (!hass || !task) return;
+  const picked = s.picked;
+  if (!picked || !to) {
     // Say what is missing rather than doing nothing on Move.
-    s.error = t(s.picked ? 'defer.snoozePickDate' : 'defer.movePick');
+    s.error = t(picked ? 'defer.snoozePickDate' : 'defer.movePick');
     host.rerender();
     return;
   }
-  try {
-    await api.moveOccurrence(hass, s.task.id, occurrenceOrigin(s.picked), to.toISOString());
-    close();
-    await host.refresh();
-  } catch (err) {
-    s.error = String((err as { message?: string })?.message || err);
-    host.rerender();
-  }
+  // A second press while the first call runs is ignored, as for Snooze (X12-3).
+  await guardWrite(
+    s,
+    async () => {
+      try {
+        await api.moveOccurrence(hass, task.id, occurrenceOrigin(picked), to.toISOString());
+        close();
+        await host.refresh();
+      } catch (err) {
+        s.error = String((err as { message?: string })?.message || err);
+        host.rerender();
+      }
+    },
+    button,
+  );
 }
 
 /** Refresh the resolved-date line without re-rendering (which would steal focus). */

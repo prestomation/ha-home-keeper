@@ -5,7 +5,7 @@
  * This file checks the panel around them: when the dialog opens and when it must not,
  * what each button saves, and that a dismissal follows the user to a new browser.
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { definePanelStubs, waitFor } from './panel-harness.js';
 
 beforeAll(definePanelStubs);
@@ -490,5 +490,87 @@ describe('nothing to suggest', () => {
     expect(dialog(panel)).toBeNull();
     expect(card(panel)).toBeNull();
     expect(calls.sets.filter((s) => s.key === NUDGE).length > 0).toBe(writes);
+  });
+});
+
+describe('a call of the dialog that never answers', () => {
+  it('ends the add after the time limit, reports it and shows the card again', async () => {
+    const { PRESET_CALL_TIMEOUT_MS } = await import('../src/panel-preset-nudge.ts');
+    const { hass } = makeHass();
+    const orig = hass.callWS.bind(hass);
+    hass.callWS = (msg) =>
+      msg.type === 'home_keeper/add_declarative_companion' ? new Promise(() => {}) : orig(msg);
+    const { panel, toasts } = await mount(hass);
+    const dlg = await waitFor(() => dialog(panel));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      dlg.querySelector('.hk-preset-dialog-add').click();
+      await waitFor(() => panel._presetDialog.busy);
+      await vi.advanceTimersByTimeAsync(PRESET_CALL_TIMEOUT_MS + 10);
+      await waitFor(() => toasts.length);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(panel._presetDialog.busy).toBe(false);
+    expect(dialog(panel)).toBeNull();
+    expect(toasts[0]).toMatch(/^Home Keeper did not add the presets: /);
+    // The suggestion is not lost: the card offers it again.
+    await waitFor(() => card(panel));
+    expect(card(panel)).toBeTruthy();
+  });
+
+  it('sends no later add after an add that never answers', async () => {
+    const { PRESET_CALL_TIMEOUT_MS } = await import('../src/panel-preset-nudge.ts');
+    const { hass, calls } = makeHass({ presets: [FIRMWARE, STOPPED] });
+    const orig = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type !== 'home_keeper/add_declarative_companion') return orig(msg);
+      calls.adds.push(msg.companion);
+      return new Promise(() => {});
+    };
+    const { panel, toasts } = await mount(hass);
+    const dlg = await waitFor(() => dialog(panel));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      dlg.querySelector('.hk-preset-dialog-add').click();
+      await waitFor(() => panel._presetDialog.busy);
+      await vi.advanceTimersByTimeAsync(PRESET_CALL_TIMEOUT_MS + 10);
+      await waitFor(() => toasts.length);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls.adds).toHaveLength(1);
+    expect(toasts).toEqual([
+      'Home Keeper did not add the presets: Something went wrong. Please try again.',
+    ]);
+  });
+
+  it('goes on with the list it has when the fresh list never comes', async () => {
+    const { PRESET_CALL_TIMEOUT_MS } = await import('../src/panel-preset-nudge.ts');
+    const { hass, calls } = makeHass();
+    const orig = hass.callWS.bind(hass);
+    // Only the fresh list that the add asks for never comes.
+    let hang = false;
+    hass.callWS = (msg) => {
+      if (hang && msg.type === 'home_keeper/list_declarative_companions') {
+        hang = false;
+        return new Promise(() => {});
+      }
+      return orig(msg);
+    };
+    const { panel, toasts } = await mount(hass);
+    hang = true;
+    const dlg = await waitFor(() => dialog(panel));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      dlg.querySelector('.hk-preset-dialog-add').click();
+      await waitFor(() => panel._presetDialog.busy);
+      await vi.advanceTimersByTimeAsync(PRESET_CALL_TIMEOUT_MS + 10);
+      await waitFor(() => toasts.length);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls.adds).toHaveLength(1);
+    expect(toasts).toEqual(['1 preset added']);
   });
 });

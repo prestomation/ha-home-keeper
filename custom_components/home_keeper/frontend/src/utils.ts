@@ -237,6 +237,27 @@ export interface WriteGuard {
  *
  * Returns false when the press was ignored.
  */
+/**
+ * *work*, or a rejection with *error()* when *work* has not ended after *ms*. The
+ * work itself goes on: the time limit only ends the wait, so a hung call can not keep
+ * a dialog busy for ever.
+ */
+export function withTimeout<T>(work: Promise<T>, ms: number, error: () => Error): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(error()), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 export async function guardWrite(
   state: WriteGuard,
   write: () => Promise<void>,

@@ -35,6 +35,7 @@ import {
   escapeHTML,
   setBtnWeight,
   toast,
+  withTimeout,
 } from './utils';
 
 const COMPANIONS = { view: 'settings', detail: null, section: 'companions' } as const;
@@ -259,6 +260,15 @@ export function renderPresetDialog(p: PanelHost, host: HTMLElement): void {
   host.appendChild(dialog);
 }
 
+/** How long the dialog waits for 1 call before it reports a failure. A call that
+ *  never answers then does not keep the dialog busy. */
+export const PRESET_CALL_TIMEOUT_MS = 30_000;
+
+/** The error of a call that did not answer in time. */
+class PresetCallTimeout extends Error {}
+
+const timedOut = (): Error => new PresetCallTimeout(t('error.actionFailed'));
+
 /** Add one preset, waiting out a config-entry reload that an earlier add started. */
 async function addPreset(
   p: PanelHost,
@@ -267,7 +277,11 @@ async function addPreset(
 ): Promise<void> {
   if (!p._hass) throw new Error('no connection');
   try {
-    await api.addDeclarativeCompanion(p._hass, preset.default_spec);
+    await withTimeout(
+      api.addDeclarativeCompanion(p._hass, preset.default_spec),
+      PRESET_CALL_TIMEOUT_MS,
+      timedOut,
+    );
   } catch (err) {
     // `not_loaded` comes before the store writes anything, so a retry never makes a
     // second companion.
@@ -286,7 +300,11 @@ export async function addSelectedPresets(p: PanelHost): Promise<void> {
   p._render();
   // A fresh list, so a companion made in another tab since this one loaded is seen.
   try {
-    p._declarativeCompanions = await api.listDeclarativeCompanions(p._hass);
+    p._declarativeCompanions = await withTimeout(
+      api.listDeclarativeCompanions(p._hass),
+      PRESET_CALL_TIMEOUT_MS,
+      timedOut,
+    );
   } catch {
     // Keep the list the panel has.
   }
@@ -295,14 +313,21 @@ export async function addSelectedPresets(p: PanelHost): Promise<void> {
     .filter((x): x is DeclarativeCompanionPreset => Boolean(x))
     // A companion made from the preset since the dialog opened is left alone.
     .filter((x) => !p._declarativeCompanions.some((c) => c.preset_id === x.id));
-  const results: { ok: boolean; error?: string }[] = [];
+  const results: { ok: boolean; error?: string; timedOut?: boolean }[] = [];
   // One after another: each add can reload the config entry under the next.
   for (const preset of chosen) {
+    // An add that did not answer can still run. The next add waits for no reload of
+    // it, so the rest are not sent and count as not added.
+    const stuck = results.find((r) => r.timedOut);
+    if (stuck) {
+      results.push({ ok: false, error: stuck.error, timedOut: true });
+      continue;
+    }
     try {
       await addPreset(p, preset);
       results.push({ ok: true });
     } catch (err) {
-      results.push({ ok: false, error: errorMessage(err) });
+      results.push({ ok: false, error: errorMessage(err), timedOut: err instanceof PresetCallTimeout });
     }
   }
   p._presetDialog = { ids: [], selected: [], busy: false };
