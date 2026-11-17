@@ -419,7 +419,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
   // earlier response can't clobber a later one — only the trailing save runs).
-  private _persistTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  // Each pending save keeps its function, so `_flushDebounced` can run it at once when
+  // the user leaves the page (see `_onPageHide`).
+  private _persistTimers: Record<string, { timer: ReturnType<typeof setTimeout>; run: () => void }> =
+    {};
+  // Runs the pending saves when the browser hides or unloads the page.
+  private readonly _onPageHide = (e: Event): void => {
+    if (e.type === 'visibilitychange' && document.visibilityState !== 'hidden') return;
+    this._flushDebounced();
+  };
   // A form to open once the pending navigation settles in `_applyLocation` (opening
   // an edit form from a detail page changes the URL, which would otherwise clear it).
   private _pendingEdit: Partial<Task> | null = null;
@@ -824,6 +832,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   connectedCallback(): void {
     if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+    window.addEventListener('pagehide', this._onPageHide);
+    document.addEventListener('visibilitychange', this._onPageHide);
     this._loadPrefs();
     void this._init();
   }
@@ -851,8 +861,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._spendOnKey = null;
     this._barObserver?.disconnect();
     this._barObserver = null;
-    for (const id of Object.values(this._persistTimers)) clearTimeout(id);
-    this._persistTimers = {};
+    // A setting typed just before the user left the page is saved now, not dropped.
+    this._flushDebounced();
+    window.removeEventListener('pagehide', this._onPageHide);
+    document.removeEventListener('visibilitychange', this._onPageHide);
     // Markdown previews hold a debounce timer that would otherwise fire against a
     // detached subtree after unmount.
     this._disposeAllPreviews();
@@ -2208,19 +2220,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   /** Coalesce rapid calls under *key*, running only the trailing one after *ms*. */
   _debounce(key: string, fn: () => void, ms = 600): void {
-    const prev = this._persistTimers[key];
-    if (prev) clearTimeout(prev);
-    this._persistTimers[key] = setTimeout(() => {
-      delete this._persistTimers[key];
+    this._cancelDebounce(key);
+    const run = (): void => {
+      this._cancelDebounce(key);
       fn();
-    }, ms);
+    };
+    this._persistTimers[key] = { timer: setTimeout(run, ms), run };
   }
 
   /** Drop the pending call under *key*, if one is armed. */
   _cancelDebounce(key: string): void {
     const prev = this._persistTimers[key];
-    if (prev) clearTimeout(prev);
+    if (prev) clearTimeout(prev.timer);
     delete this._persistTimers[key];
+  }
+
+  /** Run every pending call now: the user leaves the page, so a timer can not wait. */
+  private _flushDebounced(): void {
+    for (const pending of Object.values(this._persistTimers)) pending.run();
   }
 
   /** Trigger a client-side file download (no server round-trip for the blob). */

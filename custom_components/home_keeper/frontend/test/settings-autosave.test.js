@@ -598,3 +598,30 @@ describe('Settings — option writes go one at a time (X12-2)', () => {
     expect(options.notifications[0].channel).toBe('Trash');
   });
 });
+
+describe('Settings: an edit just before the user leaves the page', () => {
+  it('saves a pending edit when the panel leaves the page', async () => {
+    const { hass, options } = makeHass([notification('n1', 'Bins')]);
+    const panel = await mountSettings(hass);
+    edit(panel, 0, { channel: 'Trash' });
+    // The user opens another Home Assistant page before the save waits out its time.
+    panel.remove();
+    await waitFor(() => options.notifications[0].channel === 'Trash', 1500);
+    expect(options.notifications[0].channel).toBe('Trash');
+  });
+
+  it('saves a pending edit when the browser hides or unloads the page', async () => {
+    const { hass, saves } = makeHass([notification('n1', 'Bins')]);
+    const panel = await mountSettings(hass);
+    edit(panel, 0, { channel: 'Trash' });
+    window.dispatchEvent(new Event('pagehide'));
+    // The save starts at once. The debounce timer does not get its turn first.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(saves).toHaveLength(1);
+    expect(saves[0].notifications[0].channel).toBe('Trash');
+    // The timer does not send it a second time.
+    await new Promise((r) => setTimeout(r, 800));
+    expect(saves).toHaveLength(1);
+    expect(panel.isConnected).toBe(true);
+  });
+});
