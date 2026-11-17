@@ -478,6 +478,16 @@ def hold_due_at(
     return due if due > now else None
 
 
+def _decided_since(task: dict[str, Any], crossed_at: datetime) -> bool:
+    """Whether a completion or a skip of *task* came at or after *crossed_at*.
+
+    :func:`latest_decision_ts` gives only a stamp that parses.
+    """
+    raw = latest_decision_ts(task)
+    decided = recurrence._parse(raw) if raw is not None else None
+    return decided is not None and _utc(decided) >= _utc(crossed_at)
+
+
 def _utc(moment: datetime) -> datetime:
     """*moment* in UTC, so that subtraction and addition count real seconds."""
     return moment.astimezone(UTC)
@@ -553,7 +563,8 @@ def _evaluate_edge(
     ``condition_met_prev=None`` means the baseline is unknown: the entity had no
     reading when the caller took it. The first definite reading then becomes the
     baseline and does not arm. A task that is armed does not keep a crossing, so a
-    completion made while the condition is still true does not arm it again.
+    completion made while the condition is still true does not arm it again. A
+    completion or a skip made during a pending hold consumes that crossing too.
 
     When the binding sets ``clear_on_recover``, a *falling* edge on an armed task also
     clears it (problem-sensor-mirror behaviour), so "fill the water tank" resolves
@@ -593,6 +604,10 @@ def _evaluate_edge(
         # The armed state already stands for the condition, so a crossing seen now is
         # consumed at once (B14-5). If it stays, a completion made while the
         # condition is still true arms the task again on the next pass.
+        new_crossed_at = None
+    elif new_crossed_at is not None and _decided_since(task, new_crossed_at):
+        # Done or Skip during the hold: the user dealt with this crossing, so it must
+        # not arm the task when the hold ends. Only a new crossing arms it again.
         new_crossed_at = None
     elif new_crossed_at is not None:
         held = (_utc(now) - _utc(new_crossed_at)).total_seconds()

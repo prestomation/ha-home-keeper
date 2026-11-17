@@ -82,14 +82,14 @@ def _hass_with_edges() -> SimpleNamespace:
 def test_b18_6_a_disabled_entry_drops_its_edge_state():
     hass = _hass_with_edges()
     entry = SimpleNamespace(entry_id="entry-1", disabled_by="user")
-    coordinator.discard_edge_state_if_disabled(hass, entry)
+    assert coordinator.discard_edge_state_if_disabled(hass, entry) is True
     assert coordinator._edge_state_store(hass) == {"entry-2": {"t2": "due_soon"}}
 
 
 def test_b18_6_a_reload_keeps_the_edge_state():
     hass = _hass_with_edges()
     entry = SimpleNamespace(entry_id="entry-1", disabled_by=None)
-    coordinator.discard_edge_state_if_disabled(hass, entry)
+    assert coordinator.discard_edge_state_if_disabled(hass, entry) is False
     assert coordinator._edge_state_store(hass) == {
         "entry-1": {"t1": "overdue"},
         "entry-2": {"t2": "due_soon"},
@@ -115,6 +115,8 @@ def test_b18_6_the_unload_drops_the_edge_state_of_a_disabled_entry():
         and ast.unparse(node.func) == "discard_edge_state_if_disabled"
     ]
     assert calls == ["discard_edge_state_if_disabled(hass, entry)"]
+    # The sensor watcher keeps its edge state for a reload too, and drops it here.
+    assert "async_discard_edge_state(hass, entry.entry_id)" in ast.unparse(unload)
 
 
 # ── B15-5 and X08-5: the stock settle ────────────────────────────────────────

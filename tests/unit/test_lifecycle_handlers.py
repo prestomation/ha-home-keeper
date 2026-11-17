@@ -62,6 +62,8 @@ def _problem_sync():
     sync._entry = SimpleNamespace(entry_id="entry1", options={})
     sync._coordinator = SimpleNamespace(store=store, async_request_refresh=_refresh)
     sync._reload_scheduled = False
+    sync._pass_lock = asyncio.Lock()
+    sync._queued = False
     sync._resubscribe_state = lambda: None
     return sync, store
 
