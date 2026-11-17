@@ -268,6 +268,34 @@ def test_x02_5_a_scan_that_waits_in_vain_does_nothing(monkeypatch):
     assert waited == [hass]
 
 
+def test_a_tag_scanned_again_within_10_seconds_acts_once(monkeypatch):
+    # A reader that reads one tap 2 times, or a hand that taps again, completed a
+    # recurring task 2 times. The second scan of the same tag is ignored.
+    from datetime import UTC, datetime, timedelta
+
+    start = datetime(2026, 6, 1, 9, tzinfo=UTC)
+    clock = [start]
+    monkeypatch.setattr(
+        tag_listener,
+        "dt_util",
+        types.SimpleNamespace(now=lambda: clock[0]),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        tag_listener.tags, "tasks_for_tag", lambda tasks, tag_id: list(tasks)
+    )
+    hass = _Hass()
+    coord = _TagCoord()
+    _start_tag_listener(hass, now=coord, later=None)
+    _scan(hass)
+    clock[0] = start + timedelta(seconds=9)
+    _scan(hass)
+    assert coord.store.completed == ["t1"]
+    clock[0] = start + timedelta(seconds=11)
+    _scan(hass)
+    assert coord.store.completed == ["t1", "t1"]
+
+
 # ── the registration ─────────────────────────────────────────────────────────
 def _function_source(name: str) -> str:
     tree = ast.parse((_COMPONENT / "__init__.py").read_text())

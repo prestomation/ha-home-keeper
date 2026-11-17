@@ -23,7 +23,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 
-from . import notifications, profiles, recurrence
+from . import notifications, profiles, recurrence, repeats
 from .const import (
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -664,10 +664,19 @@ def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
                 exclude_task_id=task_id,
             )
 
+    # A double tap fires the same action 2 times. The freshness token stops the
+    # second tap of a current button. A legacy Snooze or Skip has no token, and the
+    # second tap moved the task again. The guard stops a repeat of each button.
+    recent_taps = repeats.RepeatGuard()
+
     @callback
     def _on_action(event: Event) -> None:
-        decoded = notifications.decode_action(event.data.get("action"))
+        action = event.data.get("action")
+        decoded = notifications.decode_action(action)
         if decoded is None:
+            return
+        if recent_taps.is_repeat(str(action), dt_util.now()):
+            _LOGGER.debug("Home Keeper ignored a repeat tap of %s", action)
             return
         hass.async_create_task(_route(*decoded))
 

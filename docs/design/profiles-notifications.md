@@ -100,7 +100,8 @@ A button action is `home_keeper::<verb>::<task_id>::<notification_id>::<due_toke
 and calls `notifications.is_current_action`. A different `next_due` means the task moved
 after the send, so the tap does nothing. No `await` comes between the check and the store
 change, so 2 taps at once cannot both pass. A tokenless 4-field action accepts Snooze and
-Skip, and Done only on an overdue task.
+Skip, and Done only on an overdue task. The same action string again within 10 s is ignored
+(`repeats.RepeatGuard`), so a double tap on a tokenless button acts once.
 
 `notifications.actions_for` removes a verb that the `allow_snooze` or `allow_skip`
 option turns off. It removes Done and Skip for a completion-blocked task, and Done for a

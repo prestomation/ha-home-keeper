@@ -15,8 +15,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import CALLBACK_TYPE, Context, Event, HomeAssistant, callback
+from homeassistant.util import dt as dt_util
 
-from . import caller, models, tags
+from . import caller, models, repeats, tags
 from .const import EVENT_HA_TAG_SCANNED, ORIGIN_TAG_SCAN
 
 if TYPE_CHECKING:
@@ -35,6 +36,10 @@ def async_setup_tag_listener(hass: HomeAssistant) -> CALLBACK_TYPE:
     and waits for it while the entry sets up.
     """
     from .coordinator import async_wait_for_coordinator, find_coordinator
+
+    # A reader that reads 1 tap 2 times, or a hand that taps again, fires 2 scans.
+    # Each one completed the task, and a recurring task got 2 completions.
+    recent_scans = repeats.RepeatGuard()
 
     async def _complete(
         coord: HomeKeeperCoordinator, matched: list[dict[str, Any]]
@@ -74,6 +79,9 @@ def async_setup_tag_listener(hass: HomeAssistant) -> CALLBACK_TYPE:
     def _on_tag_scanned(event: Event) -> None:
         tag_id = event.data.get("tag_id")
         if not tag_id or not isinstance(tag_id, str):
+            return
+        if recent_scans.is_repeat(tag_id, dt_util.now()):
+            _LOGGER.debug("Home Keeper ignored a repeat scan of tag %s", tag_id)
             return
         # The completion is a child of the scan and has the user of the scan, so the
         # logbook shows who scanned the tag (``caller.py``). A task that starts in
