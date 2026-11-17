@@ -148,7 +148,8 @@ one-off at `due` only when it has no completion and no other skip.
 Both call `recurrence.defer`, which sets `next_due` and records no log entry. On a fixed task it
 keeps the grid occurrence in `deferred_from`, so a later completion loses none.
 `recurrence.snooze_from` counts a snooze from the due date when that is later than `now`. The
-store rejects both on a dormant task.
+store rejects both on a dormant task. Due today keeps the date of an overdue task, so a service
+call does not start a second overdue crossing.
 
 In the frontend, `defer.deferVerbs` decides which actions to show: all need a `next_due`, Skip
 a task that is not `completion_blocked`, Due today one that is not overdue, and each has an

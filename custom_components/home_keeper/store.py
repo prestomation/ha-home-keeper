@@ -1052,10 +1052,11 @@ class HomeKeeperStore:
         problem being resolved, only that the reminder should land now rather than
         on its own schedule, so it survives the sync the same way a snooze does.
 
-        The panel and the card additionally withhold the action on a task that is
-        already due or overdue (see ``deferVerbs``). That is a UI rule, not a store
-        one: a service caller may still move such a task, which only pushes its due
-        date later.
+        The panel and the card withhold the action on a task that is already due or
+        overdue (see ``deferVerbs``). The store keeps the date of an overdue task as
+        it is: the task is due already. A move to now made the next refresh read a
+        new overdue crossing, and sent a second overdue push for the same task. That
+        call saves nothing and fires no event.
         """
         existing = self._tasks.get(task_id)
         if existing is None:
@@ -1070,6 +1071,8 @@ class HomeKeeperStore:
                 "completion, or wait for its condition/sensor)."
             )
         now = dt_util.now()
+        if recurrence.is_overdue(existing, now=now):
+            return existing
         recurrence.defer(existing, now, now=now)
         await self._save()
         _LOGGER.debug("Set task %s due now (%s)", task_id, existing["next_due"])
