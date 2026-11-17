@@ -248,7 +248,7 @@ describe('photos in the card New task form', () => {
     const keys = card._edit.photos.map((s) => s.key);
     fillName(card, 'Repair insulation');
     sr(card).querySelector('#hk-create').click();
-    await waitFor(() => !card._edit.open);
+    await waitFor(() => !card._isOpen('taskForm'));
     expect(calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
     expect(AutoXHR.sent.map((s) => s.url)).toEqual(keys.map((k) => `/api/home_keeper/task_photo/new1/${k}`));
     expect(AutoXHR.sent.map((s) => s.file.name)).toEqual(['a.jpg', 'b.jpg']);
@@ -264,7 +264,7 @@ describe('photos in the card New task form', () => {
     AutoXHR.failUrls.add(card._edit.photos[1].key);
     fillName(card, 'Repair insulation');
     sr(card).querySelector('#hk-create').click();
-    await waitFor(() => !card._edit.open);
+    await waitFor(() => !card._isOpen('taskForm'));
     expect(AutoXHR.sent).toHaveLength(2);
     expect(calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
     expect(toasts).toEqual([tn('photos.uploadPartial', 1)]);
@@ -276,7 +276,7 @@ describe('photos in the card New task form', () => {
     card.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
     fillName(card, 'Plain');
     sr(card).querySelector('#hk-create').click();
-    await waitFor(() => !card._edit.open);
+    await waitFor(() => !card._isOpen('taskForm'));
     expect(AutoXHR.sent).toEqual([]);
     expect(toasts).toEqual([]);
   });
@@ -289,7 +289,7 @@ describe('photos in the card New task form', () => {
       (b) => b.textContent === t('btn.cancel'),
     );
     cancel.click();
-    await waitFor(() => !card._edit.open);
+    await waitFor(() => !card._isOpen('taskForm'));
     expect(revoked).toEqual(['blob:a.jpg']);
   });
 });

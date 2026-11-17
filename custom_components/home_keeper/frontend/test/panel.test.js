@@ -1137,7 +1137,7 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     const menu = await openMenu(panel);
     menu.querySelector('.hk-defer-details').click();
     expect(menu.hidden).toBe(true);
-    expect(panel._completion.open).toBe(true);
+    expect(panel._isOpen('completion')).toBe(true);
     expect(panel._completion.task.id).toBe('t1');
     // A one-tap task asks for nothing, and nothing is logged until the dialog says so.
     expect(panel._completion.required).toEqual([]);
@@ -2076,7 +2076,8 @@ describe('Task layouts', () => {
     await waitFor(() => sheetRows(panel).length);
     // A one-tap task also offers the details entry, right under Done (#399).
     expect(sheetRows(panel)).toEqual(['done', 'details', 'snooze', 'skip', 'open']);
-    panel._actionSheet = { open: false, task: null };
+    panel._actionSheet = { task: null };
+    panel._closeOverlay('actionSheet');
     panel._render();
 
     // A dormant monitored task has nothing to complete and nothing to defer.
@@ -2094,7 +2095,7 @@ describe('Task layouts', () => {
     panel.shadowRoot.querySelector('.hk-sheet-row[data-action="done"]').click();
     await waitFor(() => calls['home_keeper/complete_task']);
     expect(calls['home_keeper/complete_task']).toBe(1);
-    expect(panel._actionSheet.open).toBe(false);
+    expect(panel._isOpen('actionSheet')).toBe(false);
     expect(panel.shadowRoot.querySelector('.hk-sheet-row')).toBe(null);
   });
 
@@ -2125,7 +2126,7 @@ describe('Task layouts', () => {
       expect(location.pathname).toContain('t2');
       card.dispatchEvent(new Event('pointerup'));
       card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      expect(panel._actionSheet.open).toBe(false);
+      expect(panel._isOpen('actionSheet')).toBe(false);
 
       // A short press is a press: it opens the sheet and never the page.
       const depth = history.length;
@@ -2243,7 +2244,7 @@ describe('Task layouts', () => {
     [...panel.shadowRoot.querySelectorAll('ha-button')]
       .find((b) => b.textContent === 'Cancel')
       .click();
-    expect(panel._actionSheet.open).toBe(false);
+    expect(panel._isOpen('actionSheet')).toBe(false);
     expect(panel.shadowRoot.activeElement?.dataset.id).toBe('t2');
   });
 

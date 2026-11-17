@@ -159,7 +159,7 @@ describe('the New task form', () => {
     const keys = panel._edit.photos.map((s) => s.key);
     emitChange(panel.shadowRoot.querySelector('#hk-task-form-basics'), { name: 'Fix insulation' });
     panel.shadowRoot.querySelector('#f-save').click();
-    await waitFor(() => !panel._edit.open);
+    await waitFor(() => !panel._isOpen('taskForm'));
     expect(hass.calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
     expect(AutoXHR.sent.map((s) => s.url)).toEqual(
       keys.map((k) => `/api/home_keeper/task_photo/new1/${k}`),
@@ -183,7 +183,7 @@ describe('the New task form', () => {
     await waitFor(() => navigations.length);
     expect(AutoXHR.sent).toHaveLength(2);
     expect(hass.calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
-    expect(panel._edit.open).toBe(false);
+    expect(panel._isOpen('taskForm')).toBe(false);
     expect(navigations).toEqual(['/home-keeper/tasks/new1']);
     expect(toasts).toContain(tn('photos.uploadPartial', 1));
   });
@@ -192,7 +192,7 @@ describe('the New task form', () => {
     const { panel } = await openNewTask();
     emitChange(panel.shadowRoot.querySelector('#hk-task-form-basics'), { name: 'Plain' });
     panel.shadowRoot.querySelector('#f-save').click();
-    await waitFor(() => !panel._edit.open);
+    await waitFor(() => !panel._isOpen('taskForm'));
     expect(AutoXHR.sent).toEqual([]);
   });
 
@@ -201,7 +201,7 @@ describe('the New task form', () => {
     pick(panel, [img('a.jpg')]);
     await waitFor(() => staged(panel).length === 1);
     panel.shadowRoot.querySelector('#f-cancel').click();
-    await waitFor(() => !panel._edit.open);
+    await waitFor(() => !panel._isOpen('taskForm'));
     expect(revoked).toEqual(['blob:a.jpg']);
     expect(panel._edit.photos).toBeUndefined();
   });
@@ -211,8 +211,8 @@ describe('the New task form', () => {
     pick(panel, [img('a.jpg')]);
     await waitFor(() => staged(panel).length === 1);
     panel.route = { prefix: '/home-keeper', path: '/settings' };
-    await waitFor(() => !panel._edit.open);
-    expect(panel._edit.open).toBe(false);
+    await waitFor(() => !panel._isOpen('taskForm'));
+    expect(panel._isOpen('taskForm')).toBe(false);
     expect(revoked).toEqual(['blob:a.jpg']);
   });
 
@@ -238,7 +238,7 @@ describe('the New task form', () => {
     const newer = panel._edit;
     await waitFor(() => revoked.length === 2);
     expect(panel._edit).toBe(newer);
-    expect(panel._edit.open).toBe(true);
+    expect(panel._isOpen('taskForm')).toBe(true);
     expect(revoked).toEqual(['blob:a.jpg', 'blob:a.jpg']);
   });
 });

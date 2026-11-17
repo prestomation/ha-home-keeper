@@ -173,8 +173,8 @@ export function spendButton(p: PanelHost): string {
     total: formatCost(p._hass, total),
   });
   return `<button type="button" class="hk-spend-btn" id="hk-spend-btn" data-spend-btn
-      aria-haspopup="dialog" aria-expanded="${p._spendSheet}"${
-    p._spendSheet ? ' aria-controls="hk-spend-sheet"' : ''
+      aria-haspopup="dialog" aria-expanded="${p._isOpen('spendSheet')}"${
+    p._isOpen('spendSheet') ? ' aria-controls="hk-spend-sheet"' : ''
   }
       aria-label="${escapeHTML(name)}" title="${escapeHTML(name)}"><ha-icon icon="${escapeHTML(
         icon,
@@ -187,7 +187,7 @@ export function spendButton(p: PanelHost): string {
  * the page inert and handles Escape (`_syncSpendSheet`).
  */
 export function spendSheet(p: PanelHost): string {
-  if (!p._spendSheet || !showSpend(p)) return '';
+  if (!p._isOpen('spendSheet') || !showSpend(p)) return '';
   return `
       <div class="hk-spend-scrim" data-spend-close></div>
       <section class="hk-spend-sheet" id="hk-spend-sheet" role="dialog" aria-modal="true"
@@ -214,7 +214,7 @@ export function wireSpend(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('[data-spend-purchases]').forEach((b) =>
     b.addEventListener('click', () => {
       // A route change leaves the task list, so the sheet does not come back with it.
-      p._spendSheet = false;
+      p._closeOverlay('spendSheet', false);
       p._navigate({ view: 'appliances', detail: null });
     }),
   );
@@ -224,7 +224,7 @@ export function wireSpend(p: PanelHost, root: ParentNode): void {
       const [kind, ...rest] = (a.dataset.spendOpen ?? '').split(':');
       const id = rest.join(':');
       if (!id) return;
-      p._spendSheet = false;
+      p._closeOverlay('spendSheet', false);
       if (kind === 'asset') {
         p._navigate({ view: 'appliances', detail: { kind: 'asset', id, tab: 'history' } });
       } else {

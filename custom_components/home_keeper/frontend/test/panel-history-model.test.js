@@ -246,7 +246,7 @@ describe('browser history model on the real panel', () => {
           await fc.asyncModelRun(() => ({ model, real: panel }), cmds);
         },
       ),
-      { numRuns: Number(process.env.HK_HISTORY_RUNS) || runs },
+      { numRuns: Number(process.env.HK_MODEL_RUNS) || runs },
     );
   }, 120_000);
 

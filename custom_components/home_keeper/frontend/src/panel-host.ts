@@ -66,6 +66,7 @@ import type {
   SettingsSection,
   TaskTab,
 } from './utils';
+import type { OverlayKind, OverlayState } from './overlay-state';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -134,7 +135,6 @@ export interface PanelHost extends HTMLElement {
    *  heading, usually "This cannot be undone"; a null `onConfirm` makes it the
    *  blocked-action dialog, which reports and offers only Close. */
   _confirmDelete: {
-    open: boolean;
     label: string;
     body: string;
     onConfirm: (() => void) | null;
@@ -217,8 +217,6 @@ export interface PanelHost extends HTMLElement {
   _spend: SpendSummary | null;
   /** The total whose records are open under the strip, or '' (see `panel-spend.ts`). */
   _spendOpen: string;
-  /** Whether the spend sheet is open over the task list (the spend button opens it). */
-  _spendSheet: boolean;
   /** Open the spend sheet and move focus into it. */
   _openSpendSheet(): void;
   /** Close the spend sheet and give focus back to the spend button. */
@@ -389,4 +387,19 @@ export interface PanelHost extends HTMLElement {
   /** Wire a detail page's inline notes editor (buttons + live preview). Stays on the
    *  panel: the preview it builds must be registered in `_previews` for disposal. */
   _wireNoteEditor(root: ShadowRoot, target: NoteTarget): void;
+  /** The open overlays and where the keyboard goes when one closes
+   *  (`overlay-state.ts`). Change it only through the 2 methods below. */
+  _overlay: OverlayState;
+  /** Whether the overlay *kind* is open. */
+  _isOpen(kind: OverlayKind): boolean;
+  /** The 1 busy rule: true while any overlay is open. */
+  _busy(): boolean;
+  /** Mark *kind* open. *opener*, or else the control that has the keyboard now, is
+   *  its opener. */
+  _openOverlay(kind: OverlayKind, opener?: HTMLElement): void;
+  /** Mark *kind* closed. The next render gives the keyboard back to its opener. With
+   *  *keyboard* false, the keyboard stays where the user put it. */
+  _closeOverlay(kind: OverlayKind, keyboard?: boolean): void;
+  /** Give the keyboard back to the opener of a closed overlay, with no render. */
+  _flushOverlayFocus(): void;
 }

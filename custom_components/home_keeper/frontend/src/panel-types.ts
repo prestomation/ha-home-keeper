@@ -24,7 +24,6 @@ import type {
  * typed; it is null while the picker is up.
  */
 export interface DeclarativeDialogState {
-  open: boolean;
   kind: 'picker' | 'form';
   draft: DeclarativeCompanion | null;
   error?: string;
@@ -44,14 +43,12 @@ export type NoteTarget = { kind: 'task' | 'asset'; id: string };
  *  instead opens the task's detail page, so the sheet is the short way to the
  *  actions the list row carries inline (see `panel-lists.ts`). */
 export interface ActionSheetState {
-  open: boolean;
   task: Task | null;
 }
 
 export interface EditState {
   /** Set while Create/Save runs, so a second press is ignored (X12-4). */
   busy?: boolean;
-  open: boolean;
   task: Partial<Task> | null;
   error?: string;
   /** Set when a save fails, so the next render scrolls the error into view once. */
@@ -62,7 +59,6 @@ export interface EditState {
 export interface AssetEditState {
   /** Set while Create/Save runs, so a second press is ignored (X12-4). */
   busy?: boolean;
-  open: boolean;
   asset: Partial<Asset> | null;
   error?: string;
   // Optional "Learn more" link shown beside the error (e.g. the docs for a proxy 413).
@@ -124,7 +120,6 @@ export const UPLOAD_BAR_DELAY_MS = 150;
 export interface CompletionDialogState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
-  open: boolean;
   task: Task | null;
   ts?: string;
   data: {
@@ -146,7 +141,6 @@ export interface CompletionDialogState {
 export interface MoveCompletionDialogState {
   /** Set while the save runs, so a second press is ignored (X12-3). */
   busy?: boolean;
-  open: boolean;
   task: Task | null;
   ts: string;
   newTs?: string;
@@ -244,7 +238,6 @@ export interface TransferState {
 /** The one-time "Presets you can use" dialog: the presets it lists, the ones still
  *  checked, and whether an add is running. */
 export interface PresetDialogState {
-  open: boolean;
   ids: string[];
   selected: string[];
   busy: boolean;

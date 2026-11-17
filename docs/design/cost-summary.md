@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/cost_summary.py
   - custom_components/home_keeper/frontend/src/panel-spend.ts
 related: [completions, appliances, coordinator-entities, frontend]
-source_hash: 48e2c7dc1aaa
+source_hash: 28d4633cf4ff
 ---
 
 # Cost totals

@@ -80,6 +80,15 @@ export interface DeferMenuHost {
   onDueToday(task: Task): void;
   /** Open the completion dialog. Only the panel offers it (#399). */
   onDetails?(task: Task): void;
+  /** A menu opened from *caret*. */
+  onOpen?(caret: HTMLElement): void;
+  /**
+   * The open menu closed. *keyboard* is true when the host must give the keyboard
+   * back to the caret: a menu item was picked, and the item is hidden now. It is false
+   * when the keyboard is in its place: Escape put it on the caret, or a click put it
+   * on another control, or the host closed the menu before a render.
+   */
+  onClose?(keyboard: boolean): void;
 }
 
 /**
@@ -113,8 +122,9 @@ export class DeferMenus {
     return this._open !== null;
   }
 
-  /** Close whatever is open. Hosts call this before replacing their markup. */
-  close(): void {
+  /** Close whatever is open. Hosts call this before replacing their markup. See
+   *  {@link DeferMenuHost.onClose} for *keyboard*. */
+  close(keyboard = false): void {
     if (this._onKey) {
       document.removeEventListener('keydown', this._onKey);
       this._onKey = null;
@@ -137,6 +147,7 @@ export class DeferMenus {
     }
     this._open.caret.setAttribute('aria-expanded', 'false');
     this._open = null;
+    this.host.onClose?.(keyboard);
   }
 
   private _wireOne(split: HTMLElement, task: Task, caretSelector: string): void {
@@ -155,19 +166,19 @@ export class DeferMenus {
     // task is read again at click time. The one found at wire time can be an older copy.
     const current = (): Task => this.host.taskById(task.id) ?? task;
     menu.querySelector('.hk-defer-snooze')?.addEventListener('click', () => {
-      this.close();
+      this.close(true);
       this.host.onSnooze(current());
     });
     menu.querySelector('.hk-defer-skip')?.addEventListener('click', () => {
-      this.close();
+      this.close(true);
       this.host.onSkip(current());
     });
     menu.querySelector('.hk-defer-due-today')?.addEventListener('click', () => {
-      this.close();
+      this.close(true);
       this.host.onDueToday(current());
     });
     menu.querySelector('.hk-defer-details')?.addEventListener('click', () => {
-      this.close();
+      this.close(true);
       this.host.onDetails?.(current());
     });
   }
@@ -193,6 +204,7 @@ export class DeferMenus {
       placeMenu(split, menu);
     }
     caret.setAttribute('aria-expanded', 'true');
+    this.host.onOpen?.(caret);
     // The menu pattern (X11-5): focus goes to the first item on open, the arrow
     // keys, Home and End move it, and Escape puts it back on the caret. Without
     // this, focus stayed on the caret, and Escape from an item hid the focused
@@ -295,19 +307,24 @@ export interface DeferDialogHost {
   refresh(): Promise<void>;
   /** Show a short message. For an error of a dialog that is no longer open. */
   notify?(message: string): void;
+  /** Whether the dialog of the state object *s* is open now. A new dialog of the same
+   *  kind has a new state object. */
+  shown(s: SnoozeState | SkipState): boolean;
 }
 
 /**
  * *close* made safe for a request that ends late (F10-3). A dialog closes its own
  * state only: after the user dismissed it, the host can show a different dialog of
- * the same kind, and a late reply must not close that one. Dismissal sets
- * `open = false` on the state object, so a later call does nothing.
+ * the same kind, and a late reply must not close that one. The host knows if the
+ * dialog of this state object is open, so a later call does nothing.
  */
-function closeOnce(s: { open: boolean }, close: () => void): () => void {
+function closeOnce(
+  host: DeferDialogHost,
+  s: SnoozeState | SkipState,
+  close: () => void,
+): () => void {
   return () => {
-    if (!s.open) return;
-    s.open = false;
-    close();
+    if (host.shown(s)) close();
   };
 }
 
@@ -315,13 +332,9 @@ function closeOnce(s: { open: boolean }, close: () => void): () => void {
  * Show the error of a failed write: in the dialog when it is still open, else as a
  * message from the host, because the dialog state is gone from the screen (F10-3).
  */
-function reportError(
-  host: DeferDialogHost,
-  s: { open: boolean; error?: string },
-  err: unknown,
-): void {
+function reportError(host: DeferDialogHost, s: SnoozeState | SkipState, err: unknown): void {
   const message = String((err as { message?: string })?.message || err);
-  if (s.open) {
+  if (host.shown(s)) {
     s.error = message;
     host.rerender();
   } else {
@@ -366,7 +379,7 @@ export function renderSnoozeDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
-  close = closeOnce(s, close);
+  close = closeOnce(host, s, close);
   const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
   if (offersLaterDates(s.task)) {
@@ -527,7 +540,7 @@ async function loadLaterDates(host: DeferDialogHost, s: SnoozeState): Promise<vo
     s.occurrences = [];
     s.error = String((err as { message?: string })?.message || err);
   }
-  if (s.open) host.rerender();
+  if (host.shown(s)) host.rerender();
 }
 
 /** Refresh the move line without re-rendering (which would steal focus). */
@@ -607,7 +620,7 @@ export function renderSkipDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
-  close = closeOnce(s, close);
+  close = closeOnce(host, s, close);
   const editing = s.ts != null;
   const { dialog, body, footer, mount } = makeDialog(
     editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
