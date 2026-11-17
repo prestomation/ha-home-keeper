@@ -19,6 +19,7 @@ import contextvars
 import importlib.util
 import sys
 import types
+from datetime import UTC, datetime
 from pathlib import Path
 
 import hk_caller as caller
@@ -164,6 +165,12 @@ def _load_tag_listener():
 
 
 tag_listener = _load_tag_listener()
+# The repeat guard reads the clock on each scan. Without Home Assistant the stub
+# ``dt_util.now`` raises, so the clock is pinned here, as ``notifier_harness`` pins
+# it for the notifier. A test that moves the clock patches it again.
+tag_listener.dt_util = types.SimpleNamespace(
+    now=lambda: datetime(2026, 6, 1, 9, tzinfo=UTC)
+)
 
 
 class _TagStore:
@@ -271,7 +278,7 @@ def test_x02_5_a_scan_that_waits_in_vain_does_nothing(monkeypatch):
 def test_a_tag_scanned_again_within_10_seconds_acts_once(monkeypatch):
     # A reader that reads one tap 2 times, or a hand that taps again, completed a
     # recurring task 2 times. The second scan of the same tag is ignored.
-    from datetime import UTC, datetime, timedelta
+    from datetime import timedelta
 
     start = datetime(2026, 6, 1, 9, tzinfo=UTC)
     clock = [start]
@@ -279,7 +286,6 @@ def test_a_tag_scanned_again_within_10_seconds_acts_once(monkeypatch):
         tag_listener,
         "dt_util",
         types.SimpleNamespace(now=lambda: clock[0]),
-        raising=False,
     )
     monkeypatch.setattr(
         tag_listener.tags, "tasks_for_tag", lambda tasks, tag_id: list(tasks)
