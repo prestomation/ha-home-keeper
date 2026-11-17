@@ -82,7 +82,7 @@ detector on each periodic and post-mutation refresh. Until setup calls
 state lives in `hass.data` per config entry, so a reload keeps it. `transitions.auto_crossings`
 drops a due-soon crossing that a snooze or a completion caused, before notifications use the list.
 `assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop to 0 fires
-only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fires.
+only `home_keeper_part_out_of_stock`. A part with no `reorder_at` fires only that event.
 
 ### Triggers
 

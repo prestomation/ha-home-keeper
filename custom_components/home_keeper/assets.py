@@ -1365,14 +1365,15 @@ def stock_transition(old: float, new: float, reorder_at: float | None) -> str:
     behind the edge-triggered stock events: it fires once *per crossing* rather than on
     every step. Precedence matters — ``"out"`` (reaching zero) wins over ``"low"`` so a
     single decrement that drops an already-low part to zero is reported as out-of-stock,
-    not a (repeat) low-stock. A part with no ``reorder_at`` threshold is untracked and
-    never transitions. Quantities may be fractional; a draw-down that lands *below*
-    zero is clamped by the callers, so ``<= 0`` and ``== 0`` mean the same thing here.
+    not a (repeat) low-stock. Out of stock needs only a count: a part with no
+    ``reorder_at`` threshold still reports it. Low and restocked need the threshold.
+    Quantities may be fractional; a draw-down that lands *below* zero is clamped by
+    the callers, so ``<= 0`` and ``== 0`` mean the same thing here.
     """
-    if reorder_at is None:
-        return STOCK_NONE
     if new <= 0 and old > 0:
         return STOCK_OUT
+    if reorder_at is None:
+        return STOCK_NONE
     if new <= reorder_at and old > reorder_at:
         return STOCK_LOW
     if new > reorder_at and old <= reorder_at:

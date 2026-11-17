@@ -1509,7 +1509,7 @@ def test_part_wants_buy_task_requires_option_and_threshold():
 
 
 def test_stock_transition_classifies_crossings():
-    # No threshold -> untracked, never transitions.
+    # No threshold -> no low or restocked crossing.
     assert a.stock_transition(5, 4, None) == a.STOCK_NONE
     # Crossing into low.
     assert a.stock_transition(2, 1, 1) == a.STOCK_LOW
@@ -1523,6 +1523,20 @@ def test_stock_transition_classifies_crossings():
     # No crossing while comfortably above, or already low without reaching zero.
     assert a.stock_transition(3, 2, 1) == a.STOCK_NONE
     assert a.stock_transition(2, 1, 3) == a.STOCK_NONE
+
+
+def test_a_part_with_no_reorder_level_still_fires_out_of_stock_at_zero():
+    # A counted part with no reorder level ran out with no event at all. Out of
+    # stock needs only a count; low and restocked need the level.
+    assert a.stock_transition(1, 0, None) == a.STOCK_OUT
+    assert a.stock_transition(0.5, -1, None) == a.STOCK_OUT
+    assert a.stock_transition(0, 0, None) == a.STOCK_NONE
+    assert a.stock_transition(0, 3, None) == a.STOCK_NONE
+    part = {"stock": 1, "reorder_at": None}
+    assert a.consume_part_stock(part) == a.STOCK_OUT
+    assert part["stock"] == 0
+    assert a.consume_part_stock(part) == a.STOCK_NONE
+    assert a.adjust_part_stock({"stock": 2, "reorder_at": None}, -2) == a.STOCK_OUT
 
 
 def test_consume_part_stock_flags_low_only_on_crossing():
