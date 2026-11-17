@@ -17,6 +17,8 @@ export function overlayMembers(open = [], opener = null) {
     set _overlay(value) {
       overlay = value;
     },
+    // A spread copies a getter's value once, so a test reads the live state here.
+    overlayNow: () => overlay,
     _isOpen: (kind) => isOpen(overlay, kind),
     _busy: () => isBusy(overlay),
     _openOverlay(kind) {

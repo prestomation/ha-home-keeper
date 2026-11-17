@@ -271,7 +271,7 @@ describe('wireSpend', () => {
     ]);
     // The sheet closes, and the keyboard goes with the new page, not to the spend button.
     expect(p._isOpen('spendSheet')).toBe(false);
-    expect(p._overlay.focus).toBeNull();
+    expect(p.overlayNow().focus).toBeNull();
   });
 
   it('a link with no id goes nowhere', () => {
@@ -289,7 +289,7 @@ describe('wireSpend', () => {
     wired(p).querySelector('[data-spend-purchases]').click();
     expect(p.navigated).toEqual([{ view: 'appliances', detail: null }]);
     expect(p._isOpen('spendSheet')).toBe(false);
-    expect(p._overlay.focus).toBeNull();
+    expect(p.overlayNow().focus).toBeNull();
   });
 });
 
