@@ -7,7 +7,7 @@
 | custom\_components/home\_keeper/\_\_init\_\_.py                  |      682 |      682 |       86 |        0 |      0% |    8-2332 |
 | custom\_components/home\_keeper/api\_surface.py                  |      115 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/appliance\_report.py             |       68 |        0 |       14 |        0 |    100% |           |
-| custom\_components/home\_keeper/assets.py                        |      739 |       19 |      328 |       18 |     97% |164, 197, 216, 221, 265, 289, 292, 295, 398-\>397, 451, 626, 629, 640, 676, 793, 1454, 1727-1728, 1752-1753, 1755-\>1768 |
+| custom\_components/home\_keeper/assets.py                        |      739 |       19 |      328 |       18 |     97% |164, 197, 216, 221, 265, 289, 292, 295, 398-\>397, 451, 626, 629, 640, 676, 793, 1458, 1731-1732, 1756-1757, 1759-\>1772 |
 | custom\_components/home\_keeper/backend\_i18n.py                 |       49 |        5 |        8 |        1 |     89% |76-77, 80, 108-109 |
 | custom\_components/home\_keeper/binary\_sensor.py                |       70 |       70 |        6 |        0 |      0% |    12-152 |
 | custom\_components/home\_keeper/button.py                        |       43 |       13 |        4 |        0 |     68% |44-66, 78-79 |
@@ -39,7 +39,7 @@
 | custom\_components/home\_keeper/logbook.py                       |       22 |        0 |        2 |        0 |    100% |           |
 | custom\_components/home\_keeper/manuals.py                       |      513 |      144 |      116 |       25 |     69% |145-146, 195-198, 221-227, 247, 290, 308-310, 336-\>exit, 381, 405-414, 419, 424, 445, 472-474, 520-523, 561-568, 582-587, 620-621, 636, 638-639, 641, 648-649, 655-657, 661-\>663, 666-668, 696-\>698, 699-700, 701-\>707, 730-748, 769-770, 773-774, 777-778, 806-\>exit, 824-829, 847, 852, 861-863, 883-888, 904-909, 914-925, 953-958, 974, 977-980, 984, 991-993, 995, 1011-1014, 1034-1045, 1086-1087, 1113-1114, 1131, 1142, 1199-1202, 1233-1238 |
 | custom\_components/home\_keeper/models.py                        |      640 |        7 |      374 |        6 |     99% |238, 249, 614, 872-\>875, 921, 925, 1020-1021 |
-| custom\_components/home\_keeper/notifications.py                 |      267 |        5 |       92 |        1 |     98% |365, 555-556, 564-565 |
+| custom\_components/home\_keeper/notifications.py                 |      267 |        5 |       92 |        1 |     98% |366, 556-557, 565-566 |
 | custom\_components/home\_keeper/notifier.py                      |      213 |       21 |       90 |       15 |     87% |102-104, 108, 132, 142, 284, 374, 391, 438, 446, 453, 478, 493, 518-520, 552, 631-638, 655-\>exit, 677 |
 | custom\_components/home\_keeper/number.py                        |       72 |       72 |       14 |        0 |      0% |    11-159 |
 | custom\_components/home\_keeper/options.py                       |      175 |        0 |       74 |        0 |    100% |           |
@@ -49,12 +49,12 @@
 | custom\_components/home\_keeper/problem\_sync.py                 |      153 |       30 |       50 |       10 |     76% |76, 99-112, 116-118, 123-129, 152, 156, 159, 161, 163, 167, 170, 214, 235, 307-309, 314-317 |
 | custom\_components/home\_keeper/problem\_tasks.py                |       77 |        0 |       30 |        0 |    100% |           |
 | custom\_components/home\_keeper/profiles.py                      |      106 |        1 |       50 |        1 |     99% |       132 |
-| custom\_components/home\_keeper/reconcile.py                     |      415 |        5 |      226 |        7 |     98% |309, 329, 435, 437, 438-\>441, 514, 909-\>917 |
+| custom\_components/home\_keeper/reconcile.py                     |      415 |        4 |      226 |        6 |     98% |310, 437, 439, 440-\>443, 516, 911-\>919 |
 | custom\_components/home\_keeper/recurrence.py                    |      689 |        6 |      314 |        7 |     99% |392, 585-586, 641-\>650, 792-\>804, 1017, 1208, 1626-\>1628, 1712 |
 | custom\_components/home\_keeper/repeats.py                       |       13 |        0 |        2 |        0 |    100% |           |
 | custom\_components/home\_keeper/resolve.py                       |       62 |        0 |       18 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                        |      243 |       99 |       54 |        0 |     53% |79, 92-145, 228-229, 233-234, 238-261, 272-307, 384-387, 432-442, 445-449, 453-460, 483, 487-488 |
-| custom\_components/home\_keeper/sensor\_tasks.py                 |      199 |        2 |       84 |        3 |     98% |147, 180-\>175, 207 |
+| custom\_components/home\_keeper/sensor\_tasks.py                 |      199 |        2 |       84 |        3 |     98% |148, 181-\>176, 208 |
 | custom\_components/home\_keeper/sensor\_watcher.py               |      379 |       70 |      162 |       29 |     78% |97, 104, 163, 166, 218, 221, 229-231, 291-307, 322-330, 454, 458, 524-527, 535, 572, 606-607, 613, 619-\>exit, 664, 666-\>660, 668-\>exit, 725, 738, 741, 772-784, 792, 794, 808, 810, 812, 814, 852-853, 872-873, 878-879, 968-969, 1001-1002 |
 | custom\_components/home\_keeper/service\_device.py               |        5 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/service\_errors.py               |       44 |        0 |       14 |        0 |    100% |           |
@@ -80,7 +80,7 @@
 | custom\_components/home\_keeper/trigger.py                       |       58 |       58 |        8 |        0 |      0% |    21-143 |
 | custom\_components/home\_keeper/trigger\_targets.py              |       47 |        0 |       12 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      717 |      717 |      106 |        0 |      0% |    8-2017 |
-| **TOTAL**                                                        | **14076** | **2786** | **5014** |  **307** | **81%** |           |
+| **TOTAL**                                                        | **14076** | **2785** | **5014** |  **306** | **81%** |           |
 
 
 ## Setup coverage badge
