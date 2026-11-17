@@ -1210,7 +1210,9 @@ export const STYLES = `
     font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--hk-danger-ink); align-self: center;
   }
-  .hk-stock[data-busy] { opacity: 0.6; pointer-events: none; }
+  /* A save runs or waits. The count is dimmed, and − and + stay live: a tap while a
+     save runs is kept and goes in the next save (stock-stepper.ts). */
+  .hk-stock[data-busy] .hk-stock-input { opacity: 0.6; }
   /* The rule the form currently describes, in one sentence, immediately above the
      submit button — the last thing read before committing. Louder than .hk-form-hint
      on purpose: the hint explains, this one states the outcome. */

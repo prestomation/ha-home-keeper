@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { definePanelStubs, makeHass, waitFor } from './panel-harness.js';
 import { STOCK_SETTLE_MS } from '../src/stock-stepper.ts';
+import { STYLES } from '../src/panel-styles.ts';
 
 /**
  * The stock stepper on the appliance page: taps while a save runs are kept. The panel
@@ -66,6 +67,15 @@ const tap = (panel, sign) => stepper(panel).querySelector(sign > 0 ? '.hk-stock-
 const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms));
 
 describe('stock stepper: taps while a save runs', () => {
+  it('keeps - and + live while a save runs, so a browser delivers the taps', () => {
+    // jsdom does not apply CSS, so this reads the rule: a stepper with a save to do
+    // must not turn off its pointer events.
+    const busy = STYLES.match(/\.hk-stock\[data-busy\][^{]*\{[^}]*\}/g) ?? [];
+    expect(busy.length).toBeGreaterThan(0);
+    for (const rule of busy) expect(rule).not.toMatch(/pointer-events\s*:\s*none/);
+    for (const rule of busy) expect(rule).not.toMatch(/^\.hk-stock\[data-busy\]\s*\{/);
+  });
+
   it('keeps 3 taps that come while a save runs and sends them as 1 save', async () => {
     const { panel, ctl } = await setup();
     tap(panel, 1);
