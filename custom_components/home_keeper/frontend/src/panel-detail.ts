@@ -55,6 +55,14 @@ import { consumableLinkLabel, consumableOptions, documentOptions } from './panel
 import { partBackstopLabel, partCountsUses, taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task } from './types';
 import {
+  STOCK_SETTLE_MS,
+  initialStock,
+  stockDelta,
+  stockPending,
+  stockStep,
+  type StockState,
+} from './stock-stepper';
+import {
   ASSET_TABS,
   HK_DOMAIN,
   areaName,
@@ -84,7 +92,6 @@ import {
   safeHref,
   scanRequired,
   setDueTime,
-  snapStock,
   typedStock,
   countedProgress,
   isUseTask,
@@ -1004,6 +1011,33 @@ export function stockStepper(
  * — followed by a refresh; the input's id lets the panel's focus restore put the
  * caret back after that render.
  */
+/** The state of each stepper, by panel and by `<asset id>/<part id>`. It outlives a
+ *  render, so a tap that comes while a save runs is kept on the new stepper. */
+const stockEntries = new WeakMap<
+  PanelHost,
+  Map<string, { state: StockState; timer: ReturnType<typeof setTimeout> | null }>
+>();
+
+/** The stepper state of *key*. A stepper with no save to do starts again from *stored*,
+ *  the count that the data on screen has. */
+function stockEntry(
+  p: PanelHost,
+  key: string,
+  stored: number,
+): { state: StockState; timer: ReturnType<typeof setTimeout> | null } {
+  let map = stockEntries.get(p);
+  if (!map) {
+    map = new Map();
+    stockEntries.set(p, map);
+  }
+  let entry = map.get(key);
+  if (!entry || !stockPending(entry.state)) {
+    entry = { state: initialStock(stored), timer: null };
+    map.set(key, entry);
+  }
+  return entry;
+}
+
 export function wireStockSteppers(
   p: PanelHost,
   root: ParentNode,
@@ -1024,40 +1058,69 @@ export function wireStockSteppers(
     setIcon(inc, MDI_PLUS);
     const step = partStockStep(part);
     const tap = partStockButtonStep(part);
-    let committed = part.stock;
-    let busy = false;
-    const commit = async (target: number): Promise<void> => {
-      if (busy || !p._hass) return;
-      const next = snapStock(target, step);
-      const delta = Math.round((next - committed) * 1000) / 1000;
-      if (!delta) {
-        input.value = String(committed);
-        return;
-      }
-      busy = true;
-      box.setAttribute('data-busy', '');
-      try {
-        const updated = await api.adjustPartStock(p._hass, asset.id, partId, delta);
-        committed = updated.parts?.find((x) => x.id === partId)?.stock ?? next;
-        toast(p, t('toast.stockSet', { n: formatQuantity(committed, part.stock_unit) }));
-        await p._refresh();
-      } catch (err) {
-        toast(p, String((err as { message?: string })?.message || err));
-        input.value = String(committed);
-        box.removeAttribute('data-busy');
-        busy = false;
+    const entry = stockEntry(p, `${asset.id}/${partId}`, part.stock);
+    // Show the count that the user asked for on every stepper of this part on screen.
+    // A render while a save runs draws a new stepper, and this finds it.
+    const paint = (): void => {
+      const boxes = p.shadowRoot?.querySelectorAll<HTMLElement>(
+        `.hk-stock[data-part="${CSS.escape(partId)}"]`,
+      );
+      for (const b of boxes ?? []) {
+        if (b.dataset.asset && b.dataset.asset !== asset.id) continue;
+        const field = b.querySelector<HTMLInputElement>('.hk-stock-input');
+        if (field) field.value = String(entry.state.target);
+        b.toggleAttribute('data-busy', stockPending(entry.state));
       }
     };
-    dec.addEventListener('click', () => void commit(committed - tap));
-    inc.addEventListener('click', () => void commit(committed + tap));
-    input.addEventListener('change', () => {
-      // An empty box is not a count of zero: put the stored count back (F07-3).
-      const typed = typedStock(input);
-      if (typed == null) {
-        input.value = String(committed);
+    const send = async (): Promise<void> => {
+      entry.timer = null;
+      const delta = stockDelta(entry.state);
+      if (delta === null || !p._hass) return;
+      entry.state = stockStep(entry.state, { type: 'send' });
+      paint();
+      let ok = true;
+      try {
+        const updated = await api.adjustPartStock(p._hass, asset.id, partId, delta);
+        const stored = updated.parts?.find((x) => x.id === partId)?.stock;
+        entry.state = stockStep(entry.state, { type: 'done', ok, stored: stored ?? undefined });
+      } catch (err) {
+        ok = false;
+        entry.state = stockStep(entry.state, { type: 'done', ok });
+        toast(p, String((err as { message?: string })?.message || err));
+      }
+      paint();
+      // The taps that came while this save ran go in 1 more save, at once.
+      if (stockDelta(entry.state) !== null) {
+        void send();
         return;
       }
-      void commit(typed);
+      if (!ok) return;
+      toast(p, t('toast.stockSet', { n: formatQuantity(entry.state.stored, part.stock_unit) }));
+      await p._refresh();
+    };
+    // Quick taps wait for each other, so they make 1 save. A save that runs sends the
+    // taps that came during it when it ends.
+    const later = (ms: number): void => {
+      if (entry.timer) clearTimeout(entry.timer);
+      entry.timer = entry.state.sending === null ? setTimeout(() => void send(), ms) : null;
+    };
+    paint();
+    dec.addEventListener('click', () => {
+      entry.state = stockStep(entry.state, { type: 'tap', by: -tap, step });
+      paint();
+      later(STOCK_SETTLE_MS);
+    });
+    inc.addEventListener('click', () => {
+      entry.state = stockStep(entry.state, { type: 'tap', by: tap, step });
+      paint();
+      later(STOCK_SETTLE_MS);
+    });
+    input.addEventListener('change', () => {
+      // An empty box is not a count of zero: put the count back (F07-3).
+      const typed = typedStock(input);
+      if (typed != null) entry.state = stockStep(entry.state, { type: 'set', value: typed, step });
+      paint();
+      later(0);
     });
     input.addEventListener('keydown', (e) => {
       if ((e as KeyboardEvent).key === 'Enter') input.blur();
