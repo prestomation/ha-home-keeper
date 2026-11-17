@@ -36,7 +36,10 @@ def test_apply_completion_goes_dormant_and_records_history():
     # Dormant: no due date at all (clears, does not reschedule).
     assert out["next_due"] is None
     # But the completion is recorded so cadence accumulates on the task.
-    assert out["completions"] == [{"ts": when.isoformat()}]
+    # The due date goes on the entry, so that an undo can arm the task again.
+    assert out["completions"] == [
+        {"ts": when.isoformat(), "prior_due": now.isoformat()}
+    ]
     assert out["last_completed"] == when.isoformat()
 
 
@@ -96,3 +99,22 @@ def test_remove_completion_keeps_armed_triggered_armed():
     )
     out = r.remove_completion(task, dt(2025, 1, 1).isoformat(), now=now)
     assert out["next_due"] == armed_at  # still armed
+
+
+def test_undo_straight_after_done_arms_the_task_again():
+    now = dt(2026, 6, 16, 10)
+    armed_at = dt(2026, 6, 16).isoformat()
+    task = _triggered(next_due=armed_at, last_completed=None)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] is None
+    r.remove_completion(task, now.isoformat(), now=now)
+    assert task["next_due"] == armed_at
+
+
+def test_undo_does_not_move_a_task_that_the_owner_armed_again():
+    now = dt(2026, 6, 16, 10)
+    task = _triggered(next_due=dt(2026, 6, 16).isoformat(), last_completed=None)
+    r.apply_completion(task, now, now=now)
+    task["next_due"] = dt(2026, 6, 17).isoformat()
+    r.remove_completion(task, now.isoformat(), now=now)
+    assert task["next_due"] == dt(2026, 6, 17).isoformat()
