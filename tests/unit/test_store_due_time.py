@@ -109,3 +109,28 @@ def test_due_today_stays_now(store):
     task = _floating(store, last_completed=at(2026, 6, 1, 22, 42).isoformat())
     moved = _run(store.set_due_today(task["id"]))
     assert moved["next_due"] == NOW.isoformat()
+
+
+def test_due_today_on_an_overdue_task_sends_no_second_overdue_push(store):
+    """A service call of due today on an overdue task keeps the overdue date.
+
+    The panel and the card do not offer due today on a task that is due. A service
+    call moved the date to now, and the next refresh read the new date as a new
+    overdue crossing: a second overdue push for a task that had one already.
+    """
+    import hk_transitions as transitions
+
+    task = _floating(store, last_completed=at(2026, 3, 1, 9).isoformat())
+    overdue_since = task["next_due"]
+    assert datetime.fromisoformat(overdue_since) < NOW
+    _, state = transitions.detect_transitions({}, dict(store._tasks), now=NOW)
+    assert state[task["id"]]["overdue_fired"] is True
+    saves = store._store.saves
+
+    kept = _run(store.set_due_today(task["id"]))
+
+    assert kept["next_due"] == overdue_since
+    assert store._store.saves == saves
+    assert store._hass.bus.of("home_keeper_task_due_today_set") == []
+    fired, _ = transitions.detect_transitions(state, dict(store._tasks), now=NOW)
+    assert transitions.auto_crossings(state, fired) == []

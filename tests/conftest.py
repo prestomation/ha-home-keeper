@@ -73,6 +73,8 @@ _PURE_MODULES = (
     "task_counts",
     "notifications",
     "tags",
+    # The repeat guard of the tag and notification listeners. Stdlib only.
+    "repeats",
     "card_resource",
     "resolve",
     # ``transfer`` (the import/export document) imports ``models``, ``assets``,

@@ -1859,3 +1859,38 @@ def test_493_r1_a_wear_completion_from_before_b01_3_still_counts_on_undo(store):
     _run(store.complete_task(task["id"]))
     _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
     assert part["last_replaced"] == "2026-06-01"
+
+
+# ── a paused companion and its device entities ──────────────────────────────
+
+
+def _companion_task(store, *, device_id):
+    task = _task(
+        store,
+        device_id=device_id,
+        source={
+            "declarative_companion": {
+                "spec_id": "spec1",
+                "entity_registry_id": "reg1",
+                "entity_id": "sensor.x",
+            }
+        },
+    )
+    return task
+
+
+def test_pausing_a_companion_reports_the_entity_set_of_a_device_task(store):
+    # A disabled task owns no device entities, so the pause must ask for the reload
+    # that removes them. The store said the entity set never changes on a pause.
+    task = _companion_task(store, device_id="dev1")
+    assert _run(store.pause_declarative_companion_tasks("spec1")) is True
+    assert store._tasks[task["id"]]["enabled"] is False
+    # Paused already: nothing changes again.
+    assert _run(store.pause_declarative_companion_tasks("spec1")) is False
+
+
+def test_pausing_a_companion_task_with_no_device_needs_no_reload(store):
+    task = _companion_task(store, device_id=None)
+    assert _run(store.pause_declarative_companion_tasks("spec1")) is False
+    assert store._tasks[task["id"]]["enabled"] is False
+    assert store._hass.bus.of("home_keeper_task_updated")

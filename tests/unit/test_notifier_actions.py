@@ -197,6 +197,36 @@ def test_b16_2_a_legacy_snooze_or_skip_on_a_due_soon_task_still_acts():
     assert coord.store.calls == [("snooze", "t1"), ("skip", "t1")]
 
 
+def _double_tap(hass: _Hass, action: str) -> None:
+    """Deliver the same action 2 times before either handler runs."""
+
+    async def _run() -> None:
+        hass.bus.listener(types.SimpleNamespace(data={"action": action}))
+        hass.bus.listener(types.SimpleNamespace(data={"action": action}))
+        await asyncio.gather(*hass.pending)
+        hass.pending.clear()
+
+    asyncio.run(_run())
+
+
+def test_a_double_tap_on_a_current_button_acts_once():
+    for verb in ("complete", "snooze", "skip"):
+        task = overdue_task("t1", days=3)
+        hass, coord = _setup({"t1": task}, _options())
+        _double_tap(hass, _action(verb, task))
+        assert coord.store.calls == [(verb, "t1")], verb
+
+
+def test_a_double_tap_on_a_legacy_button_acts_once():
+    # A legacy Snooze or Skip carries no token, and the task is not overdue after
+    # the first tap moved it, which the tokenless rule of these 2 verbs accepts.
+    for verb in ("snooze", "skip"):
+        task = overdue_task("t1", days=3)
+        hass, coord = _setup({"t1": task}, _options())
+        _double_tap(hass, f"home_keeper::{verb}::t1::n1")
+        assert coord.store.calls == [(verb, "t1")], verb
+
+
 def test_f10_2_a_snooze_tap_counts_from_a_later_due_date():
     """F10-2: Snooze on a task due tomorrow moves it a day after that, not earlier."""
     due = NOW + timedelta(days=1)

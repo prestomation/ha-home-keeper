@@ -6,8 +6,9 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-dialogs.ts
   - custom_components/home_keeper/tags.py
   - custom_components/home_keeper/tag_listener.py
+  - custom_components/home_keeper/repeats.py
 related: [recurrence, store, appliances, documents-photos, sensor-tasks, events-api, frontend]
-source_hash: 16cbac924d53
+source_hash: 30e85f6a9594
 ---
 
 # Completions
@@ -118,13 +119,12 @@ work on live tasks.
 
 ### NFC tags
 
-A task has `tag_id` and `require_tag_scan`; `models.normalize_tag_id` validates the id,
-and a scan-only task without a tag is refused. `tag_listener.async_setup_tag_listener`
-subscribes to `tag_scanned` once per Home Assistant run, not per config entry, so a scan
-during a reload waits for the coordinator. `tags.tasks_for_tag` returns every enabled task
-bound to the tag; one tag can complete several tasks. Each completes through
-`store.complete_task` with the tag-scan origin. A refusal on one task is logged at debug
-level and the rest continue.
+`models.normalize_tag_id` validates `tag_id`; a `require_tag_scan` task needs a tag.
+`tag_listener.async_setup_tag_listener` listens to `tag_scanned` once per Home Assistant run,
+so a scan during a reload waits for the coordinator. A scan of the same tag within
+`repeats.REPEAT_WINDOW` (10 s) is ignored (`repeats.RepeatGuard`). `tags.tasks_for_tag` gives
+each enabled task bound to the tag. Each completes through `store.complete_task` with the
+tag-scan origin. A refusal on one task is logged at debug level and the rest continue.
 
 `store._reject_scan_required` applies the gate `tags.completion_allowed`. Its
 `tags.SCAN_ALLOWED_ORIGINS` adds sensor recovery and problem-sensor sync to the tag scan.

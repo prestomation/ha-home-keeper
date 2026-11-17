@@ -391,9 +391,9 @@ class DeclarativeCompanionSync:
             # A disabled spec's managed tasks are switched off rather than
             # removed, so a companion can be turned off for a week without losing
             # the completions recorded on the tasks it made. Re-enabling the
-            # companion brings them back (see ``pause_spec_tasks``).
-            await store.pause_declarative_companion_tasks(spec["id"])
-            return False, []
+            # companion brings them back (see ``pause_spec_tasks``). A paused task
+            # on a device loses its device-page entities, which needs a reload.
+            return await store.pause_declarative_companion_tasks(spec["id"]), []
         matches = declarative_companions.expand_spec(spec, snapshot)
         rendered: dict[tuple[str, str], tuple[str, str]] = {}
         stale: set[tuple[str, str]] = set()

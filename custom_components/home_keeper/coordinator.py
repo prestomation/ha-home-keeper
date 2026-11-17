@@ -98,7 +98,7 @@ def discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
     _edge_state_store(hass).pop(entry_id, None)
 
 
-def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Drop the edge state when an unload is for a disabled entry (B18-6).
 
     The edge state is kept across a reload, so a reload does not lose a crossing.
@@ -110,6 +110,8 @@ def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> N
     """
     if entry.disabled_by is not None:
         discard_edge_state(hass, entry.entry_id)
+        return True
+    return False
 
 
 def part_entity_kinds(asset: dict[str, Any] | None, part_id: str) -> tuple[bool, bool]:

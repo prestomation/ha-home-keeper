@@ -6,6 +6,8 @@ tag, Home Keeper completes the task. This is useful for completing a task by
 scanning a tag placed on the item, without opening the dashboard.
 
 No `tag_scanned` automation is needed. The **Done** button continues to work.
+Home Keeper ignores a second scan of the same tag within 10 seconds, so a double
+read completes the task 1 time.
 
 The **Require tag scan to complete** toggle blocks **Done** on every surface:
 

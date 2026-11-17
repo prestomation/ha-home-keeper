@@ -458,6 +458,53 @@ def test_threshold_hold_delays_arming():
     assert out["action"] == "arm"
 
 
+def _held(task, cross, *, seconds=300):
+    return s.evaluate_threshold(
+        task,
+        reading=95,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(seconds=seconds),
+    )
+
+
+def test_done_or_skip_during_a_hold_consumes_the_crossing():
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    after = (cross + timedelta(seconds=60)).isoformat()
+    done = _threshold(">", 90, for_seconds=300, last_completed=after)
+    out = _held(done, cross)
+    assert out["action"] is None
+    assert out["crossed_at"] is None
+    assert out["hold_due_at"] is None
+    assert out["condition_met"] is True
+    at_cross = _threshold(">", 90, for_seconds=300, last_completed=cross.isoformat())
+    assert _held(at_cross, cross)["action"] is None
+    skipped = _threshold(">", 90, for_seconds=300, skips=[{"ts": after}])
+    assert _held(skipped, cross, seconds=600)["action"] is None
+    # The rule compares instants, not text in 2 zones.
+    utc = _threshold(
+        ">", 90, for_seconds=300, last_completed=cross.astimezone(UTC).isoformat()
+    )
+    assert _held(utc, cross)["action"] is None
+
+
+def test_a_decision_before_the_crossing_keeps_the_hold():
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    before = (cross - timedelta(seconds=1)).isoformat()
+    for task in (
+        _threshold(">", 90, for_seconds=300, last_completed=before),
+        _threshold(">", 90, for_seconds=300, skips=[{"ts": before}]),
+        _threshold(">", 90, for_seconds=300),
+        _threshold(">", 90, for_seconds=300, last_completed="not a date"),
+    ):
+        assert _held(task, cross)["action"] == "arm"
+    pending = _held(
+        _threshold(">", 90, for_seconds=300, last_completed=before), cross, seconds=60
+    )
+    assert pending["crossed_at"] == cross
+    assert pending["hold_due_at"] == cross + timedelta(seconds=300)
+
+
 def test_threshold_no_reading_ends_a_pending_hold_and_decides_nothing():
     # The reporter's mode (#336). A missing / unavailable / non-numeric entity reads
     # as None. It never arms on bad data, and the seconds it spent unreadable are not

@@ -82,7 +82,7 @@ calls `coordinator.enable_transition_events`, it keeps the detected state as a s
 edge state lives in `hass.data` per config entry, so a reload keeps it. `transitions.auto_crossings`
 drops a due-soon crossing that a snooze or a completion caused, and an overdue crossing of a date in
 `announced`. `assets.stock_transition` gives the stock crossings. `out` wins over `low`, so a drop
-to 0 fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` never fires.
+to 0 fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` fires only that event.
 
 ### Triggers
 

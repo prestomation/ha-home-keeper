@@ -113,6 +113,7 @@ from .resolve import (
 )
 from .sensor_watcher import (
     SensorTaskWatcher,
+    async_discard_edge_state,
     async_discard_new_tasks,
     read_sensor_value,
 )
@@ -2252,8 +2253,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        # A re-enabled entry baselines in silence, as after a restart (B18-6).
-        discard_edge_state_if_disabled(hass, entry)
+        # A re-enabled entry baselines in silence, as after a restart (B18-6). The
+        # sensor watcher keeps its edge state for a reload in the same way.
+        if discard_edge_state_if_disabled(hass, entry):
+            async_discard_edge_state(hass, entry.entry_id)
         # A pass that started before the unload still holds this store. After a
         # reload its save would write the old snapshot over the new store's file, so
         # the store refuses every later save (X02-2).
@@ -2322,6 +2325,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # a reload keeps them. With no Home Keeper entry, no panel shows them.
     panel_tabs.async_clear_panel_tabs(hass)
     discard_edge_state(hass, entry.entry_id)
+    async_discard_edge_state(hass, entry.entry_id)
     async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()

@@ -69,7 +69,8 @@ without the panel:
   works too.
 - `home_keeper.skip_task` records a skip.
 - `home_keeper.set_due_today` moves the due date to today, whatever the periodic
-  schedule says. Like a snooze, it is not a completion.
+  schedule says. Like a snooze, it is not a completion. An overdue task keeps its
+  due date, so the call sends no second overdue notification.
 
 3 more services edit the recorded skips:
 
