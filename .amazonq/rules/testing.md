@@ -19,7 +19,7 @@ Run the tests locally before you push. CI is not the test runner.
 | Noise budget | `tests/noise` (Docker HA) | `bash ci/test-noise.sh` |
 
 - The pure unit lane needs only
-  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil`.
+  `pip install pytest PyYAML Babel hypothesis jsonschema python-dateutil Jinja2`.
   The full unit suite adds `pytest-homeassistant-custom-component`. `ci/setup-ci-deps.sh`
   installs everything into `.venv`. The SessionStart hook puts `.venv/bin` first on `PATH`.
   Elsewhere, run `source .venv/bin/activate` first.
@@ -57,13 +57,14 @@ Run the tests locally before you push. CI is not the test runner.
 - They live in `tests/unit/test_*_properties.py`, share
   `tests/unit/property_strategies.py`, and carry the `property` marker.
 - Build inputs with `models.build_task` or `assets.build_asset`. Never hand-roll a dict.
-- A property holds for every input it can draw, or its generator is scoped until it
-  does. Pin a real defect with `xfail(strict=True)` and an `@example` reproducer.
-  Never widen an assertion to swallow a failure.
-- `HK_HYPOTHESIS_PROFILE` picks `dev` (default), `ci` (derandomized) or `mutmut` (no
-  shrink). The runner scripts export it. Never cache `.hypothesis/` in CI.
-- The mutation gate scores property tests. Each one names the mutant it kills; prove it
-  by mutating the line and watching the test go red.
+- A property holds for every input it can draw, or its generator is scoped until it does. Pin a real
+  defect with `xfail(strict=True)` and an `@example` reproducer. Never widen an assertion to swallow
+  a failure.
+- `HK_HYPOTHESIS_PROFILE` picks `dev` (default), `ci` (derandomized) or `mutmut` (no shrink). The
+  runner scripts export it. Never cache `.hypothesis/` in CI. A `test_*_stateful.py` machine runs
+  600 fixed examples. `HK_STATEFUL_EXAMPLES` and `HK_STATEFUL_SEARCH=1` give a long search.
+- The mutation gate scores property tests. Each one names the mutant it kills; prove it by mutating
+  the line and watching the test go red.
 - **A frontend state machine is a pure step module with a `fast-check` model test**
   (`fc.commands`), and 1 test on the real element (`fc.asyncModelRun`). The model reads the truth
   from its fakes, never from the machine's fields. `HK_FC_PROFILE` picks `ci` (default, fixed
@@ -149,9 +150,8 @@ reload on each options change filled the logbook, and no test saw it.
   `Noise budget` job in `integration.yml` runs it on each PR.
 - **A budget is a maximum.** Some counters are `pinned` at 0 (a restart, an idle tick, a
   no-op call). A pinned counter changes only by hand, with a reason in the PR.
-- **Change a budget on purpose.** `HK_NOISE_UPDATE=1 bash ci/test-noise.sh` writes the
-  measured numbers, except pinned counters and known bugs. Commit the diff and say why
-  in the PR body.
+- **Change a budget on purpose.** `HK_NOISE_UPDATE=1 bash ci/test-noise.sh` writes the measured
+  numbers, except pinned counters and known bugs. Commit the diff and say why in the PR body.
 - **A known bug is a `known` entry** with the bug id, a `target` and a `now` per counter.
   It is a strict xfail for each counter, and `now` is exact: only a count equal to `now`
   is an expected failure. Above `now` fails. At or below `target` fails, so the PR that

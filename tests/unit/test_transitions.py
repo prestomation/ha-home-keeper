@@ -63,6 +63,10 @@ def test_due_soon_then_overdue_both_fire_once_for_one_next_due():
         "next_due": tasks["t1"]["next_due"],
         "due_soon_fired": True,
         "overdue_fired": True,
+        "announced": [
+            ("due_soon", tasks["t1"]["next_due"]),
+            ("overdue", tasks["t1"]["next_due"]),
+        ],
     }
 
 
@@ -421,3 +425,72 @@ def test_a_task_with_no_enabled_key_that_stays_overdue_does_not_resolve():
     fired, state = t.detect_transitions(state, {"t1": bare}, now=NOW)
     assert fired == []
     assert state["t1"]["overdue_fired"] is True
+
+
+def test_announced_keeps_the_latest_pairs_oldest_first():
+    """A pair that comes again moves to the end, and the oldest pair drops out."""
+    dates = [NOW + timedelta(days=4 * n) for n in range(t.ANNOUNCED_MEMORY + 1)]
+    state: dict = {}
+    for when in dates:
+        tasks = {"t1": _task(next_due=when)}
+        # Out of the window first, so the new date enters it and announces.
+        _, state = t.detect_transitions(state, tasks, now=when - timedelta(days=9))
+        _, state = t.detect_transitions(state, tasks, now=when - timedelta(days=1))
+    pairs = state["t1"]["announced"]
+    assert len(pairs) == t.ANNOUNCED_MEMORY
+    assert pairs[0] == ("due_soon", dates[1].isoformat())
+    assert pairs[-1] == ("due_soon", dates[-1].isoformat())
+    # A date that fell out of the memory announces due soon again.
+    back = {"t1": _task(next_due=dates[0])}
+    _, state = t.detect_transitions(state, back, now=dates[0] - timedelta(days=9))
+    fired, _ = t.detect_transitions(state, back, now=dates[0] - timedelta(days=1))
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+
+
+def test_a_pair_that_comes_again_moves_to_the_end():
+    first = NOW + timedelta(days=1)
+    second = NOW + timedelta(days=2)
+    state = {
+        "t1": {
+            "next_due": second.isoformat(),
+            "due_soon_fired": True,
+            "overdue_fired": False,
+            "announced": [
+                ("overdue", first.isoformat()),
+                ("due_soon", second.isoformat()),
+            ],
+        }
+    }
+    tasks = {"t1": _task(next_due=first)}
+    fired, state = t.detect_transitions(state, tasks, now=first + timedelta(hours=1))
+    # The bus gets the overdue of the old date again, with no push.
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    assert state["t1"]["announced"] == [
+        ("due_soon", second.isoformat()),
+        ("overdue", first.isoformat()),
+    ]
+
+
+def test_an_overdue_of_a_new_date_still_sends_a_push():
+    prev = {"t1": {"announced": [("overdue", "2026-01-01T00:00:00+00:00")]}}
+    fired = [(EVENT_TASK_OVERDUE, {"task_id": "t1", "next_due": "2026-02-01"})]
+    assert t.auto_crossings(prev, fired) == [("overdue", "t1")]
+    old = [
+        (EVENT_TASK_OVERDUE, {"task_id": "t1", "next_due": "2026-01-01T00:00:00+00:00"})
+    ]
+    assert t.auto_crossings(prev, old) == []
+
+
+def test_a_held_back_overdue_does_not_stop_the_crossings_after_it():
+    prev = {"t1": {"announced": [("overdue", "2026-01-01T00:00:00+00:00")]}}
+    fired = [
+        (
+            EVENT_TASK_OVERDUE,
+            {"task_id": "t1", "next_due": "2026-01-01T00:00:00+00:00"},
+        ),
+        (
+            EVENT_TASK_OVERDUE,
+            {"task_id": "t2", "next_due": "2026-01-01T00:00:00+00:00"},
+        ),
+    ]
+    assert t.auto_crossings(prev, fired) == [("overdue", "t2")]

@@ -38,7 +38,10 @@ def test_apply_completion_goes_dormant_and_records_history():
     task = _sensor(next_due=now.isoformat(), last_completed=None)
     out = r.apply_completion(task, when, now=now)
     assert out["next_due"] is None
-    assert out["completions"] == [{"ts": when.isoformat()}]
+    # The due date goes on the entry, so that an undo can arm the task again.
+    assert out["completions"] == [
+        {"ts": when.isoformat(), "prior_due": now.isoformat()}
+    ]
     assert out["last_completed"] == when.isoformat()
 
 

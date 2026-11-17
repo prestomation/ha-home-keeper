@@ -403,7 +403,8 @@ def test_undo_of_an_older_row_keeps_the_due_date_after_a_snooze():
     assert task["next_due"] == due
 
 
-def test_a_one_off_or_triggered_completion_records_no_prior_due():
+def test_a_one_off_or_triggered_completion_records_its_prior_due():
+    """An undo straight after Done gives the due date back (Q2, Q5)."""
     for rec_type in ("one-off", "triggered"):
         task = {
             "recurrence_type": rec_type,
@@ -412,4 +413,10 @@ def test_a_one_off_or_triggered_completion_records_no_prior_due():
             "completions": [],
         }
         r.apply_completion(task, la(2026, 9, 2), now=la(2026, 9, 2))
-        assert r.PRIOR_DUE not in task["completions"][-1]
+        assert task["completions"][-1][r.PRIOR_DUE] == la(2026, 9, 1).isoformat()
+
+
+def test_a_dormant_task_records_no_prior_due():
+    task = {"recurrence_type": "triggered", "next_due": None, "completions": []}
+    r.apply_completion(task, la(2026, 9, 2), now=la(2026, 9, 2))
+    assert r.PRIOR_DUE not in task["completions"][-1]

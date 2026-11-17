@@ -27,12 +27,17 @@ from .const import EVENT_TASK_DUE_SOON, EVENT_TASK_OVERDUE, EVENT_TASK_OVERDUE_R
 # sensor's ``due_soon`` attribute window so the event and the entity agree.
 DUE_SOON_WINDOW = timedelta(days=3)
 
+# How many announced ``(kind, next_due)`` pairs a task keeps. An undo puts back a date
+# that already announced, and the pair stops a second announcement of that date.
+ANNOUNCED_MEMORY = 8
+
 # Per-task edge state carried between coordinator refreshes. Keyed by task id:
-#   {"next_due": <iso|None>, "due_soon_fired": bool, "overdue_fired": bool}
+#   {"next_due": <iso|None>, "due_soon_fired": bool, "overdue_fired": bool,
+#    "announced": [(kind, next_due), ...]}
 # The two flags are independent because a task crosses *due-soon first, then overdue*
 # against the **same** ``next_due`` — a bare next_due key couldn't fire both. The flags
 # reset whenever ``next_due`` changes (a completion/reschedule/re-arm), which naturally
-# re-arms the next announcement.
+# re-arms the next announcement. ``announced`` holds the latest pairs, oldest first.
 TaskEdgeState = dict[str, Any]
 StateMap = dict[str, TaskEdgeState]
 
@@ -64,6 +69,7 @@ def detect_transitions(
     for tid, task in tasks.items():
         next_due = task.get("next_due")
         prior = prev.get(tid)
+        announced = list((prior or {}).get("announced") or [])
         if prior is not None and prior.get("next_due") == next_due:
             due_soon_fired = bool(prior.get("due_soon_fired"))
             overdue_fired = bool(prior.get("overdue_fired"))
@@ -82,6 +88,9 @@ def detect_transitions(
                 # or a snooze). A new date that is already in the window did not
                 # enter it, so it is not announced as due soon.
                 due_soon_fired = True
+            if ("due_soon", next_due) in announced:
+                # An undo puts back a date that already announced due soon.
+                due_soon_fired = True
 
         if task.get("enabled", True) and next_due is not None:
             parsed = recurrence._parse(next_due)
@@ -96,6 +105,7 @@ def detect_transitions(
                     )
                 )
                 due_soon_fired = True
+                _remember(announced, ("due_soon", next_due))
             if not overdue_fired and recurrence.is_overdue(task, now=now):
                 days_overdue = (now - parsed).days
                 fired.append(
@@ -107,6 +117,7 @@ def detect_transitions(
                     )
                 )
                 overdue_fired = True
+                _remember(announced, ("overdue", next_due))
 
         live = task.get("enabled", True) and recurrence.is_overdue(task, now=now)
         if prior is not None and prior.get("overdue_fired") and not live:
@@ -129,9 +140,17 @@ def detect_transitions(
             "next_due": next_due,
             "due_soon_fired": due_soon_fired,
             "overdue_fired": overdue_fired,
+            "announced": announced[-ANNOUNCED_MEMORY:],
         }
 
     return fired, next_state
+
+
+def _remember(announced: list[tuple[str, Any]], pair: tuple[str, Any]) -> None:
+    """Move *pair* to the end of *announced*, so the oldest pair drops out first."""
+    if pair in announced:
+        announced.remove(pair)
+    announced.append(pair)
 
 
 #: The ``auto`` trigger kind of a notification that each fired event matches.
@@ -149,6 +168,10 @@ def auto_crossings(
     snoozes or completes a due task moves ``next_due``, and the new date is often
     inside the window. A push at that moment answers the action that the user just
     did. The ``overdue`` event of the new date still sends.
+
+    An ``overdue`` event for a date that already announced overdue does not send a
+    notification either. An undo of Done puts back the old date, and the event goes on
+    the bus again so that an automation sees the open overdue, but the push is old.
     """
     crossed: list[tuple[str, str]] = []
     for name, payload in fired:
@@ -161,6 +184,10 @@ def auto_crossings(
         prior = prev.get(str(task_id)) or {}
         announced = prior.get("due_soon_fired") or prior.get("overdue_fired")
         if kind == "due_soon" and announced:
+            continue
+        if kind == "overdue" and (
+            ("overdue", payload.get("next_due")) in (prior.get("announced") or [])
+        ):
             continue
         crossed.append((kind, str(task_id)))
     return crossed

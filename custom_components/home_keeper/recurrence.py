@@ -1193,9 +1193,9 @@ def apply_completion(
         # A one-off is permanently complete; a triggered task clears its condition; a
         # sensor task's crossing has been actioned (and its meter reset by the store,
         # which has the live reading). All go dormant (every time surface drops them).
-        # Undoing the completion re-arms a one-off (see ``remove_completion``); a
-        # triggered task is re-armed only by its owning integration, and a sensor task
-        # only by the watcher on a fresh crossing.
+        # An undo straight after Done gives back the due date (see
+        # ``remove_completion``). Else the owning integration arms a triggered task
+        # again, and the watcher arms a sensor task on a fresh crossing.
         #
         # A use task is the odd one here: it was already dormant and stays dormant, so
         # this assignment changes nothing. Completing it is not "done with the thing" —
@@ -1342,18 +1342,17 @@ def _keeps_prior_due(
 ) -> bool:
     """Whether a completion must record the due date it replaces.
 
-    A fixed schedule cannot calculate that date again from the log, so it always
-    records it. A floating task can, except after a snooze, a due today or a moved
-    date: the log does not show those. So a floating task records the date only
-    when it is not the one that the log gives.
+    Only a floating task can calculate that date again from the log, and not after a
+    snooze, a due today or a moved date. So a floating task records the date only
+    when it is not the one that the log gives. Every other type records it, so that
+    an undo straight after Done gives back the due date (goal G4). A use task is
+    never due, so it records none.
     """
     due = _parse(task.get("next_due"))
     if due is None:
         return False
-    if rec_type == REC_FIXED:
-        return True
     if rec_type != REC_FLOATING:
-        return False
+        return True
     return compute_next_due(task, now=now, due_time=due_time) != due
 
 
@@ -1387,9 +1386,10 @@ def remove_completion(
     re-derives ``last_completed`` from the remaining history (the latest, or None),
     and recomputes ``next_due`` from that state. A fixed or floating completion that
     recorded the due date it replaced puts that date back. Else a floating task
-    rewinds the clock to the prior completion. For a triggered task ``next_due`` is
-    left untouched (its armed/dormant state is condition-driven, not
-    history-driven — editing the replacement log must not arm a dormant task). A
+    rewinds the clock to the prior completion. A one-off is due again only when its
+    completion log and its skip log are both empty. A triggered or sensor task gets
+    back the due date that the removed completion recorded, if the task is still
+    dormant. Else its ``next_due`` stays, because the owner or the watcher arms it. A
     no-op when *ts* is not present.
     """
     history = list(task.get("completions", []))
@@ -1421,14 +1421,19 @@ def remove_completion(
         if rec_type == REC_FIXED:
             _restore_pruned_moves(task, removed.get(PRUNED_MOVES))
     elif rec_type == REC_ONE_OFF:
-        # Undoing the (final) completion of a do-once task re-arms it to its ``due``
-        # date so it returns to every time surface; if any completion remains it
-        # stays dormant. Unlike a triggered task, a one-off's armed/dormant state is
-        # history-driven, so editing the log *does* re-arm it.
-        task["next_due"] = (
-            compute_next_due(task, now=now).isoformat() if not history else None
-        )
-    elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE):
+        # A one-off is due again only when no completion and no skip is left, the
+        # same rule as ``remove_skip``. Then it gets back the date that the Done
+        # replaced, so a snooze is kept, or else its ``due`` date.
+        if not history and not task.get("skips"):
+            # A one-off is due at its ``due`` date, whatever ``now`` is.
+            due = compute_next_due(task, now=now)  # pragma: no mutate - see above
+            task["next_due"] = prior_due or due.isoformat()
+    elif rec_type in (REC_TRIGGERED, REC_SENSOR):
+        # Only the owner or the watcher moves an armed task. An undo arms a dormant
+        # task again at the date that the Done replaced.
+        if prior_due and not task.get("next_due"):
+            task["next_due"] = prior_due
+    elif rec_type != REC_USE:
         task["next_due"] = compute_next_due(
             task, now=now, due_time=due_time
         ).isoformat()
@@ -1512,9 +1517,9 @@ def move_completion(
     ``next_due`` to ``due``, which would be wrong once the moved entry lands back in
     history. Deriving once from the final, post-move history avoids that: a one-off
     with its only completion moved stays dormant (``next_due = None``), exactly as it
-    was before the move. Triggered/sensor tasks' ``next_due`` is left untouched, same
-    as ``remove_completion`` — their armed/dormant state is condition-driven, not
-    history-driven, and this function does not validate the new timestamp against it
+    was before the move. Triggered/sensor tasks' ``next_due`` is left untouched:
+    their armed/dormant state is condition-driven, not history-driven, and this
+    function does not validate the new timestamp against it
     (a manual history edit is not schedule-validated, same as ``update_completion``/
     ``remove_completion`` today).
     """
