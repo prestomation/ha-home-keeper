@@ -52,7 +52,8 @@
     "custom_components/home_keeper/frontend/src/list-bar.ts",
     "custom_components/home_keeper/frontend/src/parts-overview.ts",
     "custom_components/home_keeper/frontend/src/draft-step.ts",
-    "custom_components/home_keeper/frontend/src/refresh-machine.ts"
+    "custom_components/home_keeper/frontend/src/refresh-machine.ts",
+    "custom_components/home_keeper/frontend/src/stock-stepper.ts"
   ],
   "thresholds": {
     "high": 90,

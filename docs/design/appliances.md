@@ -9,8 +9,9 @@ implements:
   - custom_components/home_keeper/appliance_report.py
   - custom_components/home_keeper/frontend/src/panel-asset-editors.ts
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
+  - custom_components/home_keeper/frontend/src/stock-stepper.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: 4950c3413957
+source_hash: 972d80f8a7f1
 ---
 
 # Appliances and parts
@@ -31,9 +32,8 @@ integration. Wear parts generate maintenance tasks, and the part counts the spar
 
 ## Non-goals
 
-- Linking task entities to a device (`coordinator-entities`), file storage
-  (`documents-photos`), backup (`transfer`), completions (`completions`), events
-  (`events-api`).
+- Linking task entities to a device (`coordinator-entities`), file storage (`documents-photos`),
+  backup (`transfer`), completions (`completions`), events (`events-api`).
 
 ## Design
 
@@ -94,9 +94,9 @@ keeps lists in `stock_drawn` and `last_replaced_before`, so an undo gives each p
 load moves an old manual `source.part` into the list (`reconcile.migrate_consumable_link`). A
 save drops links to a removed part, so the Remove part confirm names the tasks that take it.
 
-`assets.PART_USER_KEYS` (stock) and `assets.PART_OWNER_KEYS` split every part key. On a
-managed appliance the user edits only stock. The owner writes the rest through
-`assets.apply_managed_parts`, and a part it drops stays if the part tracks stock.
+`assets.PART_USER_KEYS` (stock) and `assets.PART_OWNER_KEYS` split every part key. On a managed
+appliance the user edits only stock. The owner writes the rest (`assets.apply_managed_parts`),
+and a part it drops stays if the part tracks stock.
 
 ### Wear tasks and counted wear
 
@@ -125,6 +125,7 @@ headers and escapes formula-like cells. The `export_appliance_report` service is
 
 `panel-asset-form.ts` renders the drawer and hides locked fields. The editors in
 `panel-asset-editors.ts` change `_assetEdit.asset` in place for the save to read.
+`stock-stepper.ts` merges the taps of a stock stepper into 1 save at a time.
 
 ## Trade-offs
 
@@ -134,9 +135,8 @@ headers and escapes formula-like cells. The `export_appliance_report` service is
 - **Count from the completion log** over **a stored counter**: no reset path can drift, and
   each use keeps its note and photo. The cost is a retention rule and a target cap
   (`MAX_USE_TARGET`, 250), so the 500-entry completion cap never cuts the live count.
-- **2 tasks per counted part** over **1**: a use and a renewal are different events, and
-  the replacement task keeps the renewal history.
-- **Task names in the instance language** over **per-viewer names**: one stored name.
+- **2 tasks per counted part** over **1**: a use and a renewal are different events, and the
+  replacement task keeps the renewal history. **Task names in the instance language**: 1 name.
 - **A list of links on a task** over **parts that a wear item names**: any task takes parts.
 
 ## One-way doors
