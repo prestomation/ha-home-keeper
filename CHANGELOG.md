@@ -10,8 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **Form drafts kept.** A task, appliance or card form no longer closes or changes when a
-  slow save for an earlier form finishes. Text that you type in a new form stays.
+- **Xiaomi Miio sensor cleaning.** The "Clean the sensors" task now opens when the sensor
+  counter runs out, not 24 hours before. The sensor cycle is 30 hours.
+- **TP-Link cleaning tasks.** The "Clean the sensors" and "Clean the charging contacts"
+  tasks now open when their counters run out, not 6 hours before. Each cycle is 30 hours.
 
 ## [0.37.0b4] - 2026-11-15
 
