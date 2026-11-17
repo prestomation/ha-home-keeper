@@ -77,6 +77,24 @@ async function setup() {
 }
 
 describe('card live refresh', () => {
+  it('an action does not skip the refresh when a load runs', async () => {
+    const { card, ctl } = await setup();
+    void card._refresh();
+    await waitFor(() => ctl.pending.length === 1);
+    // An action writes, then waits for a refresh.
+    ctl.server = 'v1';
+    let done = false;
+    const action = card._refresh().then(() => (done = true));
+    ctl.pending.shift().ok();
+    await settle();
+    expect(done, 'the action must wait for a load that started after its write').toBe(false);
+    await waitFor(() => ctl.pending.length === 1);
+    expect(ctl.pending.length, 'a second load should start').toBe(1);
+    ctl.pending.shift().ok();
+    await action;
+    expect(ctl.shown()).toBe('v1');
+  });
+
   it('loads again after a load that started before the change', async () => {
     const { ctl } = await setup();
     ctl.change('v1');

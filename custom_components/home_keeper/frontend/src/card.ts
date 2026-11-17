@@ -538,7 +538,9 @@ export class HomeKeeperCard extends HTMLElement {
   private _liveHassEls: Array<{ hass?: Hass }> = [];
   private _unsub?: () => void;
   private _subscribing = false;
-  private _refreshing = false;
+  private _refreshing: Promise<void> | null = null;
+  // The next load for the callers that came while `_refreshing` ran. See `_refresh`.
+  private _refreshAfter: Promise<void> | null = null;
   private _booted = false;
   // Set in disconnectedCallback, reset in connectedCallback: guards the gap in
   // `_subscribe` where an in-flight subscribeEvents resolves after we've detached.
@@ -670,7 +672,7 @@ export class HomeKeeperCard extends HTMLElement {
     );
     await this._loadLabels();
     this._render();
-    if (this._hass && !this._loaded) await this._refresh();
+    if (this._hass && !this._loaded && !this._refreshing) await this._refresh();
   }
 
   /** Fetch the HA label registry once (best-effort) so chips can show names. */
@@ -783,17 +785,36 @@ export class HomeKeeperCard extends HTMLElement {
     }
   }
 
-  private async _refresh(): Promise<void> {
-    if (!this._hass || this._refreshing) return;
-    this._refreshing = true;
-    this._live = refreshStep(this._live, { type: 'start', sig: this._stateSignal(this._hass) });
+  /**
+   * Load the tasks. At most 1 load runs. A caller usually refreshes after its own
+   * write, and a load that runs now can have read the data before that write. So the
+   * caller waits for the next load, which all callers during this load share.
+   */
+  private _refresh(): Promise<void> {
+    if (!this._hass) return Promise.resolve();
+    if (this._refreshing) {
+      this._refreshAfter ??= this._refreshing
+        .catch(() => undefined)
+        .then(() => {
+          this._refreshAfter = null;
+          return this._refreshing ?? this._refresh();
+        });
+      return this._refreshAfter;
+    }
+    this._refreshing = this._load();
+    return this._refreshing;
+  }
+
+  /** The load itself. `_refresh` calls it only when `_hass` is set. */
+  private async _load(): Promise<void> {
+    this._live = refreshStep(this._live, { type: 'start', sig: this._stateSignal(this._hass!) });
     let ok = false;
     try {
-      this._tasks = await api.getTasks(this._hass);
+      this._tasks = await api.getTasks(this._hass!);
       // The skip/snooze switches. Best-effort and non-fatal: the card is not
       // admin-only, and if this ever fails both verbs stay at their default (on)
       // rather than the caret silently vanishing from every row.
-      this._options = (await api.getOptions(this._hass).catch(() => null))?.options ?? this._options;
+      this._options = (await api.getOptions(this._hass!).catch(() => null))?.options ?? this._options;
       // Profiles are only needed when the card filters by one; fetch best-effort.
       if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
@@ -803,7 +824,7 @@ export class HomeKeeperCard extends HTMLElement {
       this._assets = this._tasks.some(
         (tk) => tk.card_links?.length || stockLinks(tk).length || tk.device_id,
       )
-        ? await api.getAssets(this._hass).catch(() => [] as Asset[])
+        ? await api.getAssets(this._hass!).catch(() => [] as Asset[])
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
       await this._signDocuments();
@@ -819,7 +840,7 @@ export class HomeKeeperCard extends HTMLElement {
       console.error('home-keeper-card: failed to load tasks', err);
     } finally {
       this._loaded = true;
-      this._refreshing = false;
+      this._refreshing = null;
       this._live = refreshStep(this._live, { type: 'done', ok, now: Date.now(), echoMs: 0 });
     }
     this._renderAfterRefresh();

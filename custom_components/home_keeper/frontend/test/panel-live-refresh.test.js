@@ -31,7 +31,8 @@ const task = (name) => ({
  */
 async function setup() {
   const hass = makeHass({ tasks: [task('v0')] });
-  const ctl = { server: 'v0', pending: [], loads: 0 };
+  // `ended` counts the loads that answered. At most 1 load runs, so they end in order.
+  const ctl = { server: 'v0', pending: [], loads: 0, ended: 0 };
   const base = hass.callWS;
   hass.callWS = (msg) => {
     if (msg.type !== 'home_keeper/get_tasks') return base(msg);
@@ -39,8 +40,14 @@ async function setup() {
     const tasks = [task(ctl.server)];
     return new Promise((resolve, reject) => {
       ctl.pending.push({
-        ok: () => resolve({ tasks }),
-        fail: () => reject(new Error('boom')),
+        ok: () => {
+          ctl.ended++;
+          resolve({ tasks });
+        },
+        fail: () => {
+          ctl.ended++;
+          reject(new Error('boom'));
+        },
       });
     });
   };
@@ -66,6 +73,39 @@ async function setup() {
 const settle = () => new Promise((r) => setTimeout(r, 30));
 
 describe('live refresh: a change during a load', () => {
+  it('an action does not join a load that started before its write', async () => {
+    const { panel, ctl } = await setup();
+    // A load starts, and reads the store as it is now (v0).
+    void panel._refresh();
+    await waitFor(() => ctl.pending.length === 1);
+    // An action writes, then waits for a refresh.
+    ctl.server = 'v1';
+    let done = false;
+    const action = panel._refresh().then(() => (done = true));
+    ctl.pending.shift().ok();
+    await settle();
+    expect(done, 'the action must wait for a load that started after its write').toBe(false);
+    await waitFor(() => ctl.pending.length === 1);
+    expect(ctl.pending.length, 'a second load should start').toBe(1);
+    ctl.pending.shift().ok();
+    await action;
+    expect(ctl.shown()).toBe('v1');
+  });
+
+  it('starts 1 more load for many actions during the same load', async () => {
+    const { panel, ctl } = await setup();
+    void panel._refresh();
+    await waitFor(() => ctl.pending.length === 1);
+    const actions = [panel._refresh(), panel._refresh()];
+    ctl.pending.shift().ok();
+    await settle();
+    expect(ctl.pending.length).toBe(1);
+    ctl.pending.shift().ok();
+    await Promise.all(actions);
+    await settle();
+    expect(ctl.pending.length).toBe(0);
+  });
+
   it('loads again after a load that started before the change', async () => {
     const { panel, ctl } = await setup();
     // StartLoad: an action's refresh reads the store as it is now (v0).
@@ -135,6 +175,8 @@ describe('live refresh model on the real panel', () => {
       advance: (ms) => (clock += ms),
       bump: () => stamp++,
       version: 0,
+      actions: [],
+      stale: [],
     };
   }
 
@@ -151,6 +193,19 @@ describe('live refresh model on the real panel', () => {
     fc.constant(cmd('Refresh', idle, (m) => void m.panel._refresh())),
     fc.constant(cmd('LoadOk', (m) => !idle(m), (m) => m.ctl.pending.shift().ok())),
     fc.constant(cmd('LoadFail', (m) => !idle(m), (m) => m.ctl.pending.shift().fail())),
+    fc.constant(
+      // The panel's own action: it writes, then waits for a refresh. The refresh must
+      // not end before a load that started after the write has ended.
+      cmd('Action', () => true, (m) => {
+        m.ctl.server = `v${++m.version}`;
+        const startedBefore = m.ctl.loads;
+        m.actions.push(
+          m.panel._refresh().then(() => {
+            if (m.ctl.ended <= startedBefore) m.stale.push(m.ctl.server);
+          }),
+        );
+      }),
+    ),
     fc.constant(
       cmd('OtherDevice', () => true, (m) => {
         m.ctl.server = `v${++m.version}`;
@@ -188,6 +243,8 @@ describe('live refresh model on the real panel', () => {
             await ticks();
           }
           expect(idle(m), 'the loads should end').toBe(true);
+          await Promise.all(m.actions);
+          expect(m.stale, 'an action ended on a load from before its write').toEqual([]);
           expect(m.ctl.shown(), 'the screen should show the newest data').toBe(m.ctl.server);
         } finally {
           vi.mocked(Date.now).mockRestore();

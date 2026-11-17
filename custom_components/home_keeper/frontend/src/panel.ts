@@ -413,6 +413,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // reload — so without coalescing they can pass the check and run two concurrent full
   // loads. Callers await the same promise, so none no-ops and all see a completed render.
   private _refreshing: Promise<void> | null = null;
+  // The next load for the callers that came while `_refreshing` ran. See `_refresh`.
+  private _refreshAfter: Promise<void> | null = null;
   _detailLookup: string | null = null;
   // Debounce timers for per-keystroke option saves (profiles / notifications), so a
   // text edit doesn't fire a config-entry reload on every character (and a slow
@@ -454,7 +456,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
     feedTabsHass(this, hass);
-    if (first && !this._loaded) void this._refresh();
+    if (first && !this._loaded && !this._refreshing) void this._refresh();
     else this._liveRefresh(hass);
   }
 
@@ -1197,7 +1199,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ),
     );
     this._render();
-    if (this._hass && !this._loaded) void this._refresh();
+    if (this._hass && !this._loaded && !this._refreshing) void this._refresh();
   }
 
   /**
@@ -1331,11 +1333,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   _refresh(): Promise<void> {
-    // Coalesce overlapping refreshes onto one in-flight load so `set hass` and `_init`
-    // can't run two concurrent full loads, while every `await this._refresh()` caller
-    // still waits for a completed reload + render (a blanket early-return would let a
-    // caller proceed against an unrendered view).
-    if (this._refreshing) return this._refreshing;
+    // At most 1 load runs. A caller usually refreshes after its own write, and a load
+    // that runs now can have read the data before that write. So the caller waits for
+    // the next load, which all callers during this load share. If a load starts when
+    // this one ends (`shouldLoad`), it started after the call, so they join it.
+    if (this._refreshing) {
+      this._refreshAfter ??= this._refreshing
+        .catch(() => undefined)
+        .then(() => {
+          this._refreshAfter = null;
+          return this._refreshing ?? this._refresh();
+        });
+      return this._refreshAfter;
+    }
     this._live = refreshStep(this._live, {
       type: 'start',
       sig: hkStateSignal(this._hass?.states),

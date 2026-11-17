@@ -36,7 +36,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: e0d4381b804a
+source_hash: 627d294f8dbd
 ---
 
 # Frontend
@@ -94,11 +94,11 @@ group rules. The last mode, chip, group and sort are per browser (`LS_ASSET_MODE
 
 ### Data and refresh
 
-`api.ts` wraps the websocket commands and `types.ts` their shapes. `refresh-machine.refreshStep`
-tells the panel and the card when to load again. A load covers the changes (`utils.hkStateSignal`,
-pushes) seen at its start, so a change during a load or before a failed one loads again. The panel
-waits while a form or dialog is open; a change within 2 s of its own clean load is its echo.
-`_lookUpDetail` loads an unknown detail id. `panel-list-patch.ts` redraws only the changed rows.
+`api.ts` wraps the websocket commands. `refresh-machine.refreshStep` tells the panel and the card
+when to load. A load covers the changes seen at its start (`utils.hkStateSignal`, pushes), so a
+change during a load or before a failed one loads again, and a `_refresh` call during a load waits
+for the next one. The panel waits while a form or dialog is open; a change within 2 s of its own
+clean load is its echo. `panel-list-patch.ts` redraws changed rows.
 
 ### Task layouts, the list bar and preferences
 
