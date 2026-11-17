@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 10839c3ed138
+source_hash: d532e3e49024
 ---
 
 # Coordinator and entities
@@ -60,8 +60,8 @@ tasks, counts, part stock and events as entities on device pages.
 The edge state lives in `hass.data` per config entry, so it lives through a reload. Until
 `coordinator.enable_transition_events`, a refresh fires no event. After a restart (no stored
 state) the refresh adopts the state as a silent baseline. After a reload it keeps the stored
-state, so a crossing during the reload fires after setup. When the user disables the entry,
-`coordinator.discard_edge_state_if_disabled` drops the state, or a re-enable fires each crossing.
+state, so a crossing during the reload fires after setup. A disabled entry drops it and the sensor
+watcher's (`coordinator.discard_edge_state_if_disabled`), or a re-enable fires each crossing.
 
 ### Reload or refresh
 

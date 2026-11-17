@@ -10,6 +10,7 @@ and device-registry updates. The pure create/arm/clear/orphan diff lives in
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -57,6 +58,13 @@ class ProblemSensorSync:
         self._unsub_state: CALLBACK_TYPE | None = None
         self._tracked: tuple[str, ...] = ()
         self._reload_scheduled = False
+        # Passes run 1 at a time. The store reconcile changes task dicts in place,
+        # so a pass that ran while another waited for its save changed the tasks
+        # that the first pass then put in its events. ``_queued`` is set while a
+        # pass waits for the lock: a request that comes then adds no pass, because
+        # the waiting pass reads the newest state when it starts.
+        self._pass_lock = asyncio.Lock()
+        self._queued = False
 
     @property
     def _enabled(self) -> bool:
@@ -76,9 +84,10 @@ class ProblemSensorSync:
         entity set, and else refreshes, so this schedules neither (#467).
         """
         self._resubscribe_state()
-        return await self._coordinator.store.reconcile_problem_sensor_tasks(
-            self._eligible(), config_entry_id=self._entry.entry_id
-        )
+        async with self._pass_lock:
+            return await self._coordinator.store.reconcile_problem_sensor_tasks(
+                self._eligible(), config_entry_id=self._entry.entry_id
+            )
 
     @callback
     def async_start_listeners(self) -> None:
@@ -270,12 +279,21 @@ class ProblemSensorSync:
     async def _async_rename_then_reconcile(
         self, old_entity_id: str, new_entity_id: str
     ) -> None:
-        await self._coordinator.store.async_rename_problem_sensor(
-            old_entity_id, new_entity_id
-        )
+        async with self._pass_lock:
+            await self._coordinator.store.async_rename_problem_sensor(
+                old_entity_id, new_entity_id
+            )
         await self._async_reconcile()
 
     async def _async_reconcile(self) -> None:
+        if self._queued:
+            return
+        self._queued = True
+        async with self._pass_lock:
+            self._queued = False
+            await self._async_reconcile_once()
+
+    async def _async_reconcile_once(self) -> None:
         entity_set_changed = (
             await self._coordinator.store.reconcile_problem_sensor_tasks(
                 self._eligible(), config_entry_id=self._entry.entry_id

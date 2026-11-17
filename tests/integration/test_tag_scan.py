@@ -18,6 +18,9 @@ TAG = "hk-itest-tag"
 OTHER_TAG = "hk-itest-tag-unknown"
 PART_TAG = "hk-itest-part-tag"
 USE_TAG = "hk-itest-use-tag"
+# Home Keeper ignores a second scan of 1 tag within 10 seconds. Each test that fires
+# a scan has its own tag, so a scan in 1 test is not a repeat of a scan in another.
+SCAN_ONLY_TAG = "hk-itest-scan-only-tag"
 
 
 def _fire_scan(ha, tag_id):
@@ -291,9 +294,11 @@ def test_require_tag_scan_refuses_every_other_completion_surface(ha):
 
 
 def test_a_real_scan_completes_a_scan_only_task(ha):
-    task_id = _add_task(ha, "Scan-only scan probe", tag_id=TAG, require_tag_scan=True)
+    task_id = _add_task(
+        ha, "Scan-only scan probe", tag_id=SCAN_ONLY_TAG, require_tag_scan=True
+    )
     try:
-        _fire_scan(ha, TAG)
+        _fire_scan(ha, SCAN_ONLY_TAG)
         task = _poll_task(ha, task_id, lambda t: t["completions"])
         assert task["last_completed"]
     finally:

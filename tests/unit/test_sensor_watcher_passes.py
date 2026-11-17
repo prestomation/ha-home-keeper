@@ -664,3 +664,126 @@ def test_x02_4_a_live_pass_still_books_the_hold_timer(monkeypatch):
     _run(go)
     assert booked == ["humid"]
     assert set(watcher._hold_timers) == {"humid"}
+
+
+# ── a reload keeps the edge state ─────────────────────────────────────────────
+_HUMID = {
+    "entity_id": "sensor.humidity",
+    "mode": "threshold",
+    "comparison": ">",
+    "value": 90,
+    "for_seconds": 300,
+}
+
+
+def _clock(monkeypatch, start: datetime) -> list[datetime]:
+    now = [start]
+    monkeypatch.setattr(
+        sensor_watcher, "dt_util", types.SimpleNamespace(now=lambda: now[0])
+    )
+    return now
+
+
+def _reload(watcher, store):
+    """A new watcher for the same entry and hass, as an entry reload makes it."""
+    entry = types.SimpleNamespace(entry_id="e1", async_on_unload=lambda cb: None)
+    return sensor_watcher.SensorTaskWatcher(watcher._hass, entry, _Coordinator(store))
+
+
+def test_a_reload_during_a_hold_keeps_the_hold(monkeypatch):
+    # The crossing started before the reload. The new watcher took a baseline,
+    # recorded the condition as met with no crossing, and the task never armed.
+    now = _clock(monkeypatch, T0)
+    states = {"sensor.humidity": _state("50")}
+    watcher, _hass, store = _watcher({"humid": _task("humid", _HUMID)}, states)
+
+    async def go():
+        await watcher.async_baseline()
+        states["sensor.humidity"] = _state("95")
+        await watcher.async_evaluate(refresh=False)
+        assert store.triggered == []
+        now[0] = T0 + timedelta(seconds=120)
+        reloaded = _reload(watcher, store)
+        await reloaded.async_baseline()
+        await reloaded.async_evaluate(refresh=False)
+        assert store.triggered == []
+        now[0] = T0 + timedelta(seconds=301)
+        await reloaded.async_evaluate(refresh=False)
+
+    _run(go)
+    assert store.triggered == ["humid"]
+
+
+def test_a_crossing_during_a_reload_still_arms(monkeypatch):
+    _clock(monkeypatch, T0)
+    sensor = {**_HUMID, "for_seconds": 0}
+    states = {"sensor.humidity": _state("50")}
+    watcher, _hass, store = _watcher({"humid": _task("humid", sensor)}, states)
+
+    async def go():
+        await watcher.async_baseline()
+        await watcher.async_evaluate(refresh=False)
+        states["sensor.humidity"] = _state("95")
+        reloaded = _reload(watcher, store)
+        await reloaded.async_baseline()
+        await reloaded.async_evaluate(refresh=False)
+
+    _run(go)
+    assert store.triggered == ["humid"]
+
+
+def test_a_restart_still_takes_a_silent_baseline(monkeypatch):
+    # A restart starts with an empty hass.data: a standing condition does not arm.
+    _clock(monkeypatch, T0)
+    sensor = {**_HUMID, "for_seconds": 0}
+    states = {"sensor.humidity": _state("95")}
+    watcher, _hass, store = _watcher({"humid": _task("humid", sensor)}, states)
+
+    async def go():
+        await watcher.async_baseline()
+        await watcher.async_evaluate(refresh=False)
+
+    _run(go)
+    assert store.triggered == []
+
+
+def test_a_removed_or_disabled_entry_drops_the_kept_edge_state(monkeypatch):
+    _clock(monkeypatch, T0)
+    states = {"sensor.humidity": _state("50")}
+    watcher, hass, _store = _watcher({"humid": _task("humid", _HUMID)}, states)
+    _run(watcher.async_baseline)
+    assert hass.data[sensor_watcher._EDGE_STORE]["e1"]
+    sensor_watcher.async_discard_edge_state(hass, "e1")
+    assert "e1" not in hass.data[sensor_watcher._EDGE_STORE]
+
+
+def test_done_during_a_hold_does_not_arm_the_task_just_after(monkeypatch):
+    # The hold was pending when the user pressed Done on the dormant task. The
+    # crossing was the one that the user dealt with, so it must not arm the task
+    # when the hold ends.
+    now = _clock(monkeypatch, T0)
+    states = {"sensor.humidity": _state("50")}
+    watcher, _hass, store = _watcher({"humid": _task("humid", _HUMID)}, states)
+
+    async def go():
+        await watcher.async_baseline()
+        states["sensor.humidity"] = _state("95")
+        await watcher.async_evaluate(refresh=False)
+        now[0] = T0 + timedelta(seconds=60)
+        store.tasks["humid"] = {
+            **store.tasks["humid"],
+            "last_completed": now[0].isoformat(),
+        }
+        now[0] = T0 + timedelta(seconds=301)
+        await watcher.async_evaluate(refresh=False)
+        assert store.triggered == []
+        # A new crossing after that arms as usual.
+        states["sensor.humidity"] = _state("50")
+        await watcher.async_evaluate(refresh=False)
+        states["sensor.humidity"] = _state("95")
+        await watcher.async_evaluate(refresh=False)
+        now[0] = T0 + timedelta(seconds=602)
+        await watcher.async_evaluate(refresh=False)
+
+    _run(go)
+    assert store.triggered == ["humid"]

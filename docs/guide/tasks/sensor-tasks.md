@@ -41,7 +41,9 @@ On the task form, select **Based on a sensor** and select the sensor and a mode:
 
 A hold counts only the time the entity reported the condition. If the entity stops
 reporting, the hold stops. It starts again when the entity reports the condition
-again.
+again. A reload of Home Keeper keeps a hold that has started. If you complete or
+skip the task during a hold, the hold ends and the task does not come due. Only a
+new change into the condition starts a new hold.
 
 If you change the condition of a task, Home Keeper reads the entity against the new
 condition. A task opens when the entity already meets the new condition.

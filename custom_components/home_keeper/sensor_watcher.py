@@ -10,14 +10,15 @@ auto-creation/deletion, exclusion options, or entry reload — the watcher never
 changes which tasks exist, only their armed/dormant state and meter baseline.
 
 Edge state for the threshold/state modes (was-the-condition-true, when-it-crossed)
-lives in this object's memory and is baselined on startup (``async_baseline``) so a
-restart never replays a spurious arm — mirroring how the coordinator baselines the
-overdue/due-soon transitions. A binding with a ``for_seconds`` hold also gets a timer.
-The hold ends in its own time, so the watcher books one re-evaluation per task for the
-moment the pure evaluator says the hold is due, and releases every pending timer on
-unload. Without that timer the hold ends nowhere: the only things that re-evaluate the
-task are the next state change of the bound entity — which an entity that has gone
-unavailable never sends — and the coordinator's five-minute tick.
+lives in ``hass.data`` per config entry, so a reload keeps it, and a restart takes a
+silent baseline (``async_baseline``) that never replays a spurious arm — mirroring how
+the coordinator keeps and baselines the overdue/due-soon transitions. A binding with a
+``for_seconds`` hold also gets a timer. The hold ends in its own time, so the watcher
+books one re-evaluation per task for the moment the pure evaluator says the hold is
+due, and releases every pending timer on unload. Without that timer the hold ends
+nowhere: the only things that re-evaluate the task are the next state change of the
+bound entity — which an entity that has gone unavailable never sends — and the
+coordinator's five-minute tick.
 
 Completion normally flows through the user surfaces; the
 one exception is a binding with ``clear_on_recover``, where the watcher completes the
@@ -101,6 +102,25 @@ def async_mark_tasks_new(
 def async_discard_new_tasks(hass: HomeAssistant, entry_id: str) -> None:
     """Drop an entry's just-made-task set (called when the entry is removed)."""
     _new_tasks_store(hass).pop(entry_id, None)
+
+
+# hass.data namespace holding, per config entry, the watcher's edge state (see
+# ``SensorTaskWatcher._edge``). A reload makes a new watcher, and an edge state on
+# the old one was lost: a pending hold was forgotten, and a crossing during the
+# reload was read as a standing condition. A restart starts with an empty
+# ``hass.data``, so it still takes a silent baseline.
+_EDGE_STORE = f"{DOMAIN}_sensor_edge_state"
+
+
+def _edge_store(hass: HomeAssistant) -> dict[str, dict[str, dict[str, Any]]]:
+    """The process-lifetime edge state map keyed by config-entry id."""
+    return hass.data.setdefault(_EDGE_STORE, {})
+
+
+@callback
+def async_discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
+    """Drop an entry's kept edge state (the entry is removed or disabled)."""
+    _edge_store(hass).pop(entry_id, None)
 
 
 def _entity_loaded(hass: HomeAssistant, entity_id: str | None) -> bool:
@@ -351,7 +371,10 @@ class SensorTaskWatcher:
         # ``condition`` is the binding the other 2 were decided against (see
         # ``sensor_tasks.condition_fingerprint``); an edit to the task or to the
         # declarative companion that owns it retires them.
-        self._edge: dict[str, dict[str, Any]] = {}
+        # The map lives on ``hass.data`` (see ``_EDGE_STORE``), so a reload keeps it.
+        self._edge: dict[str, dict[str, Any]] = _edge_store(hass).setdefault(
+            entry.entry_id, {}
+        )
         # One pending "the hold is up" timer per task id, keyed the same way. A
         # ``for_seconds`` hold ends in its own time, and the bound entity sends no
         # state change to mark the moment. An entity that has gone unavailable sends
@@ -412,7 +435,8 @@ class SensorTaskWatcher:
         Called once during setup (before the watcher is attached to the coordinator)
         so the first evaluation only reacts to genuine transitions: a threshold sensor
         already above its limit at boot is recorded as already-met (no rising edge), and
-        a usage task with no baseline yet is anchored to the current reading.
+        a usage task with no baseline yet is anchored to the current reading. A task
+        with edge state kept from before a reload keeps it and gets no baseline.
 
         Tasks made after the last baseline pass are the one exception (see
         :func:`async_mark_tasks_new`). Materializing a declarative companion's tasks
@@ -423,11 +447,21 @@ class SensorTaskWatcher:
         without bound nor reach an unrelated later reload.
         """
         fresh = _new_tasks_store(self._hass).pop(self._entry.entry_id, set())
-        for tid, task in self._sensor_tasks().items():
+        live = self._sensor_tasks()
+        # Edge state kept from before a reload. A task that is gone or not enabled
+        # drops it: an enabled task starts again from its baseline, as an edit does.
+        for stale in [tid for tid in self._edge if tid not in live or tid in fresh]:
+            del self._edge[stale]
+        for tid, task in live.items():
             cfg = sensor_tasks.sensor_config(task)
             if cfg is None:
                 continue
             mode = cfg.get("mode")
+            if tid in self._edge:
+                # Kept across a reload: a pending hold goes on, and a crossing
+                # during the reload arms. An edited binding retires the state at
+                # the first evaluation (see :meth:`_carried_edge`).
+                continue
             if tid in fresh and sensor_tasks.holds_edge_state(mode):
                 # Made after the last baseline: leave the edge unset so the first
                 # evaluation arms on a condition that is already true. A usage meter

@@ -54,17 +54,19 @@ class _States:
 
 
 class _Store:
-    def __init__(self, specs, *, fail_on=()):
+    def __init__(self, specs, *, fail_on=(), pause_changes_entities=False):
         self._specs = specs
         self._fail_on = set(fail_on)
         self.calls = []
         self.paused = []
+        self._pause_changes_entities = pause_changes_entities
 
     def get_declarative_companions(self):
         return self._specs
 
     async def pause_declarative_companion_tasks(self, spec_id):
         self.paused.append(spec_id)
+        return self._pause_changes_entities
 
     async def reconcile_declarative_companion_tasks(
         self, spec, matches, rendered, *, config_entry_id, dormant, stale
@@ -121,6 +123,17 @@ def test_b12_2_a_disabled_spec_pauses_and_the_pass_goes_on():
     assert store.paused == ["a"]
     assert [call["spec"] for call in store.calls] == ["b"]
     assert (changed, created) == (True, ["task_b"])
+
+
+def test_a_paused_spec_with_device_entities_asks_for_a_reload():
+    # A paused task is disabled, so its device-page entities must go. Only a reload
+    # removes them, and the pass said that the entity set had not changed.
+    store = _Store({"a": _spec("a", enabled=False)}, pause_changes_entities=True)
+    sync = _sync(store, [_entity("sensor.x")], {"sensor.x": _live()})
+    assert asyncio.run(sync._reconcile_all()) == (True, [])
+    quiet = _Store({"a": _spec("a", enabled=False)})
+    sync = _sync(quiet, [_entity("sensor.x")], {"sensor.x": _live()})
+    assert asyncio.run(sync._reconcile_all()) == (False, [])
 
 
 def test_b12_2_a_blank_name_is_logged_once(caplog):

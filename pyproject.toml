@@ -126,6 +126,9 @@ only_mutate = [
     "custom_components/home_keeper/caller.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",
+    # The repeat guard of the tag and notification listeners. Driven by
+    # tests/unit/test_repeats.py.
+    "custom_components/home_keeper/repeats.py",
     "custom_components/home_keeper/card_resource.py",
     "custom_components/home_keeper/resolve.py",
     "custom_components/home_keeper/todo_list.py",

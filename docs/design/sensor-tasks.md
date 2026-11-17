@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/problem_tasks.py
   - custom_components/home_keeper/problem_sync.py
 related: [recurrence, store, coordinator-entities, completions, companions-presets, events-api]
-source_hash: db751f3d5e8e
+source_hash: edcc7e9fc2a6
 ---
 
 # Sensor tasks and problem sensors
@@ -64,10 +64,9 @@ old baseline on the entry, and `sensor_tasks.baseline_after_delete` restores it 
 - **First reading.** The first valid reading fills an empty `baseline`; a set one stays.
 - **Debounced reset.** 1 reading below the baseline is only a candidate. A second one,
   from a new entity report (`last_reported`), re-anchors the meter.
-- **Time backstop.** `also_every` (`interval`, `unit`) counts from
-  `sensor_tasks.latest_decision_ts`, or from `created`, in local time
-  (`sensor_tasks.backstop_due`). A meter reset does not move it. `combinator` `any`
-  arms on the first limit met; `all` needs both.
+- **Time backstop.** `also_every` (`interval`, `unit`) counts from `sensor_tasks.latest_decision_ts`
+  or `created`, in local time (`sensor_tasks.backstop_due`). A meter reset does not move it.
+  `combinator` `any` arms on the first limit met; `all` needs both.
 - **No reading.** A task with `also_every` is evaluated with no reading, so an offline
   machine still comes due on time. A task without it is skipped.
 
@@ -79,7 +78,8 @@ Only the test for "condition met" differs. The watcher carries `condition_met`,
 
 - A false-to-true change sets `crossed_at`. The task arms when the condition stays true
   for `for_seconds`, and the arm consumes the crossing. An armed task consumes a new
-  crossing at once, so a steady true, or a completion while true, does not re-arm.
+  crossing at once, so a steady true, or a completion while true, does not re-arm. A
+  completion or skip during the hold consumes it too (`sensor_tasks._decided_since`).
 - A false condition drops the crossing. With `clear_on_recover` it clears an armed task.
 - An indeterminate reading (no state, `unavailable`, `unknown`, or no boolean from a
   template) decides no action and ends a pending hold (`sensor_tasks._evaluate_indeterminate`).
@@ -92,19 +92,19 @@ Only the test for "condition met" differs. The watcher carries `condition_met`,
 
 - **Baseline.** Each edge task records its current condition as met with no crossing,
   or `None` if the entity has no state or only a `restored` placeholder. The first
-  definite reading after `None` is a baseline too, not a crossing.
+  definite reading after `None` is a baseline too. A task with kept edge state skips it.
 - **New tasks.** `sensor_watcher.async_mark_tasks_new` keeps ids in `hass.data`, because
   the companion reload destroys the watcher. The baseline consumes the set and leaves
   their edge unset, so a new task arms on a condition that is true.
-- **Triggers.** A state listener evaluates the tasks bound to the changed entity, or a
-  template that names it. The 5-minute coordinator tick calls
-  `sensor_watcher.async_evaluate` for all tasks. A hold books a point-in-time timer.
-  Passes run one at a time; a request during a pass adds one more pass.
+- **Triggers.** A state listener evaluates the tasks bound to the changed entity, or a template
+  that names it. The 5-minute tick calls `sensor_watcher.async_evaluate` for all tasks. A hold
+  books a point-in-time timer. Passes run one at a time; a request during a pass adds 1 more.
 - **Apply.** `arm` renders the companion notes again, then calls `store.trigger_task`.
   `rebaseline` calls `store.set_sensor_baseline` with no event. `clear` calls
   `store.complete_task` with `ORIGIN_SENSOR_RECOVER` if the task is still armed.
-- **Memory only.** Edge state, reset candidates and timers are not stored. Unload
-  cancels them. `store.async_repoint_sensor_entity` follows an entity id rename.
+- **Kept for a reload.** Edge state is in `hass.data` per entry; a disable or a removal drops it
+  (`sensor_watcher.async_discard_edge_state`). Unload cancels the timers. Reset candidates are in
+  memory. `store.async_repoint_sensor_entity` follows an entity id rename.
 
 ### Templates
 
@@ -117,25 +117,25 @@ false/no/off/disable; a number is an error. Each error is logged once per task.
 
 ### Problem-sensor sync
 
-`ProblemSensorSync` runs when the `sync_problem_sensors` option is on. It lists each
-enabled problem `binary_sensor` except Home Keeper's own and the exclusions (entity,
-device, area, label). `problem_sync._is_problem` gives `True`, `False` or `None`. The name
-is the trimmed sensor `friendly_name`, but with no live state a mirror keeps its name.
+`ProblemSensorSync` runs when `sync_problem_sensors` is on. It lists each enabled problem
+`binary_sensor` except Home Keeper's own and the exclusions (entity, device, area, label).
+`problem_sync._is_problem` gives `True`, `False` or `None`. The name is the trimmed sensor
+`friendly_name`, but with no live state a mirror keeps its name. Passes run 1 at a time
+(`_pass_lock`); the requests during a pass give 1 more pass.
 
 `problem_tasks.reconcile_problem_tasks` is the pure diff. It returns the new task map,
 ordered ops (`created`, `deleted`, `updated`, `armed`, `cleared`) and a changed flag.
 `None` never arms or clears. `cleared` records a completion with the sync origin.
 `problem_tasks.build_managed_by` locks the name, type, device and area and sets
-`completion_blocked`. `store._reject_synced_problem` refuses complete, skip and trigger
-from users; snooze is allowed. `notes` stays editable and is kept by entity id in
-`problem_notes`, so a mirror made again gets its note back.
+`completion_blocked`. `store._reject_synced_problem` refuses complete, skip and trigger from
+users; snooze is allowed. `notes` is editable and kept by entity id in `problem_notes`.
 `problem_tasks.rename_problem_entity` moves a mirror to a renamed id. A created or deleted
 mirror, or a new name or device, reloads once (also after an options change); else refresh.
 
 ## Trade-offs
 
-- **Edge state in memory** over **stored edge state**: a restart re-baselines from live
-  readings, so an old crossing cannot replay as a false arm.
+- **Edge state in `hass.data`** over **stored edge state**: a restart re-baselines from live
+  readings, so an old crossing cannot replay as a false arm. A reload keeps a hold.
 - **Indeterminate ends the hold** over **keeping the crossing**: time with no reading is
   not time the condition was true.
 - **Strict boolean templates** over **truthy results**: a number or a typo cannot arm
