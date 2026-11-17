@@ -3,6 +3,7 @@ title: Frontend
 summary: The sidebar panel, the dashboard task card, and the text both show in the user's language.
 implements:
   - custom_components/home_keeper/frontend/src/panel.ts
+  - custom_components/home_keeper/frontend/src/draft-step.ts
   - custom_components/home_keeper/frontend/src/panel-host.ts
   - custom_components/home_keeper/frontend/src/panel-chips.ts
   - custom_components/home_keeper/frontend/src/panel-controls.ts
@@ -34,7 +35,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: b81a6b329c0a
+source_hash: 2a86a24237f4
 ---
 
 # Frontend
@@ -71,13 +72,13 @@ each admin-only control from a non-admin. Entry files check the registry before 
 the lifecycle callbacks and the form lifecycles. Each other region is a flat `panel-*.ts` module
 of free functions over `PanelHost` (`panel-host.ts`), such as `panel-lists.tasksList`. A region
 that adds listeners exports `wireXxx(p, root)`; `_hydrate` calls these in a fixed order. Add a
-`PanelHost` member only for live panel state. New modules stay flat in `src/`, for the parity test.
+`PanelHost` member only for live panel state.
 `_render` rebuilds the shadow tree from strings, so every user value goes through
 `utils.escapeHTML` first. It records the focused control (`_focusKey`) and restores it after the
 rebuild. The task form has sections (`forms.taskSchemaSections`), and each gets only its own
 fields (`forms.pickFormData`), so it cannot write stale values over another. A changed
-`forms.taskFormSchemaKey` renders the drawer again. A consumable pick sets its amount fields in
-place, so the picker keeps the focus. `dialogs.makeDialog` builds each dialog.
+`forms.taskFormSchemaKey` renders the drawer again. `dialogs.makeDialog` builds each dialog.
+Each form numbers its draft (`draft-step.ts`); a late save answer for a replaced draft is ignored.
 
 ### Routes
 
@@ -87,8 +88,7 @@ place, so the picker keeps the focus. `dialogs.makeDialog` builds each dialog.
 ([panel-tabs](panel-tabs.md)). Other paths give the task list. Only `set route` changes `_view`,
 `_detail` and `_partsView` (`_applyLocation`). `_navigate(loc, replace)`: a detail pushes; a tab
 or mode switch, a close or a delete replaces. A form is an overlay with no URL.
-`utils.navigateTo` leaves the panel, with a visible mark. `/appliances/parts` is a mode of the
-Appliances tab, not a detail: an appliance id is a UUID, so the word cannot clash.
+`/appliances/parts` is a mode of the Appliances tab, not a detail: an id is a UUID, so no clash.
 `panel-parts.partsBody` draws it and `parts-overview.ts` holds its pure filter, count, sort and
 group rules. The last mode, chip, group and sort are per browser (`LS_ASSET_MODE`, `LS_PARTS_*`).
 
