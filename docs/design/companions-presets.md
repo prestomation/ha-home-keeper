@@ -89,10 +89,10 @@ A spec change (`SIGNAL_DECLARATIVE_SPECS_CHANGED`) gets its own pass. For each e
 4. When the task set changed, the pass marks new ids (`sensor_watcher.async_mark_tasks_new`)
    and reloads the entry for the device-page entities. Else it refreshes the coordinator.
 
-A disabled spec pauses its tasks (`declarative_companions.pause_spec_tasks`): it switches
-each off with a `paused` marker in its `source`, and enable switches on the marked ones. A
-task a person switched off stays off. A deleted spec removes its tasks. Calls that change a
-spec await `declarative_companion_sync.async_settle`, so they answer after the reload.
+A disabled spec pauses its tasks (`declarative_companions.pause_spec_tasks`) with a `paused`
+marker in `source`, and enable switches on the marked ones. A paused task on a device reloads
+the entry. A task a person switched off stays off. A deleted spec removes its tasks. A spec
+change awaits `declarative_companion_sync.async_settle`, so it answers after the reload.
 
 ### Ownership on a task
 

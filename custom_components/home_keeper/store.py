@@ -2575,9 +2575,9 @@ class HomeKeeperStore:
 
         The disabled half of :meth:`reconcile_declarative_companion_tasks`. Delegates
         the decision to :func:`declarative_companions.pause_spec_tasks` and fires the
-        same ``home_keeper_task_updated`` event per changed task. Returns whether
-        anything changed; the entity set never does, because no task is created or
-        removed, so the caller needs no reload.
+        same ``home_keeper_task_updated`` event per changed task. Returns whether the
+        per-task **entity set** changed: a paused task on a device loses its
+        device-page entities, and only an entry reload removes them.
         """
         new_tasks, ops, changed = declarative_companions.pause_spec_tasks(
             spec_id, self._tasks
@@ -2586,12 +2586,17 @@ class HomeKeeperStore:
             return False
         self._tasks = new_tasks
         await self._save()
+        entity_set_changed = False
         for _kind, task in ops:
             self._fire(
                 EVENT_TASK_UPDATED,
                 self._task_event_data(task, extra={"changed_fields": ["enabled"]}),
             )
-        return True
+            # The pass pauses only a task that was enabled, so it owned entities
+            # before the pass if it is on a device.
+            if owns_entities({**task, "enabled": True}):
+                entity_set_changed = True
+        return entity_set_changed
 
     async def reconcile_declarative_companion_tasks(
         self,
