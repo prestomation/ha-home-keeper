@@ -204,13 +204,17 @@ def test_history_carries_its_metadata():
 def test_over_the_cap_the_newest_history_is_what_survives():
     # The history cap keeps the tail of the list, so replaying out of order would
     # keep the oldest entries and throw away everything recent.
-    history = [{"completed_at": f"{year}-01-05"} for year in range(1200, 1200 + 600)]
+    first = datetime(2000, 1, 5).date()
+    history = [
+        {"completed_at": (first + timedelta(days=n)).isoformat()} for n in range(600)
+    ]
     plan = _plan(
         _doc(tasks=[{"name": "T", "interval": 1, "unit": "days", "history": history}])
     )
     kept = plan.records[0].payload["completions"]
     assert len(kept) == 500
-    assert kept[-1]["ts"].startswith("1799-01-05")
+    assert kept[0]["ts"].startswith((first + timedelta(days=100)).isoformat())
+    assert kept[-1]["ts"].startswith((first + timedelta(days=599)).isoformat())
 
 
 def test_a_backdated_skip_is_logged_without_inventing_a_due_date():

@@ -4,7 +4,7 @@ These exercise the create/anchor/heal/orphan/update branches directly, without a
 Home Assistant runtime. The store wraps this with persistence (integration tests).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_reconcile as rc
 import hk_recurrence as r
@@ -961,3 +961,20 @@ def test_b09_3_an_existing_floating_task_is_not_moved_by_the_reconcile():
     again, changed = _reconcile({"a1": dated}, tasks)
     assert changed is False
     assert _only(again)["last_completed"] is None
+
+
+# ── a last_replaced outside the date window ──────────────────────────────────
+@pytest.mark.parametrize("last_replaced", ["0001-01-01", "1899-12-31", "9999-12-31"])
+def test_a_last_replaced_outside_the_window_reads_as_no_replacement(last_replaced):
+    # In a zone east of UTC, year 1 overflows when the engine converts it.
+    east = datetime(2026, 6, 13, 10, tzinfo=timezone(timedelta(hours=14)))
+    asset = _asset(parts=[_wear_part(interval=6, last_replaced=last_replaced)])
+    tasks, _ = rc.reconcile_part_tasks({"a1": asset}, {}, now=east)
+    (task,) = tasks.values()
+    assert task["last_completed"] is None
+    assert task["next_due"] == east.isoformat()
+
+
+def test_qualify_iso_keeps_a_date_inside_the_window():
+    assert rc.qualify_iso("1900-01-01", UTC) == "1900-01-01T00:00:00+00:00"
+    assert rc.qualify_iso("2199-12-31", UTC) == "2199-12-31T00:00:00+00:00"

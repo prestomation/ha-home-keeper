@@ -210,9 +210,13 @@ def backstop_due(
         # Count the interval on Home Assistant's wall clock, not in the stored UTC
         # offset, so a daylight-saving change does not move it by 1 hour (B07-4).
         anchor = anchor.astimezone(tz)
-    return recurrence.add_interval(
-        anchor, int(also_every["interval"]), str(also_every["unit"])
-    )
+    try:
+        return recurrence.add_interval(
+            anchor, int(also_every["interval"]), str(also_every["unit"])
+        )
+    except (OverflowError, ValueError):
+        # The backstop comes due after year 9999, so it has no date.
+        return None
 
 
 def baseline_after_delete(

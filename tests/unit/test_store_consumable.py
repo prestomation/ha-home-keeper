@@ -80,6 +80,7 @@ def _load_store() -> types.ModuleType:
     module.dt_util = types.SimpleNamespace(
         now=lambda: NOW,
         utcnow=lambda: NOW,
+        get_default_time_zone=lambda: TZ,
         as_local=lambda when: when,
         parse_datetime=lambda text: datetime.fromisoformat(text),
     )

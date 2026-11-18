@@ -30,7 +30,7 @@ from . import caller
 from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
 from .models import TaskValidationError
-from .recurrence import one_off_completed
+from .recurrence import one_off_completed, stored_moment
 from .service_device import service_device_info
 from .task_entities import update_needs_reload
 
@@ -97,7 +97,7 @@ class HomeKeeperTodoListEntity(
             # a thing you use again tomorrow.
             if rec_type in (REC_ONE_OFF, REC_TRIGGERED, REC_SENSOR) and not due_iso:
                 continue
-            due = dt_util.parse_datetime(due_iso) if due_iso else None
+            due = stored_moment(due_iso)
             items.append(
                 TodoItem(
                     uid=task["id"],

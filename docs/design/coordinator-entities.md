@@ -13,7 +13,7 @@ implements:
   - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: d532e3e49024
+source_hash: fccdfa38e7bc
 ---
 
 # Coordinator and entities
@@ -87,7 +87,7 @@ entities on `entity.HomeKeeperTaskEntity` (ids from `task_entities.task_entity_u
 | Platform | Unique ID | State | Attributes |
 |---|---|---|---|
 | `button` | `home_keeper_<task_id>_done` | press completes | none |
-| `sensor` | `home_keeper_<task_id>_next_due` | `next_due` timestamp | task, last completion, usage |
+| `sensor` | `home_keeper_<task_id>_next_due` | `next_due` timestamp, if `recurrence.stored_moment` reads it | task, last completion, usage |
 | `binary_sensor` | `home_keeper_<task_id>_overdue` | overdue | `task_id`, `due_soon`, `next_due` |
 
 `task_entities.has_mark_done_button` skips the button for a task that refuses a completion
