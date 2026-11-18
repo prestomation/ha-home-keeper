@@ -2645,6 +2645,16 @@ def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
                     assert limit < 100, where
 
 
+def test_vicare_preset_opens_a_salt_task_two_weeks_before_the_salt_runs_out():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    vicare = next(e for e in catalog if e["domain"] == "vicare")
+    duties = {d["duty"]: d for d in vicare["duties"]}
+    salt = duties["refill_softener_salt"]
+    assert salt["shape"] == "life_low"
+    assert salt["keys"] == ["salt_supply"]
+    assert salt["limit"] == 336
+
+
 def _ent(entity_id, platform, key=None, **over):
     return {
         "entity_id": entity_id,
