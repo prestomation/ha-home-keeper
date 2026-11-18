@@ -12,6 +12,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **Appliance list scroll.** The list beside an open appliance now keeps its scroll position when
   you open another appliance, and shows the open one. (Fixes #586)
+- **Pill group outlines.** The selected choice in a pill group, such as Active or List, now shows
+  its whole outline at the rounded end. (Fixes #554)
 
 ## [0.37.0b6] - 2026-11-18
 
