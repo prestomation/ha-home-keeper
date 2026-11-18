@@ -101,3 +101,39 @@ def test_snooze_task_refuses_hours_over_1_year(ha):
         assert ok.status_code == 200, ok.text
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_the_update_task_service_clears_a_real_area_with_null(ha):
+    # The panel sends ``device_id: null`` and ``area_id: null`` to clear the links.
+    # ``devices.area_exists`` reads null as "no area", so the service accepts it.
+    token = _token(ha)
+    area = ws_send(
+        token,
+        {
+            "type": "config/area_registry/create",
+            "name": f"Bound {uuid.uuid4().hex[:8]}",
+        },
+    )
+    assert area.get("success"), area
+    area_id = area["result"]["area_id"]
+    name = f"Bound null links {uuid.uuid4().hex[:8]}"
+    try:
+        call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {"name": name, "interval": 1, "unit": "days", "area_id": area_id},
+        )
+        task = _task_named(ha, name)
+        assert task["area_id"] == area_id
+        r = ha.post(
+            f"{HA_URL}/api/services/home_keeper/update_task",
+            json={"task_id": task["id"], "device_id": None, "area_id": None},
+        )
+        assert r.status_code == 200, r.text
+        cleared = _task_named(ha, name)
+        assert cleared["area_id"] is None
+        assert cleared["device_id"] is None
+    finally:
+        _cleanup(ha, name)
+        ws_send(token, {"type": "config/area_registry/delete", "area_id": area_id})
