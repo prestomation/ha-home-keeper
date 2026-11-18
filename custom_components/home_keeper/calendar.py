@@ -59,7 +59,7 @@ def _due_ahead(
     and the schedule shows from now on. The clock is read only when there is a
     ``next_due`` to judge, so a plain schedule never depends on it.
     """
-    due = dt_util.parse_datetime(task.get("next_due") or "")
+    due = recurrence.stored_moment(task.get("next_due"))
     if due is None:
         return None
     now = now or dt_util.now()
@@ -159,13 +159,13 @@ class HomeKeeperCalendarEntity(
         if task.get("recurrence_type") in (REC_TRIGGERED, REC_SENSOR):
             return None
         if task.get("recurrence_type") == REC_FIXED:
-            if dt_util.parse_datetime(task["anchor"]) is None:
+            if recurrence.stored_moment(task["anchor"]) is None:
                 return None
             if (ahead := _due_ahead(task, now)) is not None:
                 return _event_for(task, ahead[0])
             return self._next_fixed_event(task, now)
         due_iso = task.get("next_due")
-        due = dt_util.parse_datetime(due_iso) if due_iso else None
+        due = recurrence.stored_moment(due_iso)
         # Only treat a floating task as "upcoming" while its event hasn't ended.
         if due and due + EVENT_DURATION > now:
             return _event_for(task, due)
@@ -226,7 +226,7 @@ class HomeKeeperCalendarEntity(
             if task.get("recurrence_type") in (REC_TRIGGERED, REC_SENSOR):
                 continue  # no schedule to expand (see _next_event)
             if task.get("recurrence_type") == REC_FIXED:
-                if dt_util.parse_datetime(task["anchor"]) is None:
+                if recurrence.stored_moment(task["anchor"]) is None:
                     continue
                 try:
                     events += _fixed_events(task, start_date, end_date)
@@ -234,7 +234,7 @@ class HomeKeeperCalendarEntity(
                     continue
             else:
                 due_iso = task.get("next_due")
-                due = dt_util.parse_datetime(due_iso) if due_iso else None
+                due = recurrence.stored_moment(due_iso)
                 # Include a floating occurrence whose event overlaps the window
                 # start, not only one that starts within it.
                 if due and due < end_date and due + EVENT_DURATION > start_date:

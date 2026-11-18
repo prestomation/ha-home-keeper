@@ -121,6 +121,25 @@ LAST_REPLACED_BEFORE: Final = "last_replaced_before"
 MAX_CONSUMABLE_LINKS: Final = 20
 
 
+def _check_moment(value: Any, field: str) -> None:
+    """Raise ``TaskValidationError`` if *value* is a datetime outside the window.
+
+    *value* is a datetime or an ISO string. A naive value is read in Home
+    Assistant's zone, as the write itself reads it. Text that is not a date is
+    left to the caller, which reports it with its own message.
+    """
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return
+    if not isinstance(value, datetime):
+        return
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=dt_util.now().tzinfo)
+    models.check_datetime(value, field)
+
+
 def _local_date(when: Any) -> str:
     """Return the local calendar date of *when* as ``YYYY-MM-DD``.
 
@@ -405,6 +424,7 @@ class HomeKeeperStore:
             self._tasks = data["tasks"]
         else:
             self._tasks = {}
+
         if data and isinstance(data.get("assets"), dict):
             self._assets = data["assets"]
         else:
@@ -454,7 +474,18 @@ class HomeKeeperStore:
             changed = True
         # A fixed task stored before schedules were RRULEs carries ``freq`` and
         # ``interval``. Convert it to the rule it means, once.
-        for task in self._tasks.values():
+        for task_id, task in self._tasks.items():
+            # An older version accepted any year. A value outside the window makes
+            # the date math overflow, so move it to the nearest edge of the window.
+            if clamped := models.clamp_task_datetimes(task):
+                _LOGGER.warning(
+                    "Moved the %s of task %s into the years %s to %s",
+                    ", ".join(clamped),
+                    task_id,
+                    recurrence.DATETIME_MIN.year,
+                    recurrence.DATETIME_MAX.year,
+                )
+                changed = True
             if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
                 changed = True
             # A manual consumable link stored before a task took a list of them
@@ -952,6 +983,7 @@ class HomeKeeperStore:
                 "is currently scheduled. Re-arm it instead (undo a completion, or wait "
                 "for its condition/sensor)."
             )
+        _check_moment(until, "until")
         now = dt_util.now()
         if existing.get("recurrence_type") == recurrence.REC_FLOATING:
             # With a set due time, a snooze lands on the first set time at or after
@@ -1000,6 +1032,8 @@ class HomeKeeperStore:
                 "Only a task on a fixed schedule has dates to move. Snooze a task of "
                 "another kind instead."
             )
+        _check_moment(occurrence, "occurrence")
+        _check_moment(to, "to")
         try:
             _, original, previous_to = recurrence.move_occurrence(
                 existing, occurrence, to, now=dt_util.now()
@@ -2757,6 +2791,7 @@ class HomeKeeperStore:
         _reject_synced_problem(existing, origin)
         _reject_completion_blocked(existing, origin)
         _reject_scan_required(existing, origin)
+        _check_moment(completed_at, "completed_at")
         now = dt_util.now()
         when = completed_at or now
         if when.tzinfo is None:
@@ -2995,6 +3030,7 @@ class HomeKeeperStore:
             raise KeyError(task_id)
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
+        _check_moment(new_ts, "new_completed_at")
         now = dt_util.now()
         # A copy, because the move can change the entry in place.
         moved_entry = dict(
@@ -3163,6 +3199,7 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, None)
+        _check_moment(new_ts, "new_ts")
         try:
             updated = recurrence.move_skip(
                 dict(existing), old_ts, new_ts, now=dt_util.now()

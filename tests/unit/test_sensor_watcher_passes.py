@@ -787,3 +787,29 @@ def test_done_during_a_hold_does_not_arm_the_task_just_after(monkeypatch):
 
     _run(go)
     assert store.triggered == ["humid"]
+
+
+# ── 1 task that raises does not stop the pass ────────────────────────────────
+def test_a_task_that_raises_is_logged_and_the_pass_evaluates_the_rest(
+    monkeypatch, caplog
+):
+    tasks, states = _six_armed_availability_tasks()
+    watcher, _hass, store = _watcher(tasks, states)
+    real = watcher._evaluate_availability
+
+    async def _evaluate(tid, task, **kwargs):
+        if tid == "t0":
+            raise ValueError("year must be in 1..9999, not 10000")
+        return await real(tid, task, **kwargs)
+
+    async def go():
+        await watcher.async_baseline()
+        monkeypatch.setattr(watcher, "_evaluate_availability", _evaluate)
+        for i in range(6):
+            states[f"sensor.d{i}"] = _state("on")
+        await watcher.async_evaluate(refresh=False)
+
+    _run(go)
+    assert sorted(store.completed) == [f"t{i}" for i in range(1, 6)]
+    assert "Could not evaluate sensor task t0" in caplog.text
+    assert "year must be in 1..9999" in caplog.text

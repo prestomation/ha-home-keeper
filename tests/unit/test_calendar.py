@@ -747,3 +747,23 @@ def test_async_get_events_ignores_nested_changes_after_the_snapshot():
 
     asyncio.run(entity.async_get_events(_Hass(), _dt(2026, 3, 1), _dt(2026, 3, 3)))
     assert seen == [("x", 1, 0)]
+
+
+# --- a stored date outside the window ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "due", ["9999-12-31T23:59:59-12:00", "0001-01-01T00:00:00+14:00"]
+)
+def test_a_due_outside_the_window_gives_no_event(monkeypatch, due):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 9))
+    task = {
+        "id": "t_far",
+        "name": "Far chore",
+        "recurrence_type": "floating",
+        "next_due": due,
+        "enabled": True,
+    }
+    entity = _entity({"t_far": task})
+    assert entity.event is None
+    assert entity._collect_events(_dt(2026, 6, 1), _dt(2026, 7, 1)) == []

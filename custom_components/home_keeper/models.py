@@ -60,6 +60,83 @@ class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
 
 
+def check_datetime(value: datetime, field: str) -> datetime:
+    """Return *value*, or raise ``TaskValidationError`` if it is outside the window.
+
+    The window is ``recurrence.DATETIME_MIN`` to ``recurrence.DATETIME_MAX``, after
+    conversion to UTC. Every write of a task datetime goes through this check, so
+    the date math that reads a stored value cannot go past year 9999.
+    """
+    if not recurrence.in_window(value):
+        raise TaskValidationError(
+            f"{field} must be between {recurrence.DATETIME_MIN.year} and "
+            f"{recurrence.DATETIME_MAX.year} UTC, got {value.isoformat()}"
+        )
+    return value
+
+
+#: The top-level task keys that hold 1 ISO datetime.
+_TASK_DATETIME_KEYS = (
+    "created",
+    "next_due",
+    "last_completed",
+    "anchor",
+    "due",
+    "deferred_from",
+)
+#: The task lists of entries, and the keys of an entry that hold 1 ISO datetime.
+_TASK_DATETIME_LISTS = {
+    "completions": ("ts", "prior_due"),
+    "skips": ("ts", "prior_due"),
+    "moved_occurrences": ("from", "to"),
+}
+
+
+def _clamped(raw: object) -> str | None:
+    """The nearest edge of the window for *raw*, or ``None`` if *raw* stays."""
+    if not isinstance(raw, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or recurrence.in_window(parsed):
+        return None
+    # The conversion to UTC can overflow, so compare the wall time to the edge.
+    if parsed.replace(tzinfo=None) >= recurrence.DATETIME_MAX.replace(tzinfo=None):
+        return (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    return recurrence.DATETIME_MIN.isoformat()
+
+
+def clamp_task_datetimes(task: dict[str, Any]) -> list[str]:
+    """Move each stored datetime of *task* that is outside the window to its edge.
+
+    The store calls this on load, so a value that an older version accepted cannot
+    stop setup. A value that is not an aware ISO datetime stays as it is. Returns
+    the task keys that changed.
+    """
+    changed: list[str] = []
+    for key in _TASK_DATETIME_KEYS:
+        edge = _clamped(task.get(key))
+        if edge is not None:
+            task[key] = edge
+            changed.append(key)
+    for key, entry_keys in _TASK_DATETIME_LISTS.items():
+        entries = task.get(key)
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            for entry_key in entry_keys:
+                edge = _clamped(entry.get(entry_key))
+                if edge is not None:
+                    entry[entry_key] = edge
+                    if key not in changed:
+                        changed.append(key)
+    return changed
+
+
 class StoreClosedError(RuntimeError):
     """A write reached a store that an unload closed (X02-2).
 
@@ -986,7 +1063,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 if tz is not None
                 else parsed_due.astimezone()
             )
-        fields["due"] = parsed_due.isoformat()
+        fields["due"] = check_datetime(parsed_due, "due").isoformat()
         return fields
 
     # Default to 1 when interval is absent *or* explicitly unset. ``merge_update``
@@ -1043,7 +1120,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 )
         # RFC 5545 counts in whole seconds, so the rule engine drops a fraction.
         # Storing it would make the anchor itself read as off the schedule.
-        parsed_anchor = parsed_anchor.replace(microsecond=0)
+        parsed_anchor = check_datetime(parsed_anchor.replace(microsecond=0), "anchor")
         # The schedule is an RRULE. The legacy ``freq``/``interval`` pair is still
         # accepted (services, old exports) and converted, so existing automations
         # keep working; only the rule is stored.
@@ -1183,7 +1260,7 @@ def _coerce_seed(value: Any, *, tz: Any) -> datetime:
             ) from err
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
-    return parsed
+    return check_datetime(parsed, "last_completed")
 
 
 def infer_recurrence_type(data: dict) -> str:

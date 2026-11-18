@@ -1,0 +1,278 @@
+"""Every datetime that a task stores stays inside 1 window, and date math stays safe.
+
+The window is ``recurrence.DATETIME_MIN`` to ``recurrence.DATETIME_MAX`` in UTC. A
+value outside it is refused when a caller writes it, and is moved to the nearest edge
+when the store loads it. The date math that reads a stored value also catches
+``OverflowError`` and ``ValueError``, so 1 bad value cannot stop a refresh.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta, timezone
+
+import hk_models as models
+import hk_recurrence as recurrence
+import hk_sensor_tasks as sensor_tasks
+import hk_task_counts as task_counts
+import hk_transfer as transfer
+import pytest
+
+NOW = datetime(2026, 5, 10, 12, tzinfo=UTC)
+
+#: Each value is outside the window. The first 2 also overflow ``datetime`` when
+#: Python converts them to UTC.
+OUTSIDE = [
+    "9999-12-31T23:59:59-12:00",
+    "0001-01-01T00:00:00+14:00",
+    "9999-12-15T00:00:00+00:00",
+    "2200-01-01T00:00:00+00:00",
+    "2199-12-31T23:00:00-02:00",
+    "1899-12-31T23:59:59+00:00",
+    "1900-01-01T01:00:00+02:00",
+]
+INSIDE = [
+    "1900-01-01T00:00:00+00:00",
+    "1900-01-01T05:00:00-01:00",
+    "2199-12-31T23:59:59+00:00",
+    "2026-05-10T12:00:00+14:00",
+]
+
+
+# ── the window ───────────────────────────────────────────────────────────────
+def test_window_edges_are_1900_and_2200_utc():
+    assert datetime(1900, 1, 1, tzinfo=UTC) == recurrence.DATETIME_MIN
+    assert datetime(2200, 1, 1, tzinfo=UTC) == recurrence.DATETIME_MAX
+
+
+@pytest.mark.parametrize("value", INSIDE)
+def test_in_window_accepts_a_value_inside(value):
+    assert recurrence.in_window(datetime.fromisoformat(value)) is True
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_in_window_refuses_a_value_outside(value):
+    assert recurrence.in_window(datetime.fromisoformat(value)) is False
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_check_datetime_names_the_field(value):
+    with pytest.raises(models.TaskValidationError, match="due must be between"):
+        models.check_datetime(datetime.fromisoformat(value), "due")
+
+
+@pytest.mark.parametrize("value", INSIDE)
+def test_check_datetime_returns_a_value_inside(value):
+    parsed = datetime.fromisoformat(value)
+    assert models.check_datetime(parsed, "due") is parsed
+
+
+# ── build_task and merge_update ──────────────────────────────────────────────
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_a_one_off_due_outside_the_window_is_refused(value):
+    with pytest.raises(models.TaskValidationError, match="due must be between"):
+        models.build_task(
+            {"name": "x", "recurrence_type": "one-off", "due": value}, now=NOW
+        )
+
+
+@pytest.mark.parametrize("value", INSIDE)
+def test_a_one_off_due_inside_the_window_is_stored(value):
+    task = models.build_task(
+        {"name": "x", "recurrence_type": "one-off", "due": value}, now=NOW
+    )
+    assert task["due"] == datetime.fromisoformat(value).isoformat()
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_a_fixed_anchor_outside_the_window_is_refused(value):
+    with pytest.raises(models.TaskValidationError, match="anchor must be between"):
+        models.build_task(
+            {
+                "name": "x",
+                "recurrence_type": "fixed",
+                "freq": "weekly",
+                "interval": 1,
+                "anchor": value,
+            },
+            now=NOW,
+        )
+
+
+def _usage(**extra):
+    return {
+        "name": "x",
+        "recurrence_type": "sensor",
+        "sensor": {
+            "entity_id": "sensor.a",
+            "mode": "usage",
+            "target": 10,
+            "also_every": {"interval": 1, "unit": "months"},
+        },
+        **extra,
+    }
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_a_last_completed_seed_outside_the_window_is_refused(value):
+    with pytest.raises(
+        models.TaskValidationError, match="last_completed must be between"
+    ):
+        models.build_task(_usage(last_completed=value), now=NOW)
+
+
+def test_an_update_with_a_due_outside_the_window_is_refused():
+    task = models.build_task(
+        {"name": "x", "recurrence_type": "one-off", "due": "2026-06-01T00:00:00+00:00"},
+        now=NOW,
+    )
+    with pytest.raises(models.TaskValidationError, match="due must be between"):
+        models.merge_update(task, {"due": "9999-12-31T23:59:59-12:00"}, now=NOW)
+
+
+# ── date math on a stored value ──────────────────────────────────────────────
+def test_backstop_due_is_none_when_the_interval_overflows():
+    task = models.build_task(_usage(), now=NOW)
+    task["completions"] = [{"ts": "9999-12-15T00:00:00+00:00"}]
+    task["last_completed"] = "9999-12-15T00:00:00+00:00"
+    assert sensor_tasks.backstop_due(task, sensor_tasks.sensor_config(task)) is None
+
+
+def test_backstop_due_still_counts_from_a_value_inside_the_window():
+    task = models.build_task(_usage(), now=NOW)
+    task["completions"] = [{"ts": "2199-12-15T00:00:00+00:00"}]
+    task["last_completed"] = "2199-12-15T00:00:00+00:00"
+    due = sensor_tasks.backstop_due(task, sensor_tasks.sensor_config(task))
+    assert due == datetime(2200, 1, 15, tzinfo=UTC)
+
+
+def _completed_one_off(last_completed: str) -> dict:
+    task = models.build_task(
+        {"name": "x", "recurrence_type": "one-off", "due": "2026-06-01T00:00:00+00:00"},
+        now=NOW,
+    )
+    task["next_due"] = None
+    task["last_completed"] = last_completed
+    task["completions"] = [{"ts": last_completed}]
+    return task
+
+
+def test_one_off_expired_is_false_when_the_retention_overflows():
+    task = _completed_one_off("9999-12-31T00:00:00+00:00")
+    assert recurrence.one_off_expired(task, 30, now=NOW) is False
+
+
+def test_one_off_expired_is_still_true_after_the_retention():
+    task = _completed_one_off("2026-01-01T00:00:00+00:00")
+    assert recurrence.one_off_expired(task, 30, now=NOW) is True
+
+
+@pytest.mark.parametrize("value", OUTSIDE[:2])
+def test_count_tasks_does_not_raise_on_a_due_that_overflows(value):
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["next_due"] = value
+    counts = task_counts.count_tasks([task], {"status": "all"}, now=NOW)
+    assert counts["total"] == 1
+    assert counts["due_today"] == 0
+
+
+# ── the clamp on load ────────────────────────────────────────────────────────
+def test_clamp_moves_each_stored_value_to_the_nearest_edge():
+    task = _completed_one_off("9999-12-31T00:00:00+00:00")
+    task["next_due"] = "0001-01-01T00:00:00+14:00"
+    task["skips"] = [{"ts": "9999-12-31T23:59:59-12:00"}]
+    task["moved_occurrences"] = [
+        {"from": "2026-06-01T00:00:00+00:00", "to": "9999-01-01T00:00:00+00:00"}
+    ]
+    changed = models.clamp_task_datetimes(task)
+    top = (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    assert task["last_completed"] == top
+    assert task["completions"] == [{"ts": top}]
+    assert task["skips"] == [{"ts": top}]
+    assert task["next_due"] == recurrence.DATETIME_MIN.isoformat()
+    assert task["moved_occurrences"][0] == {
+        "from": "2026-06-01T00:00:00+00:00",
+        "to": top,
+    }
+    assert sorted(changed) == [
+        "completions",
+        "last_completed",
+        "moved_occurrences",
+        "next_due",
+        "skips",
+    ]
+
+
+def test_clamp_keeps_a_task_inside_the_window_as_it_is():
+    task = _completed_one_off("2026-01-01T00:00:00-05:00")
+    before = dict(task)
+    assert models.clamp_task_datetimes(task) == []
+    assert task == before
+
+
+def test_clamp_keeps_a_value_that_is_not_a_date():
+    task = _completed_one_off("2026-01-01T00:00:00+00:00")
+    task["next_due"] = "soon"
+    assert models.clamp_task_datetimes(task) == []
+    assert task["next_due"] == "soon"
+
+
+# ── import ───────────────────────────────────────────────────────────────────
+def _plan(document):
+    return transfer.plan_import(document, tasks={}, assets={}, now=NOW)
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_an_import_with_history_outside_the_window_reports_a_problem(value):
+    plan = _plan(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [
+                {
+                    "name": "T",
+                    "interval": 1,
+                    "unit": "days",
+                    "history": [{"completed_at": value}],
+                }
+            ],
+        }
+    )
+    assert not plan.ok
+    problem = plan.problems[0]
+    assert problem.path == "tasks[0].history[0].completed_at"
+    assert problem.message == f'"{value}" must be between 1900 and 2200 UTC.'
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_an_import_with_a_due_outside_the_window_reports_a_problem(value):
+    plan = _plan(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [{"name": "T", "recurrence_type": "one-off", "due": value}],
+        }
+    )
+    messages = [p.message for p in plan.problems if p.severity == "error"]
+    assert any("due must be between" in message for message in messages), messages
+    assert len(plan.records) == 0
+
+
+def test_an_import_that_overflows_in_the_replay_reports_a_problem(monkeypatch):
+    def _overflow(*args, **kwargs):
+        raise OverflowError("date value out of range")
+
+    monkeypatch.setattr(transfer, "apply_history", _overflow)
+    plan = _plan(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [{"name": "T", "interval": 1, "unit": "days"}],
+        }
+    )
+    messages = [p.message for p in plan.problems if p.severity == "error"]
+    assert messages == ["date value out of range"]
+    assert len(plan.records) == 0
+
+
+def test_check_datetime_refuses_a_value_far_ahead_in_a_local_zone():
+    # 2199-12-31 23:30 at UTC-1 is 2200-01-01 00:30 in UTC.
+    value = datetime(2199, 12, 31, 23, 30, tzinfo=timezone(timedelta(hours=-1)))
+    with pytest.raises(models.TaskValidationError):
+        models.check_datetime(value, "due")

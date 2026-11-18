@@ -13,7 +13,7 @@ import importlib.util
 import sys
 import types
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -285,3 +285,20 @@ def test_cost_entities_follow_the_windows() -> None:
         "home_keeper_purchases",
     ]
     assert live == {e.unique_id for e in entities}
+
+
+# ── a next_due outside the window ────────────────────────────────────────────
+@pytest.mark.parametrize(
+    "due", ["9999-12-31T23:59:59-12:00", "0001-01-01T00:00:00+14:00"]
+)
+def test_next_due_sensor_has_no_value_for_a_due_outside_the_window(due):
+    # Home Assistant converts a timestamp state to UTC, and that overflows.
+    entity = object.__new__(sensor.HomeKeeperNextDueSensor)
+    entity._task = {"id": "t", "next_due": due}
+    assert entity.native_value is None
+
+
+def test_next_due_sensor_keeps_a_due_inside_the_window():
+    entity = object.__new__(sensor.HomeKeeperNextDueSensor)
+    entity._task = {"id": "t", "next_due": "2199-12-31T23:59:59+00:00"}
+    assert entity.native_value == datetime(2199, 12, 31, 23, 59, 59, tzinfo=UTC)
