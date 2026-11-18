@@ -1097,7 +1097,10 @@ def require_season_date(task: dict) -> None:
     anchor = datetime.fromisoformat(task["anchor"])
     try:
         found = recurrence.next_in_season_occurrence(
-            task, season, after=anchor - timedelta(seconds=1)
+            # A start 2 seconds early gives the same date: dates are whole seconds.
+            task,
+            season,
+            after=anchor - timedelta(seconds=1),  # pragma: no mutate
         )
     except ValueError:
         found = None

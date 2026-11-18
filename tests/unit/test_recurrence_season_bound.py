@@ -206,3 +206,66 @@ def test_an_import_reports_a_task_with_no_date_in_its_season(steps):
     assert not plan.for_section("tasks")
     # Each record stops at the bound.
     assert len(steps) <= 3 * 24
+
+
+# ── the edges of the bound ──────────────────────────────────────────────────
+
+
+def test_a_date_at_the_season_start_midnight_is_found():
+    season = [{"start": "06-01", "end": "06-30"}]
+    task = _fixed("FREQ=DAILY", season, anchor=dt(2026, 1, 1).isoformat())
+    found = r.next_in_season_occurrence(task, season, after=dt(2027, 5, 15, 12))
+    assert found == dt(2027, 6, 1)
+
+
+def test_a_date_exactly_at_the_horizon_is_found():
+    # The rule dates are on June 1 and out of season. 1 date moves to July 1, and the
+    # walk starts exactly 1 horizon before that date.
+    rule = "FREQ=YEARLY;INTERVAL=30"
+    season = [{"start": "07-01", "end": "07-01"}]
+    target = dt(2056, 7, 1, 9)
+    task = _fixed(
+        rule,
+        season,
+        anchor=dt(2026, 6, 1, 9).isoformat(),
+        moved_occurrences=[
+            {"from": dt(2056, 6, 1, 9).isoformat(), "to": target.isoformat()}
+        ],
+    )
+    after = target - r._horizon(rule)
+    assert r.next_in_season_occurrence(task, season, after=after) == target
+    later = after + timedelta(seconds=1)
+    assert r.next_in_season_occurrence(task, season, after=later) == target
+    earlier = after - timedelta(seconds=1)
+    assert r.next_in_season_occurrence(task, season, after=earlier) is None
+
+
+def test_a_horizon_past_the_last_year_is_no_limit():
+    # 2 periods of 10000 years is past the last year that a datetime can hold.
+    season = [{"start": "06-01", "end": "06-30"}]
+    task = _fixed(
+        "FREQ=YEARLY;INTERVAL=10000", season, anchor=dt(2026, 6, 5).isoformat()
+    )
+    found = r.next_in_season_occurrence(task, season, after=dt(2026, 1, 1))
+    assert found == dt(2026, 6, 5)
+
+
+def test_the_first_date_counts_for_the_season_check():
+    # Friday February 29: 2008, then 2036. Only the first date is inside 20 years.
+    data = {
+        **_task_input("FREQ=WEEKLY;BYDAY=FR", [{"start": "02-29", "end": "02-29"}]),
+        "anchor": dt(2008, 2, 29, 9).isoformat(),
+    }
+    task = models.build_task(data, now=NOW)
+    assert task["next_due"] == dt(2036, 2, 29, 9).isoformat()
+
+
+def test_the_season_check_ignores_a_task_with_no_season():
+    task = _fixed("FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", None)
+    assert models.require_season_date(task) is None
+
+
+def test_the_season_check_refuses_a_rule_with_no_date_at_all():
+    task = _fixed("FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", SHORT_SEASON)
+    with pytest.raises(models.TaskValidationError, match="no date in the active"):
+        models.require_season_date(task)
