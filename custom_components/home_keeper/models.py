@@ -1077,8 +1077,35 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     season = data.get("active_season")
     if season not in (None, "", {}, []):
         fields["active_season"] = normalize_active_season(season)
+        if rec_type == REC_FIXED:
+            require_season_date(fields)
 
     return fields
+
+
+def require_season_date(task: dict) -> None:
+    """Refuse a fixed *task* whose rule has no date in its ``active_season``.
+
+    The check is the bounded walk that ``next_due`` and the calendar use
+    (``recurrence.next_in_season_occurrence``), from the first date. So a task that
+    passes always gets a date in its season, and the walk of a task that fails
+    cannot run long on each refresh.
+    """
+    season = task.get("active_season")
+    if not season:
+        return
+    anchor = datetime.fromisoformat(task["anchor"])
+    try:
+        found = recurrence.next_in_season_occurrence(
+            task, season, after=anchor - timedelta(seconds=1)
+        )
+    except ValueError:
+        found = None
+    if found is None:
+        raise TaskValidationError(
+            "invalid rrule: the rule has no date in the active season. "
+            "Change the rule or the season."
+        )
 
 
 def validate_source(source: Any) -> None:

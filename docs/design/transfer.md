@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: bdae2e76e435
+source_hash: 8c2a213a1c95
 ---
 
 # Import and export
@@ -97,11 +97,11 @@ or a YAML file over `MAX_IMPORT_WS_BYTES` (`transfer-view.fileRoute`), refuses a
 
 ### Planning an import
 
-`transfer.split_document` sorts the keys. A section that no ready companion reads is a
-warning. `transfer.plan_import` takes the Home Keeper part, store copies, area names, device
-ids and a match mode (`auto` or `none`). It returns an `ImportPlan` of `PlannedRecord` and
-`Problem` rows. A problem has a section, an index, a path (`tasks[3].history[0].completed_at`),
-a message and a severity: an `error` blocks, a `warning` is applied. Appliances come first:
+`transfer.split_document` sorts the keys. A section that no ready companion reads is a warning.
+`transfer.plan_import` runs in the executor, on store copies. It also takes area names, device ids
+and a match mode (`auto` or `none`). It returns an `ImportPlan` of `PlannedRecord` and `Problem`
+rows. A problem has a section, an index, a path (`tasks[3].history[0].completed_at`), a message and
+a severity: an `error` blocks, a `warning` is applied. Appliances come first:
 1. `transfer._keyed_records` refuses a list or a mapping as a key, and an `id` stated twice.
 2. `transfer._Matcher` matches by `id`, then `external_id`, then name. 2 hits are an error.
 3. An update merges (`models.merge_update`, `assets.merge_update`); a create builds.

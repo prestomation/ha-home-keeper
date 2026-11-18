@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import functools
 import logging
 import os
 import shutil
@@ -709,6 +710,7 @@ async def _async_apply_records(
     area_ids: dict[str, str],
     device_ids: Any,
     match: str,
+    tasks_seen: dict[str, dict[str, Any]],
 ) -> tuple[transfer.ImportPlan, list[transfer.Problem]]:
     """Write a clean plan of the Home Keeper sections. No reload.
 
@@ -718,6 +720,10 @@ async def _async_apply_records(
     runs once for the whole batch (it writes each new device id back onto its asset),
     and only then are the tasks written with their placeholder device references
     resolved. Returns the plan that was written and the problems of the write.
+
+    *tasks_seen* is the copy of the tasks that *plan* was made from. The plan is made
+    in the executor, and the checks after it wait, so a task can change before this
+    write starts.
     """
     planned_assets = plan.for_section("appliances")
     if planned_assets:
@@ -730,7 +736,8 @@ async def _async_apply_records(
         # Provisions a device for every virtual appliance and writes its id back onto
         # the asset — the only moment those ids come into existence.
         await devices.async_reconcile_assets(hass, coord.entry, coord.store)
-        # The 2 steps above wait for saves, and a task can change in that time. Plan
+    if planned_assets or coord.store.get_tasks() != tasks_seen:
+        # The steps above wait for saves, and a task can change in that time. Plan
         # the tasks again against the store as it is now, so that the write below
         # loses no change (X03-6). Nothing between this and the write waits.
         replanned = transfer.replan_tasks(
@@ -839,6 +846,36 @@ def _import_sections(report: dict[str, Any]) -> dict[str, Any]:
     return found
 
 
+def _known_device_ids(
+    registry_ids: Any, document: Any, assets: dict[str, dict[str, Any]]
+) -> frozenset[str]:
+    """The ``device_id`` values in *document* and *assets* that are on this install.
+
+    ``transfer.plan_import`` asks only ``in`` of its device ids, and only for a
+    ``device_id`` of a record in the document or of a stored appliance. So this set
+    gives the same answers as *registry_ids*, and the plan can run off the loop
+    with no registry read.
+    """
+    seen: set[str] = set()
+    # A container that the document holds 2 times is read 1 time.
+    visited: set[int] = set()
+    pending: list[Any] = [document, assets]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict | list):
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
+        if isinstance(node, dict):
+            value = node.get("device_id")
+            if isinstance(value, str):
+                seen.add(value)
+            pending.extend(node.values())
+        elif isinstance(node, list):
+            pending.extend(node)
+    return frozenset(device_id for device_id in seen if device_id in registry_ids)
+
+
 async def async_import_document(
     hass: HomeAssistant,
     coord: HomeKeeperCoordinator,
@@ -906,14 +943,23 @@ async def async_import_document(
         )
         hk_document = parts.home_keeper
     # Else ``plan_import`` reports the bad document, and no other reader can read it.
-    plan = transfer.plan_import(
-        hk_document,
-        tasks=coord.store.get_tasks(),
-        assets=coord.store.get_assets(),
-        area_ids=area_ids,
-        device_ids=device_ids,
-        match=match,
-        now=dt_util.now(),
+    # The plan validates every record, which is CPU work, so it runs in the
+    # executor. It reads only plain data that is made here on the loop: copies of
+    # the store maps, and the ids of the devices that the document or the store
+    # names that are on this install.
+    tasks_seen = copy.deepcopy(coord.store.get_tasks())
+    assets_seen = copy.deepcopy(coord.store.get_assets())
+    plan = await hass.async_add_executor_job(
+        functools.partial(
+            transfer.plan_import,
+            hk_document,
+            tasks=tasks_seen,
+            assets=assets_seen,
+            area_ids=dict(area_ids),
+            device_ids=_known_device_ids(device_ids, hk_document, assets_seen),
+            match=match,
+            now=dt_util.now(),
+        )
     )
     extra: list[transfer.Problem] = list(parts.problems)
     counts: dict[str, Any] = {}
@@ -975,6 +1021,7 @@ async def async_import_document(
         area_ids=area_ids,
         device_ids=device_ids,
         match=match,
+        tasks_seen=tasks_seen,
     )
     file_problems: list[transfer.Problem] = []
     files_created = 0

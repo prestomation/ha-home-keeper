@@ -7,6 +7,7 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 
 from __future__ import annotations
 
+import copy
 import functools
 import math
 from collections.abc import Awaitable, Callable
@@ -689,8 +690,9 @@ async def ws_upcoming_occurrences(
     With ``task_id`` it reads the stored task, moves included (the panel's Upcoming
     block and the card's "A later date" list). With ``rrule`` and ``anchor`` it reads
     a draft, so the task form previews the dates with the same engine that will
-    compute them. Read-only. A bad draft rule answers ``invalid_rule`` with the
-    message ``models.normalize_rrule`` gives, which the form shows as is.
+    compute them. Read-only. A bad draft rule, or a draft rule with no date in its
+    season, answers ``invalid_rule`` with the message that ``models`` gives, which
+    the form shows as is. The expansion runs in the executor.
     """
     now = dt_util.now()
     task: dict[str, Any]
@@ -721,13 +723,25 @@ async def ws_upcoming_occurrences(
                 if msg.get("active_season")
                 else None,
             }
+            # The season check is the bounded season walk, so it runs in the
+            # executor too.
+            await hass.async_add_executor_job(models.require_season_date, task)
         except TaskValidationError as err:
             _err(hass, connection, msg, "invalid_rule", "invalid_task", error=str(err))
             return
     if task.get("recurrence_type") != REC_FIXED:
         connection.send_result(msg["id"], {"occurrences": []})
         return
-    rows = recurrence.upcoming_occurrences(task, now=now, count=msg["count"])
+    # The walk is CPU work, so it runs in the executor, on a copy of the task: a
+    # write on the loop cannot change the dict while the walk reads it.
+    rows = await hass.async_add_executor_job(
+        functools.partial(
+            recurrence.upcoming_occurrences,
+            copy.deepcopy(task),
+            now=now,
+            count=msg["count"],
+        )
+    )
     connection.send_result(msg["id"], {"occurrences": rows})
 
 

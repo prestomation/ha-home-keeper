@@ -19,7 +19,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: cf5249f1d3ff
+source_hash: d76d5e63e1e2
 ---
 
 # Events and API surface

@@ -9,10 +9,10 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-defer.ts
   - custom_components/home_keeper/frontend/src/rrule.ts
   - custom_components/home_keeper/frontend/src/panel-rule.ts
-max_lines: 193
+max_lines: 196
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: cb5bb5a84a91
+source_hash: 4158808c0d96
 ---
 
 # Task model and recurrence
@@ -81,13 +81,12 @@ the sub-daily parts). It also refuses a rule over `MAX_RULE_LENGTH` or with no d
 years. `recurrence.legacy_rule` converts `freq` and `interval`: `models.normalize_fields`
 uses it on input, and `models.migrate_legacy_fixed_schedule` uses it on store load.
 
-`dateutil.rrule` expands the rule on naive local wall time. `recurrence.effective_rule`
-first writes out each day that dateutil takes from DTSTART. A plain monthly rule on the
-29th to 31st becomes "that day or the last day of a shorter month". A yearly rule on
-February 29 falls on February 28 in other years. `recurrence._fast_forward_start` moves
-the start by whole periods near the probe, so an old anchor costs few steps.
-`recurrence._on_schedule` tells if a moment is a schedule date, and so not a snooze. It
-probes 3 hours early, which is more than a daylight-saving shift.
+`dateutil.rrule` expands the rule on naive local wall time. `recurrence.effective_rule` first writes
+out each day that dateutil takes from DTSTART. A plain monthly rule on the 29th to 31st becomes
+"that day or the last day of a shorter month". A yearly rule on February 29 falls on February 28 in
+other years. `recurrence._fast_forward_start` moves the start by whole periods near the probe, so an
+old anchor costs few steps. `recurrence._on_schedule` tells if a moment is a schedule date, and so
+not a snooze. It probes 3 hours early, which is more than a daylight-saving shift.
 
 ### Moved dates
 
@@ -95,8 +94,8 @@ probes 3 hours early, which is more than a daylight-saving shift.
 each `from` and adds each `to`. `recurrence.move_occurrence` takes the rule date or the current
 `to`. A move to its own date undoes it, and a `to` in the past or on a schedule date is refused.
 `next_due` changes only if it is the moved date or the new date is earlier, so a snooze stays.
-`recurrence.prune_moves` drops past moves. `recurrence.upcoming_occurrences` lists the next
-dates. `store.add_task` and `store.update_task` refuse `moved_occurrences`, so each move is checked.
+`recurrence.prune_moves` drops past moves. `store.add_task` and `store.update_task` refuse
+`moved_occurrences`, so each move is checked.
 
 ### Schedule form
 
@@ -107,7 +106,7 @@ date or its weekday in the month (`2TU`, or `-1TU` in the last 7 days). If `rrul
 `null`, the controls are disabled and `rrule.resetToSimple` gives Reset to simple. `panel-rule.ts`
 repaints each view in place, so the rule box keeps focus. The card form uses
 `forms.reconcileRuleEdit`. A line under the form shows the next dates from
-`home_keeper/upcoming_occurrences`.
+`home_keeper/upcoming_occurrences`, which runs in the executor.
 
 ### How `next_due` is calculated
 
@@ -168,9 +167,13 @@ option to `one_off_completed`, and the coordinator deletes an expired task.
 
 ### Seasons
 
-`active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap
-the year end. `recurrence._clamp_season` moves a date outside the season to the next season
-start. A fixed task uses `recurrence.next_in_season_occurrence`, which the calendar uses too.
+`active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap the
+year end. `recurrence._clamp_season` moves a date outside the season to the next season start. The
+fixed clamp, the calendar and `upcoming_occurrences` use `recurrence.next_in_season_occurrence`. A
+date outside the season moves its walk to 1 second before the next season start. The walk stops
+after `MAX_SEASON_STEPS` (100) steps, or past 1 `_horizon`, in which `normalize_rule` needs a date.
+Each step passes a season start, so 100 steps cover 20 years of 5 windows.
+`models.require_season_date` refuses a rule with no date in the bound.
 
 ## Trade-offs
 
