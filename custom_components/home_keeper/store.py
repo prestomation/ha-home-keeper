@@ -455,6 +455,17 @@ class HomeKeeperStore:
         # A fixed task stored before schedules were RRULEs carries ``freq`` and
         # ``interval``. Convert it to the rule it means, once.
         for task in self._tasks.values():
+            # A device_id or area_id that is not text stops platform setup, so it
+            # goes before any reader sees it.
+            for key in models.drop_malformed_link_ids(task):
+                changed = True
+                _LOGGER.warning(
+                    "Task %s (%s) has a stored %s that is not text. "
+                    "The value is removed",
+                    task.get("id"),
+                    task.get("name"),
+                    key,
+                )
             if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
                 changed = True
             # A manual consumable link stored before a task took a list of them

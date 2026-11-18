@@ -331,10 +331,16 @@ async def ws_add_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    _check_template_binding(connection, msg["task"])
-    if not _area_ok(hass, connection, msg, msg["task"]):
+    # Lazy: ``__init__`` imports this module at setup, so a module-level import
+    # back would be a cycle. The service schema is the 1 check of the fields. A
+    # ``vol.Invalid`` goes to Home Assistant, which answers ``invalid_format``.
+    from . import ADD_TASK_SCHEMA
+
+    fields = ADD_TASK_SCHEMA(msg["task"])
+    _check_template_binding(connection, fields)
+    if not _area_ok(hass, connection, msg, fields):
         return
-    task = await coord.store.add_task(msg["task"])
+    task = await coord.store.add_task(fields)
     # Reload only when the new task owns per-task entities; else a refresh suffices.
     if task_has_entities(task):
         await hass.config_entries.async_reload(coord.entry.entry_id)
@@ -358,11 +364,17 @@ async def ws_update_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    _check_template_binding(connection, msg["updates"])
-    if not _area_ok(hass, connection, msg, msg["updates"]):
+    # Lazy for the reason in ``ws_add_task``. The service schema also needs
+    # ``task_id``, so it goes in for the check and comes out after.
+    from . import UPDATE_TASK_SCHEMA
+
+    fields = UPDATE_TASK_SCHEMA({**msg["updates"], "task_id": msg["task_id"]})
+    del fields["task_id"]
+    _check_template_binding(connection, fields)
+    if not _area_ok(hass, connection, msg, fields):
         return
     before = coord.store.get_task(msg["task_id"])
-    task = await coord.store.update_task(msg["task_id"], msg["updates"])
+    task = await coord.store.update_task(msg["task_id"], fields)
     # Only a change of the per-task entities of a task on a device needs a
     # reload; otherwise a coordinator refresh is enough.
     if update_needs_reload(before, task):

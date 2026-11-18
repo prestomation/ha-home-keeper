@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/store.py
   - custom_components/home_keeper/lifecycle.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: d458d0b06c83
+source_hash: fd58e3c2e915
 ---
 
 # Store
@@ -59,15 +59,15 @@ a new key that the import/export document neither carries nor excludes.
 
 ### Load and migrations
 
-`store.load` reads each section if it is a dict and uses an empty dict if not. A new
-section is therefore additive and needs no version bump. Declarative specs go through
-`declarative_companions.normalize_declarative_companion` again. A spec that fails is
-dropped with a warning, because one lost spec is better than a failed startup.
+`store.load` reads each section if it is a dict and uses an empty dict if not. A new section needs
+no version bump. `declarative_companions.normalize_declarative_companion` checks each declarative
+spec again. A spec that fails is dropped with a warning, so the setup does not fail.
 
 Then load runs idempotent shims: `assets.migrate_legacy_part_numbers`,
 `assets.migrate_documents_from_manual_url`, `_clean_relationship_links`,
-`models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`. It saves once, only
-if a shim changed data. A new optional field needs no shim: readers use `.get()`.
+`models.drop_malformed_link_ids`, `models.migrate_legacy_fixed_schedule` and
+`reconcile.adopt_part_tags`. It saves once, only if a shim changed data. A new optional field needs
+no shim: readers use `.get()`.
 
 ### The mutation shape
 

@@ -822,6 +822,23 @@ def _rule_after_legacy_edit(rule: str, freq: Any, interval: Any) -> str:
     return ";".join(f"{k}={v}" for k, v in parts.items())
 
 
+def drop_malformed_link_ids(task: dict) -> list[str]:
+    """Remove a stored ``device_id`` or ``area_id`` that is not text, in place.
+
+    An older release stored the task fields of the websocket commands without a
+    schema, so a stored value can be a list or a dict. The device registry raises
+    ``TypeError`` on such a value. Returns the names of the removed fields, in a
+    fixed order. A load-time shim, like the others: no storage-version bump.
+    """
+    dropped = []
+    for key in ("device_id", "area_id"):
+        value = task.get(key)
+        if value is not None and not isinstance(value, str):
+            task[key] = None
+            dropped.append(key)
+    return dropped
+
+
 def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) -> bool:
     """Convert a stored fixed task's ``freq``/``interval`` to ``rrule``, in place.
 
