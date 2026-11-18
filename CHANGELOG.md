@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b6] - 2026-11-18
+
+### Added
+
+- **[ViCare salt preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  The Viessmann ViCare preset now opens a "Refill the salt" task when the water softener
+  has 14 days of salt left.
+
 ## [0.37.0b5] - 2026-11-16
 
 ### Fixed
