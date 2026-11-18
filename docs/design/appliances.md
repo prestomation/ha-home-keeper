@@ -11,7 +11,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-asset-form.ts
   - custom_components/home_keeper/frontend/src/stock-stepper.ts
 related: [store, coordinator-entities, completions, documents-photos, transfer, events-api]
-source_hash: d6fa205bbe53
+source_hash: c746b48e82bd
 ---
 
 # Appliances and parts
@@ -105,8 +105,8 @@ and a part it drops stays if the part tracks stock.
 `source.part`, deletes orphans, and writes the rest with localized names from the store.
 Consumable links (`reconcile.consumable_links`) are outside its scope.
 
-- **Time wear:** 1 `floating` task anchored to `last_replaced`. A completion stamps
-  `last_replaced` and consumes stock (`store._stamp_part_replacement`).
+- **Time wear:** 1 `floating` task anchored to `last_replaced` (`reconcile.qualify_iso`). A
+  completion stamps `last_replaced` and consumes stock (`store._stamp_part_replacement`).
 - **Counted wear** (`replace_unit: "uses"`, `assets.part_counts_uses`): a `use` task whose
   `next_due` is always `None`, and a dormant `triggered` replacement task. A use completion
   records only a completion (`reconcile.is_use_task` gates the stamp).

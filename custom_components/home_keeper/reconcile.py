@@ -559,7 +559,9 @@ def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
 
     A part's ``last_replaced`` is a date-only string; the recurrence engine
     compares the derived ``next_due`` against an aware ``now``, so a naive value
-    must be qualified to Home Assistant's timezone first.
+    must be qualified to Home Assistant's timezone first. A value outside the
+    window of ``recurrence.in_window`` gives ``None``, the same as no value, because
+    the date math on it overflows.
     """
     if not value:
         return None
@@ -569,6 +571,8 @@ def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
         return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
+    if not recurrence.in_window(parsed):
+        return None
     return parsed.isoformat()
 
 
