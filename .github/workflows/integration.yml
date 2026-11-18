@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   integration:
     # The stable lane keeps the name `integration`, so a required check still matches.

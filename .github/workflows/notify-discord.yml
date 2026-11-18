@@ -18,8 +18,11 @@ on:
   release:
     types: [published]
 
+# The reusable workflow only needs the webhook secret. It gets no token scope.
+permissions: {}
+
 jobs:
   notify:
-    uses: prestomation/.github/.github/workflows/notify-discord.yml@main
+    uses: prestomation/.github/.github/workflows/notify-discord.yml@f6eea1dad128ae024be9dec1f8362ee81b3e5681 # main
     secrets:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
