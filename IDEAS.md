@@ -62,10 +62,6 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   `extra_state_attributes` (see `docs/design/coordinator-entities.md`).
 - **Per-task entities for tasks without a device.** Only a task on a device gets its
   button, sensor and binary sensor. Decide if a task without a device gets them too.
-- **Spares number entity is open to every user.** A non-admin can change a part's spare
-  count from the dashboard. Gate it (the dashboard control then fails for non-admins), or
-  state in `docs/SECURITY.md` that the write is open by design. The panel stock stepper
-  is admin-only, so the 2 paths do not agree now.
 - **Asset edits always reload.** `devices.async_apply_asset_change` reloads the entry
   after each appliance add, edit or delete, also when no entity changes. Each reload makes
   each entity unavailable in the logbook (#467). Reload only when the entity set changes.
