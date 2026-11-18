@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: bed56a360067
+source_hash: 96b342c2ff65
 ---
 
 # Architecture
@@ -58,13 +58,13 @@ static paths before authentication. `panel.cache_token` hashes the bundle into i
 A non-admin uses tasks from the native entities, the card and the panel, and reads the
 appliances in the panel ([SECURITY.md](../SECURITY.md)).
 
-A websocket command and its service twin are the same operation. An admin-only operation
-has `@websocket_api.require_admin` on the command, and its service handler calls the
-local `_verify_admin`, which raises the bare `Unauthorized`. A call with no
-`context.user_id` comes from an automation or from the core and is trusted.
-The gate covers appliance edits, asset documents, part files and stock, declarative companion
-edits, `register_companion`, orphan and archive deletes, `set_options`, the appliance report,
-export and import with their HTTP views, `list_entity_keys` and the companion preview. Else open.
+A websocket command and its service twin are the same operation. An admin-only operation has
+`@websocket_api.require_admin` on the command, and its service handler calls `_verify_admin`, which
+raises the bare `Unauthorized`. A call with no `context.user_id` comes from an automation or from
+the core and is trusted. The gate covers appliance edits, asset documents, part files and stock,
+declarative companion edits, `register_companion`, orphan and archive deletes, `set_options`, the
+appliance report, export and import with their HTTP views, `list_entity_keys` and the companion
+preview. Else open. [2 stock writes](../SECURITY.md#open-stock-writes) stay open.
 
 ### Setup
 

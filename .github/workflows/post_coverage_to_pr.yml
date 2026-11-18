@@ -1,10 +1,22 @@
 name: Post coverage Comment to PR
 
+# A PR from a fork gets a read-only token, so `pytest_coverage.yml` cannot post its
+# coverage comment. It uploads the comment text as an artifact, and this workflow
+# posts it with a write token.
+#
+# The artifact comes from a run of PR code, so its text is untrusted. This workflow
+# never runs code from the artifact and never checks out the PR. It only reads 1
+# text file, checks its size and characters, stops @-mentions, and posts it as a
+# comment on the PR whose head commit made the artifact.
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+
 on:
   workflow_run:
     workflows: ["pytest and coverage"]
     types:
       - completed
+
+permissions: {}
 
 jobs:
   test:
@@ -12,14 +24,93 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     permissions:
-      pull-requests: write
-      contents: write
-      actions: read
+      actions: read         # read the artifact of the triggering run
+      pull-requests: write  # post or update the comment
     steps:
-      # DO NOT run actions/checkout here, for security reasons.
-      # https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
-      - name: Post coverage Comment to PR
-        uses: py-cov-action/python-coverage-comment-action@v3
+      # A same-repo PR posts its own comment and uploads no artifact.
+      - name: Find the comment artifact
+        id: find
+        uses: actions/github-script@v9
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_PR_RUN_ID: ${{ github.event.workflow_run.id }}
+          script: |
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              ...context.repo, run_id: Number(process.env.RUN_ID), per_page: 100,
+            });
+            const found = artifacts.some((a) => a.name === 'python-coverage-comment-action' && !a.expired);
+            core.setOutput('found', found ? 'true' : 'false');
+            core.info(found ? 'Comment artifact found.' : 'No comment artifact. Nothing to post.');
+
+      - name: Download the comment artifact
+        if: steps.find.outputs.found == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: python-coverage-comment-action
+          path: ${{ runner.temp }}/coverage-comment
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Validate and post the comment
+        if: steps.find.outputs.found == 'true'
+        uses: actions/github-script@v9
+        env:
+          COMMENT_DIR: ${{ runner.temp }}/coverage-comment
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const MAX_BYTES = 65536;
+            const marker = '<!-- home-keeper-coverage-comment -->';
+
+            // The artifact must hold exactly the 1 text file that pytest_coverage.yml uploads.
+            const dir = process.env.COMMENT_DIR;
+            const names = fs.readdirSync(dir);
+            if (names.length !== 1 || names[0] !== 'python-coverage-comment-action.txt') {
+              core.setFailed(`Unexpected artifact contents: ${JSON.stringify(names)}`);
+              return;
+            }
+            const file = path.join(dir, names[0]);
+            const stat = fs.lstatSync(file);
+            if (!stat.isFile() || stat.size === 0 || stat.size > MAX_BYTES) {
+              core.setFailed(`The comment file must be a regular file of 1 to ${MAX_BYTES} bytes.`);
+              return;
+            }
+            const raw = fs.readFileSync(file);
+            const text = new TextDecoder('utf-8', { fatal: true }).decode(raw);
+            if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text)) {
+              core.setFailed('The comment file has control characters.');
+              return;
+            }
+
+            // Stop @-mentions and team mentions: put a zero-width space after each "@".
+            const safe = text.replace(/@(?=[A-Za-z0-9_-])/g, '@​');
+            const body = `${marker}\n${safe}`;
+
+            // Find the open PR whose head is the commit that made the artifact. A
+            // workflow_run from a fork has an empty pull_requests list.
+            const prs = await github.paginate(github.rest.pulls.list, {
+              ...context.repo, state: 'open',
+              head: `${process.env.HEAD_OWNER}:${process.env.HEAD_BRANCH}`, per_page: 100,
+            });
+            const pr = prs.find((p) => p.head.sha === process.env.HEAD_SHA);
+            if (!pr) {
+              core.notice('No open PR has this head commit. Nothing to post.');
+              return;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: pr.number, per_page: 100,
+            });
+            const existing = comments.find((c) =>
+              c.user && c.user.login === 'github-actions[bot]' && c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+              core.info(`Updated the coverage comment on #${pr.number}.`);
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: pr.number, body });
+              core.info(`Posted the coverage comment on #${pr.number}.`);
+            }

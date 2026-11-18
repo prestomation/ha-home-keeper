@@ -9,10 +9,10 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-defer.ts
   - custom_components/home_keeper/frontend/src/rrule.ts
   - custom_components/home_keeper/frontend/src/panel-rule.ts
-max_lines: 193
+max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 736227c26f89
+source_hash: 334a9f7f9d93
 ---
 
 # Task model and recurrence
@@ -129,6 +129,13 @@ Every datetime is aware, and the caller passes `now`. A stored ISO string keeps 
 so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed` into the zone
 of `now`: 10:00 stays 10:00 after a daylight-saving change. A naive input gets the configured zone,
 and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap.
+
+A stored datetime is in the window from `recurrence.DATETIME_MIN` (1900-01-01 UTC) to
+`recurrence.DATETIME_MAX` (2200-01-01 UTC). `models.check_datetime` refuses an input outside it in
+`build_task`, `merge_update`, the store mutations and the import. On load,
+`models.clamp_task_datetimes` gives a naive stored value the configured zone and moves a value
+outside to the nearest edge. 1900 is before any home record. 2200 plus the longest interval is far
+below year 9999, so the date math does not overflow. The readers also catch `OverflowError`.
 
 ### Completion and skip
 

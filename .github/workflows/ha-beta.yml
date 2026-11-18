@@ -21,6 +21,9 @@ on:
 env:
   HA_TAG: ${{ github.event.inputs.ha_tag || 'beta' }}
 
+permissions:
+  contents: read
+
 jobs:
   integration:
     name: Integration (HA ${{ github.event.inputs.ha_tag || 'beta' }})
@@ -111,7 +114,7 @@ jobs:
 
       - name: Wait for Home Assistant to start
         run: |
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
             if [ "$code" = "200" ] || [ "$code" = "401" ]; then exit 0; fi
             sleep 2
@@ -243,4 +246,45 @@ jobs:
                 body, labels: [label],
               });
               core.notice(`Opened issue #${issue.number}`);
+            }
+
+  close:
+    name: Close the regression issue
+    needs: [integration, e2e, upgrade, typing]
+    # Only a scheduled run in which every test job passed closes the issue. A
+    # dispatch can test another tag, so it does not close it.
+    if: >
+      github.event_name == 'schedule' && !cancelled() &&
+      needs.integration.result == 'success' && needs.e2e.result == 'success' &&
+      needs.upgrade.result == 'success' && needs.typing.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close the open tracking issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const label = 'ha-beta-regression';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, labels: label, state: 'open', per_page: 100,
+            });
+            const issues = open.filter((issue) => !issue.pull_request);
+            if (!issues.length) {
+              core.info('No open regression issue. Nothing to close.');
+              return;
+            }
+
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `The nightly Home Assistant \`beta\` run passed: ${runUrl}\n\nClosing this issue.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number,
+                state: 'closed', state_reason: 'completed',
+              });
+              core.notice(`Closed issue #${issue.number}`);
             }

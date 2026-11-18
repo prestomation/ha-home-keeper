@@ -35,7 +35,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Container
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
 
@@ -910,7 +910,8 @@ def _iso(value: Any, *, tz: Any) -> datetime:
         parsed = value
     else:
         parsed = datetime.fromisoformat(str(value))
-    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=tz)
+    aware = parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=tz)
+    return models.check_datetime(aware, "date")
 
 
 def apply_history(
@@ -1985,7 +1986,7 @@ def _plan_task(
             )
         built = models.build_task(payload, now=now)
         counted = apply_history(built, history, skip_entries, now=now)
-    except (models.TaskValidationError, ValueError) as err:
+    except (models.TaskValidationError, ValueError, OverflowError) as err:
         problems.append(Problem("tasks", index, path, str(err)))
         return None, (0, 0)
 
@@ -2180,7 +2181,7 @@ def _entries(
             )
             continue
         try:
-            datetime.fromisoformat(str(entry[when_key]))
+            when = datetime.fromisoformat(str(entry[when_key]))
         except ValueError:
             problems.append(
                 Problem(
@@ -2189,6 +2190,21 @@ def _entries(
                     f"{path}.{when_key}",
                     f'"{entry[when_key]}" is not a date. Use 2026-03-04, or a full '
                     "timestamp.",
+                )
+            )
+            continue
+        # A bare date gets the caller's zone later. UTC is near enough for the window.
+        if not recurrence.in_window(
+            when if when.tzinfo is not None else when.replace(tzinfo=UTC)
+        ):
+            problems.append(
+                Problem(
+                    section,
+                    index,
+                    f"{path}.{when_key}",
+                    f'"{entry[when_key]}" must be between '
+                    f"{recurrence.DATETIME_MIN.year} and "
+                    f"{recurrence.DATETIME_MAX.year} UTC.",
                 )
             )
             continue

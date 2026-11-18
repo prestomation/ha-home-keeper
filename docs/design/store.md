@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/store.py
   - custom_components/home_keeper/lifecycle.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: fd58e3c2e915
+source_hash: 6abbbdda5ab0
 ---
 
 # Store
@@ -63,16 +63,15 @@ a new key that the import/export document neither carries nor excludes.
 no version bump. `declarative_companions.normalize_declarative_companion` checks each declarative
 spec again. A spec that fails is dropped with a warning, so the setup does not fail.
 
-Then load runs idempotent shims: `assets.migrate_legacy_part_numbers`,
-`assets.migrate_documents_from_manual_url`, `_clean_relationship_links`,
-`models.drop_malformed_link_ids`, `models.migrate_legacy_fixed_schedule` and
-`reconcile.adopt_part_tags`. It saves once, only if a shim changed data. A new optional field needs
-no shim: readers use `.get()`.
+Then load runs idempotent shims: `models.clamp_task_datetimes`, `models.drop_malformed_link_ids`,
+`assets.migrate_legacy_part_numbers`, `assets.migrate_documents_from_manual_url`,
+`_clean_relationship_links`, `models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`.
+It saves once if a shim changed data. A new optional field needs no shim: readers use `.get()`.
 
 ### The mutation shape
 
-Each public mutation keeps one order. It finds the record or raises `KeyError`, and
-runs its guards (`models.TaskValidationError`, `assets.AssetValidationError`) before any
+Each public mutation finds the record or raises `KeyError`, then runs its guards
+(`models.TaskValidationError`, `assets.AssetValidationError`, `models.check_datetime`) before any
 write. Then it changes the in-memory dicts, awaits `_save`, fires its events through `_fire`
 with the caller's context ([events-api](events-api.md)) and returns the new record.
 

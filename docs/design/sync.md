@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: 2df213006e1a
+source_hash: 74539c2b357a
 ---
 
 # To-do, calendar and list sync
@@ -46,15 +46,15 @@ onto 1 shopping list. Both syncs read changes back. Each is a pure planner and a
 
 `todo.HomeKeeperTodoListEntity` lists 1 item per enabled task, with `uid` = task id. A
 `one-off`, `triggered` or `sensor` task with no `next_due` is dormant and is not listed. A `use`
-task has no date and stays listed. The due date is the local date of `next_due`. The entity
-declares only `UPDATE_TODO_ITEM`. A tick calls `store.complete_task`, then
-`coordinator.async_settle_buy_tasks`. A tick on a completed one-off is ignored. A new summary or
-description goes to the task `name` and `notes` through `store.update_task`. A
-`TaskValidationError` becomes a translated `HomeAssistantError`. When Home Assistant adds the
-entity, it gives its `entity_id` to the store, so the logbook ties task events to it.
+task has no date and stays listed. The due date is the local date of `next_due`
+(`recurrence.stored_moment`). The entity declares only `UPDATE_TODO_ITEM`. A tick calls
+`store.complete_task`, then `coordinator.async_settle_buy_tasks`. A tick on a completed one-off
+is ignored. A new summary or description goes to `name` and `notes` through `store.update_task`.
+A `TaskValidationError` becomes a translated `HomeAssistantError`. Home Assistant gives the
+`entity_id` to the store when it adds the entity, so the logbook ties task events to it.
 
-`calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`
-and never shows a `triggered` or `sensor` task. Each other task is 1 event at `next_due`.
+`calendar.HomeKeeperCalendarEntity` makes 1-hour events with `uid` = `{task_id}_{start}`. It
+shows no `triggered` or `sensor` task. Each other task is 1 event at a readable `next_due`.
 `calendar._fixed_events` expands a `fixed` task with its moves, inside its `active_season`.
 The dates from now up to `next_due` are left out (`calendar._due_ahead`); a snooze or a due
 today is its own event. A range query runs in an executor thread. The calendar is read-only.

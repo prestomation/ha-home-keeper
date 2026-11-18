@@ -15,11 +15,17 @@ on:
         description: "Version for the dry run (default: the current manifest version)"
         type: string
 
+# The default token is read-only. Only the `publish` job gets `contents: write`. It
+# runs only on a push to main or a dispatch that is not a dry run, and it runs no
+# code from the checkout.
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     outputs:
       version: ${{ steps.check.outputs.version }}
       prerelease: ${{ steps.check.outputs.prerelease }}
@@ -91,16 +97,9 @@ jobs:
 
       - name: Extract changelog section
         if: steps.check.outputs.release == 'true'
-        id: changelog
         env:
           VERSION: ${{ steps.check.outputs.version }}
-        run: |
-          python3 ci/release-issues.py --version "$VERSION" --notes > release_notes.txt
-          {
-            echo 'notes<<RELEASE_NOTES_EOF'
-            cat release_notes.txt
-            echo 'RELEASE_NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
+        run: python3 ci/release-issues.py --version "$VERSION" --notes > release_notes.txt
 
       - uses: actions/setup-node@v7
         if: steps.check.outputs.release == 'true'
@@ -128,10 +127,40 @@ jobs:
           fi
           echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
 
-      - name: Create and push tag
+      # The publish job runs no build step. It gets the zip and the notes from here.
+      - name: Upload the release files
         if: steps.check.outputs.release == 'true' && steps.publish.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: |
+            home_keeper.zip
+            release_notes.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  # The only job with `contents: write`. It tags the commit that `release` built and
+  # attaches the zip that `release` uploaded.
+  publish:
+    needs: release
+    if: >-
+      needs.release.outputs.release == 'true' &&
+      needs.release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the release files
+        uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: release-files
+
+      - name: Create and push tag
         env:
-          VERSION: ${{ steps.check.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -139,15 +168,14 @@ jobs:
           git push origin "v${VERSION}"
 
       - name: Create GitHub Release
-        if: steps.check.outputs.release == 'true' && steps.publish.outputs.publish == 'true'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
-          tag_name: "v${{ steps.check.outputs.version }}"
-          name: "v${{ steps.check.outputs.version }}"
-          body: ${{ steps.changelog.outputs.notes }}
+          tag_name: "v${{ needs.release.outputs.version }}"
+          name: "v${{ needs.release.outputs.version }}"
+          body_path: release-files/release_notes.txt
           draft: false
-          prerelease: ${{ steps.check.outputs.prerelease == 'true' }}
-          files: home_keeper.zip
+          prerelease: ${{ needs.release.outputs.prerelease == 'true' }}
+          files: release-files/home_keeper.zip
 
   # Deploy the docs site once a *stable* release has been cut. We call the deploy
   # workflow directly (workflow_call) rather than relying on a `release: [released]`
@@ -155,11 +183,10 @@ jobs:
   # never start a workflow run. Pinned to the freshly created tag so the live site
   # tracks the released commit, never unreleased main HEAD.
   deploy-docs:
-    needs: release
+    needs: [release, publish]
     if: >-
-      needs.release.outputs.release == 'true' &&
-      needs.release.outputs.prerelease == 'false' &&
-      needs.release.outputs.publish == 'true'
+      needs.publish.result == 'success' &&
+      needs.release.outputs.prerelease == 'false'
     permissions:
       contents: write
     uses: ./.github/workflows/docs-deploy.yml
@@ -176,15 +203,17 @@ jobs:
   # created by this workflow's GITHUB_TOKEN, so an `on: release` listener would never
   # start a run.
   notify-issues:
-    needs: release
+    needs: [release, publish]
+    # `publish` is skipped on a dry run, so `!cancelled()` keeps this job alive then.
     if: >-
+      !cancelled() &&
+      needs.release.result == 'success' &&
       github.event_name != 'pull_request' &&
-      (inputs.notify_dry_run ||
-       (needs.release.outputs.release == 'true' && needs.release.outputs.publish == 'true'))
+      (inputs.notify_dry_run || needs.publish.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Scoped to this job alone — the build above stays contents-only.
+      # Scoped to this job alone. The build job above stays read-only.
       issues: write
     steps:
       - uses: actions/checkout@v7
@@ -326,7 +355,11 @@ jobs:
                 const comments = await github.paginate(github.rest.issues.listComments, {
                   ...context.repo, issue_number: number, per_page: 100,
                 });
-                if (comments.some((comment) => comment.body && comment.body.includes(marker))) {
+                // Only a marker in a comment from this workflow's bot counts. Another
+                // user who posts the marker text must not stop the notification.
+                if (comments.some((comment) =>
+                  comment.user && comment.user.login === 'github-actions[bot]' &&
+                  comment.body && comment.body.includes(marker))) {
                   rows.push([`#${number}`, 'skipped', `already notified about v${version}`]);
                   continue;
                 }

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 import requests
-from conftest import HA_URL, _login, call_service
+from conftest import HA_URL, _login, call_service, list_states
 from ha_registry import ws_send
 
 NON_ADMIN_USERNAME = "housemate"
@@ -874,4 +874,78 @@ def test_493_a_non_admin_sets_a_list_of_consumables_over_ws(ha, non_admin_token)
         assert msg.get("success"), f"a non-admin could not link consumables: {msg}"
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_accepted_exception_a_non_admin_sets_part_stock_with_the_number_entity(
+    ha, non_admin
+):
+    """An accepted exception: a non-admin sets the stock through the ``number`` entity.
+
+    ``adjust_part_stock`` is admin-only, but the spares ``number`` entity is open by
+    design, because a user who can complete a task can also need to correct the stock.
+    See ``docs/SECURITY.md#open-stock-writes``. Do not gate this path by accident.
+    """
+    name = f"Gate stock probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {"name": name, "parts": [{"name": "Filter", "type": "consumable", "stock": 2}]},
+    )
+
+    def stored_asset():
+        listed = call_service(
+            ha, "home_keeper", "list_assets", {}, return_response=True
+        )
+        found = listed.get("service_response", listed)["assets"]
+        return next((a for a in found if a["name"] == name), None)
+
+    def stock_number(part_id):
+        return next(
+            (
+                s
+                for s in list_states(ha)
+                if s["entity_id"].startswith("number.")
+                and s["attributes"].get("part_id") == part_id
+            ),
+            None,
+        )
+
+    asset = stored_asset()
+    assert asset, f"appliance {name!r} was not provisioned"
+    part_id = asset["parts"][0]["id"]
+    try:
+        number = None
+        for _ in range(20):
+            number = stock_number(part_id)
+            if number:
+                break
+            time.sleep(1)
+        assert number, f"no spares number entity for appliance {name!r}"
+        assert float(number["state"]) == 2
+
+        # The admin-only service refuses the same user, so the number entity is the
+        # exception and the gate on the service still holds.
+        refused = _call(
+            non_admin,
+            "adjust_part_stock",
+            {"asset_id": asset["id"], "part_id": part_id, "delta": 3},
+        )
+        assert refused.status_code == 401, refused.status_code
+
+        r = non_admin.post(
+            f"{HA_URL}/api/services/number/set_value",
+            json={"entity_id": number["entity_id"], "value": 5},
+        )
+        assert r.status_code == 200, f"a non-admin could not set the stock: {r.text}"
+        state = None
+        for _ in range(20):
+            state = stock_number(part_id)
+            if state and float(state["state"]) == 5:
+                break
+            time.sleep(1)
+        assert state and float(state["state"]) == 5, state
+        assert stored_asset()["parts"][0]["stock"] == 5
+    finally:
         call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

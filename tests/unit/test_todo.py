@@ -560,3 +560,17 @@ def test_b15_6_notes_edit_on_a_device_task_only_refreshes() -> None:
     )
     assert store.updated == [("dev", {"notes": "new notes"})]
     assert calls == ["refresh"]
+
+
+# --- todo_items: a due date outside the window -------------------------------
+
+
+@pytest.mark.parametrize(
+    "due", ["9999-12-31T23:59:59-12:00", "0001-01-01T00:00:00+14:00"]
+)
+def test_a_due_outside_the_window_is_listed_with_no_date(due) -> None:
+    # The local date of this value overflows. The task stays on the list.
+    entity, _store, _calls = _entity(_task("far", "floating", next_due=due))
+    (item,) = entity.todo_items
+    assert item.uid == "far"
+    assert item.due is None
