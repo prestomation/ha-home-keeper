@@ -35,6 +35,8 @@ Writes are admin-only and reads are open ([SECURITY.md](../../docs/SECURITY.md))
   websocket and REST layers map it to `unauthorized` and 401.
 - Usage stays open: task reads, create, edit, delete, complete, snooze and skip, task
   photos, profiles, the companion list, and the reads of the panel and the card.
+- **2 stock writes stay open.** Do not gate the spares `number` entity or
+  `set_task_consumable` ([SECURITY.md](../../docs/SECURITY.md#open-stock-writes)).
 - `register_companion` is admin-only. A companion with `import_export` gets the admin's
   context during an export or import, so a user must not choose which domain that is.
 - **An appliance read is the full record for every user.** Home Keeper has no private
