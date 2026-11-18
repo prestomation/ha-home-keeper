@@ -675,6 +675,13 @@ MAX_MOVED_OCCURRENCES = 100
 # to guard against runaway expansion loops.
 MAX_EXPAND_ITERATIONS = 500
 
+# How many dates the season walk of a fixed task reads before it stops
+# (``recurrence.next_in_season_occurrence``). The walk jumps from a date outside the
+# season to the next season start, so each step passes at least 1 season start. 100
+# steps cover 20 years of a season with up to 5 windows. A rule that has no date in
+# the season inside this bound is refused when the task is written.
+MAX_SEASON_STEPS = 100
+
 # Upper bound on a recurrence interval / wear-part replacement interval. Generous
 # (e.g. 10000 days ≈ 27 years, 10000 months ≈ 833 years) but low enough to keep
 # date arithmetic well clear of datetime/timedelta overflow.

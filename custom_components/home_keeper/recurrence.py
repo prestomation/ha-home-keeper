@@ -41,6 +41,7 @@ from .const import (
     MAX_INTERVAL,
     MAX_MOVED_OCCURRENCES,
     MAX_RULE_LENGTH,
+    MAX_SEASON_STEPS,
     REC_FIXED,
     REC_FLOATING,
     REC_ONE_OFF,
@@ -207,16 +208,29 @@ def next_in_season_occurrence(
 ) -> datetime | None:
     """First occurrence of a fixed *task* after *after* that is inside *season*.
 
-    Bounded by ``MAX_EXPAND_ITERATIONS`` steps. ``None`` means that the schedule does
-    not meet the season inside the bound, for example every 12 months from January
-    with a March season. ``_clamp_season`` and the calendar both use this walk, so
-    ``next_due`` and the calendar show the same date.
+    A date outside the season moves the walk to 1 second before the next season
+    start, so each step passes at least 1 season start. The walk stops after
+    ``MAX_SEASON_STEPS`` steps, or at a date more than 1 :func:`_horizon` after
+    *after*. ``None`` means that the schedule does not meet the season inside that
+    bound, for example every 12 months from January with a March season.
+    ``_clamp_season``, the calendar and ``models.normalize_fields`` use this walk, so
+    ``next_due``, the calendar and the validation agree.
     """
-    occ = next_task_occurrence(task, after=after)
-    for _ in range(MAX_EXPAND_ITERATIONS):
+    try:
+        limit: datetime | None = after + _horizon(task_rule(task))
+    except OverflowError:
+        limit = None
+    probe = after
+    for _ in range(MAX_SEASON_STEPS):
+        occ = next_task_occurrence(task, after=probe)
+        if limit is not None and occ > limit:
+            return None
         if in_season(occ, season):
             return occ
-        occ = next_task_occurrence(task, after=occ)
+        # No date between *occ* and the next season start is in the season. The
+        # ``max`` moves the walk on when the start is *occ* itself: a February 29
+        # start is February 28 in a year with no leap day.
+        probe = max(occ, _next_season_start(occ, season) - timedelta(seconds=1))
     return None
 
 
@@ -782,20 +796,29 @@ def upcoming_occurrences(
     ``start`` is the date as the schedule now holds it; ``moved_from`` is the original
     date when that row is a move, else ``None``. The panel's Upcoming block and the
     card's "A later date" list read this, so both say exactly what the calendar says.
-    A season is applied the same way :func:`compute_next_due` applies it.
+    With a season, each row is the next date in the season. The list stops when the
+    season walk finds no date, as the calendar does.
     """
     moved_to = {
         _instant(dst): src for src, dst in _parsed_moves(task.get("moved_occurrences"))
     }
+    season = task.get("active_season")
     rows: list[dict[str, str | None]] = []
     probe = now
     for _ in range(count * 4):
         if len(rows) >= count:
             break
         try:
-            occ = _clamp_season(next_task_occurrence(task, after=probe), task)
+            found = (
+                next_in_season_occurrence(task, season, after=probe)
+                if season
+                else next_task_occurrence(task, after=probe)
+            )
         except ValueError:
             break
+        if found is None:
+            break
+        occ = found
         src = moved_to.get(_instant(occ))
         rows.append(
             {"start": occ.isoformat(), "moved_from": src.isoformat() if src else None}

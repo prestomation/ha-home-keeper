@@ -12,7 +12,7 @@ implements:
 max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: b9240d903b61
+source_hash: f45be40915fc
 ---
 
 # Task model and recurrence
@@ -81,13 +81,12 @@ the sub-daily parts). It also refuses a rule over `MAX_RULE_LENGTH` or with no d
 years. `recurrence.legacy_rule` converts `freq` and `interval`: `models.normalize_fields`
 uses it on input, and `models.migrate_legacy_fixed_schedule` uses it on store load.
 
-`dateutil.rrule` expands the rule on naive local wall time. `recurrence.effective_rule`
-first writes out each day that dateutil takes from DTSTART. A plain monthly rule on the
-29th to 31st becomes "that day or the last day of a shorter month". A yearly rule on
-February 29 falls on February 28 in other years. `recurrence._fast_forward_start` moves
-the start by whole periods near the probe, so an old anchor costs few steps.
-`recurrence._on_schedule` tells if a moment is a schedule date, and so not a snooze. It
-probes 3 hours early, which is more than a daylight-saving shift.
+`dateutil.rrule` expands the rule on naive local wall time. `recurrence.effective_rule` first writes
+out each day that dateutil takes from DTSTART. A plain monthly rule on the 29th to 31st becomes
+"that day or the last day of a shorter month". A yearly rule on February 29 falls on February 28 in
+other years. `recurrence._fast_forward_start` moves the start by whole periods near the probe, so an
+old anchor costs few steps. `recurrence._on_schedule` tells if a moment is a schedule date, and so
+not a snooze. It probes 3 hours early, which is more than a daylight-saving shift.
 
 ### Moved dates
 
@@ -95,8 +94,8 @@ probes 3 hours early, which is more than a daylight-saving shift.
 each `from` and adds each `to`. `recurrence.move_occurrence` takes the rule date or the current
 `to`. A move to its own date undoes it, and a `to` in the past or on a schedule date is refused.
 `next_due` changes only if it is the moved date or the new date is earlier, so a snooze stays.
-`recurrence.prune_moves` drops past moves. `recurrence.upcoming_occurrences` lists the next
-dates. `store.add_task` and `store.update_task` refuse `moved_occurrences`, so each move is checked.
+`recurrence.prune_moves` drops past moves. `store.add_task` and `store.update_task` refuse
+`moved_occurrences`, so each move is checked.
 
 ### Schedule form
 
@@ -107,7 +106,7 @@ date or its weekday in the month (`2TU`, or `-1TU` in the last 7 days). If `rrul
 `null`, the controls are disabled and `rrule.resetToSimple` gives Reset to simple. `panel-rule.ts`
 repaints each view in place, so the rule box keeps focus. The card form uses
 `forms.reconcileRuleEdit`. A line under the form shows the next dates from
-`home_keeper/upcoming_occurrences`.
+`home_keeper/upcoming_occurrences`, which runs in the executor.
 
 ### How `next_due` is calculated
 
@@ -128,14 +127,12 @@ load runs `snap_future_floating`, which moves each future floating date to the s
 Every datetime is aware, and the caller passes `now`. A stored ISO string keeps only a UTC offset,
 so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed` into the zone
 of `now`: 10:00 stays 10:00 after a daylight-saving change. A naive input gets the configured zone,
-and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap.
-
-A stored datetime is in the window from `recurrence.DATETIME_MIN` (1900-01-01 UTC) to
-`recurrence.DATETIME_MAX` (2200-01-01 UTC). `models.check_datetime` refuses an input outside it in
-`build_task`, `merge_update`, the store mutations and the import. On load,
-`models.clamp_task_datetimes` gives a naive stored value the configured zone and moves a value
-outside to the nearest edge. 1900 is before any home record. 2200 plus the longest interval is far
-below year 9999, so the date math does not overflow. The readers also catch `OverflowError`.
+and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap. The window for
+a stored datetime is `recurrence.DATETIME_MIN` (1900 UTC) to `recurrence.DATETIME_MAX` (2200 UTC).
+1900 is before any home record, and 2200 plus the longest interval is far below year 9999.
+`models.check_datetime` refuses an input outside it in `build_task`, `merge_update`, the store
+mutations and the import. Load runs `models.clamp_task_datetimes`: a naive value gets the configured
+zone and a value outside moves to its edge. Readers catch `OverflowError`.
 
 ### Completion and skip
 
@@ -175,9 +172,12 @@ option to `one_off_completed`, and the coordinator deletes an expired task.
 
 ### Seasons
 
-`active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap
-the year end. `recurrence._clamp_season` moves a date outside the season to the next season
-start. A fixed task uses `recurrence.next_in_season_occurrence`, which the calendar uses too.
+`active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap the
+year end. `recurrence._clamp_season` moves a date outside the season to the next season start. The
+fixed clamp, the calendar and `upcoming_occurrences` use `recurrence.next_in_season_occurrence`.
+Each walk step goes to just before the next season start. The walk stops after `MAX_SEASON_STEPS`
+(100) steps, which cover 20 years of 5 windows, or past 1 `_horizon`, in which `normalize_rule`
+needs a date. `models.require_season_date` refuses a rule with no date in the bound.
 
 ## Trade-offs
 

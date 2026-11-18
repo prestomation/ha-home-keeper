@@ -913,6 +913,23 @@ def _rule_after_legacy_edit(rule: str, freq: Any, interval: Any) -> str:
     return ";".join(f"{k}={v}" for k, v in parts.items())
 
 
+def drop_malformed_link_ids(task: dict) -> list[str]:
+    """Remove a stored ``device_id`` or ``area_id`` that is not text, in place.
+
+    An older release stored the task fields of the websocket commands without a
+    schema, so a stored value can be a list or a dict. The device registry raises
+    ``TypeError`` on such a value. Returns the names of the removed fields, in a
+    fixed order. A load-time shim, like the others: no storage-version bump.
+    """
+    dropped = []
+    for key in ("device_id", "area_id"):
+        value = task.get(key)
+        if value is not None and not isinstance(value, str):
+            task[key] = None
+            dropped.append(key)
+    return dropped
+
+
 def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) -> bool:
     """Convert a stored fixed task's ``freq``/``interval`` to ``rrule``, in place.
 
@@ -1168,8 +1185,38 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     season = data.get("active_season")
     if season not in (None, "", {}, []):
         fields["active_season"] = normalize_active_season(season)
+        if rec_type == REC_FIXED:
+            require_season_date(fields)
 
     return fields
+
+
+def require_season_date(task: dict) -> None:
+    """Refuse a fixed *task* whose rule has no date in its ``active_season``.
+
+    The check is the bounded walk that ``next_due`` and the calendar use
+    (``recurrence.next_in_season_occurrence``), from the first date. So a task that
+    passes always gets a date in its season, and the walk of a task that fails
+    cannot run long on each refresh.
+    """
+    season = task.get("active_season")
+    if not season:
+        return
+    anchor = datetime.fromisoformat(task["anchor"])
+    try:
+        found = recurrence.next_in_season_occurrence(
+            # A start 2 seconds early gives the same date: dates are whole seconds.
+            task,
+            season,
+            after=anchor - timedelta(seconds=1),  # pragma: no mutate
+        )
+    except ValueError:
+        found = None
+    if found is None:
+        raise TaskValidationError(
+            "invalid rrule: the rule has no date in the active season. "
+            "Change the rule or the season."
+        )
 
 
 def validate_source(source: Any) -> None:
