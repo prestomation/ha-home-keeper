@@ -26,6 +26,7 @@ are below; ``docs/design/recurrence.md`` covers all 6.
 from __future__ import annotations
 
 import calendar as _calendar
+import functools
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, time, timedelta, tzinfo
 
@@ -435,6 +436,20 @@ def normalize_rule(rule: object) -> str:
     if not interval.isdigit() or not 1 <= int(interval) <= MAX_INTERVAL:
         raise RuleError("syntax", f"INTERVAL={interval}")
     canonical = _join_parts(parts)
+    problem = _probe_rule(canonical)
+    if problem is not None:
+        raise RuleError(*problem)
+    return canonical
+
+
+@functools.lru_cache(maxsize=512)
+def _probe_rule(canonical: str) -> tuple[str, str] | None:
+    """The ``(reason, detail)`` that refuses *canonical*, or ``None`` if it has a date.
+
+    The probe walks up to 20 years, which takes seconds for a daily rule with no
+    date. The answer depends only on the text, so it is kept for each text, and
+    :func:`warm_rule` can run it in an executor before the event loop asks.
+    """
     # A fixed probe start. A rule that yields nothing in 20 years from here yields
     # nothing from any start: every part is periodic within a 400-year Gregorian cycle
     # except the leap day, and a leap day comes round every 4 or 8 years.
@@ -445,10 +460,22 @@ def normalize_rule(rule: object) -> str:
         )
         first = expanded.after(probe, inc=True)
     except (ValueError, TypeError, KeyError, OverflowError) as err:
-        raise RuleError("syntax", str(err)) from err
+        return ("syntax", str(err))
     if first is None:
-        raise RuleError("empty", canonical)
-    return canonical
+        return ("empty", canonical)
+    return None
+
+
+def warm_rule(rule: object) -> None:
+    """Run the probe of *rule*, so that :func:`normalize_rule` then reads the result.
+
+    For an executor thread: the store calls it before it builds a task on the event
+    loop. A rule that :func:`normalize_rule` refuses is refused again on the loop.
+    """
+    try:
+        normalize_rule(rule)
+    except RuleError:
+        return
 
 
 def legacy_rule(freq: str, interval: int) -> str:

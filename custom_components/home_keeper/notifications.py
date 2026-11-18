@@ -29,7 +29,7 @@ from babel import Locale
 from babel.core import UnknownLocaleError
 
 from .backend_i18n import language_chain
-from .const import ORIGIN_NOTIFICATION_ACTION
+from .const import MAX_SNOOZE_HOURS, ORIGIN_NOTIFICATION_ACTION
 from .tags import completion_allowed
 from .transitions import DUE_SOON_WINDOW
 
@@ -315,6 +315,8 @@ def normalize_notification(raw: Any, *, warn: bool = True) -> dict[str, Any]:
         snooze_hours = DEFAULT_SNOOZE_HOURS
     if snooze_hours < 1:
         snooze_hours = DEFAULT_SNOOZE_HOURS
+    # A longer snooze overflows the date math, so cut it to the longest one.
+    snooze_hours = min(snooze_hours, MAX_SNOOZE_HOURS)
     style = raw.get("style")
     urgency = raw.get("urgency")
     targets, rejected = split_targets(raw.get("targets"))

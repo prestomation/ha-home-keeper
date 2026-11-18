@@ -1895,3 +1895,88 @@ def test_pausing_a_companion_task_with_no_device_needs_no_reload(store):
     assert _run(store.pause_declarative_companion_tasks("spec1")) is False
     assert store._tasks[task["id"]]["enabled"] is False
     assert store._hass.bus.of("home_keeper_task_updated")
+
+
+@pytest.mark.parametrize(
+    ("quantity", "message"),
+    [
+        (10_001, "quantity must be <= 10000"),
+        (1e300, "quantity must be <= 10000"),
+        (float("inf"), "quantity must be a number"),
+        (float("nan"), "quantity must be a number"),
+        (-1, "quantity must not be negative"),
+    ],
+)
+def test_a_link_quantity_has_a_finite_range(store, quantity, message):
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    with raises_exactly(TaskValidationError, message):
+        _run(
+            store.set_task_consumable(
+                task["id"], asset["id"], part["id"], quantity=quantity
+            )
+        )
+
+
+def test_a_task_takes_at_most_20_consumable_links(store):
+    asset = _asset(store, parts=[{"name": f"P{n}", "stock": 1} for n in range(21)])
+    task = _task(store)
+    links = [{"asset_id": asset["id"], "part_id": p["id"]} for p in asset["parts"]]
+    with pytest.raises(TaskValidationError):
+        _run(store.set_task_consumables(task["id"], links))
+
+
+# ── the rule check runs in the executor ─────────────────────────────────────
+class _ExecutorHass(_FakeHass):
+    def __init__(self) -> None:
+        super().__init__()
+        self.jobs: list[tuple] = []
+
+    async def async_add_executor_job(self, target, *args):
+        self.jobs.append((target, *args))
+        return await asyncio.to_thread(target, *args)
+
+
+@pytest.fixture
+def executor_store():
+    prior = store_mod.Store
+    store_mod.Store = _FakeStore
+    try:
+        yield store_mod.HomeKeeperStore(_ExecutorHass())
+    finally:
+        store_mod.Store = prior
+
+
+_RULE = "FREQ=WEEKLY;BYDAY=MO"
+_FIXED = {"name": "Bins", "rrule": _RULE, "anchor": "2026-06-08T07:00:00-04:00"}
+
+
+def test_add_task_checks_the_rule_in_the_executor(executor_store):
+    recurrence = sys.modules["hk.recurrence"]
+    _run(executor_store.add_task(dict(_FIXED)))
+    assert executor_store._hass.jobs == [(recurrence.warm_rule, _RULE)]
+
+
+def test_update_task_checks_a_new_rule_in_the_executor(executor_store):
+    recurrence = sys.modules["hk.recurrence"]
+    task = _run(executor_store.add_task(dict(_FIXED)))
+    executor_store._hass.jobs.clear()
+    _run(executor_store.update_task(task["id"], {"rrule": "FREQ=WEEKLY;BYDAY=TU"}))
+    assert executor_store._hass.jobs == [(recurrence.warm_rule, "FREQ=WEEKLY;BYDAY=TU")]
+
+
+def test_update_task_without_a_rule_uses_no_executor(executor_store):
+    task = _run(executor_store.add_task(dict(_FIXED)))
+    executor_store._hass.jobs.clear()
+    _run(executor_store.update_task(task["id"], {"name": "Bins out"}))
+    assert executor_store._hass.jobs == []
+
+
+def test_a_rule_with_no_date_is_still_refused_after_the_check(executor_store):
+    with pytest.raises(TaskValidationError, match="the rule has no dates"):
+        _run(
+            executor_store.add_task(
+                {**_FIXED, "rrule": "FREQ=DAILY;BYMONTH=2;BYMONTHDAY=31"}
+            )
+        )

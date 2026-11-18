@@ -24,12 +24,16 @@ from .const import (
     COMPLETION_METADATA_FIELDS,
     FREQ_MONTHLY,
     FREQS,
+    MAX_ENTITY_ID_LEN,
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
     MAX_MOVED_OCCURRENCES,
+    MAX_SEASON_WINDOWS,
     MAX_SENSOR_STATE_LEN,
     MAX_SENSOR_TEMPLATE_LEN,
     MAX_SENSOR_UNIT_LEN,
+    MAX_SNOOZE_HOURS,
+    MAX_URL_LEN,
     REC_FIXED,
     REC_FLOATING,
     REC_ONE_OFF,
@@ -231,10 +235,10 @@ def normalize_completion_metadata(
             raise TaskValidationError(
                 "photo must be an http(s) URL or a site-relative path"
             )
-        result["photo"] = photo
+        result["photo"] = _at_most(photo, MAX_URL_LEN, "photo")
     who = str(data.get("who") or "").strip()
     if who:
-        result["who"] = who
+        result["who"] = _at_most(who, MAX_ENTITY_ID_LEN, "who")
     return result
 
 
@@ -465,11 +469,11 @@ def normalize_sensor(
         raise TaskValidationError(f"invalid sensor mode: {mode!r}")
     result: dict[str, Any] = {}
     if entity_id:
-        result["entity_id"] = entity_id
+        result["entity_id"] = _at_most(entity_id, MAX_ENTITY_ID_LEN, "sensor.entity_id")
     result["mode"] = mode
     attribute = str(data.get("attribute") or "").strip()
     if attribute:
-        result["attribute"] = attribute
+        result["attribute"] = _at_most(attribute, MAX_ENTITY_ID_LEN, "sensor.attribute")
 
     if mode == SENSOR_MODE_USAGE:
         # A meter has no condition to hold or to recover from, so these 2 do nothing
@@ -614,6 +618,26 @@ def normalize_tag_id(value: Any) -> str | None:
     return value.strip() or None
 
 
+def _at_most(text: str, limit: int, field: str) -> str:
+    """Return *text*, or raise ``TaskValidationError`` if it is over *limit* long."""
+    if len(text) > limit:
+        raise TaskValidationError(f"{field} must be at most {limit} characters")
+    return text
+
+
+def _link_id(value: Any, field: str) -> str | None:
+    """A task's ``device_id`` or ``area_id``: text, or ``None`` for no link.
+
+    The device and area registries take only text. A stored list or object makes
+    platform setup raise, so each write path stops it here.
+    """
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise TaskValidationError(f"{field} must be text")
+    return value
+
+
 def normalize_snooze_hours(value: Any) -> int | None:
     """Normalize a task's ``snooze_hours`` — how long Snooze moves this task.
 
@@ -635,6 +659,8 @@ def normalize_snooze_hours(value: Any) -> int | None:
         raise TaskValidationError("snooze_hours must be a whole number of hours")
     if hours < 1:
         raise TaskValidationError("snooze_hours must be at least 1")
+    if hours > MAX_SNOOZE_HOURS:
+        raise TaskValidationError(f"snooze_hours must be {MAX_SNOOZE_HOURS} or less")
     return hours
 
 
@@ -780,7 +806,7 @@ def normalize_task_chips(value: Any) -> list[dict[str, str]]:
                 raise TaskValidationError(
                     f"task_chips url must be an http(s) URL: {url!r}"
                 )
-            chip["url"] = url
+            chip["url"] = _at_most(url, MAX_URL_LEN, "task_chips url")
         result.append(chip)
     return result
 
@@ -825,6 +851,10 @@ def normalize_active_season(data: Any) -> list[dict]:
     if isinstance(data, list):
         if not data:
             raise TaskValidationError("active_season list must not be empty")
+        if len(data) > MAX_SEASON_WINDOWS:
+            raise TaskValidationError(
+                f"active_season holds at most {MAX_SEASON_WINDOWS} windows"
+            )
         return [_validate_season_window(w, index=i) for i, w in enumerate(data)]
     raise TaskValidationError("active_season must be an object or a list of objects")
 
@@ -1025,8 +1055,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         # ``notes: null`` (reachable via the websocket updates dict) clears the field.
         "notes": str(_reject_boolean(data.get("notes"), "notes") or ""),
         "recurrence_type": rec_type,
-        "device_id": data.get("device_id") or None,
-        "area_id": data.get("area_id") or None,
+        "device_id": _link_id(data.get("device_id"), "device_id"),
+        "area_id": _link_id(data.get("area_id"), "area_id"),
         "enabled": bool(data.get("enabled", True)),
         # Per-task completion-capture mode + the fields it makes mandatory. Stored on
         # every task kind (the dialog applies regardless of recurrence). See const.py.

@@ -71,6 +71,13 @@ MAX_COMPLETION_HISTORY = 500
 # sets so a re-run updates the same records rather than duplicating them. Home Keeper
 # never reads it for anything else — it is opaque, and empty when unset.
 MAX_EXTERNAL_ID_LEN = 128
+#: The longest URL a record stores: a task chip link, a completion photo, a part link.
+MAX_URL_LEN = 2048
+#: The longest entity id: Home Assistant's own limit (``MAX_LENGTH_STATE_ENTITY_ID``).
+MAX_ENTITY_ID_LEN = 255
+#: The longest id that a caller can give a part, a document or a metadata entry. A
+#: generated id is a 36-character UUID.
+MAX_RECORD_ID_LEN = 100
 
 # How many records one import document may carry per section. A bound on the work a
 # single service call can ask for, not a statement about how many tasks Home Keeper
@@ -679,6 +686,12 @@ MAX_EXPAND_ITERATIONS = 500
 # (e.g. 10000 days ≈ 27 years, 10000 months ≈ 833 years) but low enough to keep
 # date arithmetic well clear of datetime/timedelta overflow.
 MAX_INTERVAL = 10_000
+#: The longest snooze, in hours: 1 year. The ``hours`` selector of ``snooze_task`` and
+#: the ``snooze_hours`` selector of a task use the same number.
+MAX_SNOOZE_HOURS = 8760
+#: The most windows that 1 ``active_season`` holds: 1 for each month. Each step of a
+#: season walk reads each window, so the limit keeps the cost of a step finite.
+MAX_SEASON_WINDOWS = 12
 
 # Upper bound on a wear part's target when it is counted in ``uses``, and the floor
 # under the derived retention window.
