@@ -12,7 +12,7 @@ implements:
 max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 322901a55c96
+source_hash: acd3105a9d0c
 ---
 
 # Task model and recurrence

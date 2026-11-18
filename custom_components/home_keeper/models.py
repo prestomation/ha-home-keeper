@@ -1704,7 +1704,17 @@ def merge_update(
         merged["require_tag_scan"] = bool(updates["require_tag_scan"])
     # The snooze length follows the same rule: send ``None`` to clear it.
     if "snooze_hours" in updates:
-        merged["snooze_hours"] = normalize_snooze_hours(updates["snooze_hours"])
+        hours = updates["snooze_hours"]
+        # An older version stored any length, and the panel sends the stored value
+        # back on each save. Cut that value to the limit, so the save works.
+        if (
+            hours == existing.get("snooze_hours")
+            and isinstance(hours, int)
+            # At the limit, ">" and ">=" give the same value, so mutmut skips it.
+            and hours > MAX_SNOOZE_HOURS  # pragma: no mutate
+        ):
+            hours = MAX_SNOOZE_HOURS
+        merged["snooze_hours"] = normalize_snooze_hours(hours)
     # Checked against the *merged* task rather than the payload: requiring a scan with
     # no tag to scan would lock the task out of every completion surface, and that
     # state is reachable by clearing the tag alone (leaving the flag standing) just as

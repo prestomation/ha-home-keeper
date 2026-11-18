@@ -301,3 +301,50 @@ def test_warm_rule_fills_the_probe_for_the_next_check(monkeypatch):
     assert len(seen) == 1
     recurrence.normalize_rule("FREQ=MONTHLY;BYMONTHDAY=3")
     assert len(seen) == 1
+
+
+# ── a large stored or imported snooze length ─────────────────────────────────
+import hk_transfer as transfer  # noqa: E402
+
+
+def test_an_import_with_a_snooze_length_over_the_limit_reports_a_problem():
+    plan = transfer.plan_import(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [
+                {"name": "T", "interval": 1, "unit": "days", "snooze_hours": 100_000}
+            ],
+        },
+        tasks={},
+        assets={},
+        now=NOW,
+    )
+    assert not plan.ok
+    assert [p.message for p in plan.problems] == ["snooze_hours must be 8760 or less"]
+    assert len(plan.records) == 0
+
+
+def test_an_edit_keeps_a_large_snooze_length_that_an_older_version_stored():
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["snooze_hours"] = 100_000
+    renamed = models.merge_update(task, {"name": "y", "notes": "n"}, now=NOW)
+    assert renamed["name"] == "y"
+    assert renamed["snooze_hours"] == 100_000
+
+
+def test_an_edit_that_sends_back_a_large_stored_snooze_length_cuts_it():
+    # The panel form sends the stored snooze length back on each save.
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["snooze_hours"] = 100_000
+    renamed = models.merge_update(task, {"name": "y", "snooze_hours": 100_000}, now=NOW)
+    assert renamed["name"] == "y"
+    assert renamed["snooze_hours"] == 8760
+
+
+def test_an_edit_that_sets_a_new_snooze_length_over_the_limit_is_refused():
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["snooze_hours"] = 100_000
+    with pytest.raises(
+        models.TaskValidationError, match=r"^snooze_hours must be 8760 or less$"
+    ):
+        models.merge_update(task, {"snooze_hours": 100_001}, now=NOW)
