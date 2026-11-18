@@ -742,64 +742,13 @@ class SensorTaskWatcher:
             mode = cfg.get("mode")
             if only is not None and not _bound_to_any(cfg, only):
                 continue
-            if mode == SENSOR_MODE_STATE:
-                # A missing state is handled inside the evaluator (it holds the edge
-                # state rather than reading a dropout as a recovery), so unlike the
-                # numeric modes there's nothing to skip here.
-                if await self._evaluate_state(
-                    tid, task, state=read_sensor_state(self._hass, cfg), now=now
-                ):
+            try:
+                if await self._evaluate_task(tid, task, cfg, mode, now=now):
                     changed_any = True
-                continue
-            if mode == SENSOR_MODE_AVAILABILITY:
-                # Availability inverts the "no reading" policy: an ``unavailable``
-                # entity is the arm signal here, not something to skip. The evaluator
-                # holds edge state on ``missing`` (not-yet-loaded), so boot doesn't
-                # fabricate transitions.
-                if await self._evaluate_availability(
-                    tid,
-                    task,
-                    status=read_availability_status(self._hass, cfg),
-                    now=now,
-                ):
-                    changed_any = True
-                continue
-            if mode == SENSOR_MODE_TEMPLATE:
-                # Matched explicitly, ahead of the numeric read below: the ``else`` at
-                # the end of this chain treats an unrecognised mode as ``threshold``,
-                # so a fall-through would compare a template binding against a
-                # ``comparison`` and ``value`` it does not carry.
-                result: bool | None = None
-                error: str | None = None
-                if _entity_loaded(
-                    self._hass, cfg.get("entity_id")
-                ) or not self._edge_unknown(tid, task):
-                    # While the baseline is unknown, an entity that is not loaded yet
-                    # keeps it unknown (B14-1): a template can render a definite
-                    # answer for a missing entity, and that answer is not a baseline.
-                    result, error = read_template_result(self._hass, cfg)
-                self._report_template_error(tid, task, cfg, error)
-                if await self._evaluate_template(tid, task, result=result, now=now):
-                    changed_any = True
-                continue
-            reading = read_sensor_value(self._hass, cfg)
-            if mode == SENSOR_MODE_USAGE:
-                # A usage task with a time backstop must still be evaluable with no
-                # reading — an appliance that's been offline for a year still owes its
-                # annual service. Without one there's nothing a missing reading can
-                # decide, so skip rather than churn.
-                if reading is None and not cfg.get("also_every"):
-                    continue
-                if await self._evaluate_usage(tid, task, reading=reading, now=now):
-                    changed_any = True
-            else:
-                # A missing reading is handled inside the evaluator, like the state
-                # mode's missing state: it never arms on bad data, and it ends a
-                # pending hold. Skipping it here left the crossing and its timer in
-                # place, so the seconds an entity spent unreadable counted toward the
-                # hold (#336).
-                if await self._evaluate_threshold(tid, task, reading=reading, now=now):
-                    changed_any = True
+            except Exception:
+                # 1 bad task must not stop the pass for the other tasks, or the
+                # coordinator refresh that runs this pass.
+                _LOGGER.exception("Could not evaluate sensor task %s", tid)
         # Drop edge state for tasks that no longer exist so it can't leak. A task that
         # went away (deleted, disabled, or no longer a sensor task) takes its pending
         # hold timer with it.
@@ -814,6 +763,65 @@ class SensorTaskWatcher:
             self._cancel_hold_timer(stale)
         if changed_any and refresh:
             await self._coordinator.async_request_refresh()
+
+    async def _evaluate_task(
+        self,
+        tid: str,
+        task: dict[str, Any],
+        cfg: dict[str, Any],
+        mode: Any,
+        *,
+        now: Any,
+    ) -> bool:
+        """Evaluate 1 sensor task in a pass. True when the task changed."""
+        if mode == SENSOR_MODE_STATE:
+            # A missing state is handled inside the evaluator (it holds the edge
+            # state rather than reading a dropout as a recovery), so unlike the
+            # numeric modes there's nothing to skip here.
+            return await self._evaluate_state(
+                tid, task, state=read_sensor_state(self._hass, cfg), now=now
+            )
+        if mode == SENSOR_MODE_AVAILABILITY:
+            # Availability inverts the "no reading" policy: an ``unavailable``
+            # entity is the arm signal here, not something to skip. The evaluator
+            # holds edge state on ``missing`` (not-yet-loaded), so boot doesn't
+            # fabricate transitions.
+            return await self._evaluate_availability(
+                tid,
+                task,
+                status=read_availability_status(self._hass, cfg),
+                now=now,
+            )
+        if mode == SENSOR_MODE_TEMPLATE:
+            # Matched explicitly, ahead of the numeric read below: the ``else`` at
+            # the end of this chain treats an unrecognised mode as ``threshold``,
+            # so a fall-through would compare a template binding against a
+            # ``comparison`` and ``value`` it does not carry.
+            result: bool | None = None
+            error: str | None = None
+            if _entity_loaded(
+                self._hass, cfg.get("entity_id")
+            ) or not self._edge_unknown(tid, task):
+                # While the baseline is unknown, an entity that is not loaded yet
+                # keeps it unknown (B14-1): a template can render a definite
+                # answer for a missing entity, and that answer is not a baseline.
+                result, error = read_template_result(self._hass, cfg)
+            self._report_template_error(tid, task, cfg, error)
+            return await self._evaluate_template(tid, task, result=result, now=now)
+        reading = read_sensor_value(self._hass, cfg)
+        if mode == SENSOR_MODE_USAGE:
+            # A usage task with a time backstop must still be evaluable with no
+            # reading — an appliance that's been offline for a year still owes its
+            # annual service. Without one there's nothing a missing reading can
+            # decide, so skip rather than churn.
+            if reading is None and not cfg.get("also_every"):
+                return False
+            return await self._evaluate_usage(tid, task, reading=reading, now=now)
+        # A missing reading is handled inside the evaluator, like the state mode's
+        # missing state: it never arms on bad data, and it ends a pending hold.
+        # Skipping it here left the crossing and its timer in place, so the seconds
+        # an entity spent unreadable counted toward the hold (#336).
+        return await self._evaluate_threshold(tid, task, reading=reading, now=now)
 
     async def _evaluate_usage(
         self, tid: str, task: dict[str, Any], *, reading: float | None, now: Any

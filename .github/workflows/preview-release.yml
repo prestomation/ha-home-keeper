@@ -6,10 +6,12 @@ name: Preview release (PR build)
 # real version. See RELEASE.md ("Preview releases").
 #
 # Trigger: add the `preview-release` label to the PR (only users with write access
-# can label, so the label is a maintainer gate). The publish job runs in the
-# `preview-release` GitHub Environment, so the repo owner can require an explicit
-# approval there (Settings → Environments → preview-release → Required reviewers).
-# The pre-release is re-published on each push and **deleted when the PR closes**.
+# can label, so the label is a maintainer gate). The `build` job runs the PR code with
+# a read-only token. The `publish` job holds the write token, runs no PR code, and
+# runs in the `preview-release` GitHub Environment, so the repo owner can require an
+# explicit approval there (Settings → Environments → preview-release → Required
+# reviewers). The pre-release is re-published on each push and **deleted when the PR
+# closes**.
 
 on:
   pull_request:
@@ -19,21 +21,25 @@ concurrency:
   group: preview-release-${{ github.event.number }}
   cancel-in-progress: true
 
+# Read-only by default. Only `publish` and `cleanup` get write scopes.
 permissions:
-  contents: write       # create/delete the ephemeral pre-release + tag
-  pull-requests: write  # sticky install comment
+  contents: read
 
 jobs:
-  publish:
-    # Build + publish only when opted in via the label, on an open PR, and only for
-    # same-repo PRs — a fork gets no token, and we never build untrusted code with
-    # write scope (no `pull_request_target`).
+  build:
+    # Build only when opted in via the label, on an open PR, and only for same-repo
+    # PRs. A fork gets no token, and we never build untrusted code with write scope
+    # (no `pull_request_target`).
     if: >-
       github.event.action != 'closed' &&
       contains(github.event.pull_request.labels.*.name, 'preview-release') &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    environment: preview-release
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -89,10 +95,33 @@ jobs:
           fi
           echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
 
+      - name: Upload the preview zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-release-zip
+          path: home_keeper.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # The only job that publishes. It runs no code from the PR: it does no checkout and
+  # attaches the zip that `build` uploaded.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: preview-release
+    permissions:
+      contents: write       # create/delete the ephemeral pre-release + tag
+      pull-requests: write  # sticky install comment
+    steps:
+      - name: Download the preview zip
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-release-zip
+
       - name: Replace any previous preview release for this PR
         uses: actions/github-script@v9
         env:
-          TAG: ${{ steps.ver.outputs.tag }}
+          TAG: ${{ needs.build.outputs.tag }}
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -108,25 +137,25 @@ jobs:
             } catch (e) { if (e.status !== 404 && e.status !== 422) throw e; }
 
       - name: Publish ephemeral pre-release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
+          tag_name: ${{ needs.build.outputs.tag }}
           target_commitish: ${{ github.event.pull_request.head.sha }}
-          name: "Preview · PR #${{ github.event.number }} (${{ steps.ver.outputs.version }})"
+          name: "Preview · PR #${{ github.event.number }} (${{ needs.build.outputs.version }})"
           body: |
             ⚠️ **Ephemeral preview build of #${{ github.event.number }}** — not a real release. It is **deleted when the PR closes**; do not depend on it.
 
             Built from commit `${{ github.event.pull_request.head.sha }}`.
 
-            **Install via HACS:** open *Home Keeper* → ⋮ → **Redownload**, enable **Show beta versions**, and pick `${{ steps.ver.outputs.version }}`. Or download `home_keeper.zip` below and unzip into `config/custom_components/home_keeper/`.
+            **Install via HACS:** open *Home Keeper* → ⋮ → **Redownload**, enable **Show beta versions**, and pick `${{ needs.build.outputs.version }}`. Or download `home_keeper.zip` below and unzip into `config/custom_components/home_keeper/`.
           prerelease: true
           files: home_keeper.zip
 
       - name: Sticky comment with install instructions
         uses: actions/github-script@v9
         env:
-          VERSION: ${{ steps.ver.outputs.version }}
-          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TAG: ${{ needs.build.outputs.tag }}
         with:
           script: |
             const marker = '<!-- preview-release -->';
@@ -145,8 +174,11 @@ jobs:
               '',
               '> Ephemeral — this release is **deleted when the PR closes**, and re-published on each push.',
             ].join('\n');
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: context.issue.number });
-            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: context.issue.number, per_page: 100 });
+            // Only a marker in a comment from this workflow's bot counts, so another
+            // user cannot take over or hide the install comment.
+            const existing = comments.find((c) =>
+              c.user && c.user.login === 'github-actions[bot]' && c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
@@ -160,6 +192,8 @@ jobs:
       github.event.action == 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # delete the ephemeral pre-release + tag
     steps:
       - name: Delete this PR's preview release + tag
         uses: actions/github-script@v9

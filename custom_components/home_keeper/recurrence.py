@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import calendar as _calendar
 from collections.abc import Callable, Iterable
-from datetime import datetime, time, timedelta, tzinfo
+from datetime import UTC, datetime, time, timedelta, tzinfo
 
 from dateutil import rrule as _dateutil_rrule
 
@@ -950,6 +950,45 @@ def prune_moves(task: dict, *, before: datetime) -> dict:
     return task
 
 
+#: The first instant that a task can store, in UTC.
+DATETIME_MIN = datetime(1900, 1, 1, tzinfo=UTC)
+#: The first instant after the last one that a task can store, in UTC. The longest
+#: interval (``MAX_INTERVAL`` months) added to it stays far below year 9999.
+DATETIME_MAX = datetime(2200, 1, 1, tzinfo=UTC)
+
+
+def in_window(value: datetime) -> bool:
+    """True when *value* is at or after ``DATETIME_MIN`` and before ``DATETIME_MAX``.
+
+    The conversion to UTC itself overflows near year 1 and year 9999, so an
+    ``OverflowError`` or ``ValueError`` there means that *value* is outside.
+    """
+    try:
+        # Any zone gives the same instant to compare, so UTC is not a choice.
+        instant = value.astimezone(UTC)  # pragma: no mutate - equivalent
+    except (OverflowError, ValueError):
+        return False
+    return DATETIME_MIN <= instant < DATETIME_MAX
+
+
+def stored_moment(value: object) -> datetime | None:
+    """Parse a stored ISO datetime for a read, or ``None`` if it cannot be used.
+
+    ``None`` comes back for an empty value, text that is not a date, a naive value
+    and a value outside the window. An entity that writes its state then has no
+    value to convert to UTC that can overflow.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or not in_window(parsed):
+        return None
+    return parsed
+
+
 def _parse(value: str | datetime | None) -> datetime | None:
     """Parse an ISO string into an aware datetime (pass-through for datetimes)."""
     if value is None or isinstance(value, datetime):
@@ -1733,4 +1772,8 @@ def one_off_expired(task: dict, retention_days: int, *, now: datetime) -> bool:
     completed = _parse(task.get("last_completed"))
     if completed is None:  # pragma: no mutate - unreachable: one_off_completed
         return False  # pragma: no mutate - already required a truthy stamp
-    return now >= completed + timedelta(days=retention_days)
+    try:
+        return now >= completed + timedelta(days=retention_days)
+    except (OverflowError, ValueError):
+        # The retention ends after year 9999, so it has not ended yet.
+        return False

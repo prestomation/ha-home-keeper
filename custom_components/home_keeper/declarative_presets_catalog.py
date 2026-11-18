@@ -1253,8 +1253,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:radiator",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/vicare/strings.json",
         "verified": {
-            "ref": "4e466ad50da804c78a94b1ce880cc82d8c2aeaae",
-            "date": "2026-11-16",
+            "ref": "628ec27619a76744945f331f31220fe65cbbb11f",
+            "date": "2026-11-18",
         },
         "duties": [
             {
@@ -1262,6 +1262,12 @@ INTEGRATIONS: list[dict[str, Any]] = [
                 "shape": "life_low",
                 "keys": ["filter_remaining_hours"],
                 "limit": 24,
+            },
+            {
+                "duty": "refill_softener_salt",
+                "shape": "life_low",
+                "keys": ["salt_supply"],
+                "limit": 336,
             },
         ],
     },

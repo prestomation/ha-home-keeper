@@ -48,7 +48,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
 | Delete an archived completion from an appliance's history | `delete_archived_completion` |
 | Delete every orphaned task (a task whose managing integration is not loaded) | `delete_orphaned_tasks` |
-| Spare-part stock adjustments | `adjust_part_stock` |
+| Spare-part stock adjustments, with 2 [open exceptions](#open-stock-writes) | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost, with the companion sections, the files and the settings of a bundle) | `export_data`, `import_data`, the bundle download (`GET /api/home_keeper/export_bundle`) and the import upload (`POST /api/home_keeper/import_upload`) |
@@ -100,6 +100,18 @@ Any signed-in user can use these surfaces:
   numbers (`home_keeper/get_assets` and `home_keeper.list_assets`).
 - Read the spend and purchase totals, from the cost sensors and from
   `home_keeper/get_spend`. They add up the same costs that the 2 reads above give.
+
+## Open stock writes
+
+Home Keeper accepts 2 exceptions to the admin-only rule for parts. A user who can complete a
+task can also need to correct the stock of a part. For this reason, these 2 writes are open:
+
+- The spares `number` entity of a part on the device page. Any signed-in user can set its
+  value. The `adjust_part_stock` service stays admin-only.
+- The `set_task_consumable` service. It links a task to its consumable parts. Each completion
+  of that task then removes stock from the linked parts.
+
+`tests/integration/test_admin_gates.py` asserts both exceptions.
 
 ## Notifications
 

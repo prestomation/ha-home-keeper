@@ -230,8 +230,7 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        due = self._task.get("next_due")
-        return dt_util.parse_datetime(due) if due else None
+        return recurrence.stored_moment(self._task.get("next_due"))
 
     @property
     def extra_state_attributes(self) -> dict:

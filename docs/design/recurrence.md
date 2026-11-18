@@ -9,10 +9,10 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-defer.ts
   - custom_components/home_keeper/frontend/src/rrule.ts
   - custom_components/home_keeper/frontend/src/panel-rule.ts
-max_lines: 196
+max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: b24d0769128e
+source_hash: 0efa4cdaf070
 ---
 
 # Task model and recurrence
@@ -127,7 +127,12 @@ load runs `snap_future_floating`, which moves each future floating date to the s
 Every datetime is aware, and the caller passes `now`. A stored ISO string keeps only a UTC offset,
 so `recurrence._regrid` and `recurrence._local` move the anchor and `last_completed` into the zone
 of `now`: 10:00 stays 10:00 after a daylight-saving change. A naive input gets the configured zone,
-and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap.
+and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving gap. The window for
+a stored datetime is `recurrence.DATETIME_MIN` (1900 UTC) to `recurrence.DATETIME_MAX` (2200 UTC).
+1900 is before any home record, and 2200 plus the longest interval is far below year 9999.
+`models.check_datetime` refuses an input outside it in `build_task`, `merge_update`, the store
+mutations and the import. Load runs `models.clamp_task_datetimes`: a naive value gets the configured
+zone and a value outside moves to its edge. Readers catch `OverflowError`.
 
 ### Completion and skip
 
@@ -169,11 +174,10 @@ option to `one_off_completed`, and the coordinator deletes an expired task.
 
 `active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap the
 year end. `recurrence._clamp_season` moves a date outside the season to the next season start. The
-fixed clamp, the calendar and `upcoming_occurrences` use `recurrence.next_in_season_occurrence`. A
-date outside the season moves its walk to 1 second before the next season start. The walk stops
-after `MAX_SEASON_STEPS` (100) steps, or past 1 `_horizon`, in which `normalize_rule` needs a date.
-Each step passes a season start, so 100 steps cover 20 years of 5 windows.
-`models.require_season_date` refuses a rule with no date in the bound.
+fixed clamp, the calendar and `upcoming_occurrences` use `recurrence.next_in_season_occurrence`.
+Each walk step goes to just before the next season start. The walk stops after `MAX_SEASON_STEPS`
+(100) steps, which cover 20 years of 5 windows, or past 1 `_horizon`, in which `normalize_rule`
+needs a date. `models.require_season_date` refuses a rule with no date in the bound.
 
 ## Trade-offs
 

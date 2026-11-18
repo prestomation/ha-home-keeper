@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable, Collection
-from datetime import datetime, time
+from datetime import datetime, time, tzinfo
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
@@ -119,6 +119,25 @@ LAST_REPLACED_BEFORE: Final = "last_replaced_before"
 # The most consumable links 1 task takes (#493). A real job takes a few parts. The
 # cap keeps a script error from writing a list without end into the task.
 MAX_CONSUMABLE_LINKS: Final = 20
+
+
+def _check_moment(value: Any, field: str, *, tz: tzinfo | None = None) -> None:
+    """Raise ``TaskValidationError`` if *value* is a datetime outside the window.
+
+    *value* is a datetime or an ISO string. A naive value is read in *tz*, the zone
+    of the ``now`` that the write uses. With no *tz*, the zone comes from the clock.
+    Text that is not a date is left to the caller, which reports it.
+    """
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return
+    if not isinstance(value, datetime):
+        return
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=tz if tz is not None else dt_util.now().tzinfo)
+    models.check_datetime(value, field)
 
 
 def _local_date(when: Any) -> str:
@@ -405,6 +424,7 @@ class HomeKeeperStore:
             self._tasks = data["tasks"]
         else:
             self._tasks = {}
+
         if data and isinstance(data.get("assets"), dict):
             self._assets = data["assets"]
         else:
@@ -454,7 +474,21 @@ class HomeKeeperStore:
             changed = True
         # A fixed task stored before schedules were RRULEs carries ``freq`` and
         # ``interval``. Convert it to the rule it means, once.
-        for task in self._tasks.values():
+        zone = dt_util.get_default_time_zone()
+        for task_id, task in self._tasks.items():
+            # An older version accepted any year, and an older build stored a naive
+            # part date. Either one makes the date math raise, so fix it here.
+            if clamped := models.clamp_task_datetimes(task, tz=zone):
+                _LOGGER.warning(
+                    "Fixed the %s of task %s: a naive value gets the Home Assistant "
+                    "time zone, and a value outside the years %s to %s moves to "
+                    "the nearest edge",
+                    ", ".join(clamped),
+                    task_id,
+                    recurrence.DATETIME_MIN.year,
+                    recurrence.DATETIME_MAX.year,
+                )
+                changed = True
             if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
                 changed = True
             # A manual consumable link stored before a task took a list of them
@@ -953,6 +987,7 @@ class HomeKeeperStore:
                 "for its condition/sensor)."
             )
         now = dt_util.now()
+        _check_moment(until, "until", tz=now.tzinfo)
         if existing.get("recurrence_type") == recurrence.REC_FLOATING:
             # With a set due time, a snooze lands on the first set time at or after
             # *until*, so it never ends earlier than the user asked (#438).
@@ -1000,9 +1035,12 @@ class HomeKeeperStore:
                 "Only a task on a fixed schedule has dates to move. Snooze a task of "
                 "another kind instead."
             )
+        now = dt_util.now()
+        _check_moment(occurrence, "occurrence", tz=now.tzinfo)
+        _check_moment(to, "to", tz=now.tzinfo)
         try:
             _, original, previous_to = recurrence.move_occurrence(
-                existing, occurrence, to, now=dt_util.now()
+                existing, occurrence, to, now=now
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err
@@ -2758,6 +2796,7 @@ class HomeKeeperStore:
         _reject_completion_blocked(existing, origin)
         _reject_scan_required(existing, origin)
         now = dt_util.now()
+        _check_moment(completed_at, "completed_at", tz=now.tzinfo)
         when = completed_at or now
         if when.tzinfo is None:
             # ``cv.datetime`` accepts offset-less strings as naive datetimes;
@@ -2996,6 +3035,7 @@ class HomeKeeperStore:
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
         now = dt_util.now()
+        _check_moment(new_ts, "new_completed_at", tz=now.tzinfo)
         # A copy, because the move can change the entry in place.
         moved_entry = dict(
             next(
@@ -3163,10 +3203,10 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, None)
+        now = dt_util.now()
+        _check_moment(new_ts, "new_ts", tz=now.tzinfo)
         try:
-            updated = recurrence.move_skip(
-                dict(existing), old_ts, new_ts, now=dt_util.now()
-            )
+            updated = recurrence.move_skip(dict(existing), old_ts, new_ts, now=now)
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err
         self._tasks[task_id] = updated

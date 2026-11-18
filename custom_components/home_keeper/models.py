@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta, tzinfo
 from typing import Any
 
 from . import recurrence
@@ -58,6 +58,94 @@ EDGE_ONLY_SENSOR_FIELDS = ("for_seconds", "clear_on_recover")
 
 class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
+
+
+def check_datetime(value: datetime, field: str) -> datetime:
+    """Return *value*, or raise ``TaskValidationError`` if it is outside the window.
+
+    The window is ``recurrence.DATETIME_MIN`` to ``recurrence.DATETIME_MAX``, after
+    conversion to UTC. Every write of a task datetime goes through this check, so
+    the date math that reads a stored value cannot go past year 9999.
+    """
+    if not recurrence.in_window(value):
+        raise TaskValidationError(
+            f"{field} must be between {recurrence.DATETIME_MIN.year} and "
+            f"{recurrence.DATETIME_MAX.year} UTC, got {value.isoformat()}"
+        )
+    return value
+
+
+#: The top-level task keys that hold 1 ISO datetime.
+_TASK_DATETIME_KEYS = (
+    "created",
+    "next_due",
+    "last_completed",
+    "anchor",
+    "due",
+    "deferred_from",
+)
+#: The task lists of entries, and the keys of an entry that hold 1 ISO datetime.
+_TASK_DATETIME_LISTS = {
+    "completions": ("ts", "prior_due"),
+    "skips": ("ts", "prior_due"),
+    "moved_occurrences": ("from", "to"),
+}
+
+
+def _clamped(raw: object, tz: tzinfo) -> str | None:
+    """The fixed value for *raw*, or ``None`` if *raw* stays as it is.
+
+    Older builds stored a part date as is, which gave a naive ``last_completed``
+    and ``next_due``. A naive value gets *tz*, as each writer does, and is then
+    tested against the window. A value outside the window gets the nearest edge.
+    """
+    if not isinstance(raw, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    naive = parsed.tzinfo is None
+    if naive:
+        parsed = parsed.replace(tzinfo=tz)
+    if recurrence.in_window(parsed):
+        return parsed.isoformat() if naive else None
+    # Compare the instants. A wall time is wrong near an edge: 2199-12-31 23:00 at
+    # UTC-2 is after the top edge. Python compares 2 aware datetimes without a
+    # conversion to UTC, so this comparison does not overflow where astimezone does.
+    if parsed >= recurrence.DATETIME_MAX:
+        return (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    return recurrence.DATETIME_MIN.isoformat()
+
+
+def clamp_task_datetimes(task: dict[str, Any], *, tz: tzinfo) -> list[str]:
+    """Fix each stored datetime of *task* that is naive or outside the window.
+
+    The store calls this on load with Home Assistant's zone as *tz*, so a value that
+    an older version accepted cannot stop setup. A naive value gets *tz*. A value
+    outside the window moves to its nearest edge. A value that is not an ISO
+    datetime stays as it is. Returns the task keys that changed.
+    """
+    changed: list[str] = []
+    for key in _TASK_DATETIME_KEYS:
+        edge = _clamped(task.get(key), tz)
+        if edge is not None:
+            task[key] = edge
+            changed.append(key)
+    for key, entry_keys in _TASK_DATETIME_LISTS.items():
+        entries = task.get(key)
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            for entry_key in entry_keys:
+                edge = _clamped(entry.get(entry_key), tz)
+                if edge is not None:
+                    entry[entry_key] = edge
+                    if key not in changed:
+                        changed.append(key)
+    return changed
 
 
 class StoreClosedError(RuntimeError):
@@ -792,7 +880,10 @@ def normalize_moved_occurrences(value: Any, *, tz: Any = None) -> list[dict]:
                 ) from err
             if moment.tzinfo is None:
                 moment = moment.replace(tzinfo=tz) if tz else moment.astimezone()
-            pair.append(moment.replace(microsecond=0).isoformat())
+            moment = check_datetime(
+                moment.replace(microsecond=0), f"moved_occurrences[{index}].{key}"
+            )
+            pair.append(moment.isoformat())
         key_instant = datetime.fromisoformat(pair[0]).timestamp()
         if key_instant in seen:
             raise TaskValidationError(
@@ -986,7 +1077,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 if tz is not None
                 else parsed_due.astimezone()
             )
-        fields["due"] = parsed_due.isoformat()
+        fields["due"] = check_datetime(parsed_due, "due").isoformat()
         return fields
 
     # Default to 1 when interval is absent *or* explicitly unset. ``merge_update``
@@ -1043,7 +1134,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
                 )
         # RFC 5545 counts in whole seconds, so the rule engine drops a fraction.
         # Storing it would make the anchor itself read as off the schedule.
-        parsed_anchor = parsed_anchor.replace(microsecond=0)
+        parsed_anchor = check_datetime(parsed_anchor.replace(microsecond=0), "anchor")
         # The schedule is an RRULE. The legacy ``freq``/``interval`` pair is still
         # accepted (services, old exports) and converted, so existing automations
         # keep working; only the rule is stored.
@@ -1213,7 +1304,7 @@ def _coerce_seed(value: Any, *, tz: Any) -> datetime:
             ) from err
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=tz) if tz is not None else parsed.astimezone()
-    return parsed
+    return check_datetime(parsed, "last_completed")
 
 
 def infer_recurrence_type(data: dict) -> str:

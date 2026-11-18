@@ -67,12 +67,16 @@ def test_x06_2_publish_decision(tmp_path, event, ref, dry_run, expected) -> None
     assert _publish(tmp_path, event, ref, dry_run) == expected
 
 
-def test_x06_2_tag_and_release_steps_read_the_decision() -> None:
-    by_name = {s.get("name"): s for s in _steps()}
-    for name in ("Create and push tag", "Create GitHub Release"):
-        cond = by_name[name]["if"]
-        assert "steps.publish.outputs.publish == 'true'" in cond, name
-        assert "github.event_name != 'pull_request'" not in cond, name
+def test_x06_2_publish_job_reads_the_decision() -> None:
+    jobs = _doc()["jobs"]
+    cond = jobs["publish"]["if"]
+    assert "needs.release.outputs.publish == 'true'" in cond
+    assert "needs.release.outputs.release == 'true'" in cond
+    assert "github.event_name != 'pull_request'" not in cond
+    names = {s.get("name") for s in jobs["publish"]["steps"]}
+    assert {"Create and push tag", "Create GitHub Release"} <= names
+    upload = next(s for s in _steps() if s.get("name") == "Upload the release files")
+    assert "steps.publish.outputs.publish == 'true'" in upload["if"]
 
 
 def test_x06_2_jobs_read_the_decision() -> None:
@@ -80,5 +84,25 @@ def test_x06_2_jobs_read_the_decision() -> None:
     assert (
         jobs["release"]["outputs"]["publish"] == "${{ steps.publish.outputs.publish }}"
     )
-    assert "needs.release.outputs.publish == 'true'" in jobs["deploy-docs"]["if"]
-    assert "needs.release.outputs.publish == 'true'" in jobs["notify-issues"]["if"]
+    assert "publish" in jobs["deploy-docs"]["needs"]
+    assert "needs.publish.result == 'success'" in jobs["deploy-docs"]["if"]
+    assert "publish" in jobs["notify-issues"]["needs"]
+    assert "needs.publish.result == 'success'" in jobs["notify-issues"]["if"]
+
+
+def test_only_the_publish_jobs_can_write_contents() -> None:
+    doc = _doc()
+    assert doc["permissions"] == {"contents": "read"}
+    jobs = doc["jobs"]
+    # The build job runs on pull_request too, so it must stay read-only.
+    assert jobs["release"]["permissions"] == {"contents": "read"}
+    writers = {
+        name
+        for name, job in jobs.items()
+        if job.get("permissions", {}).get("contents") == "write"
+    }
+    assert writers == {"publish", "deploy-docs"}
+    # The publish job runs no build step: it attaches what the build job uploaded.
+    for step in jobs["publish"]["steps"]:
+        assert "npm" not in step.get("run", ""), step
+        assert "bash ci/" not in step.get("run", ""), step

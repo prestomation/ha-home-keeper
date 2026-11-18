@@ -7,14 +7,20 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only by default. The `tests` job runs PR code, so it never gets
+# `contents: write`. Only `coverage-data` gets it, and only on a push to main or a
+# dispatch, where the code is not from a PR.
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: pytest and coverage report
     if: ${{ !(github.event_name == 'pull_request' && ( contains(github.event.pull_request.labels.*.name, 'dependencies') || github.event.pull_request.user.type == 'Bot' )) }}
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      pull-requests: write  # the coverage comment on a same-repo PR
 
     steps:
       - name: Checkout Repository
@@ -39,8 +45,9 @@ jobs:
             --cov=custom_components/home_keeper --cov-report=term-missing
 
       - name: "Generate coverage Comment (and possibly Post to PR)"
+        if: github.event_name == 'pull_request'
         id: coverage_comment
-        uses: py-cov-action/python-coverage-comment-action@v3
+        uses: py-cov-action/python-coverage-comment-action@50d15ff8768f6d897b04e5a0805bd1a98f7096c4 # v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MINIMUM_GREEN: 90
@@ -53,3 +60,39 @@ jobs:
           name: python-coverage-comment-action
           path: python-coverage-comment-action.txt
           retention-days: 1
+
+      - name: Store the coverage data for the coverage-data job
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-data
+          path: .coverage
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # On a push to main (or a dispatch), the coverage action writes the coverage data
+  # and badge to its data branch. That needs `contents: write`, so it runs here and
+  # not in `tests`. It runs no test code: it reads the `.coverage` file only.
+  coverage-data:
+    name: Store coverage data
+    needs: tests
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download the coverage data
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-data
+
+      - name: Update the coverage data branch
+        uses: py-cov-action/python-coverage-comment-action@50d15ff8768f6d897b04e5a0805bd1a98f7096c4 # v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MINIMUM_GREEN: 90
+          MINIMUM_ORANGE: 70

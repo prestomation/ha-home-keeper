@@ -28,6 +28,15 @@ def _load():
 parity = _load()
 ROOT = parity.ROOT
 
+# mutmut runs the unit tests in ``mutants/``, a copy where it rewrites each source
+# file, so no marker there is where the registry says. These tests read the real
+# sources, and they test ``ci/parity.py``, which mutmut does not mutate. They run in
+# every other lane, and lint.yml runs ``python3 ci/parity.py check`` too.
+pytestmark = pytest.mark.skipif(
+    not (ROOT / ".git").exists(),
+    reason="needs the whole checkout; mutmut runs from a mutated copy in mutants/",
+)
+
 
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:

@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/problem_tasks.py
   - custom_components/home_keeper/problem_sync.py
 related: [recurrence, store, coordinator-entities, completions, companions-presets, events-api]
-source_hash: 1a50c4f674d7
+source_hash: 3738443dbeaa
 ---
 
 # Sensor tasks and problem sensors
@@ -97,8 +97,8 @@ Only the test for "condition met" differs. The watcher carries `condition_met`,
   the companion reload destroys the watcher. The baseline consumes the set and leaves
   their edge unset, so a new task arms on a condition that is true.
 - **Triggers.** A state listener evaluates the tasks bound to the changed entity, or a template
-  that names it. The 5-minute tick calls `sensor_watcher.async_evaluate` for all tasks. A hold
-  books a point-in-time timer. Passes run one at a time; a request during a pass adds 1 more.
+  that names it. The 5-minute tick evaluates all tasks. A hold books a timer. 1 pass runs at a
+  time. A request during a pass adds 1 more. A task that raises is logged and skipped.
 - **Apply.** `arm` renders the companion notes again, then calls `store.trigger_task`.
   `rebaseline` calls `store.set_sensor_baseline` with no event. `clear` calls
   `store.complete_task` with `ORIGIN_SENSOR_RECOVER` if the task is still armed.

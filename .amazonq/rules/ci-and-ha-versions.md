@@ -15,12 +15,23 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
 | `integration.yml` | Docker integration tests, the noise budget ([testing.md](testing.md#noise-budget)), and the upgrade suite against `stable`. The integration and noise jobs end with the log gate ([testing.md](testing.md#blocking-calls-and-the-log-gate)) |
 | `e2e.yml` | Docker and Playwright; uploads the report on a failure. The job limit is 25 min: shard the suite when a run takes more than 22 min, and never raise the limit again |
 | `walkthrough-preview.yml` | the walkthrough gif comment ([pr-workflow.md](pr-workflow.md#walkthrough-video)) |
-| `ha-beta.yml` | nightly against HA `beta`; gates nothing, files `ha-beta-regression` |
-| `pytest_coverage.yml` | the coverage comment on a PR |
+| `ha-beta.yml` | nightly against HA `beta`; gates nothing; opens and closes `ha-beta-regression` |
+| `pytest_coverage.yml` | the coverage comment on a PR (`post_coverage_to_pr.yml` for a fork) |
 | `release.yml` | tags and publishes on merge ([changelog-and-release.md](changelog-and-release.md)) |
 
 - `lint.yml` also fails when the top CHANGELOG section names an unreleased version that
   `manifest.json` does not carry, or when `manifest.json` and `PANEL_VERSION` differ.
+- **Pin each third-party action to a full commit SHA**, with the tag as a trailing comment
+  (`uses: owner/action@<sha> # v3.0.4`). Keep `actions/*` on version tags. Dependabot
+  (`github-actions` in `.github/dependabot.yml`) opens the update PRs.
+- **Dependabot PRs merge only after a human review.** No workflow merges them.
+- **The workflow token is read-only by default.** Each workflow sets
+  `permissions: contents: read` (or `{}`). A write scope goes on the 1 job that
+  publishes, and that job runs no PR code: it gets the build output as an artifact.
+- **A sticky comment counts only if `github-actions[bot]` wrote it.** Match the marker
+  and the author, so another user cannot hide or take over a bot comment.
+- **Text from a fork artifact is untrusted.** A `workflow_run` job never checks out or
+  runs it. It checks the size and the characters, and stops @-mentions before it posts.
 - **A pipe hides a failure.** `pytest … | tee log` takes the exit status of `tee`. Put
   `set -o pipefail` at the top of each `run:` block that pipes a test runner, and write an
   output guard that names what must not appear, not only what must.

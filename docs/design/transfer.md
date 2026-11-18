@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/transfer_http.py
   - custom_components/home_keeper/frontend/src/transfer-view.ts
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 8c2a213a1c95
+source_hash: 55bdd6da0177
 ---
 
 # Import and export
@@ -105,7 +105,7 @@ a severity: an `error` blocks, a `warning` is applied. Appliances come first:
 1. `transfer._keyed_records` refuses a list or a mapping as a key, and an `id` stated twice.
 2. `transfer._Matcher` matches by `id`, then `external_id`, then name. 2 hits are an error.
 3. An update merges (`models.merge_update`, `assets.merge_update`); a create builds.
-4. `transfer.apply_history` folds `history` and `skips` onto the record.
+4. `transfer.apply_history` folds `history` and `skips` onto it. Each date must be in the window.
 5. `transfer._colliding_external_ids` and `transfer._looping_parents` refuse clashes and loops.
 
 A stated `area_id` or `device_id` that exists wins, else the name. A task's `appliance` resolves in
