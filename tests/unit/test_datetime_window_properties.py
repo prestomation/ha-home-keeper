@@ -157,3 +157,44 @@ def test_an_import_with_any_history_date_does_not_raise(moment):
     assert plan.ok is recurrence.in_window(moment)
     for record in plan.records:
         _read_everything(record.payload)
+
+
+@settings(max_examples=300)
+@given(moment=_any_moment())
+def test_the_clamp_picks_the_edge_on_the_side_of_the_instant(moment):
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["next_due"] = moment.isoformat()
+    models.clamp_task_datetimes(task)
+    stored = datetime.fromisoformat(task["next_due"])
+    if recurrence.in_window(moment):
+        assert stored == moment
+    elif moment >= recurrence.DATETIME_MAX:
+        assert stored == recurrence.DATETIME_MAX - timedelta(seconds=1)
+    else:
+        assert stored == recurrence.DATETIME_MIN
+
+
+@settings(max_examples=200)
+@given(moment=_any_moment())
+def test_an_import_with_any_moved_date_does_not_raise(moment):
+    plan = transfer.plan_import(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [
+                {
+                    "name": "V",
+                    "rrule": "FREQ=WEEKLY;BYDAY=TU",
+                    "anchor": "2026-05-05T07:00:00+00:00",
+                    "moved_occurrences": [
+                        {"from": "2026-05-12T07:00:00+00:00", "to": moment.isoformat()}
+                    ],
+                }
+            ],
+        },
+        tasks={},
+        assets={},
+        now=NOW,
+    )
+    assert plan.ok is recurrence.in_window(moment)
+    for record in plan.records:
+        _read_everything(record.payload)

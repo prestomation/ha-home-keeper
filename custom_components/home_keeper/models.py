@@ -102,8 +102,10 @@ def _clamped(raw: object) -> str | None:
         return None
     if parsed.tzinfo is None or recurrence.in_window(parsed):
         return None
-    # The conversion to UTC can overflow, so compare the wall time to the edge.
-    if parsed.replace(tzinfo=None) >= recurrence.DATETIME_MAX.replace(tzinfo=None):
+    # Compare the instants. A wall time is wrong near an edge: 2199-12-31 23:00 at
+    # UTC-2 is after the top edge. Python compares 2 aware datetimes without a
+    # conversion to UTC, so this comparison does not overflow where astimezone does.
+    if parsed >= recurrence.DATETIME_MAX:
         return (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
     return recurrence.DATETIME_MIN.isoformat()
 
@@ -869,7 +871,10 @@ def normalize_moved_occurrences(value: Any, *, tz: Any = None) -> list[dict]:
                 ) from err
             if moment.tzinfo is None:
                 moment = moment.replace(tzinfo=tz) if tz else moment.astimezone()
-            pair.append(moment.replace(microsecond=0).isoformat())
+            moment = check_datetime(
+                moment.replace(microsecond=0), f"moved_occurrences[{index}].{key}"
+            )
+            pair.append(moment.isoformat())
         key_instant = datetime.fromisoformat(pair[0]).timestamp()
         if key_instant in seen:
             raise TaskValidationError(

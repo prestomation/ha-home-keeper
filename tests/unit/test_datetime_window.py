@@ -378,3 +378,58 @@ def test_an_import_reads_a_bare_history_date_in_utc_for_the_window(monkeypatch):
         monkeypatch.undo()
         time.tzset()
     assert [p.message for p in plan.problems if "between" in p.message] == []
+
+
+# ── moved dates ──────────────────────────────────────────────────────────────
+def _moved(to: str) -> dict:
+    return {
+        "name": "Bins",
+        "rrule": "FREQ=WEEKLY;BYDAY=TU",
+        "anchor": "2026-05-05T07:00:00+00:00",
+        "moved_occurrences": [{"from": "2026-05-12T07:00:00+00:00", "to": to}],
+    }
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_a_moved_date_outside_the_window_is_refused(value):
+    with pytest.raises(
+        models.TaskValidationError, match=r"moved_occurrences\[0\]\.to must be between"
+    ):
+        models.build_task(_moved(value), now=NOW)
+
+
+def test_a_moved_date_inside_the_window_is_stored():
+    task = models.build_task(_moved("2026-05-13T07:00:00+00:00"), now=NOW)
+    assert task["moved_occurrences"][0]["to"] == "2026-05-13T07:00:00+00:00"
+
+
+@pytest.mark.parametrize("value", OUTSIDE)
+def test_an_import_with_a_moved_date_outside_the_window_reports_a_problem(value):
+    plan = _plan({"home_keeper": {"format": 1}, "tasks": [_moved(value)]})
+    messages = [p.message for p in plan.problems if p.severity == "error"]
+    assert any("moved_occurrences[0].to must be between" in m for m in messages), (
+        messages
+    )
+    assert len(plan.records) == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "edge"),
+    [
+        ("2199-12-31T23:00:00-02:00", "top"),
+        ("2200-01-01T01:00:00+02:00", "inside"),
+        ("1900-01-01T01:00:00+02:00", "bottom"),
+        ("1899-12-31T23:00:00-02:00", "inside"),
+        ("9999-12-31T23:59:59-12:00", "top"),
+        ("0001-01-01T00:00:00+14:00", "bottom"),
+    ],
+)
+def test_clamp_picks_the_edge_by_the_utc_instant(value, edge):
+    task = _completed_one_off(value)
+    models.clamp_task_datetimes(task)
+    expected = {
+        "top": (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat(),
+        "bottom": recurrence.DATETIME_MIN.isoformat(),
+        "inside": value,
+    }[edge]
+    assert task["last_completed"] == expected
