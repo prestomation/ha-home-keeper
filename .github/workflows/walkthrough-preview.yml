@@ -197,7 +197,7 @@ jobs:
       # umbrella from the docs preview so the two don't fight over pr-<n>/.
       - name: Publish / remove preview
         if: github.event.action == 'closed' || needs.walkthrough.outputs.capture == 'success'
-        uses: rossjrw/pr-preview-action@v1
+        uses: rossjrw/pr-preview-action@873417d2df72380da1f3978378fb58560bcde976 # v1.8.2
         with:
           source-dir: ./_walkthrough_out
           preview-branch: gh-pages
@@ -274,8 +274,11 @@ jobs:
               ].join('\n');
             }
 
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: n });
-            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: n, per_page: 100 });
+            // Only a marker in a comment from this workflow's bot counts, so another
+            // user cannot take over or hide the walkthrough comment.
+            const existing = comments.find((c) =>
+              c.user && c.user.login === 'github-actions[bot]' && c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
