@@ -46,4 +46,35 @@ test.describe('Home Keeper — appliance list pane layout', () => {
     expect(r.y + r.height, 'last row ends inside the pane').toBeLessThanOrEqual(p.y + p.height + 1);
     expect(p.y, 'the pane top is not above the window').toBeGreaterThanOrEqual(0);
   });
+
+  test('a press on a row keeps the list scroll and shows the open row (#586)', async ({ page }) => {
+    await page.setViewportSize(WINDOW);
+    await openPanel(page);
+    const panel = await openAppliance(page, ASSET.waterHeater);
+    const pane = panel.locator('.hk-master');
+    await expect(pane).toBeVisible();
+    expect(await pane.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    // Scroll the pane to its end, then press the last row.
+    await pane.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    const before = await pane.evaluate((el) => el.scrollTop);
+    expect(before, 'the pane should be scrolled down').toBeGreaterThan(100);
+    const last = panel.locator('.hk-master ha-card.hk-card').last();
+    const name = (await last.locator('.hk-name').innerText()).trim();
+    await last.locator('.detail-open').click();
+    await expect(panel.locator('.hk-master ha-card.hk-selected .hk-name')).toHaveText(name);
+    // Playwright may scroll a row a few pixels before the press, so allow some slack.
+    const SLACK = 40;
+    const after = await pane.evaluate((el) => el.scrollTop);
+    expect(after, 'the press should not send the list to the top').toBeGreaterThanOrEqual(
+      before - SLACK,
+    );
+    const row = (await panel.locator('.hk-master ha-card.hk-selected').boundingBox())!;
+    const view = (await pane.boundingBox())!;
+    expect(row.y, 'the open row starts inside the pane').toBeGreaterThanOrEqual(view.y - 1);
+    expect(row.y + row.height, 'the open row ends inside the pane').toBeLessThanOrEqual(
+      view.y + view.height + 1,
+    );
+  });
 });

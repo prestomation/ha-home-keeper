@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b7] - 2026-11-18
+
+### Fixed
+
+- **Appliance list scroll.** The list beside an open appliance now keeps its scroll position when
+  you open another appliance, and shows the open one. (Fixes #586)
+- **Pill group outlines.** The selected choice in a pill group, such as Active or List, now shows
+  its whole outline at the rounded end. (Fixes #554)
+
 ## [0.37.0b6] - 2026-11-18
 
 ### Added
