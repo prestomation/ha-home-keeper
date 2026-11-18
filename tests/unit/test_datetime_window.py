@@ -433,3 +433,23 @@ def test_clamp_picks_the_edge_by_the_utc_instant(value, edge):
         "inside": value,
     }[edge]
     assert task["last_completed"] == expected
+
+
+def test_moved_dates_take_an_empty_value_and_a_full_list():
+    assert models.normalize_moved_occurrences("") == []
+    start = datetime(2026, 5, 12, 7, tzinfo=UTC)
+    full = [
+        {
+            "from": (start + timedelta(weeks=n)).isoformat(),
+            "to": (start + timedelta(weeks=n, days=1)).isoformat(),
+        }
+        for n in range(models.MAX_MOVED_OCCURRENCES)
+    ]
+    assert len(models.normalize_moved_occurrences(full)) == len(full)
+
+
+def test_moved_dates_that_are_not_a_list_are_refused():
+    with pytest.raises(
+        models.TaskValidationError, match=r"^moved_occurrences must be a list$"
+    ):
+        models.normalize_moved_occurrences({"from": "x"})
