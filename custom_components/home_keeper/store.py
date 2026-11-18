@@ -476,6 +476,17 @@ class HomeKeeperStore:
         # ``interval``. Convert it to the rule it means, once.
         zone = dt_util.get_default_time_zone()
         for task_id, task in self._tasks.items():
+            # A device_id or area_id that is not text stops platform setup, so it
+            # goes before any reader sees it.
+            for key in models.drop_malformed_link_ids(task):
+                changed = True
+                _LOGGER.warning(
+                    "Task %s (%s) has a stored %s that is not text. "
+                    "The value is removed",
+                    task.get("id"),
+                    task.get("name"),
+                    key,
+                )
             # An older version accepted any year, and an older build stored a naive
             # part date. Either one makes the date math raise, so fix it here.
             if clamped := models.clamp_task_datetimes(task, tz=zone):

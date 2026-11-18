@@ -19,7 +19,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: d76d5e63e1e2
+source_hash: 46c7d5f46a73
 ---
 
 # Events and API surface
@@ -103,11 +103,11 @@ at startup, often before the entry loads. `event.py` mirrors events onto 1 event
 loaded entry, a handler raises `integration_not_loaded`. Read services use `SupportsResponse.ONLY`.
 `services.yaml` and `strings.json` hold labels. `websocket_api._with_coordinator` finds the
 coordinator and maps store errors to codes. `backend_i18n.resolve_exception` localizes the text, as
-a websocket error gets no later translation. Each `WebsocketSpec` names its service twin, except the
-panel tab list and the reads `get_options` and `get_spend`. `sign_task_photo_urls` signs a list of
-photos. An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
-`await _verify_admin(call)` first. A call with no user is trusted ([SECURITY.md](../SECURITY.md)).
-An old input form logs 1 warning per run (`deprecations.warn_once`).
+a websocket error gets no later translation. Task commands reuse the service schemas. Each
+`WebsocketSpec` names its service twin, except the panel tab list, `get_options` and `get_spend`.
+`sign_task_photo_urls` signs a list of photos. An admin-only operation has 2 gates:
+`@websocket_api.require_admin` on the command, and `await _verify_admin(call)` first. A call with no
+user is trusted ([SECURITY.md](../SECURITY.md)). An old input form logs 1 warning per run.
 
 ### Name or id, and errors
 
