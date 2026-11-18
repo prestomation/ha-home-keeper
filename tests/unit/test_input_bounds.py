@@ -287,3 +287,17 @@ def test_a_spec_timestamp_that_is_not_a_time_is_left_out():
         match=r"^created must be an ISO timestamp string$",
     ):
         dc.normalize_declarative_companion(_spec(created=5))
+
+
+def test_a_selection_id_at_the_entity_id_limit_is_kept():
+    selection = {**_spec()["selection"], "exclude_entity_ids": [LONG_ID[:-1]]}
+    spec = dc.normalize_declarative_companion(_spec(selection=selection))
+    assert spec["selection"]["exclude_entity_ids"] == [LONG_ID[:-1]]
+
+
+def test_warm_rule_fills_the_probe_for_the_next_check(monkeypatch):
+    seen = _count_expansions(monkeypatch)
+    recurrence.warm_rule("FREQ=MONTHLY;BYMONTHDAY=3")
+    assert len(seen) == 1
+    recurrence.normalize_rule("FREQ=MONTHLY;BYMONTHDAY=3")
+    assert len(seen) == 1
