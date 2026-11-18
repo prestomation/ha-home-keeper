@@ -437,7 +437,7 @@
                     "end"
                   ]
                 },
-                "maxLength": 12
+                "maxItems": 12
               }
             ]
           },
