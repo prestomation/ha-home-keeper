@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/store.py
   - custom_components/home_keeper/lifecycle.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 02eac69ea67d
+source_hash: c8afe4fc1b8f
 ---
 
 # Store
@@ -59,12 +59,11 @@ a new key that the import/export document neither carries nor excludes.
 
 ### Load and migrations
 
-`store.load` reads each section if it is a dict and uses an empty dict if not. A new
-section is therefore additive and needs no version bump. Declarative specs go through
-`declarative_companions.normalize_declarative_companion` again. A spec that fails is
-dropped with a warning, because one lost spec is better than a failed startup.
+`store.load` reads each section if it is a dict and uses an empty dict if not. A new section needs
+no version bump. `declarative_companions.normalize_declarative_companion` checks each declarative
+spec again. A spec that fails is dropped with a warning, so the setup does not fail.
 
-Then load runs idempotent shims: `models.clamp_task_datetimes`,
+Then load runs idempotent shims: `models.clamp_task_datetimes`, `models.drop_malformed_link_ids`,
 `assets.migrate_legacy_part_numbers`, `assets.migrate_documents_from_manual_url`,
 `_clean_relationship_links`, `models.migrate_legacy_fixed_schedule` and `reconcile.adopt_part_tags`.
 It saves once if a shim changed data. A new optional field needs no shim: readers use `.get()`.

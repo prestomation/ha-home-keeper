@@ -181,8 +181,11 @@ ADD_TASK_SCHEMA = vol.Schema(
         # Optional "last done" seed: records an initial completion so a floating task
         # starts measured from this date instead of due-now. See docs/INTEGRATING.md.
         vol.Optional("last_completed"): cv.datetime,
-        vol.Optional("device_id"): cv.string,
-        vol.Optional("area_id"): cv.string,
+        # Text, or ``None`` to clear the link. The panel form sends ``None`` for an
+        # empty picker. A list or a dict fails here, because the device registry
+        # raises on it when the entry loads.
+        vol.Optional("device_id"): vol.Any(None, cv.string),
+        vol.Optional("area_id"): vol.Any(None, cv.string),
         # HA label-registry ids; used (with device/area labels) to scope the card.
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
         # Appliance link references (document/metadata links) the dashboard card
@@ -236,8 +239,9 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("anchor"): cv.string,
         vol.Optional("due"): cv.string,
         vol.Optional("sensor"): dict,
-        vol.Optional("device_id"): cv.string,
-        vol.Optional("area_id"): cv.string,
+        # See ADD_TASK_SCHEMA: text, or ``None`` to clear the link.
+        vol.Optional("device_id"): vol.Any(None, cv.string),
+        vol.Optional("area_id"): vol.Any(None, cv.string),
         vol.Optional("labels"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("card_links"): vol.All(cv.ensure_list, [CARD_LINK_SCHEMA]),
         vol.Optional("completion_detail"): cv.string,

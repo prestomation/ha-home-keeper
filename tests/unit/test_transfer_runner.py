@@ -270,3 +270,73 @@ def test_x03_6_a_completion_during_provisioning_is_not_overwritten(monkeypatch):
         reported["Furnace filter"],
         reported["New task"],
     }
+
+
+# ── the plan of an import runs off the event loop ────────────────────────────
+
+
+def test_the_import_plan_runs_off_the_event_loop(monkeypatch):
+    calls: list[tuple[int, dict[str, Any]]] = []
+    original = tr.plan_import
+
+    def spy(document, **kwargs):
+        calls.append((threading.get_ident(), kwargs))
+        return original(document, **kwargs)
+
+    monkeypatch.setattr(tr, "plan_import", spy)
+    stored = tr.models.build_task({"name": "Furnace filter"}, now=NOW)
+    store = _Store(tasks={stored["id"]: stored})
+    loop_thread: list[int] = []
+    hass = _Hass()  # made before the loop: its temp dir is a blocking call
+
+    async def run():
+        loop_thread.append(threading.get_ident())
+        runner.dr = types.SimpleNamespace(
+            async_get=lambda hass: _OldRegistry(_Device("dev-a"))
+        )
+        data = {"document": _tasks_on("dev-a", "dev-gone"), "dry_run": True}
+        return await runner.async_import_document(hass, _coord(store), data)
+
+    report = asyncio.run(run())
+    assert report["ok"] is True
+    assert _device_warnings(report) == ["tasks[1].device_id"]
+    ((thread, kwargs),) = calls
+    assert thread != loop_thread[0]
+    # The plan reads plain copies that were made on the loop.
+    assert kwargs["tasks"] == store.get_tasks()
+    assert kwargs["tasks"] is not store.get_tasks()
+    assert kwargs["tasks"][stored["id"]] is not stored
+    assert kwargs["device_ids"] == {"dev-a"}
+
+
+def test_a_completion_while_the_import_plans_is_kept(monkeypatch):
+    stored = tr.models.build_task({"name": "Furnace filter"}, now=NOW)
+    store = _WritingStore(tasks={stored["id"]: stored})
+    done_at = NOW + timedelta(minutes=1)
+    original = tr.plan_import
+
+    def plan_then_complete(document, **kwargs):
+        plan = original(document, **kwargs)
+        # A completion lands in the store while the plan is made.
+        task = dict(store.get_tasks()[stored["id"]])
+        tr.recurrence.apply_completion(task, done_at, now=done_at)
+        store.get_tasks()[stored["id"]] = task
+        return plan
+
+    monkeypatch.setattr(tr, "plan_import", plan_then_complete)
+    runner.dr = types.SimpleNamespace(async_get=lambda hass: _OldRegistry())
+    document = {
+        "home_keeper": {"format": 1},
+        "tasks": [{"id": stored["id"], "name": "Furnace filter", "notes": "MERV 13"}],
+    }
+    report = asyncio.run(
+        runner.async_import_document(
+            _ReloadingHass(), _coord(store), {"document": document}
+        )
+    )
+
+    assert report["ok"] is True
+    written = store.get_tasks()[stored["id"]]
+    assert written["notes"] == "MERV 13"
+    assert written["last_completed"] == done_at.isoformat()
+    assert len(written["completions"]) == 1

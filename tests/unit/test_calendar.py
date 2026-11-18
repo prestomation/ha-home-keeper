@@ -294,7 +294,7 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
         return real_next(*args, **kwargs)
 
     monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
-    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
+    monkeypatch.setattr(cal.recurrence, "MAX_SEASON_STEPS", 5)
     monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
 
     task = _fixed_task(
@@ -305,8 +305,8 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    # The first search, then one step per bounded iteration.
-    assert steps == 6
+    # 1 date a year for 20 years, so the step cap stops the walk, not the horizon.
+    assert steps == 5
 
 
 def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
@@ -446,10 +446,11 @@ def test_b11_7_collect_events_drops_a_fixed_occurrence_that_ends_at_the_window_s
 
 
 def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
-    """Each step of the walk searches from the last occurrence, not from the start.
+    """Each step of the walk searches from after the last date, not from the start.
 
     A search from the same point on each step would find the same date again and
-    never move. Every 12 months from Jan 31 never meets an April to September season.
+    never move. A date out of season moves the search to 1 second before the next
+    season start. Every 12 months from Jan 31 never meets an April to September season.
     """
     afters: list[datetime] = []
     found: list[datetime] = []
@@ -461,7 +462,7 @@ def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
         return found[-1]
 
     monkeypatch.setattr(cal.recurrence, "next_task_occurrence", counted)
-    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 4)
+    monkeypatch.setattr(cal.recurrence, "MAX_SEASON_STEPS", 4)
     now = _dt(2026, 6, 15, 8)
     monkeypatch.setattr(cal.dt_util, "now", lambda: now)
 
@@ -473,7 +474,11 @@ def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    assert afters == [now - cal.EVENT_DURATION, *found[:-1]]
+    assert found == [_dt(year, 1, 31, 9) for year in (2027, 2028, 2029, 2030)]
+    assert afters == [
+        now - cal.EVENT_DURATION,
+        *(_dt(year, 4, 1) - timedelta(seconds=1) for year in (2027, 2028, 2029)),
+    ]
 
 
 def test_b11_8_season_walk_lands_on_the_grid(monkeypatch):
