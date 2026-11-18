@@ -37,7 +37,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: a80b1761aac8
+source_hash: 148b6817ced5
 ---
 
 # Frontend
@@ -108,14 +108,14 @@ the next one. The panel waits while `_busy()`, and loads when the last overlay c
 ### Task layouts, the list bar, preferences and styles
 
 Tasks draws Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`). Above it,
-`panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add, and a chip
-for each active filter (`list-bar.ts`). A sentinel observer marks a pinned bar `data-stuck`.
-A choice about this screen is per browser (`localStorage`, `LS_*` in `panel-types.ts`). A choice
-about the person (task layout, intro dismissed) is per user, in HA frontend user data under a
-`home_keeper_<pref>` key, through `api.getTaskLayout` and peers. `panel-styles.STYLES` starts with
-`--hk-*` tokens on `:host`, each mapped to a Home Assistant theme variable. Media queries change the
-layout at 1150px (sheet drawer), 1000px (Settings index) and 700px (bottom tabs, folded filters,
-stacked rows and parts cards).
+`panel-controls.taskBar` draws a sticky bar: Search, Filters, the spend button, Add, and a chip for
+each active filter (`list-bar.ts`). A sentinel observer marks a pinned bar `data-stuck`. `_render`
+keeps the scroll of the board and the appliance pane. A choice about this screen is per browser
+(`localStorage`, `LS_*` in `panel-types.ts`). A choice about the person (task layout, intro
+dismissed) is per user, in HA frontend user data under a `home_keeper_<pref>` key, through
+`api.getTaskLayout` and peers. `panel-styles.STYLES` starts with `--hk-*` tokens on `:host`, each
+mapped to a Home Assistant theme variable. Media queries change the layout at 1150px (sheet drawer),
+1000px (Settings index) and 700px (bottom tabs, folded filters, stacked rows and parts cards).
 
 ### Dashboard card
 
