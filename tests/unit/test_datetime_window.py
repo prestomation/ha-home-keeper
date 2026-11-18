@@ -276,3 +276,105 @@ def test_check_datetime_refuses_a_value_far_ahead_in_a_local_zone():
     value = datetime(2199, 12, 31, 23, 30, tzinfo=timezone(timedelta(hours=-1)))
     with pytest.raises(models.TaskValidationError):
         models.check_datetime(value, "due")
+
+
+# ── edges of the helpers ─────────────────────────────────────────────────────
+@pytest.mark.parametrize("value", [None, "", 20260510, NOW, "soon", "2026-05-10T12:00"])
+def test_stored_moment_is_none_for_a_value_it_cannot_use(value):
+    assert recurrence.stored_moment(value) is None
+
+
+def test_stored_moment_reads_an_aware_value_inside_the_window():
+    assert recurrence.stored_moment(NOW.isoformat()) == NOW
+
+
+def test_iso_passes_an_aware_datetime_through():
+    assert transfer._iso(NOW, tz=UTC) is NOW
+
+
+def test_iso_names_the_date_in_its_error():
+    with pytest.raises(models.TaskValidationError, match=r"^date must be between"):
+        transfer._iso("9999-01-01", tz=UTC)
+
+
+def test_a_naive_seed_gets_the_zone_of_now():
+    east = datetime(2026, 5, 10, 12, tzinfo=timezone(timedelta(hours=5)))
+    task = models.build_task(
+        {
+            "name": "x",
+            "interval": 1,
+            "unit": "days",
+            "last_completed": "2026-05-01T08:00",
+        },
+        now=east,
+    )
+    assert task["last_completed"] == "2026-05-01T08:00:00+05:00"
+
+
+def test_clamp_moves_a_value_on_the_top_edge_to_the_last_second():
+    task = _completed_one_off("2200-01-01T00:00:00+00:00")
+    models.clamp_task_datetimes(task)
+    assert (
+        task["last_completed"]
+        == (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    )
+
+
+def test_clamp_goes_on_past_a_list_or_an_entry_that_is_not_valid():
+    task = _completed_one_off("2026-01-01T00:00:00+00:00")
+    task["completions"] = "junk"
+    task["skips"] = ["junk", {"ts": "9999-01-01T00:00:00+00:00"}]
+    assert models.clamp_task_datetimes(task) == ["skips"]
+    assert (
+        task["skips"][1]["ts"]
+        == (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    )
+
+
+def test_an_import_reports_each_history_date_outside_the_window():
+    plan = _plan(
+        {
+            "home_keeper": {"format": 1},
+            "tasks": [
+                {
+                    "name": "T",
+                    "interval": 1,
+                    "unit": "days",
+                    "history": [
+                        {"completed_at": "9999-01-01"},
+                        {"completed_at": "1800-01-01"},
+                    ],
+                }
+            ],
+        }
+    )
+    assert [(p.section, p.index, p.path) for p in plan.problems] == [
+        ("tasks", 0, "tasks[0].history[0].completed_at"),
+        ("tasks", 0, "tasks[0].history[1].completed_at"),
+    ]
+
+
+def test_an_import_reads_a_bare_history_date_in_utc_for_the_window(monkeypatch):
+    # In a system zone of UTC+14, a naive read of 1900-01-01 00:00 is in 1899 UTC.
+    import time
+
+    monkeypatch.setenv("TZ", "Etc/GMT-14")
+    time.tzset()
+    try:
+        plan = _plan(
+            {
+                "home_keeper": {"format": 1},
+                "tasks": [
+                    {
+                        "name": "T",
+                        "interval": 1,
+                        "unit": "days",
+                        "history": [{"completed_at": "1900-01-01T00:00:00"}],
+                    }
+                ],
+            }
+        )
+    finally:
+        monkeypatch.undo()
+        time.tzset()
+    assert [p.message for p in plan.problems if "between" in p.message] == []

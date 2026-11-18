@@ -941,7 +941,8 @@ def in_window(value: datetime) -> bool:
     ``OverflowError`` or ``ValueError`` there means that *value* is outside.
     """
     try:
-        instant = value.astimezone(UTC)
+        # Any zone gives the same instant to compare, so UTC is not a choice.
+        instant = value.astimezone(UTC)  # pragma: no mutate - equivalent
     except (OverflowError, ValueError):
         return False
     return DATETIME_MIN <= instant < DATETIME_MAX
