@@ -129,7 +129,7 @@ def test_a_stored_value_after_the_clamp_is_safe_for_every_reader(moment):
     task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
     raw = moment.isoformat()
     task.update(next_due=raw, last_completed=raw, completions=[{"ts": raw}])
-    models.clamp_task_datetimes(task)
+    models.clamp_task_datetimes(task, tz=UTC)
     assert recurrence.in_window(datetime.fromisoformat(task["next_due"]))
     _read_everything(task)
 
@@ -164,7 +164,7 @@ def test_an_import_with_any_history_date_does_not_raise(moment):
 def test_the_clamp_picks_the_edge_on_the_side_of_the_instant(moment):
     task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
     task["next_due"] = moment.isoformat()
-    models.clamp_task_datetimes(task)
+    models.clamp_task_datetimes(task, tz=UTC)
     stored = datetime.fromisoformat(task["next_due"])
     if recurrence.in_window(moment):
         assert stored == moment

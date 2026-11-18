@@ -13,7 +13,7 @@ import calendar as _calendar
 import math
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta, tzinfo
 from typing import Any
 
 from . import recurrence
@@ -92,16 +92,24 @@ _TASK_DATETIME_LISTS = {
 }
 
 
-def _clamped(raw: object) -> str | None:
-    """The nearest edge of the window for *raw*, or ``None`` if *raw* stays."""
+def _clamped(raw: object, tz: tzinfo) -> str | None:
+    """The fixed value for *raw*, or ``None`` if *raw* stays as it is.
+
+    Older builds stored a part date as is, which gave a naive ``last_completed``
+    and ``next_due``. A naive value gets *tz*, as each writer does, and is then
+    tested against the window. A value outside the window gets the nearest edge.
+    """
     if not isinstance(raw, str):
         return None
     try:
         parsed = datetime.fromisoformat(raw)
     except ValueError:
         return None
-    if parsed.tzinfo is None or recurrence.in_window(parsed):
-        return None
+    naive = parsed.tzinfo is None
+    if naive:
+        parsed = parsed.replace(tzinfo=tz)
+    if recurrence.in_window(parsed):
+        return parsed.isoformat() if naive else None
     # Compare the instants. A wall time is wrong near an edge: 2199-12-31 23:00 at
     # UTC-2 is after the top edge. Python compares 2 aware datetimes without a
     # conversion to UTC, so this comparison does not overflow where astimezone does.
@@ -110,16 +118,17 @@ def _clamped(raw: object) -> str | None:
     return recurrence.DATETIME_MIN.isoformat()
 
 
-def clamp_task_datetimes(task: dict[str, Any]) -> list[str]:
-    """Move each stored datetime of *task* that is outside the window to its edge.
+def clamp_task_datetimes(task: dict[str, Any], *, tz: tzinfo) -> list[str]:
+    """Fix each stored datetime of *task* that is naive or outside the window.
 
-    The store calls this on load, so a value that an older version accepted cannot
-    stop setup. A value that is not an aware ISO datetime stays as it is. Returns
-    the task keys that changed.
+    The store calls this on load with Home Assistant's zone as *tz*, so a value that
+    an older version accepted cannot stop setup. A naive value gets *tz*. A value
+    outside the window moves to its nearest edge. A value that is not an ISO
+    datetime stays as it is. Returns the task keys that changed.
     """
     changed: list[str] = []
     for key in _TASK_DATETIME_KEYS:
-        edge = _clamped(task.get(key))
+        edge = _clamped(task.get(key), tz)
         if edge is not None:
             task[key] = edge
             changed.append(key)
@@ -131,7 +140,7 @@ def clamp_task_datetimes(task: dict[str, Any]) -> list[str]:
             if not isinstance(entry, dict):
                 continue
             for entry_key in entry_keys:
-                edge = _clamped(entry.get(entry_key))
+                edge = _clamped(entry.get(entry_key), tz)
                 if edge is not None:
                     entry[entry_key] = edge
                     if key not in changed:

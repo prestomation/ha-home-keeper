@@ -12,7 +12,7 @@ implements:
 max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 9cc9c33cda6e
+source_hash: b9240d903b61
 ---
 
 # Task model and recurrence
@@ -132,10 +132,10 @@ and `models.normalize_fields` refuses a naive fixed anchor in a daylight-saving 
 
 A stored datetime is in the window from `recurrence.DATETIME_MIN` (1900-01-01 UTC) to
 `recurrence.DATETIME_MAX` (2200-01-01 UTC). `models.check_datetime` refuses an input outside it in
-`build_task`, `merge_update`, the store mutations and the import. Load moves a stored value outside
-to the nearest edge (`models.clamp_task_datetimes`). 1900 is before any home record. 2200 plus the
-longest interval is far below year 9999, so the date math does not overflow. The readers also
-catch `OverflowError`, and the entities read through `recurrence.stored_moment`.
+`build_task`, `merge_update`, the store mutations and the import. On load,
+`models.clamp_task_datetimes` gives a naive stored value the configured zone and moves a value
+outside to the nearest edge. 1900 is before any home record. 2200 plus the longest interval is far
+below year 9999, so the date math does not overflow. The readers also catch `OverflowError`.
 
 ### Completion and skip
 

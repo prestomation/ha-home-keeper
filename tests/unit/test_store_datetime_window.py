@@ -128,3 +128,33 @@ def test_load_clamps_a_stored_datetime_outside_the_window(store):
     assert store._store.data["tasks"][task["id"]]["last_completed"] == TOP
     # The one-off purge reads the clamped value without an overflow.
     assert recurrence.one_off_expired(loaded, 30, now=NOW) is False
+
+
+def test_check_moment_reads_a_naive_value_in_the_zone_it_is_passed():
+    # 2200-01-01 05:00 at UTC+14 is 2199-12-31 15:00 UTC, inside the window. In
+    # the zone of the clock (UTC-4) it is outside.
+    naive = datetime(2200, 1, 1, 5)
+    store_mod._check_moment(naive, "until", tz=timezone(timedelta(hours=14)))
+    with pytest.raises(TaskValidationError, match="until must be between"):
+        store_mod._check_moment(naive, "until")
+
+
+def test_complete_task_reads_a_naive_completed_at_in_the_zone_of_now(store):
+    task = _floating(store)
+    east = datetime(2026, 6, 13, 10, tzinfo=timezone(timedelta(hours=14)))
+    prior = store_mod.dt_util.now
+    store_mod.dt_util.now = lambda: east
+    try:
+        updated = _run(store.complete_task(task["id"], datetime(2200, 1, 1, 5)))
+    finally:
+        store_mod.dt_util.now = prior
+    assert updated["completions"][-1]["ts"] == "2200-01-01T05:00:00+14:00"
+
+
+def test_load_gives_a_naive_stored_value_the_home_assistant_zone(store):
+    task = models.build_task({"name": "x", "interval": 1, "unit": "days"}, now=NOW)
+    task["next_due"] = "2026-07-01T00:00:00"
+    store._store.data = {"tasks": {task["id"]: task}}
+    _run(store.load())
+    expected = datetime(2026, 7, 1, tzinfo=TZ).isoformat()
+    assert store.get_task(task["id"])["next_due"] == expected

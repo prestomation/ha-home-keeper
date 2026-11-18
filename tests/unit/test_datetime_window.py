@@ -183,7 +183,7 @@ def test_clamp_moves_each_stored_value_to_the_nearest_edge():
     task["moved_occurrences"] = [
         {"from": "2026-06-01T00:00:00+00:00", "to": "9999-01-01T00:00:00+00:00"}
     ]
-    changed = models.clamp_task_datetimes(task)
+    changed = models.clamp_task_datetimes(task, tz=UTC)
     top = (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
     assert task["last_completed"] == top
     assert task["completions"] == [{"ts": top}]
@@ -205,14 +205,14 @@ def test_clamp_moves_each_stored_value_to_the_nearest_edge():
 def test_clamp_keeps_a_task_inside_the_window_as_it_is():
     task = _completed_one_off("2026-01-01T00:00:00-05:00")
     before = dict(task)
-    assert models.clamp_task_datetimes(task) == []
+    assert models.clamp_task_datetimes(task, tz=UTC) == []
     assert task == before
 
 
 def test_clamp_keeps_a_value_that_is_not_a_date():
     task = _completed_one_off("2026-01-01T00:00:00+00:00")
     task["next_due"] = "soon"
-    assert models.clamp_task_datetimes(task) == []
+    assert models.clamp_task_datetimes(task, tz=UTC) == []
     assert task["next_due"] == "soon"
 
 
@@ -313,7 +313,7 @@ def test_a_naive_seed_gets_the_zone_of_now():
 
 def test_clamp_moves_a_value_on_the_top_edge_to_the_last_second():
     task = _completed_one_off("2200-01-01T00:00:00+00:00")
-    models.clamp_task_datetimes(task)
+    models.clamp_task_datetimes(task, tz=UTC)
     assert (
         task["last_completed"]
         == (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
@@ -324,7 +324,7 @@ def test_clamp_goes_on_past_a_list_or_an_entry_that_is_not_valid():
     task = _completed_one_off("2026-01-01T00:00:00+00:00")
     task["completions"] = "junk"
     task["skips"] = ["junk", {"ts": "9999-01-01T00:00:00+00:00"}]
-    assert models.clamp_task_datetimes(task) == ["skips"]
+    assert models.clamp_task_datetimes(task, tz=UTC) == ["skips"]
     assert (
         task["skips"][1]["ts"]
         == (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
@@ -426,7 +426,7 @@ def test_an_import_with_a_moved_date_outside_the_window_reports_a_problem(value)
 )
 def test_clamp_picks_the_edge_by_the_utc_instant(value, edge):
     task = _completed_one_off(value)
-    models.clamp_task_datetimes(task)
+    models.clamp_task_datetimes(task, tz=UTC)
     expected = {
         "top": (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat(),
         "bottom": recurrence.DATETIME_MIN.isoformat(),
@@ -453,3 +453,31 @@ def test_moved_dates_that_are_not_a_list_are_refused():
         models.TaskValidationError, match=r"^moved_occurrences must be a list$"
     ):
         models.normalize_moved_occurrences({"from": "x"})
+
+
+# ── a naive stored value ─────────────────────────────────────────────────────
+WEST = timezone(timedelta(hours=-4))
+
+
+def test_clamp_gives_a_naive_stored_value_the_zone_it_is_passed():
+    # Older builds stored a part date as is, which gave a naive due date.
+    task = _completed_one_off("2026-01-01T00:00:00")
+    task["next_due"] = "2026-07-01T00:00:00"
+    changed = models.clamp_task_datetimes(task, tz=WEST)
+    assert task["last_completed"] == "2026-01-01T00:00:00-04:00"
+    assert task["next_due"] == "2026-07-01T00:00:00-04:00"
+    assert task["completions"] == [{"ts": "2026-01-01T00:00:00-04:00"}]
+    assert sorted(changed) == ["completions", "last_completed", "next_due"]
+
+
+def test_clamp_tests_a_naive_stored_value_in_its_zone_against_the_window():
+    task = _completed_one_off("9999-12-31T00:00:00")
+    task["next_due"] = "0001-01-01T00:00:00"
+    models.clamp_task_datetimes(task, tz=WEST)
+    assert (
+        task["last_completed"]
+        == (recurrence.DATETIME_MAX - timedelta(seconds=1)).isoformat()
+    )
+    assert task["next_due"] == recurrence.DATETIME_MIN.isoformat()
+    # The readers compare it with an aware now, which a naive value cannot do.
+    assert recurrence.is_overdue(task, now=NOW) is True
