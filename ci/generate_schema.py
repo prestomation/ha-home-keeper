@@ -143,10 +143,10 @@ def _serialize(schema: Any) -> Any:
 def _tidy(node: Any) -> Any:
     """Drop the artefacts of the conversion, in place of nothing else.
 
-    Only two, and neither says anything about a field: an empty ``required`` list
-    (which means "nothing is required", the same as leaving it out) and OpenAPI's
-    ``nullable`` flag if a future version of the library emits one under the 3.1
-    dialect.
+    Two of them say nothing about a field: an empty ``required`` list (which means
+    "nothing is required", the same as leaving it out) and OpenAPI's ``nullable``
+    flag if a future version of the library emits one under the 3.1 dialect. The
+    third is a list limit written as a string length, which is renamed.
     """
     if isinstance(node, dict):
         node = {key: _tidy(value) for key, value in node.items()}
@@ -154,6 +154,15 @@ def _tidy(node: Any) -> Any:
             node.pop("required")
         if node.pop("nullable", None) and "type" in node:
             node["type"] = [node["type"], "null"]
+        if node.get("type") == "array":
+            # The library writes ``vol.Length`` on a list as a string length. JSON
+            # Schema reads that only on a string, so a list gets an item count.
+            for text_key, list_key in (
+                ("maxLength", "maxItems"),
+                ("minLength", "minItems"),
+            ):
+                if text_key in node:
+                    node[list_key] = node.pop(text_key)
         return node
     if isinstance(node, list):
         return [_tidy(item) for item in node]

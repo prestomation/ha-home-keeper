@@ -33,6 +33,11 @@ BAD_FIELDS = [
 ]
 
 
+# The fields that pass the service schema and that the store refuses. The others are
+# refused by the service schema.
+_STORE_CHECKED = {"task_chips"}
+
+
 def _token(ha) -> str:
     return ha.headers["Authorization"].split(" ", 1)[1]
 
@@ -59,8 +64,17 @@ def test_the_add_task_service_refuses_a_field_over_its_limit(ha, label, field, v
         json={"name": name, "interval": 1, "unit": "days", field: value},
     )
     stored = _cleanup(ha, name)
-    assert r.status_code == 400, r.text
     assert stored is None
+    if field in _STORE_CHECKED:
+        # The store raises ServiceValidationError. Home Assistant 2026.1 answers it
+        # with 500 and no message over REST; later releases answer 400 with the text.
+        assert r.status_code in (400, 500), r.text
+        if r.status_code == 400:
+            assert field in r.text, r.text
+    else:
+        # The service schema refuses the value, with a bare 400 on every version.
+        # The websocket test below runs the same schema and checks the message.
+        assert r.status_code == 400, r.text
 
 
 @pytest.mark.parametrize(
@@ -79,6 +93,7 @@ def test_the_add_task_websocket_command_refuses_a_field_over_its_limit(
     )
     stored = _cleanup(ha, name)
     assert not msg.get("success"), msg
+    assert field in msg["error"]["message"], msg
     assert stored is None
 
 
