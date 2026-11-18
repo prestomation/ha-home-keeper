@@ -950,9 +950,9 @@ export function restoreMasterScroll(root: ShadowRoot, top: number): void {
   let height = -1;
   let still = 0;
   let frames = 0;
-  let left: number | null = null;
+  let lastTop: number | null = null;
   const place = (): void => {
-    if (!pane.isConnected || (left !== null && pane.scrollTop !== left)) return;
+    if (!pane.isConnected || (lastTop !== null && pane.scrollTop !== lastTop)) return;
     if (top) pane.scrollTop = top;
     const open = pane.querySelector<HTMLElement>('.hk-selected');
     if (open) {
@@ -961,7 +961,7 @@ export function restoreMasterScroll(root: ShadowRoot, top: number): void {
       if (row.top < view.top) pane.scrollTop += row.top - view.top;
       else if (row.bottom > view.bottom) pane.scrollTop += row.bottom - view.bottom;
     }
-    left = pane.scrollTop;
+    lastTop = pane.scrollTop;
     still = pane.scrollHeight === height ? still + 1 : 0;
     height = pane.scrollHeight;
     if (still < 2 && ++frames < 30) requestAnimationFrame(place);
