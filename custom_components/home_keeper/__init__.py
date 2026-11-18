@@ -63,6 +63,8 @@ from .const import (
     DOMAIN,
     DUE_TIME_MODES,
     MAX_ONE_OFF_RETENTION_DAYS,
+    MAX_SEASON_WINDOWS,
+    MAX_SNOOZE_HOURS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -203,13 +205,15 @@ ADD_TASK_SCHEMA = vol.Schema(
         # How long Snooze moves this task, in hours. ``None`` clears it, and the task
         # then uses the dialog's usual preset and the notification's own length.
         vol.Optional("snooze_hours"): vol.Any(
-            None, vol.All(vol.Coerce(int), vol.Range(min=1))
+            None, vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_SNOOZE_HOURS))
         ),
         # Restrict a floating/fixed task to one or more date ranges each year. A list
         # of ``{"start": "MM-DD", "end": "MM-DD"}`` windows; a single window may be
         # passed as one object, and ``None`` clears the season. Validated by
         # models.normalize_active_season.
-        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        vol.Optional("active_season"): vol.Any(
+            None, dict, vol.All([dict], vol.Length(max=MAX_SEASON_WINDOWS))
+        ),
         # Off keeps the task and everything recorded on it, and takes it out of every
         # surface that reads a schedule: the to-do list, the calendar, the per-task
         # entities, the profiles, the announcements, the sensor watcher and a tag
@@ -250,10 +254,12 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("require_tag_scan"): cv.boolean,
         # See ADD_TASK_SCHEMA: ``None`` clears the snooze length.
         vol.Optional("snooze_hours"): vol.Any(
-            None, vol.All(vol.Coerce(int), vol.Range(min=1))
+            None, vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_SNOOZE_HOURS))
         ),
         # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
-        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        vol.Optional("active_season"): vol.Any(
+            None, dict, vol.All([dict], vol.Length(max=MAX_SEASON_WINDOWS))
+        ),
         # See ADD_TASK_SCHEMA. Off takes the task out of every schedule surface and
         # leaves ``next_due`` where it was.
         vol.Optional("enabled"): cv.boolean,
@@ -290,7 +296,9 @@ SNOOZE_TASK_SCHEMA = vol.Schema(
         vol.Required("task_id"): cv.string,
         # Whole hours ≥ 1, matching services.yaml's number selector and the
         # notification snooze_hours contract (normalize_notification / the panel).
-        vol.Exclusive("hours", "deferral"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Exclusive("hours", "deferral"): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=MAX_SNOOZE_HOURS)
+        ),
         vol.Exclusive("until", "deferral"): cv.datetime,
         vol.Optional("origin"): cv.string,
     }
@@ -782,7 +790,9 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
         # shape at all, and a schema that says "object" would reject the list every
         # export actually writes.
         vol.Optional("active_season"): vol.Any(
-            None, _SEASON_WINDOW_SCHEMA, [_SEASON_WINDOW_SCHEMA]
+            None,
+            _SEASON_WINDOW_SCHEMA,
+            vol.All([_SEASON_WINDOW_SCHEMA], vol.Length(max=MAX_SEASON_WINDOWS)),
         ),
         vol.Optional("history"): [
             _entry_schema(COMPLETION_ENTRY_FIELDS, "completed_at")

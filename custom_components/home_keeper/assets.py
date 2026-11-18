@@ -51,6 +51,8 @@ from .const import (
     MAX_COMPLETION_HISTORY,
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
+    MAX_RECORD_ID_LEN,
+    MAX_URL_LEN,
     MAX_USE_NOUN_LEN,
     MAX_USE_TARGET,
     MIN_USE_RETENTION,
@@ -117,7 +119,7 @@ _MAX_DOC_NAME_LEN = 200
 # rewritten on every save, and each file can be up to MAX_DOCUMENT_BYTES on disk).
 _MAX_DOCUMENTS = 50
 
-_MAX_URL_LEN = 2048
+_MAX_URL_LEN = MAX_URL_LEN
 _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
 
 # Spare quantities are decimal. Three places is enough for the units people actually
@@ -236,7 +238,7 @@ def _normalize_metadata_entry(raw: Any) -> dict:
     if not label:
         raise AssetValidationError("metadata label must not be empty")
     entry: dict[str, Any] = {
-        "id": str(raw.get("id") or uuid.uuid4()),
+        "id": _record_id(raw),
         "type": mtype,
         "label": label,
     }
@@ -294,7 +296,7 @@ def _normalize_document_entry(raw: Any) -> dict:
     if len(name) > _MAX_DOC_NAME_LEN:
         raise AssetValidationError("document name is too long")
     entry: dict[str, Any] = {
-        "id": str(raw.get("id") or uuid.uuid4()),
+        "id": _record_id(raw),
         "kind": kind,
         "created": str(raw.get("created") or ""),
     }
@@ -466,6 +468,14 @@ def _round_stock(value: float) -> float:
     """
     rounded = round(float(value), _STOCK_DECIMALS)
     return int(rounded) if rounded == int(rounded) else rounded
+
+
+def _record_id(raw: dict[str, Any]) -> str:
+    """The id of a part, a document or a metadata entry: the caller's, or a new one."""
+    record_id = str(raw.get("id") or uuid.uuid4())
+    if len(record_id) > MAX_RECORD_ID_LEN:
+        raise AssetValidationError(f"id must be at most {MAX_RECORD_ID_LEN} characters")
+    return record_id
 
 
 def _normalize_stock(value: Any, field: str) -> float | None:
@@ -682,7 +692,7 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         raise AssetValidationError(f"invalid part type: {ptype!r}")
 
     part: dict[str, Any] = {
-        "id": str(raw.get("id") or uuid.uuid4()),
+        "id": _record_id(raw),
         "name": name,
         "part_number": str(
             _reject_boolean(raw.get("part_number"), "part_number") or ""

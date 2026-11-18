@@ -51,6 +51,7 @@ from .const import (
     MAX_DECLARATIVE_TASK_NAME_LEN,
     MAX_DECLARATIVE_TRANSLATION_KEY_LEN,
     MAX_DECLARATIVE_TRANSLATION_KEYS,
+    MAX_ENTITY_ID_LEN,
     REC_SENSOR,
     SENSOR_MODE_USAGE,
     TASK_SOURCE_DECLARATIVE_COMPANION,
@@ -110,6 +111,10 @@ def _clean_id_list(value: Any, field: str) -> list[str]:
         value = [value]
     if not isinstance(value, (list, tuple)):
         raise DeclarativeCompanionValidationError(f"{field} must be a list")
+    if len(value) > MAX_DECLARATIVE_TRANSLATION_KEYS:
+        raise DeclarativeCompanionValidationError(
+            f"{field} must have <= {MAX_DECLARATIVE_TRANSLATION_KEYS} entries"
+        )
     seen: set[str] = set()
     result: list[str] = []
     for item in value:
@@ -118,6 +123,10 @@ def _clean_id_list(value: Any, field: str) -> list[str]:
                 f"{field} entries must be strings"
             )
         text = item.strip()
+        if len(text) > MAX_ENTITY_ID_LEN:
+            raise DeclarativeCompanionValidationError(
+                f"{field} entries must be at most {MAX_ENTITY_ID_LEN} characters"
+            )
         if text and text not in seen:
             seen.add(text)
             result.append(text)
@@ -362,6 +371,12 @@ def normalize_declarative_companion(
                 raise DeclarativeCompanionValidationError(
                     f"{ts_field} must be an ISO timestamp string"
                 )
+            # Text that is not a time is left out, and the store writes its own
+            # time. A refusal here would drop a stored spec on load.
+            try:
+                datetime.fromisoformat(raw)
+            except ValueError:
+                continue
             result[ts_field] = raw
     return result
 

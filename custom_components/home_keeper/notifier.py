@@ -25,6 +25,7 @@ from homeassistant.util import dt as dt_util
 
 from . import notifications, profiles, recurrence, repeats
 from .const import (
+    MAX_SNOOZE_HOURS,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_NOTIFICATIONS,
@@ -614,8 +615,12 @@ def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
                 ) and not notifications.is_completion_blocked(task):
                     return
                 # The task's own snooze length wins over the notification's.
-                hours = notifications.snooze_hours_for(
-                    coord.store.get_task(task_id), notification
+                # An older version stored any length, so cut it to the longest one.
+                hours = min(
+                    notifications.snooze_hours_for(
+                        coord.store.get_task(task_id), notification
+                    ),
+                    MAX_SNOOZE_HOURS,
                 )
                 # Count from the due date when that is later than now, the same as
                 # the service and the panel (F10-2).

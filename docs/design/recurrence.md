@@ -12,7 +12,7 @@ implements:
 max_lines: 200
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: f45be40915fc
+source_hash: acd3105a9d0c
 ---
 
 # Task model and recurrence
@@ -75,11 +75,11 @@ panel and the dashboard card the Snooze, Skip and Due today actions and the sche
 ### Fixed schedules
 
 `rrule` is an RFC 5545 RRULE body, and `anchor` is its DTSTART and gives the time of day.
-`recurrence.normalize_rule` is the 1 validator. It removes an `RRULE:` prefix, needs a FREQ
-in `const.RULE_FREQS`, and refuses `const.RULE_FORBIDDEN_PARTS` (COUNT, UNTIL, DTSTART and
-the sub-daily parts). It also refuses a rule over `MAX_RULE_LENGTH` or with no date in 20
-years. `recurrence.legacy_rule` converts `freq` and `interval`: `models.normalize_fields`
-uses it on input, and `models.migrate_legacy_fixed_schedule` uses it on store load.
+`recurrence.normalize_rule` is the 1 validator. It removes an `RRULE:` prefix, needs a FREQ in
+`const.RULE_FREQS`, and refuses `const.RULE_FORBIDDEN_PARTS`, a rule over `MAX_RULE_LENGTH`, and a
+rule with no date in 20 years. The probe is slow, so `recurrence._probe_rule` keeps each answer and
+the store runs `recurrence.warm_rule` in an executor first. `recurrence.legacy_rule` converts `freq`
+and `interval` on input and in `models.migrate_legacy_fixed_schedule`.
 
 `dateutil.rrule` expands the rule on naive local wall time. `recurrence.effective_rule` first writes
 out each day that dateutil takes from DTSTART. A plain monthly rule on the 29th to 31st becomes
@@ -172,12 +172,12 @@ option to `one_off_completed`, and the coordinator deletes an expired task.
 
 ### Seasons
 
-`active_season` is 1 or more `{"start": "MM-DD", "end": "MM-DD"}` windows. A window can wrap the
-year end. `recurrence._clamp_season` moves a date outside the season to the next season start. The
-fixed clamp, the calendar and `upcoming_occurrences` use `recurrence.next_in_season_occurrence`.
-Each walk step goes to just before the next season start. The walk stops after `MAX_SEASON_STEPS`
-(100) steps, which cover 20 years of 5 windows, or past 1 `_horizon`, in which `normalize_rule`
-needs a date. `models.require_season_date` refuses a rule with no date in the bound.
+`active_season` is 1 to `MAX_SEASON_WINDOWS` (12) `{"start": "MM-DD", "end": "MM-DD"}` windows. A
+window can wrap the year end. `recurrence._clamp_season` moves a date outside it to the next season
+start. `recurrence.next_in_season_occurrence` serves the fixed clamp, the calendar and
+`upcoming_occurrences`. Each walk step goes to just before a season start. The walk stops after
+`MAX_SEASON_STEPS` (100) steps, about 8 years of 12 windows, or past 1 `_horizon`, in which
+`normalize_rule` needs a date. `models.require_season_date` refuses a rule that has none.
 
 ## Trade-offs
 

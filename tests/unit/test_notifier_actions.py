@@ -503,3 +503,14 @@ def test_b16_1_a_kind_the_notification_does_not_listen_for_does_not_send(monkeyp
 def test_b16_1_a_crossed_task_that_no_longer_exists_does_not_send(monkeypatch):
     """B16-1: a crossing for a task removed since is not a match."""
     assert _send_auto(monkeypatch, [("overdue", "gone")]) == []
+
+
+def test_a_snooze_tap_with_a_stored_length_over_the_limit_moves_1_year():
+    # An older version stored any length. The tap must not overflow the date math.
+    task = {**overdue_task("t1", days=3), "snooze_hours": 10**12}
+    hass, coord = _setup({"t1": task}, _options())
+
+    _tap(hass, _action("snooze", task))
+
+    assert coord.store.calls == [("snooze", "t1")]
+    assert task["next_due"] == (NOW + timedelta(hours=8760)).isoformat()

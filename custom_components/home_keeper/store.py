@@ -704,6 +704,7 @@ class HomeKeeperStore:
                     "own task reconcilers and cannot be set via add_task"
                 )
         _refuse_moves(data)
+        await self._warm_rule(data)
         task = models.build_task(data, now=dt_util.now(), due_time=self._due_time)
         self._check_template_syntax(task)
         self._tasks[task["id"]] = task
@@ -735,9 +736,20 @@ class HomeKeeperStore:
                 f"sensor.template is not a valid template: {err}"
             ) from err
 
+    async def _warm_rule(self, data: dict[str, Any]) -> None:
+        """Check a new ``rrule`` in an executor, before the event loop builds the task.
+
+        The check of a rule with no date takes seconds. Call this before the task is
+        read from ``self._tasks``: an await between that read and the write would let
+        a second write come in between and get lost.
+        """
+        if isinstance(rule := data.get("rrule"), str):
+            await self._hass.async_add_executor_job(recurrence.warm_rule, rule)
+
     async def update_task(
         self, task_id: str, updates: dict[str, Any]
     ) -> dict[str, Any]:
+        await self._warm_rule(updates)
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)

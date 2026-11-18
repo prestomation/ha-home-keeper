@@ -319,3 +319,35 @@ def test_the_schema_url_names_the_format_and_matches_the_exported_file(schema):
 
 def test_the_schema_declares_the_dialect_it_is_written_in(schema):
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+
+
+def _arrays(node, path="$"):
+    """Each array node of the schema, with its path."""
+    if isinstance(node, dict):
+        if node.get("type") == "array":
+            yield path, node
+        for key, value in node.items():
+            yield from _arrays(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _arrays(value, f"{path}[{index}]")
+
+
+def test_an_array_limit_is_published_as_max_items(schema):
+    # JSON Schema reads maxLength only on a string, so a list limit needs maxItems.
+    bad = [
+        path for path, node in _arrays(schema) if {"maxLength", "minLength"} & set(node)
+    ]
+    assert bad == []
+    season = schema["properties"]["tasks"]["items"]["properties"]["active_season"]
+    lists = [branch for branch in season["anyOf"] if branch.get("type") == "array"]
+    assert [branch.get("maxItems") for branch in lists] == [12]
+
+
+def test_the_schema_refuses_a_season_of_13_windows(validator):
+    window = {"start": "01-01", "end": "01-10"}
+    task = {"name": "T", "interval": 1, "unit": "days", "active_season": [window] * 13}
+    document = {"home_keeper": {"format": 1}, "tasks": [task]}
+    assert not validator.is_valid(document)
+    task["active_season"] = [window] * 12
+    assert validator.is_valid(document)

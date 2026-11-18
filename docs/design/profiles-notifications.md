@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: c07756b248f6
+source_hash: 5e32e10aebf3
 ---
 
 # Profiles and notifications
@@ -106,8 +106,8 @@ Skip, and Done only on an overdue task. The same action string again within 10 s
 `notifications.actions_for` removes a verb that the `allow_snooze` or `allow_skip`
 option turns off. It removes Done and Skip for a completion-blocked task, and Done for a
 task that needs a tag scan. If no verb that advances the walk is left, it adds Snooze
-before the other buttons, also when `allow_snooze` is off. Snooze length is the task's
-own `snooze_hours`, else the notification's (`notifications.snooze_hours_for`).
+before the other buttons, also when `allow_snooze` is off. Snooze length is the task's own
+`snooze_hours`, else the notification's (`notifications.snooze_hours_for`), up to 1 year.
 
 ### Payload text and look
 

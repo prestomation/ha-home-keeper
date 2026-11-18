@@ -35,7 +35,9 @@ from .const import (
     DUE_TIME_MODE_COMPLETION,
     DUE_TIME_MODE_SET_TIME,
     DUE_TIME_MODES,
+    MAX_COMPANIONS,
     MAX_ONE_OFF_RETENTION_DAYS,
+    MAX_PANEL_TABS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -72,6 +74,12 @@ _LIST_OPTIONS = (
     OPTION_DISMISSED_COMPANIONS,
     OPTION_HIDDEN_PANEL_TABS,
 )
+
+# The most entries that a list option can hold, where a constant gives one.
+_LIST_LIMITS = {
+    OPTION_DISMISSED_COMPANIONS: MAX_COMPANIONS,
+    OPTION_HIDDEN_PANEL_TABS: MAX_PANEL_TABS,
+}
 
 # The plain on/off options. ``_normalize`` coerces each with ``bool()`` when a
 # submission carries it, so they share one branch rather than accumulating an ``if``
@@ -451,7 +459,9 @@ def _normalize(
         if value is None:
             merged[key] = []
         elif isinstance(value, list):
-            merged[key] = [str(x) for x in value if x]
+            # Each tab and each companion has 1 entry, so a longer list holds
+            # nothing more. The 4 exclusion lists have no limit.
+            merged[key] = [str(x) for x in value if x][: _LIST_LIMITS.get(key)]
     return merged
 
 
