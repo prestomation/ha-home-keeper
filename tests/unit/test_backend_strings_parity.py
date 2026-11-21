@@ -51,6 +51,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "nb": _BRAND_IDENTICAL,
     "ru": _BRAND_IDENTICAL,
     "sv": _BRAND_IDENTICAL,
+    "uk": _BRAND_IDENTICAL,
     "zh-Hans": _BRAND_IDENTICAL,
 }
 

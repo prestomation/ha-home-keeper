@@ -119,6 +119,7 @@ const COGNATE_IDENTICAL = {
   'pt-BR': ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'group.status', 'notify.opt.normal', 'opt.meta.link'],
   ru: ['detail.id', 'field.doc_url'],
   sv: ['chip.orphaned', 'detail.id', 'field.doc_url', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.text', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.9'],
+  uk: ['detail.id', 'field.doc_url'],
   'zh-Hans': ['detail.id', 'field.doc_url'],
 };
 
@@ -174,7 +175,15 @@ describe('locale key parity', () => {
       const tokens = (s) => (s.match(/\{\w+\}/g) || []).sort();
       for (const key of enKeys) {
         if (table[key] === undefined) continue;
-        expect(tokens(table[key])).toEqual(tokens(LOCALES[DEFAULT_LOCALE][key]));
+        const expected = tokens(LOCALES[DEFAULT_LOCALE][key]);
+        const actual = tokens(table[key]);
+        // tn() supplies {n} even if English omits it, as in "every year".
+        // Ukrainian uses .one for counts such as 21 and needs the number.
+        if (PLURAL_SUFFIX.test(key) && !expected.includes('{n}') && actual.includes('{n}')) {
+          expect(actual).toEqual([...expected, '{n}'].sort());
+        } else {
+          expect(actual).toEqual(expected);
+        }
       }
     });
   }

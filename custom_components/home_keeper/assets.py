@@ -583,7 +583,7 @@ def _normalize_use_noun(value: Any) -> str:
 
     Plural, and free text on purpose: a household counts wears, hikes, cycles, washes
     or brews, and no closed list covers that. The panel renders it verbatim beside the
-    count, because pluralising arbitrary text is not something a UI in 16 languages can
+    count, because pluralising arbitrary text is not something a multilingual UI can
     do. An empty value means the panel shows its own localized word for a use.
     """
     if value in (None, ""):

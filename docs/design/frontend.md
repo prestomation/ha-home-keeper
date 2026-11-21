@@ -31,19 +31,21 @@ implements:
   - custom_components/home_keeper/frontend/src/global.d.ts
   - custom_components/home_keeper/frontend/src/i18n.ts
   - custom_components/home_keeper/frontend/src/locales/index.ts
+  - custom_components/home_keeper/frontend/src/locales/uk.json
   - custom_components/home_keeper/frontend/src/card.ts
   - custom_components/home_keeper/frontend/src/card-index.ts
   - custom_components/home_keeper/card.py
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
+  - custom_components/home_keeper/backend_strings/uk.json
+  - custom_components/home_keeper/translations/uk.json
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: a80b1761aac8
+source_hash: a1ebfd8c58e0
 ---
 
 # Frontend
 
-Home Keeper ships 2 browser bundles of TypeScript custom elements. The panel (`home-keeper-panel`)
-is the admin surface. The card (`home-keeper-card`) is a usage surface on a dashboard for any user.
+The sidebar panel is for administration. The dashboard card is for daily use.
 
 ## Goals
 
@@ -131,10 +133,8 @@ live for the whole run; only `async_remove_entry` removes them.
 
 ### Translations
 
-`i18n.ts` gives `t`, `tn` (CLDR plurals) and `tlist`. `locales/index.ts` bundles 16 JSON tables, so
-no fetch occurs. A lookup falls back to English, then to the key. `backend_i18n.py` builds final
-text: `resolve_exception` reads the `exceptions` group of `strings.json`, and `resolve_string` reads
-`backend_strings/<lang>.json`, such as CSV headers. Setup loads them in the executor.
+`i18n.ts` uses 17 bundled tables offline. The card editor has English and Ukrainian labels.
+`backend_i18n.py` reads translated exceptions and `backend_strings/<lang>.json` in the executor.
 
 ## Trade-offs
 

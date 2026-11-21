@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b7] - 2026-11-21
+
+### Added
+
+- **[Ukrainian language support](https://prestomation.github.io/ha-home-keeper/docs/guide/localization).**
+  Home Keeper is available in Ukrainian.
+
 ## [0.37.0b6] - 2026-11-18
 
 ### Added

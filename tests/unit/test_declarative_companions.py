@@ -1788,7 +1788,7 @@ def test_every_preset_ships_its_task_text_in_every_language():
         for field in ("name_template", "notes_template"):
             # The English entry is the default_spec itself, so the two cannot drift.
             assert texts[field]["en"] == preset["default_spec"]["task_template"][field]
-            assert len(texts[field]) == 16
+            assert sorted(texts[field]) == _LANGS
 
 
 def test_every_translation_keeps_the_jinja_variables():

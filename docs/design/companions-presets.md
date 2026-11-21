@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: c08ae6eee3cb
+source_hash: 220fba4ad6ae
 ---
 
 # Companions and presets
@@ -34,7 +34,7 @@ entity it selects. A preset is a declarative companion spec that ships as data.
   a templated name and notes and a sensor trigger.
 - **G3. Tasks follow the registry.** Tasks follow entities that appear, go, move or get a
   new name, and keep their completion history. The companion owns only the fields it writes.
-- **G4. Presets are data.** 1 catalog row per integration gives its presets in 16
+- **G4. Presets are data.** 1 catalog row per integration gives its presets in 17
   languages, and the Tasks tab suggests the presets that match entities in the home.
 
 ## Non-goals

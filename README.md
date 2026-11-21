@@ -69,7 +69,7 @@ else that recurs.
   triggers such as "Task became overdue" for the visual automation editor.
 - Every data action is a `home_keeper.*` service for automations and scripts and
   voice.
-- Home Keeper is localized in 16 languages and follows the Home Assistant
+- Home Keeper is localized in 17 languages and follows the Home Assistant
   language setting.
 - Other integrations can contribute their own recurring tasks and stay in sync
   with completions.

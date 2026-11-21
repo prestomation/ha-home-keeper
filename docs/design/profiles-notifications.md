@@ -5,10 +5,11 @@ implements:
   - custom_components/home_keeper/profiles.py
   - custom_components/home_keeper/notifications.py
   - custom_components/home_keeper/notifier.py
+  - custom_components/home_keeper/notification_strings/uk.json
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: 5e32e10aebf3
+source_hash: cf73bf83db7b
 ---
 
 # Profiles and notifications
@@ -114,9 +115,8 @@ before the other buttons, also when `allow_snooze` is off. Snooze length is the 
 `notifications.payload_data` builds every `data` block. It expands `channel` and
 `urgency` into the Android and iOS keys and adds `icon` and `color`; `normal` adds no
 keys. Text comes from flat files in `notification_strings/`, 1 for each locale.
-`notifications._t` tries each language of `backend_i18n.language_chain`, and
-`notifications._tn` picks the Babel CLDR plural form. Babel reads files on first use, so
-`notifier` builds payloads in the executor.
+`notifications._t` uses `backend_i18n.language_chain` for fallback. `notifications._tn` uses Babel
+for CLDR plural forms. `notifier` builds payloads in the executor because Babel reads files.
 
 ### Where settings live
 

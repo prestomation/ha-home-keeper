@@ -118,7 +118,7 @@ def test_every_mirrored_event_type_has_a_label_in_every_language() -> None:
         _COMPONENT_DIR / "strings.json",
         *_COMPONENT_DIR.glob("translations/*.json"),
     ]
-    assert len(files) == 17
+    assert len(files) == 18
     for path in files:
         events = json.loads(path.read_text(encoding="utf-8"))["entity"]["event"]
         assert set(events) == {"home_keeper_events"}, path.name

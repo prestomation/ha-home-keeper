@@ -254,6 +254,7 @@ _DEVICE_CHECK_NAMES: dict[str, str] = {
     "pt-BR": "Verificar {{ device_name or friendly_name }}",
     "ru": "Проверить {{ device_name or friendly_name }}",
     "sv": "Kontrollera {{ device_name or friendly_name }}",
+    "uk": "Перевірити {{ device_name or friendly_name }}",
     "zh-Hans": "检查 {{ device_name or friendly_name }}",
 }
 
@@ -328,6 +329,10 @@ PRESET_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
                 "Device Pulse har inte fått svar från "
                 "{{ device_name or friendly_name }} på en timme."
             ),
+            "uk": (
+                "Device Pulse уже годину не отримує відповіді від пристрою "
+                "{{ device_name or friendly_name }}."
+            ),
             "zh-Hans": (
                 "Device Pulse 已有一小时未收到 "
                 "{{ device_name or friendly_name }} 的回应。"
@@ -354,6 +359,7 @@ PRESET_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
             "pt-BR": "Este dispositivo se comunicou pela última vez às {{ state }}.",
             "ru": "Это устройство последний раз выходило на связь в {{ state }}.",
             "sv": "Den här enheten rapporterade senast {{ state }}.",
+            "uk": "Час останнього зв'язку з пристроєм: {{ state }}.",
             "zh-Hans": "此设备最后一次报告的时间为 {{ state }}。",
         },
     },
@@ -374,6 +380,7 @@ PRESET_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
             "pt-BR": "Atualizar {{ friendly_name }}",
             "ru": "Обновить {{ friendly_name }}",
             "sv": "Uppdatera {{ friendly_name }}",
+            "uk": "Оновити {{ friendly_name }}",
             "zh-Hans": "更新 {{ friendly_name }}",
         },
         "notes_template": {
@@ -394,6 +401,7 @@ PRESET_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
             ),
             "ru": "Последняя версия: {{ attributes.latest_version or 'неизвестна' }}",
             "sv": "Senaste version: {{ attributes.latest_version or 'okänd' }}",
+            "uk": "Найновіша версія: {{ attributes.latest_version or 'невідома' }}",
             "zh-Hans": "最新版本：{{ attributes.latest_version or '未知' }}",  # noqa: RUF001
         },
     },
@@ -462,6 +470,10 @@ _LEGACY_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
             "sv": (
                 "Device Pulse rapporterar {{ state }} "
                 "misslyckade ping för {{ friendly_name }}."
+            ),
+            "uk": (
+                "Невдалі перевірки ping для {{ friendly_name }} "
+                "за даними Device Pulse: {{ state }}."
             ),
             "zh-Hans": (
                 "Device Pulse 报告 {{ friendly_name }} 有 {{ state }} 次 ping 失败。"

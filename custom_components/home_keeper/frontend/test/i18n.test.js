@@ -55,6 +55,16 @@ describe('tn() pluralization', () => {
     expect(tn('asset.parts', 5)).toBe(LOCALES.pl['asset.parts.many'].replace('{n}', '5'));
   });
 
+  it('uses Ukrainian for a regional tag and keeps the count in the one form', () => {
+    setLanguage('uk-UA');
+    expect(getLanguage()).toBe('uk');
+    expect(t('tab.tasks')).toBe('Завдання');
+    expect(tn('due.in_days', 2)).toBe('через 2 дні');
+    expect(tn('due.in_days', 5)).toBe('через 5 днів');
+    expect(tn('due.in_days', 1.5)).toBe('через 1.5 дня');
+    expect(tn('recurrence.yearly', 21)).toBe('раз на 21 рік');
+  });
+
   it('falls back to .other when a category key is absent', () => {
     // Russian selects 'many' for 11; even if a niche key were missing the
     // template must never be undefined.
