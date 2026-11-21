@@ -142,8 +142,10 @@ const REQUIRED_COMPONENTS = [
 ];
 
 /**
- * Default text for the card editor and the "Add card" picker. The runtime
- * list uses the shared locale tables through `t()`.
+ * English-only strings for the card's *editor* and the "add card" picker. The
+ * card's runtime list reuses the panel's translated keys via `t()`; the config
+ * UI (admin-facing) stays in English so we don't ship machine translations into
+ * the shared, parity-checked locale tables.
  */
 const S: Record<string, string> = {
   name: 'Home Keeper Tasks',
@@ -177,93 +179,55 @@ const S: Record<string, string> = {
   hide_when_empty: 'Hide card when empty',
 };
 
-const UK_EDITOR_TEXT: Record<string, string> = {
-  title: 'Заголовок',
-  profile: 'Фільтрувати за профілем',
-  profileNone: 'Без профілю',
-  filter: 'Фільтр',
-  sort: 'Сортувати за',
-  group_by: 'Групувати за',
-  collapsed: 'Згортати групи під час відкриття',
-  collapsed_groups: 'Згортати вибрані групи',
-  collapse_above: 'Поріг згортання, завдань (0 = вимк.)',
-  areas: 'Лише вибрані зони',
-  devices: 'Лише вибрані пристрої',
-  labels: 'Лише вибрані мітки',
-  label_match: 'Збіг міток',
-  recurrence_types: 'Типи повторення',
-  horizon_days: 'Показувати завдання на найближчі дні (0 = без обмеження)',
-  max_items: 'Максимум завдань (0 = без обмеження)',
-  show_add: 'Показувати кнопку додавання',
-  show_notes: 'Показувати примітки',
-  show_area: 'Показувати зону або пристрій',
-  show_labels: 'Показувати мітки',
-  show_schedule: 'Показувати розклад',
-  show_history_count: 'Показувати кількість виконань',
-  hide_managed: 'Приховувати завдання від інтеграцій',
-  show_disabled: 'Показувати вимкнені завдання',
-  confirm_complete: 'Запитувати підтвердження виконання',
-  hide_when_empty: 'Приховувати порожню картку',
-};
-
-type EditorOption<T extends string = string> = { value: T; label: string; ukLabel: string };
-
-function editorOptions(options: EditorOption[], ukrainian: boolean) {
-  return options.map(({ value, label, ukLabel }) => ({
-    value,
-    label: ukrainian ? ukLabel : label,
-  }));
-}
-
-export const FILTER_OPTS: EditorOption<CardFilter>[] = [
-  { value: 'all', label: 'All', ukLabel: 'Усі' },
-  { value: 'overdue', label: 'Overdue', ukLabel: 'Прострочені' },
-  { value: 'today', label: 'Due by today (incl. overdue)', ukLabel: 'На сьогодні й прострочені' },
-  { value: 'soon', label: 'Due soon', ukLabel: 'Найближчим часом' },
-  { value: 'no_due', label: 'No due date', ukLabel: 'Без терміну виконання' },
-  { value: 'shopping', label: 'Shopping (buy reminders)', ukLabel: 'Покупки (нагадування)' },
-  { value: 'counted', label: 'Counted wear (use tasks)', ukLabel: 'За лічильником використання' },
+export const FILTER_OPTS: { value: CardFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'today', label: 'Due by today (incl. overdue)' },
+  { value: 'soon', label: 'Due soon' },
+  { value: 'no_due', label: 'No due date' },
+  { value: 'shopping', label: 'Shopping (buy reminders)' },
+  { value: 'counted', label: 'Counted wear (use tasks)' },
 ];
-const SORT_OPTS: EditorOption<CardSort>[] = [
-  { value: 'due', label: 'Next due', ukLabel: 'Наступний термін' },
-  { value: 'name', label: 'Name', ukLabel: 'Назва' },
-  { value: 'recent', label: 'Recently completed', ukLabel: 'Нещодавно виконані' },
-  { value: 'area', label: 'Area', ukLabel: 'Зона' },
+const SORT_OPTS: { value: CardSort; label: string }[] = [
+  { value: 'due', label: 'Next due' },
+  { value: 'name', label: 'Name' },
+  { value: 'recent', label: 'Recently completed' },
+  { value: 'area', label: 'Area' },
 ];
 // The status names for `collapsed_groups`. An area or a device is typed by its id.
-const COLLAPSE_STATUS_OPTS: EditorOption[] = [
-  { value: 'overdue', label: 'Overdue', ukLabel: 'Прострочені' },
-  { value: 'shopping', label: 'Shopping', ukLabel: 'Покупки' },
-  { value: 'counted', label: 'Counted', ukLabel: 'За лічильником' },
-  { value: 'today', label: 'Today', ukLabel: 'Сьогодні' },
-  { value: 'soon', label: 'Soon', ukLabel: 'Незабаром' },
-  { value: 'later', label: 'Later', ukLabel: 'Пізніше' },
-  { value: 'monitored', label: 'Monitored', ukLabel: 'Під наглядом' },
-  { value: 'none', label: 'No schedule, area or device', ukLabel: 'Без розкладу, зони чи пристрою' },
-  { value: 'disabled', label: 'Disabled', ukLabel: 'Вимкнені' },
+const COLLAPSE_STATUS_OPTS: { value: string; label: string }[] = [
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'shopping', label: 'Shopping' },
+  { value: 'counted', label: 'Counted' },
+  { value: 'today', label: 'Today' },
+  { value: 'soon', label: 'Soon' },
+  { value: 'later', label: 'Later' },
+  { value: 'monitored', label: 'Monitored' },
+  { value: 'none', label: 'No schedule, area or device' },
+  { value: 'disabled', label: 'Disabled' },
 ];
 /** One string for the 3 collapse options, to tell when a new config changes them. A group
  *  key has its own prefix per grouping mode, so `group_by` is not part of it. */
 function collapseSignature(c: HomeKeeperCardConfig): string {
   return JSON.stringify([c.collapsed, c.collapsed_groups, c.collapse_above]);
 }
-const GROUP_OPTS: EditorOption<CardGroupBy>[] = [
-  { value: 'none', label: 'None', ukLabel: 'Без групування' },
-  { value: 'status', label: 'Status', ukLabel: 'Статус' },
-  { value: 'area', label: 'Area', ukLabel: 'Зона' },
-  { value: 'device', label: 'Device', ukLabel: 'Пристрій' },
+const GROUP_OPTS: { value: CardGroupBy; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'status', label: 'Status' },
+  { value: 'area', label: 'Area' },
+  { value: 'device', label: 'Device' },
 ];
-export const RECURRENCE_OPTS: EditorOption<RecurrenceType>[] = [
-  { value: 'floating', label: 'Floating', ukLabel: 'Повторення після виконання' },
-  { value: 'fixed', label: 'Fixed', ukLabel: 'Фіксований розклад' },
-  { value: 'triggered', label: 'Triggered (monitored)', ukLabel: 'За тригером' },
-  { value: 'one-off', label: 'One-off', ukLabel: 'Одноразове' },
-  { value: 'sensor', label: 'Sensor (usage / threshold)', ukLabel: 'За станом датчика' },
-  { value: 'use', label: 'Use (counted wear)', ukLabel: 'За лічильником використання' },
+export const RECURRENCE_OPTS: { value: RecurrenceType; label: string }[] = [
+  { value: 'floating', label: 'Floating' },
+  { value: 'fixed', label: 'Fixed' },
+  { value: 'triggered', label: 'Triggered (monitored)' },
+  { value: 'one-off', label: 'One-off' },
+  { value: 'sensor', label: 'Sensor (usage / threshold)' },
+  { value: 'use', label: 'Use (counted wear)' },
 ];
-const LABEL_MATCH_OPTS: EditorOption[] = [
-  { value: 'any', label: 'Any selected label', ukLabel: 'Будь-яка з вибраних міток' },
-  { value: 'all', label: 'All selected labels', ukLabel: 'Усі вибрані мітки' },
+const LABEL_MATCH_OPTS = [
+  { value: 'any', label: 'Any selected label' },
+  { value: 'all', label: 'All selected labels' },
 ];
 
 const STYLES = `
@@ -1901,19 +1865,9 @@ export class HomeKeeperCardEditor extends HTMLElement {
   }
 
   set hass(hass: Hass) {
-    const wasUkrainian = this._isUkrainian();
     this._hass = hass;
-    if (this._form) {
-      this._form.hass = hass;
-      if (wasUkrainian !== this._isUkrainian()) {
-        this._form.schema = this._schema();
-      }
-    }
+    if (this._form) this._form.hass = hass;
     void this._maybeLoadProfiles();
-  }
-
-  private _isUkrainian(): boolean {
-    return /^uk(?:-|$)/i.test(this._hass?.language ?? '');
   }
 
   private async _maybeLoadProfiles(): Promise<void> {
@@ -1929,13 +1883,12 @@ export class HomeKeeperCardEditor extends HTMLElement {
   }
 
   private _schema(): FormField[] {
-    const ukrainian = this._isUkrainian();
     return [
       { name: 'title', selector: selText() },
       {
         name: 'profile',
         selector: selSelect([
-          { value: '', label: ukrainian ? UK_EDITOR_TEXT.profileNone : S.profileNone },
+          { value: '', label: S.profileNone },
           ...this._profiles.map((p) => ({ value: p.id, label: p.name })),
         ]),
       },
@@ -1943,9 +1896,9 @@ export class HomeKeeperCardEditor extends HTMLElement {
         name: '',
         type: 'grid',
         schema: [
-          { name: 'filter', selector: selSelect(editorOptions(FILTER_OPTS, ukrainian)) },
-          { name: 'sort', selector: selSelect(editorOptions(SORT_OPTS, ukrainian)) },
-          { name: 'group_by', selector: selSelect(editorOptions(GROUP_OPTS, ukrainian)) },
+          { name: 'filter', selector: selSelect(FILTER_OPTS) },
+          { name: 'sort', selector: selSelect(SORT_OPTS) },
+          { name: 'group_by', selector: selSelect(GROUP_OPTS) },
         ],
       },
       {
@@ -1961,7 +1914,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
         selector: {
           select: {
             mode: 'dropdown',
-            options: editorOptions(COLLAPSE_STATUS_OPTS, ukrainian),
+            options: COLLAPSE_STATUS_OPTS,
             multiple: true,
             custom_value: true,
             sort: false,
@@ -1971,8 +1924,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
       { name: 'areas', selector: selArea(true) },
       { name: 'devices', selector: selDevice(true) },
       { name: 'labels', selector: selLabel(true) },
-      { name: 'label_match', selector: selSelect(editorOptions(LABEL_MATCH_OPTS, ukrainian)) },
-      { name: 'recurrence_types', selector: selSelect(editorOptions(RECURRENCE_OPTS, ukrainian), true) },
+      { name: 'label_match', selector: selSelect(LABEL_MATCH_OPTS) },
+      { name: 'recurrence_types', selector: selSelect(RECURRENCE_OPTS, true) },
       {
         name: '',
         type: 'grid',
@@ -2006,10 +1959,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
     form.hass = this._hass;
     form.schema = this._schema() as unknown[];
     form.data = this._config as unknown as Record<string, unknown>;
-    form.computeLabel = (s: { name: string }): string => {
-      const labels = this._isUkrainian() ? UK_EDITOR_TEXT : S;
-      return labels[s.name] ?? s.name;
-    };
+    form.computeLabel = (s: { name: string }): string => S[s.name] ?? s.name;
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
       this._config = { ...this._config, ...value } as HomeKeeperCardConfig;

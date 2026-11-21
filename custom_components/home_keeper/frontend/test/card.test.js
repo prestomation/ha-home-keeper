@@ -1,11 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import {
-  FILTER_OPTS,
-  HomeKeeperCard,
-  HomeKeeperCardEditor,
-  RECURRENCE_OPTS,
-  todoEntityId,
-} from '../src/card.ts';
+import { FILTER_OPTS, HomeKeeperCard, RECURRENCE_OPTS, todoEntityId } from '../src/card.ts';
 
 // The card waits for HA's lazy components before first paint and renders them.
 // Register lightweight stand-ins so `whenDefined` resolves and the markup is
@@ -25,9 +19,6 @@ beforeAll(() => {
   }
   if (!customElements.get('home-keeper-card')) {
     customElements.define('home-keeper-card', HomeKeeperCard);
-  }
-  if (!customElements.get('home-keeper-card-editor')) {
-    customElements.define('home-keeper-card-editor', HomeKeeperCardEditor);
   }
 });
 
@@ -64,25 +55,6 @@ const sampleTasks = [
     completions: [],
   },
 ];
-
-it('updates the card editor labels when Home Assistant switches to Ukrainian', () => {
-  const editor = HomeKeeperCard.getConfigElement();
-  editor.setConfig({ type: 'custom:home-keeper-card', filter: 'overdue' });
-  document.body.appendChild(editor);
-  const form = editor.shadowRoot.querySelector('ha-form');
-  const overdue = () => form.schema
-    .flatMap((field) => field.schema ?? [field])
-    .find((field) => field.name === 'filter')
-    .selector.select.options.find((option) => option.value === 'overdue');
-
-  expect(form.computeLabel({ name: 'filter' })).toBe('Filter');
-  editor.hass = { language: 'uk-UA', callWS: async () => ({ profiles: [] }) };
-  expect(form.computeLabel({ name: 'filter' })).toBe('Фільтр');
-  expect(overdue().label).toBe('Прострочені');
-  expect(form.data.filter).toBe('overdue');
-  editor.hass = { language: 'en' };
-  expect(overdue().label).toBe('Overdue');
-});
 
 describe('HomeKeeperCard load states', () => {
   it('shows an error (not an endless spinner) when tasks fail to load', async () => {

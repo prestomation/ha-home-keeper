@@ -100,18 +100,6 @@ test('capture Ukrainian on desktop and phone', async ({ page }) => {
       await expect(card.locator('.hk-group-title', { hasText: 'Прострочено' }).first()).toBeVisible();
       await page.waitForTimeout(1500);
       await page.screenshot({ path: `${OUT}/i18n-uk-${suffix}-card.png`, animations: 'disabled' });
-
-      if (suffix === 'mobile') {
-        await page.locator('hui-root #dashboardmenu').click();
-        await page.locator('hui-root ha-dropdown-item', { hasText: 'Редагувати панель' }).click();
-      } else {
-        await page.locator('hui-root ha-icon-button[slot="actionItems"]').last().click();
-      }
-      const options = page.locator('hui-card-options').first();
-      await options.getByText('Редагувати', { exact: true }).first().click();
-      const editor = page.locator('home-keeper-card-editor');
-      await expect(editor.getByText('Заголовок', { exact: true }).first()).toBeVisible();
-      await page.screenshot({ path: `${OUT}/i18n-uk-${suffix}-editor.png`, animations: 'disabled' });
     }
   } finally {
     await ws({ type: 'lovelace/dashboards/delete', dashboard_id: dashboard.id });
