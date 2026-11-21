@@ -15,7 +15,7 @@
   "declarative_preset.firmware_update_available.name": "Доступне оновлення прошивки",
   "declarative_preset.firmware_update_available.description": "Відстежує сутності оновлення (UniFi, ESPHome, HACS, камери, принтери тощо) і створює завдання зі встановлення нової версії.",
   "declarative_preset.device_stopped_reporting.name": "Пристрій перестав надсилати дані",
-  "declarative_preset.device_stopped_reporting.description": "Відстежує датчики часу останнього зв’язку й створює завдання для пристроїв, від яких немає даних 48 годин. Допомагає знайти пристрої Zigbee або Z-Wave, які втратили зв’язок із мережею.",
+  "declarative_preset.device_stopped_reporting.description": "Відстежує датчики часу останнього зв'язку й створює завдання для пристроїв, від яких немає даних 48 годин. Допомагає знайти пристрої Zigbee або Z-Wave, які втратили зв'язок із мережею.",
   "declarative_preset.shape.percent_low.name": "{integration}: закінчуються запчастини й витратні матеріали",
   "declarative_preset.shape.percent_low.description": "Створює завдання, коли пристрій інтеграції {integration} повідомляє про низький залишок витратного матеріалу або деталі. Home Keeper закриває завдання після поповнення.",
   "declarative_preset.shape.life_low.name": "{integration}: вичерпується ресурс деталей",
