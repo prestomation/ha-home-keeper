@@ -150,7 +150,7 @@ rules:
     comment: All entities are primary and enabled.
   entity-translations:
     status: done
-    comment: strings.json provides entity name translations across 16 locales.
+    comment: strings.json provides entity name translations across 17 locales.
   exception-translations:
     status: done
     comment: >-
