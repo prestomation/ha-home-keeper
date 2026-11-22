@@ -932,3 +932,39 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     }),
   );
 }
+
+/**
+ * Put the appliance pane back where the reader left it, after a render built it new. If
+ * the open appliance is then outside the visible part of the pane, scroll it in by the
+ * least distance. Only the pane moves, never the page.
+ *
+ * This waits for the next frame. A read of the pane at the end of the render forces a
+ * layout while the rows have no height, and the browser then clamps the scroll position
+ * of the page. The position is set again on the frames after that, until the height of
+ * the content stops changing. It stops at once if anything else moves the pane, so the
+ * reader's own scroll is never undone.
+ */
+export function restoreMasterScroll(root: ShadowRoot, top: number): void {
+  const pane = root.querySelector<HTMLElement>('.hk-master');
+  if (!pane) return;
+  let height = -1;
+  let still = 0;
+  let frames = 0;
+  let lastTop: number | null = null;
+  const place = (): void => {
+    if (!pane.isConnected || (lastTop !== null && pane.scrollTop !== lastTop)) return;
+    if (top) pane.scrollTop = top;
+    const open = pane.querySelector<HTMLElement>('.hk-selected');
+    if (open) {
+      const view = pane.getBoundingClientRect();
+      const row = open.getBoundingClientRect();
+      if (row.top < view.top) pane.scrollTop += row.top - view.top;
+      else if (row.bottom > view.bottom) pane.scrollTop += row.bottom - view.bottom;
+    }
+    lastTop = pane.scrollTop;
+    still = pane.scrollHeight === height ? still + 1 : 0;
+    height = pane.scrollHeight;
+    if (still < 2 && ++frames < 30) requestAnimationFrame(place);
+  };
+  requestAnimationFrame(place);
+}

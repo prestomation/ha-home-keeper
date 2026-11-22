@@ -75,7 +75,14 @@ import {
   type PartsGroup,
   type PartsSort,
 } from './parts-overview';
-import { assetsList, renderActionSheet, taskListModel, tasksList, wireLists } from './panel-lists';
+import {
+  assetsList,
+  renderActionSheet,
+  restoreMasterScroll,
+  taskListModel,
+  tasksList,
+  wireLists,
+} from './panel-lists';
 import {
   exportedLine,
   settingsBackbar,
@@ -2626,6 +2633,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // action sheet from a card in a far column used to throw the reader back to the
     // first column. The position is put back below, before anything paints.
     const boardScroll = this.shadowRoot.querySelector<HTMLElement>('.hk-board')?.scrollLeft ?? 0;
+    // The appliance pane is a string too. A press on a row navigates, and the new pane
+    // started at the top, so the reader had to scroll down again after each press.
+    const masterScroll = this.shadowRoot.querySelector<HTMLElement>('.hk-master')?.scrollTop ?? 0;
     // The old list leaves the tree first, so that replacing the tree does not free its
     // rows. It goes back in when the new tree stands.
     keptList?.remove();
@@ -2640,6 +2650,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       const board = this.shadowRoot.querySelector<HTMLElement>('.hk-board');
       if (board) board.scrollLeft = boardScroll;
     }
+    restoreMasterScroll(this.shadowRoot, masterScroll);
     this._renderedDrawerSubject = drawerSubject;
     // An overlay that closed gives the keyboard back to its opener. Else the keyboard
     // goes back to the control that had it before the render.
