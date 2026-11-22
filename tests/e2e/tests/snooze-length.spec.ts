@@ -69,4 +69,17 @@ test.describe('Home Keeper panel — snooze length per task', () => {
     await expect.poll(() => selectValue(select)).toBe('custom');
     await expect(panel.locator('ha-dialog[open] ha-selector-datetime')).toBeVisible();
   });
+  test('picking Custom keeps the dialog open and asks for a date', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    taskId = await createTask({ name: 'E2E snooze pick custom', interval: 1, unit: 'days' });
+
+    const panel = await gotoTask(page, taskId);
+    const select = await openSnooze(panel);
+    await select.click();
+    await page.getByText('Custom…', { exact: true }).click();
+
+    await expect(panel.locator('ha-dialog[open] ha-selector-datetime')).toBeVisible({ timeout: 15_000 });
+    await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible();
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });

@@ -1356,6 +1356,31 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     expect(panel.shadowRoot.querySelector('ha-dialog')).toBeTruthy();
   });
 
+  it('keeps the snooze dialog open and shows the date field when Custom is picked', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-snooze').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-snooze-hint'));
+    const form = panel.shadowRoot.querySelector('ha-dialog ha-form');
+    expect(form.schema.map((f) => f.name)).toEqual(['snoozePreset']);
+
+    form.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { snoozePreset: 'custom' } } }),
+    );
+
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog ha-form')?.schema.length === 2);
+    const dialog = panel.shadowRoot.querySelector('ha-dialog');
+    expect(dialog, 'the dialog must still be on screen').toBeTruthy();
+    expect(panel._isOpen('snooze')).toBe(true);
+    expect(dialog.querySelector('ha-form').schema.map((f) => f.name)).toEqual([
+      'snoozePreset',
+      'snoozeAt',
+    ]);
+    expect(dialog.querySelector('.hk-snooze-hint')).toBeTruthy();
+  });
+
   it('opens the skip dialog from the menu', async () => {
     const { hass } = withOptions([dueTask]);
     const panel = await mountPanel(hass, '/tasks/t1');

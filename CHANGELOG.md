@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b1] - 2026-11-22
+
+### Fixed
+
+- **iPhone notifications to many targets.** A notification sent to many targets
+  now reaches an iPhone. Before, the tag was too long and the iPhone refused it. A short
+  tag does not change. (Thanks @krissell!)
+
 ## [0.37.0] - 2026-11-22
 
 ### Added

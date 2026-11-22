@@ -1076,3 +1076,42 @@ def test_plural_category_boundaries_match_cldr():
     assert n._tn("pl", "digest_title", 5, count=5) == "5 zadań do zrobienia"
     assert n._tn("pl", "digest_title", 12, count=12) == "12 zadań do zrobienia"
     assert n._tn("pl", "digest_title", 22, count=22) == "22 zadania do zrobienia"
+
+
+# ── notification tag (the iOS collapse id is capped at 64 bytes) ───────────
+
+
+def test_notification_tag_keeps_a_short_id_unchanged():
+    # One-way door: automations may match this tag, so a short id must not change.
+    assert n.notification_tag("325fbe495fde415c8d0301295e663c79") == (
+        "home_keeper_325fbe495fde415c8d0301295e663c79"
+    )
+
+
+def test_notification_tag_keeps_an_id_at_the_limit_unchanged():
+    notification_id = "a" * (64 - len("home_keeper_"))
+    tag = n.notification_tag(notification_id)
+    assert tag == f"home_keeper_{notification_id}"
+    assert len(tag.encode()) == 64
+
+
+def test_notification_tag_fits_the_limit_for_a_long_route_id():
+    route = n.route_id(
+        n.adhoc_base("a-profile-with-a-long-id"),
+        ["notify.mobile_app_pixel_9_pro", "notify.mobile_app_iphone_of_angie"],
+    )
+    tag = n.notification_tag(route)
+    assert len(tag.encode()) <= 64
+    assert tag.startswith("home_keeper_")
+
+
+def test_notification_tag_counts_bytes_not_characters():
+    tag = n.notification_tag("é" * 30)  # 30 characters, 60 bytes
+    assert len(tag.encode()) <= 64
+
+
+def test_notification_tag_is_stable_and_distinct_for_long_ids():
+    long_a = "x" * 80 + "a"
+    long_b = "x" * 80 + "b"
+    assert n.notification_tag(long_a) == n.notification_tag(long_a)
+    assert n.notification_tag(long_a) != n.notification_tag(long_b)
