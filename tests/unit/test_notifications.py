@@ -1115,3 +1115,9 @@ def test_notification_tag_is_stable_and_distinct_for_long_ids():
     long_b = "x" * 80 + "b"
     assert n.notification_tag(long_a) == n.notification_tag(long_a)
     assert n.notification_tag(long_a) != n.notification_tag(long_b)
+
+
+def test_notification_tag_for_a_long_id_is_a_prefix_and_32_hex_digits():
+    tag = n.notification_tag("x" * 100)
+    assert len(tag) == len("home_keeper_") + 32
+    assert all(c in "0123456789abcdef" for c in tag[len("home_keeper_") :])
