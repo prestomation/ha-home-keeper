@@ -149,6 +149,9 @@ export async function auditOutlines(page: Page): Promise<OutlineFinding[]> {
         bl: px(cs.borderBottomLeftRadius),
       };
       for (let a = flatParent(el); a; a = flatParent(a)) {
+        // Home Assistant locks the page (`overflow: hidden` on body) while a dialog is open.
+        // The page is the window, so a control below the fold is scrolled off, not cut.
+        if (a === document.body || a === document.documentElement) continue;
         const ac = getComputedStyle(a);
         const hides = (v: string): boolean => v === 'hidden' || v === 'clip';
         if (!hides(ac.overflowX) && !hides(ac.overflowY)) continue;
