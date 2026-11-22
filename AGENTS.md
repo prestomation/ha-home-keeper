@@ -79,6 +79,8 @@ your topic before you change code or push.
   changed surface needs both. Capture with the Playwright harness, read each PNG, commit
   under `docs/images/`, and embed with a SHA-pinned HTML `<img>`. The phone step goes in
   the `setViewportSize(PHONE)` block with a `-mobile-` name.
+- **A new surface with bordered controls joins `VIEWS` in
+  `tests/e2e/tests/outline-audit.spec.ts`.** It fails on a cut or open outline.
 - **A new UI feature extends the walkthrough tour** (`tests/e2e/walkthrough.capture.ts`)
   in the same PR. CI records it and posts it as a PR comment. Never commit a video.
   Capture is a hard gate.

@@ -133,12 +133,12 @@ summary: Which test tier covers what, how to write a test that can fail, and the
 - Never name a tab bar in a spec. Use `gotoTab()`, `expectTabActive()` and
   `openSettingsSection()`, because CSS picks which bar shows.
 - A viewport project sets the viewport only, never a device descriptor.
+- Add each new surface with bordered controls to `VIEWS` in `outline-audit.spec.ts` (#554).
 - A phone folds the task list's filter controls. A spec or a capture that uses a scope pill,
   Profile, Group by, Layout or Print labels on the Tasks tab calls `openListFilters(panel)` first.
 - A capture config pins the desktop project with `captureConfig()` from
   `tests/e2e/capture-config.ts`. `--list` must show 1 project.
-- Measure layout by relations (A is above B), never by coordinates. Assert that a list is
-  not empty before you loop over it.
+- Measure layout by relations, never by coordinates. Assert that a list is not empty first.
 
 ## Noise budget
 
