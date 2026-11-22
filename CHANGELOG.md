@@ -23,10 +23,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Changed
 
-- **Input limits.** Change an automation that sends a value over a new limit, because it
-  gets a clear error. The limits cover snooze time (8760 hours, which is 1 year), season
-  windows (12), task dates (1900 to 2200), device and area type, and the length of links,
-  photo addresses and entity ids.
+- **Input limits.** An automation that sends a value over a new limit now gets a clear
+  error, so lower the value. The limits cover snooze time (8760 hours, 1 year), season
+  windows (12), task dates (1900 to 2200), the type of a device or area, and the length
+  of links, photo addresses and entity ids.
 
 ### Fixed
 
@@ -43,6 +43,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   slots, so a low fragrance opens a task again.
 - **Slow schedule rules.** A rule with no date, such as February 31, now gets a clear
   error. Home Assistant no longer stops for seconds when you add, import or show such a task.
+- **Stored data errors.** Home Assistant now starts and refreshes when a task holds a date
+  out of range or a bad device link, where it failed before.
 
 ## [0.36.0] - 2026-11-07
 
