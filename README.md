@@ -18,7 +18,7 @@
 | custom\_components/home\_keeper/companions.py                    |       91 |       35 |       18 |        2 |     55% |62, 108, 138-\>140, 149, 165-169, 173, 189-212, 217-221, 227-229, 239, 245, 251, 257, 269-270 |
 | custom\_components/home\_keeper/companions\_catalog.py           |       40 |        1 |       12 |        0 |     98% |        61 |
 | custom\_components/home\_keeper/config\_flow.py                  |       30 |        7 |        4 |        1 |     71% |165-171, 177, 200 |
-| custom\_components/home\_keeper/const.py                         |      238 |        1 |       12 |        1 |     99% |      1110 |
+| custom\_components/home\_keeper/const.py                         |      238 |        1 |       12 |        1 |     99% |      1120 |
 | custom\_components/home\_keeper/coordinator.py                   |      245 |       48 |       90 |        7 |     79% |147-152, 161-211, 240, 244, 290, 300, 302-\>exit, 409-412, 427, 453-457, 472, 479, 532, 540, 550, 561, 574-584 |
 | custom\_components/home\_keeper/cost\_summary.py                 |       62 |        0 |       28 |        0 |    100% |           |
 | custom\_components/home\_keeper/declarative\_companion\_sync.py  |      235 |       94 |       52 |        1 |     60% |78-79, 122-162, 182-183, 240-245, 256-260, 270, 281-285, 289, 308, 339-343, 465-485, 493, 500, 507, 586, 592, 605-675, 690-697, 707-712 |
