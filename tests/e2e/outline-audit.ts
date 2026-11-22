@@ -18,8 +18,8 @@ import type { Page } from '@playwright/test';
  * reads layout and computed style only: it has no timing and no pixels, so it does not
  * flake. Run it on each captured view at each width (`outline-audit.spec.ts`).
  *
- * What it cannot see: a control that is clipped by a scroller (`overflow: auto`), because
- * a scrolled-off control is meant to be cut; an outline drawn by an image or a
+ * What it cannot see: a control that is clipped by a scroller (`overflow: auto`, or a hidden
+ * box whose content is longer than the box), because a scrolled-off control is meant to be cut; an outline drawn by an image or a
  * `background` gradient; an outline cut by the viewport; and a clip by `clip-path`.
  * A control that is cut on purpose carries `data-hk-cut` on it or on an ancestor.
  */
@@ -168,11 +168,16 @@ export async function auditOutlines(page: Page): Promise<OutlineFinding[]> {
           right: ar.right - bw.right,
           bottom: ar.bottom - bw.bottom,
         };
+        // A box whose content is longer than the box (`scrollHeight` over `clientHeight`) is a
+        // scroller that a script or a dialog drives. Its content is cut as it scrolls, by design.
+        const ael = a as HTMLElement;
+        const scrollsX = ael.scrollWidth > ael.clientWidth + 1;
+        const scrollsY = ael.scrollHeight > ael.clientHeight + 1;
         const edge = {
-          left: r.left < box.left - EDGE && hides(ac.overflowX),
-          right: r.right > box.right + EDGE && hides(ac.overflowX),
-          top: r.top < box.top - EDGE && hides(ac.overflowY),
-          bottom: r.bottom > box.bottom + EDGE && hides(ac.overflowY),
+          left: r.left < box.left - EDGE && hides(ac.overflowX) && !scrollsX,
+          right: r.right > box.right + EDGE && hides(ac.overflowX) && !scrollsX,
+          top: r.top < box.top - EDGE && hides(ac.overflowY) && !scrollsY,
+          bottom: r.bottom > box.bottom + EDGE && hides(ac.overflowY) && !scrollsY,
         };
         // The control is outside the clip box on this side: it is cut, or it is hidden.
         // Only a control that is mostly inside is "cut"; one far outside is scrolled or
