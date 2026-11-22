@@ -6,70 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.37.0b9] - 2026-11-22
-
-### Added
-
-- **[Ukrainian language support](https://prestomation.github.io/ha-home-keeper/docs/guide/localization).**
-  The panel, the dashboard card, notifications and preset task text are available in
-  Ukrainian (Fixes #591). (Thanks @rodion981!)
-
-## [0.37.0b8] - 2026-11-22
-
-### Fixed
-
-- **Pill group outlines.** The selected choice in a pill group, such as Active or List, now shows
-  its whole outline at the rounded end. (Fixes #554)
-
-## [0.37.0b7] - 2026-11-18
-
-### Fixed
-
-- **Appliance list scroll.** The list beside an open appliance now keeps its scroll position when
-  you open another appliance, and shows the open one. (Fixes #586)
-
-## [0.37.0b6] - 2026-11-18
-
-### Added
-
-- **[ViCare salt preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
-  The Viessmann ViCare preset now opens a "Refill the salt" task when the water softener
-  has 14 days of salt left.
-
-## [0.37.0b5] - 2026-11-16
-
-### Fixed
-
-- **Xiaomi Miio sensor cleaning.** The "Clean the sensors" task now opens when the sensor
-  counter runs out, not 24 hours before. The sensor cycle is 30 hours.
-- **TP-Link cleaning tasks.** The "Clean the sensors" and "Clean the charging contacts"
-  tasks now open when their counters run out, not 6 hours before. Each cycle is 30 hours.
-
-## [0.37.0b4] - 2026-11-15
-
-### Fixed
-
-- **Roborock sensor cleaning.** The "Clean the sensors" task now opens when the sensor
-  counter runs out, not 24 hours before. The sensor cycle is 30 hours. (Fixes #560)
-  (Thanks @dtsypkin!)
-
-## [0.37.0b3] - 2026-11-14
-
-### Fixed
-
-- **Appliance list height.** The list beside an appliance now fits the window on a long
-  list, so its first rows stay in view at the end of the page. (Fixes #551)
-- **List row borders.** A list row now shows the left side of its outline, so the rounded
-  corners no longer look cut off. (Fixes #554)
-
-## [0.37.0b2] - 2026-11-11
-
-### Fixed
-
-- **Pura preset.** The Pura preset now finds the fragrance level of each of the 4
-  slots, so a low fragrance opens a task again.
-
-## [0.37.0b1] - 2026-11-07
+## [0.37.0] - 2026-11-22
 
 ### Added
 
@@ -77,6 +14,35 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   The Appliances tab has a new Parts view that lists every part of every appliance in
   1 place, with search, filters, sort and a stock stepper. A low part links to its Buy
   task. (Fixes #547)
+- **[Ukrainian language support](https://prestomation.github.io/ha-home-keeper/docs/guide/localization).**
+  The panel, the dashboard card, notifications and preset task text are available in
+  Ukrainian (Fixes #591). (Thanks @rodion981!)
+- **[ViCare salt preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  The Viessmann ViCare preset now opens a "Refill the salt" task when the water softener
+  has 14 days of salt left.
+
+### Changed
+
+- **Input limits.** Change an automation that sends a value over a new limit, because it
+  gets a clear error. The limits cover snooze time (8760 hours, which is 1 year), season
+  windows (12), task dates (1900 to 2200), device and area type, and the length of links,
+  photo addresses and entity ids.
+
+### Fixed
+
+- **Appliance list.** The list beside an appliance now fits the window on a long list, so
+  its first rows stay in view. It keeps its scroll position when you open another
+  appliance, and shows the open one. (Fixes #551) (Fixes #586)
+- **Complete outlines.** A list row now shows the left side of its outline. The selected
+  choice in a pill group, such as Active or List, now shows its whole outline. (Fixes #554)
+- **Sensor cleaning presets.** The "Clean the sensors" task of the Roborock and Xiaomi
+  Miio presets now opens when the sensor counter runs out, not 24 hours before. The
+  TP-Link cleaning tasks now open when their counters run out, not 6 hours before.
+  (Fixes #560) (Thanks @dtsypkin!)
+- **Pura preset.** The Pura preset now finds the fragrance level of each of the 4
+  slots, so a low fragrance opens a task again.
+- **Slow schedule rules.** A rule with no date, such as February 31, now gets a clear
+  error. Home Assistant no longer stops for seconds when you add, import or show such a task.
 
 ## [0.36.0] - 2026-11-07
 
