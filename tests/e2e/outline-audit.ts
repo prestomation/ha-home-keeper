@@ -51,7 +51,14 @@ export async function auditOutlines(page: Page): Promise<OutlineFinding[]> {
     const isOurs = (el: Element): boolean => {
       for (let p: Element | null = el; p; p = flatParent(p)) {
         const tag = p.tagName.toLowerCase();
-        if (tag === 'home-keeper-panel' || tag === 'home-keeper-card') return true;
+        // The panel, the card and its editor.
+        if (tag.startsWith('home-keeper-')) return true;
+        // A dialog or the delete confirmation is a child of body, outside those hosts. It is
+        // ours when it holds our markup (a class that starts with `hk-`).
+        if (p.classList.contains('hk-confirm-scrim')) return true;
+        if ((tag === 'ha-dialog' || tag === 'ha-adaptive-dialog') && p.querySelector('[class*="hk-"]')) {
+          return true;
+        }
       }
       return false;
     };
