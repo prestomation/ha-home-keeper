@@ -72,6 +72,18 @@ export function t(key: string, params?: Record<string, string | number>): string
 }
 
 /**
+ * Translate a key that only some languages define, or `undefined` if the active
+ * language has no such key. It never falls back to English.
+ *
+ * For text that a language gives to one exact count. Ukrainian uses the CLDR "one"
+ * category for 1, 21 and 31, so only an exact key can say "щодня" for 1.
+ */
+export function tOpt(key: string, params?: Record<string, string | number>): string | undefined {
+  const tmpl = current[key];
+  return tmpl === undefined ? undefined : interpolate(tmpl, params);
+}
+
+/**
  * Join *items* as prose in the active language: "a", "a and b", "a, b and c".
  *
  * For a sentence that names a variable set of things, where enumerating every

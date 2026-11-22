@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getLanguage, setLanguage, t, tlist, tn } from '../src/i18n.ts';
+import { getLanguage, setLanguage, t, tOpt, tlist, tn } from '../src/i18n.ts';
+import { recurrenceSummary } from '../src/utils.ts';
 import { DEFAULT_LOCALE, LOCALES } from '../src/locales/index.ts';
 
 // Behavioural tests for the i18n module. The translation-quality gates (locale
@@ -53,6 +54,51 @@ describe('tn() pluralization', () => {
     // interpolate {n}.
     expect(tn('asset.parts', 3)).toBe(LOCALES.pl['asset.parts.few'].replace('{n}', '3'));
     expect(tn('asset.parts', 5)).toBe(LOCALES.pl['asset.parts.many'].replace('{n}', '5'));
+  });
+
+  it('uses Ukrainian for a regional tag and keeps the count in the one form', () => {
+    setLanguage('uk-UA');
+    expect(getLanguage()).toBe('uk');
+    expect(t('tab.tasks')).toBe('Завдання');
+    expect(tn('due.in_days', 2)).toBe('через 2 дні');
+    expect(tn('due.in_days', 5)).toBe('через 5 днів');
+    expect(tn('due.in_days', 1.5)).toBe('через 1.5 дня');
+    expect(tn('recurrence.yearly', 21)).toBe('раз на 21 рік');
+  });
+
+  it('gives an interval of exactly 1 its own Ukrainian text, and keeps 21 on the number form', () => {
+    setLanguage('uk');
+    const fixed = (freq, interval) =>
+      recurrenceSummary({ recurrence_type: 'fixed', rrule: `FREQ=${freq};INTERVAL=${interval}`, interval });
+    expect(fixed('DAILY', 1)).toBe('Щодня');
+    expect(fixed('WEEKLY', 1)).toBe('Щотижня');
+    expect(fixed('MONTHLY', 1)).toBe('Щомісяця');
+    expect(fixed('YEARLY', 1)).toBe('Щороку');
+    expect(fixed('DAILY', 2)).toBe('Раз на 2 дні');
+    expect(fixed('YEARLY', 21)).toBe('Раз на 21 рік');
+    const floating = (unit, interval) =>
+      recurrenceSummary({ recurrence_type: 'floating', unit, interval });
+    expect(floating('days', 1)).toBe('Через 1 день після виконання');
+    expect(floating('weeks', 1)).toBe('Через 1 тиждень після виконання');
+    expect(floating('months', 1)).toBe('Через 1 місяць після виконання');
+    expect(floating('days', 21)).toBe('Раз на 21 день після виконання');
+    expect(floating('days', 3)).toBe('Раз на 3 дні після виконання');
+  });
+
+  it('does not use the exact-count text in English', () => {
+    setLanguage('en');
+    expect(tOpt('recurrence.fixed.day.1')).toBeUndefined();
+    expect(recurrenceSummary({ recurrence_type: 'fixed', rrule: 'FREQ=YEARLY;INTERVAL=1', interval: 1 })).toBe(
+      'Every year',
+    );
+  });
+
+  it('tOpt answers only for the active language and fills the parameters', () => {
+    setLanguage('uk');
+    expect(tOpt('recurrence.fixed.day.1')).toBe('щодня');
+    expect(tOpt('no.such.key')).toBeUndefined();
+    setLanguage('de');
+    expect(tOpt('recurrence.fixed.day.1')).toBeUndefined();
   });
 
   it('falls back to .other when a category key is absent', () => {

@@ -11,10 +11,11 @@
  */
 import { test, expect, Page } from '@playwright/test';
 import { openPanel } from './tests/helpers';
+import { PHONE } from './viewports';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
-// A representative spread of the 16 shipped locales.
+// A representative set of the shipped locales.
 const LANGS: { code: string; file: string }[] = [
   { code: 'en', file: '1-i18n-panel-en.png' },
   { code: 'de', file: '2-i18n-panel-de.png' },
@@ -49,4 +50,58 @@ test('capture Home Keeper panel localized in several languages', async ({ page }
   await expect(panel.locator('#hk-form')).toBeVisible();
   await page.waitForTimeout(1000);
   await page.screenshot({ path: `${OUT}/5-i18n-task-form-de.png`, fullPage: true });
+});
+
+test('capture Ukrainian on desktop and phone', async ({ page }) => {
+  await setLanguage(page, 'uk');
+  await openPanel(page);
+  const urlPath = `hk-uk-capture-${Date.now()}`;
+  const ws = (message: Record<string, unknown>) =>
+    page.locator('home-assistant').evaluate((element, command) => {
+      const host = element as HTMLElement & {
+        hass: { callWS: (params: Record<string, unknown>) => Promise<{ id: string }> };
+      };
+      return host.hass.callWS(command);
+    }, message);
+  const dashboard = await ws({
+    type: 'lovelace/dashboards/create',
+    url_path: urlPath,
+    mode: 'storage',
+    title: 'Домашнє обслуговування',
+    require_admin: true,
+    show_in_sidebar: false,
+  });
+  try {
+    await ws({
+      type: 'lovelace/config/save',
+      url_path: urlPath,
+      config: {
+        views: [{
+          title: 'Завдання',
+          cards: [{ type: 'custom:home-keeper-card', group_by: 'status', max_items: 6 }],
+        }],
+      },
+    });
+    for (const suffix of ['desktop', 'mobile']) {
+      if (suffix === 'mobile') await page.setViewportSize(PHONE);
+
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      const tab = suffix === 'mobile' ? '#mtab-tasks' : '#tab-tasks';
+      await expect(panel.locator(tab)).toHaveText('Завдання');
+      await expect(panel.locator('.hk-name').first()).toBeVisible();
+      // Home Assistant fades out its launch screen after the panel is ready.
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: `${OUT}/i18n-uk-${suffix}-panel.png`, animations: 'disabled' });
+
+      await page.goto(`/${urlPath}/0`, { waitUntil: 'domcontentloaded' });
+      const card = page.locator('home-keeper-card').first();
+      await expect(card.locator('.hk-title')).toHaveText('Завдання');
+      await expect(card.locator('.hk-group-title', { hasText: 'Прострочено' }).first()).toBeVisible();
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: `${OUT}/i18n-uk-${suffix}-card.png`, animations: 'disabled' });
+    }
+  } finally {
+    await ws({ type: 'lovelace/dashboards/delete', dashboard_id: dashboard.id });
+  }
 });

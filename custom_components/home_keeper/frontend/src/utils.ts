@@ -1,4 +1,4 @@
-import { getLanguage, t, tlist, tn } from './i18n';
+import { getLanguage, t, tOpt, tlist, tn } from './i18n';
 import {
   anchorDay,
   buildSimple,
@@ -1011,7 +1011,10 @@ function recurrenceText(task: Task): string {
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
     const unit = tn(`recurrence.unit.${base}`, n);
-    summary = tn('recurrence.floating', n, { unit });
+    // A language can give 1 its own text: "через 1 день після виконання".
+    summary =
+      (n === 1 ? tOpt(`recurrence.floating.${base}.1`) : undefined) ??
+      tn('recurrence.floating', n, { unit });
   } else {
     summary = fixedRuleText(task);
   }
@@ -1093,14 +1096,20 @@ function fixedRuleText(task: Task): string {
   if (!simple) return t('recurrence.custom');
   // Yearly is a whole phrase of its own: the shared "every {unit}" template cannot
   // agree with the noun for "year" in every language (Danish needs "hvert år").
-  if (simple.freq === 'YEARLY') return tn('recurrence.yearly', simple.interval);
+  // A language can give an interval of 1 its own word: "щодня", "щороку".
+  const once = (base: string): string | undefined =>
+    simple.interval === 1 ? tOpt(`recurrence.fixed.${base}.1`) : undefined;
+  if (simple.freq === 'YEARLY') {
+    return once('year') ?? tn('recurrence.yearly', simple.interval);
+  }
   const freqBase: Record<Exclude<SimpleFreq, 'YEARLY'>, string> = {
     DAILY: 'day',
     WEEKLY: 'week',
     MONTHLY: 'month',
   };
   const unit = tn(`recurrence.unit.${freqBase[simple.freq]}`, simple.interval);
-  const summary = tn('recurrence.fixed', simple.interval, { unit });
+  const summary =
+    once(freqBase[simple.freq]) ?? tn('recurrence.fixed', simple.interval, { unit });
   if (simple.freq === 'MONTHLY' && simple.monthBy) {
     const day = monthByText(simple.monthBy, anchorDay(task.anchor), getLanguage());
     return t('recurrence.fixedMonthly', { summary, day });

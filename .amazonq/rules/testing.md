@@ -190,7 +190,7 @@ Home Assistant logs `Detected blocking call` for a file read on the event loop (
 `strings.json` and `frontend/src/locales/en.json` are the sources.
 `tests/unit/test_translations_parity.py` and `frontend/test/i18n.test.js` enforce for each locale:
 
-- the same keys as English, and the same `{token}` placeholders per key;
+- the same keys and `{token}` placeholders as English, with optional `{n}` for frontend plurals;
 - no value identical to English, except the global `INTENTIONALLY_IDENTICAL` list and a
   per-locale `COGNATE_IDENTICAL` list of reviewed cognates;
 - for the frontend, that every `t()` and `tn()` key exists, and that every plural base

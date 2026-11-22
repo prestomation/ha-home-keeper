@@ -29,7 +29,7 @@ changes, water filters, taking medicine, and anything else that recurs.
   **automation editor triggers** like *"Task became overdue."*
 - **Services for everything**: every data action is a `home_keeper.*` service for
   automations, scripts, and voice.
-- **Localized in 16 languages**, following your Home Assistant language.
+- **Localized in 17 languages**, following your Home Assistant language.
 - **Open to other integrations**: they can contribute their own recurring tasks and
   stay in sync with completions.
 

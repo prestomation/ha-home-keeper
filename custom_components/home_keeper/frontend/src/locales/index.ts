@@ -17,6 +17,7 @@ import cs from './cs.json';
 import ru from './ru.json';
 import zhHans from './zh-Hans.json';
 import ca from './ca.json';
+import uk from './uk.json';
 
 export const DEFAULT_LOCALE = 'en';
 
@@ -37,4 +38,5 @@ export const LOCALES: Record<string, Record<string, string>> = {
   ru,
   'zh-Hans': zhHans,
   ca,
+  uk,
 };

@@ -30,14 +30,14 @@ implements:
   - custom_components/home_keeper/frontend/src/index.ts
   - custom_components/home_keeper/frontend/src/global.d.ts
   - custom_components/home_keeper/frontend/src/i18n.ts
-  - custom_components/home_keeper/frontend/src/locales/index.ts
+  - custom_components/home_keeper/frontend/src/locales/*
   - custom_components/home_keeper/frontend/src/card.ts
   - custom_components/home_keeper/frontend/src/card-index.ts
-  - custom_components/home_keeper/card.py
-  - custom_components/home_keeper/card_resource.py
+  - custom_components/home_keeper/card*.py
   - custom_components/home_keeper/backend_i18n.py
+  - custom_components/home_keeper/*/uk.json
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 01a2bc4193a5
+source_hash: 0409e7f660a3
 ---
 
 # Frontend
@@ -131,10 +131,10 @@ live for the whole run; only `async_remove_entry` removes them.
 
 ### Translations
 
-`i18n.ts` gives `t`, `tn` (CLDR plurals) and `tlist`. `locales/index.ts` bundles 16 JSON tables, so
-no fetch occurs. A lookup falls back to English, then to the key. `backend_i18n.py` builds final
-text: `resolve_exception` reads the `exceptions` group of `strings.json`, and `resolve_string` reads
-`backend_strings/<lang>.json`, such as CSV headers. Setup loads them in the executor.
+`i18n.ts` gives `t`, `tn` (CLDR plurals), `tlist` and `tOpt` (a key that only some languages have).
+`locales/index.ts` bundles 17 JSON tables, so no fetch occurs. A lookup falls back to English, then
+to the key. `backend_i18n.py` builds final text: `resolve_exception` reads the `exceptions` group
+of `strings.json`, and `resolve_string` reads `backend_strings/<lang>.json`. Setup loads both.
 
 ## Trade-offs
 

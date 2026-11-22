@@ -78,7 +78,7 @@ def test_triggers_yaml_targets_follow_the_model() -> None:
 
 def test_each_trigger_has_a_name_and_a_description_in_every_language() -> None:
     files = _string_files()
-    assert len(files) == 17
+    assert len(files) == 18
     for path in files:
         strings = json.loads(path.read_text(encoding="utf-8"))
         triggers = strings["triggers"]

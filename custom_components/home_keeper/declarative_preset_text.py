@@ -5,7 +5,7 @@ task_template.task_names from this table: the entity keys of a duty all map to
 the duty's name. A task name is an action a person does, such as *Replace the
 filter*, so it is not the entity's own name ("Filter time left").
 
-Every duty has a name in the same 16 languages as backend_strings/. A test checks
+Every duty has a name in the same languages as backend_strings/. A test checks
 that, so a new duty cannot ship in English only.
 """
 
@@ -28,6 +28,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Revisão anual",
         "ru": "Ежегодное обслуживание",
         "sv": "Årlig service",
+        "uk": "Щорічне обслуговування",
         "zh-Hans": "年度保养",
     },
     "bike_service": {
@@ -46,6 +47,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Revisar a bicicleta",
         "ru": "Обслужить велосипед",
         "sv": "Serva cykeln",
+        "uk": "Обслужити велосипед",
         "zh-Hans": "保养自行车",
     },
     "clean_appliance": {
@@ -64,6 +66,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o aparelho",
         "ru": "Очистить прибор",
         "sv": "Rengör apparaten",
+        "uk": "Очистити прилад",
         "zh-Hans": "清洁电器",
     },
     "clean_charging_contacts": {
@@ -82,6 +85,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar os contatos de carga",
         "ru": "Очистить зарядные контакты",
         "sv": "Rengör laddkontakterna",
+        "uk": "Очистити зарядні контакти",
         "zh-Hans": "清洁充电触点",
     },
     "clean_grease_filter": {
@@ -100,6 +104,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o filtro de gordura",
         "ru": "Очистить жировой фильтр",
         "sv": "Rengör fettfiltret",
+        "uk": "Очистити жировий фільтр",
         "zh-Hans": "清洁油网",
     },
     "clean_mop_tray": {
@@ -118,6 +123,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar a bandeja do esfregão",
         "ru": "Очистить поддон швабры",
         "sv": "Rengör moppbrickan",
+        "uk": "Очистити піддон для миття серветок",
         "zh-Hans": "清洁拖布托盘",
     },
     "clean_sensors": {
@@ -136,6 +142,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar os sensores",
         "ru": "Очистить датчики",
         "sv": "Rengör sensorerna",
+        "uk": "Очистити датчики",
         "zh-Hans": "清洁传感器",
     },
     "clean_tub": {
@@ -154,6 +161,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o tambor",
         "ru": "Очистить барабан",
         "sv": "Rengör trumman",
+        "uk": "Очистити барабан",
         "zh-Hans": "清洁滚筒",
     },
     "condenser_cleaning": {
@@ -172,6 +180,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o condensador",
         "ru": "Очистить конденсатор",
         "sv": "Rengör kondensorn",
+        "uk": "Очистити конденсатор",
         "zh-Hans": "清洁冷凝器",
     },
     "descale_appliance": {
@@ -190,6 +199,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Descalcificar o aparelho",
         "ru": "Удалить накипь из прибора",
         "sv": "Avkalka apparaten",
+        "uk": "Видалити накип із приладу",
         "zh-Hans": "为电器除垢",
     },
     "descaling": {
@@ -208,6 +218,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Descalcificar",
         "ru": "Удалить накипь",
         "sv": "Avkalka",
+        "uk": "Видалити накип",
         "zh-Hans": "除垢",
     },
     "empty_dirty_water_tank": {
@@ -226,6 +237,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Esvaziar o tanque de água suja",
         "ru": "Опустошить бак для грязной воды",
         "sv": "Töm smutsvattentanken",
+        "uk": "Спорожнити бак для брудної води",
         "zh-Hans": "清空污水箱",
     },
     "empty_dustbin": {
@@ -244,6 +256,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Esvaziar o depósito de pó",
         "ru": "Опустошить пылесборник",
         "sv": "Töm dammbehållaren",
+        "uk": "Спорожнити пилозбірник",
         "zh-Hans": "清空集尘盒",
     },
     "empty_waste_drawer": {
@@ -262,6 +275,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Esvaziar a gaveta de resíduos",
         "ru": "Опустошить ящик для отходов",
         "sv": "Töm avfallslådan",
+        "uk": "Спорожнити лоток для відходів",
         "zh-Hans": "清空废物抽屉",
     },
     "filter_cleaning": {
@@ -280,6 +294,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o filtro",
         "ru": "Очистить фильтр",
         "sv": "Rengör filtret",
+        "uk": "Очистити фільтр",
         "zh-Hans": "清洁滤网",
     },
     "lint_filter_cleaning": {
@@ -298,6 +313,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar o filtro de fiapos",
         "ru": "Очистить фильтр ворса",
         "sv": "Rengör luddfiltret",
+        "uk": "Очистити фільтр від ворсу",
         "zh-Hans": "清洁绒毛过滤器",
     },
     "oil_service": {
@@ -316,6 +332,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Troca de óleo",
         "ru": "Замена масла",
         "sv": "Oljebyte",
+        "uk": "Замінити оливу",
         "zh-Hans": "更换机油",
     },
     "refill_detergent": {
@@ -334,6 +351,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Reabastecer o detergente",
         "ru": "Долить моющее средство",
         "sv": "Fyll på tvättmedel",
+        "uk": "Долити мийний засіб",
         "zh-Hans": "补充洗涤剂",
     },
     "refill_heating_water": {
@@ -352,6 +370,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Completar a água do aquecimento",
         "ru": "Долить воду в систему отопления",
         "sv": "Fyll på vatten i värmesystemet",
+        "uk": "Долити воду в систему опалення",
         "zh-Hans": "补充采暖水",
     },
     "refill_litter": {
@@ -370,6 +389,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Reabastecer a areia",
         "ru": "Досыпать наполнитель",
         "sv": "Fyll på kattsand",
+        "uk": "Досипати наповнювач",
         "zh-Hans": "补充猫砂",
     },
     "refill_pool_salt": {
@@ -388,6 +408,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Adicionar sal à piscina",
         "ru": "Добавить соль в бассейн",
         "sv": "Tillsätt poolsalt",
+        "uk": "Додати сіль до басейну",
         "zh-Hans": "补充泳池盐",
     },
     "refill_rinse_aid": {
@@ -406,6 +427,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Reabastecer o secante",
         "ru": "Долить ополаскиватель",
         "sv": "Fyll på sköljmedel",
+        "uk": "Долити ополіскувач",
         "zh-Hans": "补充漂洗剂",
     },
     "refill_salt": {
@@ -424,6 +446,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Reabastecer o sal",
         "ru": "Досыпать соль",
         "sv": "Fyll på salt",
+        "uk": "Досипати сіль",
         "zh-Hans": "补充盐",
     },
     "refill_softener_salt": {
@@ -442,6 +465,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Reabastecer o sal do amaciador",
         "ru": "Досыпать соль в умягчитель",
         "sv": "Fyll på avhärdningssalt",
+        "uk": "Досипати сіль для пом'якшувача води",
         "zh-Hans": "补充软水盐",
     },
     "replace_activated_carbon": {
@@ -460,6 +484,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o carvão ativado",
         "ru": "Заменить активированный уголь",
         "sv": "Byt det aktiva kolet",
+        "uk": "Замінити активоване вугілля",
         "zh-Hans": "更换活性炭",
     },
     "replace_air_freshener": {
@@ -478,6 +503,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o aromatizador",
         "ru": "Заменить освежитель воздуха",
         "sv": "Byt luftfräschare",
+        "uk": "Замінити освіжувач повітря",
         "zh-Hans": "更换空气清新剂",
     },
     "replace_belt_unit": {
@@ -496,6 +522,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a unidade de correia",
         "ru": "Заменить ленточный блок",
         "sv": "Byt bandenheten",
+        "uk": "Замінити вузол ременя перенесення",
         "zh-Hans": "更换传送带单元",
     },
     "replace_blades": {
@@ -514,6 +541,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir as lâminas",
         "ru": "Заменить ножи",
         "sv": "Byt knivarna",
+        "uk": "Замінити леза",
         "zh-Hans": "更换刀片",
     },
     "replace_brush_head": {
@@ -532,6 +560,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a cabeça da escova",
         "ru": "Заменить насадку щётки",
         "sv": "Byt borsthuvudet",
+        "uk": "Замінити насадку щітки",
         "zh-Hans": "更换刷头",
     },
     "replace_cleaning_cartridge": {
@@ -550,6 +579,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o cartucho de limpeza",
         "ru": "Заменить чистящий картридж",
         "sv": "Byt rengöringspatronen",
+        "uk": "Замінити очищувальний картридж",
         "zh-Hans": "更换清洁盒",
     },
     "replace_cutting_disc": {
@@ -568,6 +598,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o disco de corte",
         "ru": "Заменить режущий диск",
         "sv": "Byt klippskivan",
+        "uk": "Замінити різальний диск",
         "zh-Hans": "更换切割盘",
     },
     "replace_desiccant": {
@@ -586,6 +617,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o dessecante",
         "ru": "Заменить влагопоглотитель",
         "sv": "Byt torkmedlet",
+        "uk": "Замінити осушувач",
         "zh-Hans": "更换干燥剂",
     },
     "replace_dock_strainer": {
@@ -604,6 +636,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o filtro da base",
         "ru": "Заменить сетку станции",
         "sv": "Byt stationens sil",
+        "uk": "Замінити сітчастий фільтр станції",
         "zh-Hans": "更换基站滤网",
     },
     "replace_drum_unit": {
@@ -622,6 +655,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a unidade de cilindro",
         "ru": "Заменить фотобарабан",
         "sv": "Byt trumenheten",
+        "uk": "Замінити фотобарабан",
         "zh-Hans": "更换硒鼓单元",
     },
     "replace_dust_bag": {
@@ -640,6 +674,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o saco de pó",
         "ru": "Заменить пылесборный мешок",
         "sv": "Byt dammpåsen",
+        "uk": "Замінити мішок для пилу",
         "zh-Hans": "更换集尘袋",
     },
     "replace_edge_trimmer_blade": {
@@ -658,6 +693,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a lâmina do aparador de bordas",
         "ru": "Заменить нож кромкореза",
         "sv": "Byt kantklipparens kniv",
+        "uk": "Замінити лезо обрізувача країв газону",
         "zh-Hans": "更换修边刀片",
     },
     "replace_edge_trimmer_disc": {
@@ -676,6 +712,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o disco do aparador de bordas",
         "ru": "Заменить диск кромкореза",
         "sv": "Byt kantklipparens skiva",
+        "uk": "Замінити диск обрізувача країв газону",
         "zh-Hans": "更换修边盘",
     },
     "replace_filter": {
@@ -694,6 +731,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o filtro",
         "ru": "Заменить фильтр",
         "sv": "Byt filtret",
+        "uk": "Замінити фільтр",
         "zh-Hans": "更换滤网",
     },
     "replace_fuser": {
@@ -712,6 +750,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o fusor",
         "ru": "Заменить термоблок",
         "sv": "Byt fixeringsenheten",
+        "uk": "Замінити вузол термозакріплення",
         "zh-Hans": "更换定影器",
     },
     "replace_ink_or_toner": {
@@ -730,6 +769,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a tinta ou o toner",
         "ru": "Заменить чернила или тонер",
         "sv": "Byt bläck eller toner",
+        "uk": "Замінити чорнило чи тонер",
         "zh-Hans": "更换墨水或碳粉",
     },
     "replace_laser_unit": {
@@ -748,6 +788,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a unidade de laser",
         "ru": "Заменить лазерный блок",
         "sv": "Byt laserenheten",
+        "uk": "Замінити лазерний блок",
         "zh-Hans": "更换激光单元",
     },
     "replace_lens_brush": {
@@ -766,6 +807,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a escova da lente",
         "ru": "Заменить щётку объектива",
         "sv": "Byt linsborsten",
+        "uk": "Замінити щітку для очищення лінзи",
         "zh-Hans": "更换镜头刷",
     },
     "replace_main_brush": {
@@ -784,6 +826,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a escova principal",
         "ru": "Заменить основную щётку",
         "sv": "Byt huvudborsten",
+        "uk": "Замінити основну щітку",
         "zh-Hans": "更换主刷",
     },
     "replace_maintenance_box": {
@@ -802,6 +845,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a caixa de manutenção",
         "ru": "Заменить контейнер для отработанных чернил",
         "sv": "Byt underhållsboxen",
+        "uk": "Замінити контейнер для відпрацьованого чорнила",
         "zh-Hans": "更换维护箱",
     },
     "replace_maintenance_brush": {
@@ -820,6 +864,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a escova de manutenção",
         "ru": "Заменить чистящую щётку",
         "sv": "Byt rengöringsborsten",
+        "uk": "Замінити сервісну щітку",
         "zh-Hans": "更换清洁刷",
     },
     "replace_mop_pads": {
@@ -838,6 +883,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir os panos",
         "ru": "Заменить салфетки швабры",
         "sv": "Byt moppdynorna",
+        "uk": "Замінити серветки для миття",
         "zh-Hans": "更换拖布",
     },
     "replace_odor_eliminator": {
@@ -856,6 +902,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o eliminador de odores",
         "ru": "Заменить поглотитель запахов",
         "sv": "Byt luktborttagaren",
+        "uk": "Замінити поглинач запахів",
         "zh-Hans": "更换除味剂",
     },
     "replace_paper_feed_kit": {
@@ -874,6 +921,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o kit de alimentação de papel",
         "ru": "Заменить комплект подачи бумаги",
         "sv": "Byt pappersmatningssatsen",
+        "uk": "Замінити комплект подавання паперу",
         "zh-Hans": "更换进纸套件",
     },
     "replace_salt_cartridge": {
@@ -892,6 +940,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o cartucho de sal",
         "ru": "Заменить солевой картридж",
         "sv": "Byt saltpatronen",
+        "uk": "Замінити картридж із сіллю",
         "zh-Hans": "更换盐盒",
     },
     "replace_shaver_head": {
@@ -910,6 +959,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a cabeça do barbeador",
         "ru": "Заменить бритвенную головку",
         "sv": "Byt rakhuvudet",
+        "uk": "Замінити бритвену головку",
         "zh-Hans": "更换剃须刀头",
     },
     "replace_side_brush": {
@@ -928,6 +978,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a escova lateral",
         "ru": "Заменить боковую щётку",
         "sv": "Byt sidoborsten",
+        "uk": "Замінити бічну щітку",
         "zh-Hans": "更换边刷",
     },
     "replace_toner": {
@@ -946,6 +997,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o toner",
         "ru": "Заменить тонер",
         "sv": "Byt tonern",
+        "uk": "Замінити тонер",
         "zh-Hans": "更换碳粉",
     },
     "replace_trimmer_brush": {
@@ -964,6 +1016,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a escova de bordas",
         "ru": "Заменить кромочную щётку",
         "sv": "Byt kantborsten",
+        "uk": "Замінити щітку тримера",
         "zh-Hans": "更换修边刷",
     },
     "replace_trimmer_line": {
@@ -982,6 +1035,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o fio do aparador",
         "ru": "Заменить леску триммера",
         "sv": "Byt trimmertråden",
+        "uk": "Замінити волосінь тримера",
         "zh-Hans": "更换割草线",
     },
     "replace_uv_lamp": {
@@ -1000,6 +1054,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir a lâmpada UV",
         "ru": "Заменить УФ-лампу",
         "sv": "Byt UV-lampan",
+        "uk": "Замінити ультрафіолетову лампу",
         "zh-Hans": "更换紫外线灯",
     },
     "replace_ventilation_filter": {
@@ -1018,6 +1073,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o filtro de ventilação",
         "ru": "Заменить фильтр вентиляции",
         "sv": "Byt ventilationsfiltret",
+        "uk": "Замінити фільтр вентиляції",
         "zh-Hans": "更换通风滤网",
     },
     "replace_water_filter": {
@@ -1036,6 +1092,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o filtro de água",
         "ru": "Заменить фильтр для воды",
         "sv": "Byt vattenfiltret",
+        "uk": "Замінити водяний фільтр",
         "zh-Hans": "更换滤水器",
     },
     "replace_wick": {
@@ -1054,6 +1111,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Substituir o pavio",
         "ru": "Заменить фитиль",
         "sv": "Byt veken",
+        "uk": "Замінити ґніт",
         "zh-Hans": "更换加湿芯",
     },
     "storage_cleanup": {
@@ -1072,6 +1130,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Liberar armazenamento",
         "ru": "Освободить место на накопителе",
         "sv": "Frigör lagringsutrymme",
+        "uk": "Звільнити місце на накопичувачі",
         "zh-Hans": "释放存储空间",
     },
     "water_test": {
@@ -1090,6 +1149,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pt-BR": "Testar a água",
         "ru": "Проверить воду",
         "sv": "Testa vattnet",
+        "uk": "Перевірити якість води",
         "zh-Hans": "检测水质",
     },
 }

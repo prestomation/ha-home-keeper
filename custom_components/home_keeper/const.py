@@ -16,7 +16,7 @@ PLATFORMS = [
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.37.0b8"
+PANEL_VERSION = "0.37.0b9"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -839,7 +839,7 @@ TASK_MANAGED_BY = "managed_by"
 # language (``hass.config.language`` — the household's primary language), and store
 # that. ``store.reconcile_part_tasks`` resolves these and hands them to the pure
 # reconciler; a language change relocalizes every generated name via an entry reload
-# (see ``__init__`` EVENT_CORE_CONFIG_UPDATE listener). The 16 languages match the
+# (see ``__init__`` EVENT_CORE_CONFIG_UPDATE listener). The languages match the
 # panel's shipped locales. ``{part}``/``{asset}`` are filled from the wear part and
 # its appliance.
 DEFAULT_LANGUAGE = "en"
@@ -859,6 +859,7 @@ WEAR_TASK_NAME_TEMPLATES: dict[str, str] = {
     "pt-BR": "Trocar {part} ({asset})",
     "ru": "Замена {part} ({asset})",
     "sv": "Byt {part} ({asset})",
+    "uk": "Замінити {part} ({asset})",
     "zh-Hans": "更换 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
 }
 # Localized name for reconciler-generated *buy* tasks — "Buy {part}". Same rationale
@@ -881,6 +882,7 @@ BUY_TASK_NAME_TEMPLATES: dict[str, str] = {
     "pt-BR": "Comprar {part}",
     "ru": "Купить {part}",
     "sv": "Köp {part}",
+    "uk": "Купити {part}",
     "zh-Hans": "购买 {part}",
 }
 # Localized name for the *use* task of a counted wear item — "Use {asset}". Same
@@ -905,6 +907,7 @@ USE_TASK_NAME_TEMPLATES: dict[str, str] = {
     "pt-BR": "Usar {asset}",
     "ru": "Использование {asset}",
     "sv": "Använd {asset}",
+    "uk": "Використати {asset}",
     "zh-Hans": "使用 {asset}",
 }
 # One name template per wear-part action, per language. ``replace`` reuses
@@ -930,6 +933,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Limpar {part} ({asset})",
         "ru": "Очистка {part} ({asset})",
         "sv": "Rengör {part} ({asset})",
+        "uk": "Очистити {part} ({asset})",
         "zh-Hans": "清洁 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
     PART_ACTION_SERVICE: {
@@ -948,6 +952,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Revisar {part} ({asset})",
         "ru": "Обслуживание {part} ({asset})",
         "sv": "Serva {part} ({asset})",
+        "uk": "Обслужити {part} ({asset})",
         "zh-Hans": "保养 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
     PART_ACTION_RENEW: {
@@ -966,6 +971,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Renovar {part} ({asset})",
         "ru": "Обновление {part} ({asset})",
         "sv": "Förnya {part} ({asset})",
+        "uk": "Оновити {part} ({asset})",
         "zh-Hans": "翻新 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
     PART_ACTION_SHARPEN: {
@@ -984,6 +990,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Afiar {part} ({asset})",
         "ru": "Заточка {part} ({asset})",
         "sv": "Slipa {part} ({asset})",
+        "uk": "Заточити {part} ({asset})",
         "zh-Hans": "磨利 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
     PART_ACTION_ROTATE: {
@@ -1002,6 +1009,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Rodiziar {part} ({asset})",
         "ru": "Ротация {part} ({asset})",
         "sv": "Rotera {part} ({asset})",
+        "uk": "Переставити {part} ({asset})",
         "zh-Hans": "换位 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
     PART_ACTION_INSPECT: {
@@ -1020,6 +1028,7 @@ ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Inspecionar {part} ({asset})",
         "ru": "Проверка {part} ({asset})",
         "sv": "Inspektera {part} ({asset})",
+        "uk": "Оглянути {part} ({asset})",
         "zh-Hans": "检查 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
     },
 }
@@ -1041,6 +1050,7 @@ APPLIANCE_FALLBACK_NAMES: dict[str, str] = {
     "pt-BR": "Eletrodoméstico",
     "ru": "Устройство",
     "sv": "Apparat",
+    "uk": "Прилад",
     "zh-Hans": "电器",
 }
 
