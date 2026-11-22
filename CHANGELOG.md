@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.37.0b8] - 2026-11-22
+
+### Fixed
+
+- **Pill group outlines.** The selected choice in a pill group, such as Active or List, now shows
+  its whole outline at the rounded end. (Fixes #554)
+
 ## [0.37.0b7] - 2026-11-18
 
 ### Fixed

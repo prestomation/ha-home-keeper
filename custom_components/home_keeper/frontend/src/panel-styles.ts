@@ -1594,6 +1594,13 @@ export const STYLES = `
     display: inline-flex; align-items: center; gap: 7px;
   }
   .hk-seg-btn:first-child { border-left: 0; }
+  /* The group is 1 pill: it clips its buttons to its round ends. A button is a square
+     box, and the selected one has an inset ring, so the clip cut the ring at both ends
+     and the pill looked open there. The end buttons take the round ends themselves, and
+     the ring then follows the curve. The radius is scaled down to the height. */
+  .hk-seg-btn:first-child { border-radius: var(--hk-r-pill) 0 0 var(--hk-r-pill); }
+  .hk-seg-btn:last-child { border-radius: 0 var(--hk-r-pill) var(--hk-r-pill) 0; }
+  .hk-seg-btn:first-child:last-child { border-radius: var(--hk-r-pill); }
   /* The count reads as a companion figure, not part of the label: lighter, and
      tinted to the button's own foreground so it stays legible when active. */
   .hk-seg-count { font-size: 0.78rem; opacity: 0.72; font-variant-numeric: tabular-nums; }
@@ -2403,6 +2410,7 @@ export const STYLES = `
        first-child specificity here would also tie with the .active rule and, as the
        later rule, repaint the active chip's background white under white text. */
     .hk-seg-btn:first-child { border-left-width: 1px; }
+    .hk-seg-btn:first-child, .hk-seg-btn:last-child { border-radius: var(--hk-r-pill); }
     .hk-seg-btn.active { border-color: var(--hk-accent); }
     .hk-controls-spacer { display: none; }
     /* Add becomes a floating action button clear of the tab bar. */
@@ -3036,7 +3044,8 @@ export const STYLES = `
     .hk-parts-controls .hk-menu-select { width: 100%; max-width: none; }
     .hk-mode .hk-seg { display: flex; width: 100%; flex-wrap: nowrap; gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill); overflow: hidden; background: var(--hk-surface); }
     .hk-mode .hk-seg-btn { flex: 1 1 0; border: 0; border-left: 1px solid var(--hk-line); border-radius: 0; }
-    .hk-mode .hk-seg-btn:first-child { border-left: 0; }
+    .hk-mode .hk-seg-btn:first-child { border-left: 0; border-radius: var(--hk-r-pill) 0 0 var(--hk-r-pill); }
+    .hk-mode .hk-seg-btn:last-child { border-radius: 0 var(--hk-r-pill) var(--hk-r-pill) 0; }
     .hk-mode .hk-seg-btn.active { background: var(--hk-accent-soft); color: var(--hk-accent-ink); }
   }
 `;

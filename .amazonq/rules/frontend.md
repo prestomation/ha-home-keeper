@@ -62,6 +62,10 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - Pair each `*-soft` token with a `*-ink` token for its label. Check a color pair against
   rendered pixels in both themes.
 - Status chips have no outline. The row's action has the ring.
+- **A control keeps its whole outline.** A bordered or ringed child of a box with
+  `overflow: hidden` and a radius takes the same round corner, or the clip cuts its outline.
+  A border never has a transparent side, except a 1-side seam. `tests/e2e/outline-audit.ts`
+  finds both on each view at desktop and phone width. A cut made on purpose has `data-hk-cut`.
 - Style inside an HA element through its `::part`, keyed on `data-hk-weight`.
 - Reuse `.hk-eyebrow` and `.hk-indent`. Do not restate their rules.
 - Both list rows use the same fixed tracks (`--hk-chip-col`, `--hk-status-col`). A chip
