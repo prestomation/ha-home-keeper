@@ -315,6 +315,10 @@
       "keys": [],
       "reason": "not a duty: moon position and phase data"
     },
+    "hacs:10sit/10s-ha": {
+      "keys": [],
+      "reason": "no entity translation keys"
+    },
     "hacs:1404423/ha-panasonic-laundry": {
       "keys": [],
       "reason": "not a duty: remaining is cycle time"
@@ -359,6 +363,10 @@
       "keys": [],
       "reason": "not a duty: no wear or maintenance keys"
     },
+    "hacs:42bios/ha-rack-display": {
+      "keys": [],
+      "reason": "rack display state and faults, no maintenance duty"
+    },
     "hacs:83noit/ha-mira-ble": {
       "keys": [],
       "reason": "not a duty: shower controls, running and fault state, water use"
@@ -370,6 +378,22 @@
     "hacs:acidicx/ha-gkd-bayern": {
       "keys": [],
       "reason": "not a duty: river water temperature"
+    },
+    "hacs:adeaux/windmillpurifier": {
+      "keys": [],
+      "reason": "no filter entity and no translation keys"
+    },
+    "hacs:aetf/hass-hackrf-proxy": {
+      "keys": [],
+      "reason": "radio proxy status, no maintenance duty"
+    },
+    "hacs:agapovmax/ha-energomera-ble": {
+      "keys": [],
+      "reason": "energy meter readings, no maintenance duty"
+    },
+    "hacs:ajtudela/hass-smartbox": {
+      "keys": [],
+      "reason": "heater status and settings, no maintenance duty"
     },
     "hacs:alarmatwork/ha-solar-floor-boost": {
       "keys": [],
@@ -383,6 +407,14 @@
       "keys": [],
       "reason": "not added: the filter days sensor has no unit, so a life preset cannot compare it; the UV lamp life sensor does not say if it counts used or remaining hours"
     },
+    "hacs:alpacalabs-de/hauspanel": {
+      "keys": [],
+      "reason": "no entity translation keys"
+    },
+    "hacs:alphalima/ha-device-inventory": {
+      "keys": [],
+      "reason": "no entity translation keys"
+    },
     "hacs:altar82/ha-didup-famiglia": {
       "keys": [],
       "reason": "not a duty: school grades and messages"
@@ -390,6 +422,14 @@
     "hacs:altar82/ha-offerte-luce": {
       "keys": [],
       "reason": "not a duty: energy offer comparison"
+    },
+    "hacs:amalak-dev/ha-iddero-integration": {
+      "keys": [],
+      "reason": "no entity translation keys"
+    },
+    "hacs:and7ey/haier_evo": {
+      "keys": [],
+      "reason": "filter cleaning sensor has no translation key"
     }
   }
 }
