@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: 5e32e10aebf3
+source_hash: bfd1291ec63b
 ---
 
 # Profiles and notifications
@@ -89,8 +89,8 @@ move the task out of the queue. The advance sends with `when_empty: all_clear`, 
 empty queue closes with an "All caught up" card. It also keeps the changed task out,
 because under `due_soon` or `all` that task can still match. A digest is 1 card with up to
 5 task names. `notifications.notification_tag` gives 1 stable tag per notification, so a
-new card replaces the old card. A send with no saved notification, or other targets, gets
-a `notifications.route_id`, which `notifications.resolve_tap_notification` reads on a tap.
+new card replaces the old card. A long id gets a hash: a tag has at most 64 bytes (iOS). A send
+with no saved notification gets a `notifications.route_id` that `resolve_tap_notification` reads.
 
 ### Buttons and the stale-tap guard
 

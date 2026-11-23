@@ -17,6 +17,7 @@ See ``docs/design/profiles-notifications.md``.
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import logging
 import re
@@ -613,6 +614,10 @@ def _tn(lang: str, key: str, n: int, **params: Any) -> str:
 # ── payload building ────────────────────────────────────────────────────────────
 
 
+#: The longest tag in bytes. The iOS push service refuses a collapse id above 64 bytes.
+TAG_MAX_BYTES = 64
+
+
 def notification_tag(notification_id: str) -> str:
     """The stable mobile-app ``tag`` for a notification's rolling message.
 
@@ -620,7 +625,13 @@ def notification_tag(notification_id: str) -> str:
     digest) *replaces* the previous notification in place rather than stacking, and
     lets the listener clear it when the queue empties.
     """
-    return f"home_keeper_{notification_id}"
+    tag = f"home_keeper_{notification_id}"
+    if len(tag.encode()) <= TAG_MAX_BYTES:
+        return tag
+    # A long id (a route id for a send to many targets) would break the iOS limit.
+    # Hash it: the tag stays stable and unique. A short id keeps its readable tag.
+    digest = hashlib.sha256(notification_id.encode()).hexdigest()[:32]
+    return f"home_keeper_{digest}"
 
 
 def payload_data(
