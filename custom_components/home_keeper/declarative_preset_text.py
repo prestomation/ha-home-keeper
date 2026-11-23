@@ -445,7 +445,7 @@ DUTY_NAMES: dict[str, dict[str, str]] = {
         "pl": "Uzupełnij nabłyszczacz",
         "pt-BR": "Reabastecer o secante",
         "ru": "Долить ополаскиватель",
-        "sv": "Fyll på sköljmedel",
+        "sv": "Fyll på spolglans",
         "uk": "Долити ополіскувач",
         "zh-Hans": "补充漂洗剂",
     },
