@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b2] - 2026-11-23
+
+### Added
+
+- **[Candy appliance presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  The Candy Simply-Fi preset now opens a task when a dishwasher needs salt or rinse aid,
+  when a washer needs detergent or fabric softener, and when a dryer filter needs
+  cleaning.
+
 ## [0.38.0b1] - 2026-11-22
 
 ### Fixed
