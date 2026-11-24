@@ -96,19 +96,23 @@ describe('history delete asks first', () => {
     expect(calls.map((c) => c.type)).toEqual(['home_keeper/delete_completion']);
   });
 
-  it('shows a note with HTML as plain text', async () => {
+  it('shows a note with HTML as the text that was typed', async () => {
     const { wireHistory } = await import('../src/panel-history.ts');
+    const { escapeHTML } = await import('../src/utils.ts');
     const { p } = host();
     const note = '"<img src=x onerror=alert(1)><b>x</b>"';
+    // The attribute goes through the same escaping as the row markup, and the browser
+    // decodes it before `dataset` reads it.
     const root = mount(
-      `<ha-icon-button class="hk-hist-del" data-del-task="t1" data-ts="2026-03-01T10:00:00Z"></ha-icon-button>`,
+      `<ha-icon-button class="hk-hist-del" data-del-task="t1" data-ts="2026-03-01T10:00:00Z" data-detail="${escapeHTML(note)}"></ha-icon-button>`,
     );
-    root.querySelector('.hk-hist-del').dataset.detail = note;
+    expect(root.querySelector('.hk-hist-del').getAttribute('data-detail')).toBe(note);
     wireHistory(p, root);
     root.querySelector('.hk-hist-del').click();
     const body = document.querySelector('#hk-confirm-body');
     expect(body.querySelector('img, b')).toBeNull();
-    expect(body.textContent).toContain('<img src=x onerror=alert(1)><b>x</b>');
+    expect(body.textContent).toContain(note);
+    expect(body.textContent).not.toContain('&lt;');
     click('Cancel');
   });
 
