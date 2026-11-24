@@ -862,7 +862,7 @@ test('capture managed and sensor tasks, layouts and the task form', async () => 
   // with the keyboard on Cancel. Cancelled, so the seeded orphan stays for 13 below.
   // Asserted in tests/orphan-cleanup.spec.ts.
   await panel.locator('#cleanup-orphans-btn').click();
-  const orphanConfirm = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  const orphanConfirm = page.getByRole('alertdialog', { name: 'Delete 1 orphaned task?' });
   await expect(orphanConfirm).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(500);
   // Viewport screenshot — the scrim is position:fixed on document.body.
@@ -1786,7 +1786,7 @@ test('capture the appliances, parts and stock', async () => {
   const docCard = docForm.locator('.hk-doc-card').first();
   await centre(docCard);
   await docCard.locator('ha-icon-button[label="Remove document"]').click();
-  const docConfirm = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  const docConfirm = page.getByRole('alertdialog', { name: /^Remove ".+"\?$/ });
   await expect(docConfirm).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/72-panel-document-remove-confirm.png` });
@@ -2647,7 +2647,7 @@ test('capture the phone layout', async () => {
   // each side and its buttons stay on one row.
   await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
   await panel.locator('#cleanup-orphans-btn').click();
-  const orphanConfirmPhone = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  const orphanConfirmPhone = page.getByRole('alertdialog', { name: 'Delete 1 orphaned task?' });
   await expect(orphanConfirmPhone).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/71c-panel-mobile-orphan-confirm.png` });
@@ -2664,7 +2664,7 @@ test('capture the phone layout', async () => {
   const docCardPhone = docFormPhone.locator('.hk-doc-card').first();
   await centre(docCardPhone);
   await docCardPhone.locator('ha-icon-button[label="Remove document"]').click();
-  const docConfirmPhone = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  const docConfirmPhone = page.getByRole('alertdialog', { name: /^Remove ".+"\?$/ });
   await expect(docConfirmPhone).toBeVisible({ timeout: 5_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/72c-panel-mobile-document-remove-confirm.png` });

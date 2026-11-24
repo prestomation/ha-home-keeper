@@ -48,7 +48,7 @@ test.describe('Home Keeper panel — orphan cleanup confirm', () => {
     const panel = await openPanelAt(page, { width: 320, height: 640 });
     await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
     await panel.locator('#cleanup-orphans-btn').click();
-    const dialog = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+    const dialog = page.getByRole('alertdialog', { name: 'Delete 1 orphaned task?' });
     await expect(dialog).toBeVisible();
     const box = await dialog.boundingBox();
     expect(box, 'the dialog has a layout box').not.toBeNull();
