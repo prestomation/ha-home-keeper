@@ -281,3 +281,15 @@ def test_a_reload_fires_nothing_and_keeps_every_set():
     machine.home_keeper_reloads()
     machine.merged_is_shipped_plus_the_model()
     assert list(machine.registry.registrations) == ["car_keeper", "bike_keeper"]
+
+
+def test_a_companion_that_unloads_and_registers_again_fires_both_events():
+    machine = PresetLife()
+    machine.register("car_keeper", ["tesla_fleet"], ["percent_low"])
+    machine.companion_unloads("car_keeper")
+    machine.an_unloaded_companion_has_no_presets()
+    # register() checks that this registration fires 1 registered event again.
+    machine.register("car_keeper", ["tesla_fleet"], ["percent_low"])
+    assert "car_keeper" not in machine.unloaded
+    machine.merged_is_shipped_plus_the_model()
+    machine.ids_are_unique_and_namespaced()

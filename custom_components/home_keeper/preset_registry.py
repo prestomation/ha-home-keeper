@@ -260,8 +260,11 @@ def validate_duty_names(
 
 
 # The config entry states in which a companion keeps its presets. A retry is a wait for
-# the next setup, so the presets stay and no removed and registered pair fires.
-_KEEP_STATES = frozenset({"loaded", "setup_in_progress", "setup_retry"})
+# the next setup, so the presets stay and no removed and registered pair fires. An
+# unload in progress keeps them until the unload is complete.
+_KEEP_STATES = frozenset(
+    {"loaded", "setup_in_progress", "setup_retry", "unload_in_progress"}
+)
 
 
 def drops_on_entry_change(removed: bool, state: str, other_loaded: bool) -> bool:

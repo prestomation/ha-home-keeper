@@ -506,6 +506,8 @@ def test_validate_duty_keeps_only_the_keys_it_was_given():
         (False, "loaded", False, False),
         (False, "setup_in_progress", False, False),
         (False, "setup_retry", False, False),
+        (False, "unload_in_progress", False, False),
+        (False, "migration_error", False, True),
         (False, "not_loaded", False, True),
         (False, "setup_error", False, True),
         (False, "failed_unload", False, True),
