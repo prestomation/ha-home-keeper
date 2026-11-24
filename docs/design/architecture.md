@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 78320a56263f
+source_hash: 11e1f2513b26
 ---
 
 # Architecture
@@ -62,9 +62,9 @@ A websocket command and its service twin are the same operation. An admin-only o
 `@websocket_api.require_admin` on the command, and its service handler calls `_verify_admin`, which
 raises the bare `Unauthorized`. A call with no `context.user_id` comes from an automation or from
 the core and is trusted. The gate covers appliance edits, asset documents, part files and stock,
-declarative companion edits, `register_companion`, orphan and archive deletes, `set_options`, the
-appliance report, export and import with their HTTP views, `list_entity_keys` and the companion
-preview. Else open. [2 stock writes](../SECURITY.md#open-stock-writes) stay open.
+declarative companion edits, `register_companion`, both preset services, orphan and archive
+deletes, `set_options`, the appliance report, export and import with their HTTP views,
+`list_entity_keys` and the preview. [2 stock writes](../SECURITY.md#open-stock-writes) are open.
 
 ### Setup
 

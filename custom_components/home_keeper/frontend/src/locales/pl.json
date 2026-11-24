@@ -796,6 +796,7 @@
   "declarative.companions.preset_show_all.other": "Pokaż {n} ustawienia więcej",
   "declarative.companions.preset_hide_other": "Ukryj inne urządzenia",
   "declarative.companions.preset_none": "Żadne ustawienie nie pasuje do wyszukiwania.",
+  "declarative.companions.preset_from": "Od {name}",
   "declarative.companions.preview_empty": "Żadna encja nie pasuje do tego deklaratywnego towarzysza.",
   "declarative.companions.preview_loading": "Ładowanie podglądu…",
   "declarative.companions.preview_many": "{count} encji pasuje — to dużo zadań. Rozważ zawężenie wyboru.",

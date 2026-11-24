@@ -796,6 +796,7 @@
   "declarative.companions.preset_show_all.other": "Zobrazit dalších {n} předvoleb",
   "declarative.companions.preset_hide_other": "Skrýt další zařízení",
   "declarative.companions.preset_none": "Hledání neodpovídá žádná předvolba.",
+  "declarative.companions.preset_from": "Od {name}",
   "declarative.companions.preview_empty": "Tomuto deklarativnímu společníkovi neodpovídá žádná entita.",
   "declarative.companions.preview_loading": "Načítání náhledu…",
   "declarative.companions.preview_many": "{count} entit odpovídá — to je hodně úloh. Zvažte zúžení výběru.",

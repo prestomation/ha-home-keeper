@@ -53,6 +53,7 @@ panel uses, and the matching `home_keeper.*` service.
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost, with the companion sections, the files and the settings of a bundle) | `export_data`, `import_data`, the bundle download (`GET /api/home_keeper/export_bundle`) and the import upload (`POST /api/home_keeper/import_upload`) |
 | Companion registration (an `import_export` companion is called with the admin's context during an export or import) | `register_companion` |
+| Companion presets (a preset decides which tasks the home gets, and its text shows in the panel) | `register_presets`, `unregister_presets` |
 | Declarative companions (they read entities with templates) | `add_declarative_companion`, `update_declarative_companion`, `delete_declarative_companion` |
 
 Home Keeper creates a Home Assistant device for each appliance and removes it with the

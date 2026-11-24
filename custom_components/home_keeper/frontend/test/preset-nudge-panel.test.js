@@ -293,6 +293,37 @@ describe('the one-time dialog', () => {
   });
 });
 
+describe('a companion preset', () => {
+  const CAR = {
+    ...FIRMWARE,
+    id: 'car_keeper/tesla_fleet_percent_low',
+    name: 'Tesla: parts and supplies running low',
+    source: 'companion',
+    provided_by: { domain: 'car_keeper', name: 'Car Keeper' },
+    default_spec: spec('Tesla', 'car_keeper/tesla_fleet_percent_low', { domain: 'sensor' }),
+  };
+
+  it('says which companion it is from, in the dialog and on the card', async () => {
+    const { hass } = makeHass({ presets: [FIRMWARE, CAR] });
+    const { panel } = await mount(hass);
+    const dlg = await waitFor(() => dialog(panel));
+    const badges = [...dlg.querySelectorAll('.hk-preset-pick-name')].map((e) => [
+      e.textContent.trim(),
+      e.querySelector('.hk-preset-from')?.textContent ?? null,
+    ]);
+    expect(badges).toEqual([
+      ['Firmware update available', null],
+      ['Tesla: parts and supplies running low From Car Keeper', 'From Car Keeper'],
+    ]);
+    dlg.querySelector('.hk-preset-dialog-later').click();
+    const rows = await waitFor(() => (card(panel) ? $$(panel, '.hk-preset-nudge-row') : null));
+    expect(rows.map((r) => r.querySelector('.hk-preset-from')?.textContent ?? null)).toEqual([
+      null,
+      'From Car Keeper',
+    ]);
+  });
+});
+
 describe('adding from the dialog', () => {
   it('adds only the checked presets, refreshes once and says so', async () => {
     const { hass, calls } = makeHass({ presets: [FIRMWARE, STOPPED] });

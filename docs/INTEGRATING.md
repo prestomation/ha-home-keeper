@@ -1,8 +1,8 @@
 ---
 title: Integrating with Home Keeper
 summary: How another integration adds tasks and appliances to Home Keeper and keeps them in sync.
-max_lines: 400
-exception: The panel tab and export contracts need their Python example and service tables.
+max_lines: 450
+exception: The panel tab, preset and export contracts need their Python examples and tables.
 ---
 
 # Integrating with Home Keeper
@@ -259,6 +259,56 @@ and `list_declarative_companions` (all admin-only).
   `home_keeper:declarative:<spec_id>`.
 - The presets are in `declarative_presets_catalog.py`. An integration preset id is
   `<domain>_<shape>`, such as `roborock_life_low`.
+
+### Register presets
+
+`home_keeper.register_presets` adds your presets to the preset picker and to the suggestions
+on the Tasks tab. Each call replaces the whole set of your domain. Call it at setup and again on
+`home_keeper_register_companions`. Call `home_keeper.unregister_presets` in
+`async_unload_entry`. Both services are admin-only, like `register_companion`.
+
+```python
+await hass.services.async_call(DOMAIN_HK, "register_presets", {
+    "domain": "car_keeper",
+    "duty_names": {"change_engine_oil": {"en": "Change the engine oil", "de": "Motoröl wechseln"}},
+    "rows": [{
+        "domain": "tesla_fleet", "brand": "Tesla", "icon": "mdi:car-wrench",
+        "duties": [
+            {"duty": "change_engine_oil", "shape": "percent_low", "keys": ["oil_life"], "limit": 15},
+            {"duty": "change_engine_oil", "shape": "alert", "platform": "binary_sensor", "keys": ["service_due"], "state": "on"},
+        ],
+    }],
+}, blocking=True, return_response=True)
+# {"preset_ids": ["car_keeper/tesla_fleet_percent_low", "car_keeper/tesla_fleet_alert_binary_sensor_on"]}
+```
+
+- A row has the format of a row of `declarative_presets_catalog.INTEGRATIONS`, with no `source`
+  and no `verified`. The 6 shapes make the trigger and the task templates, so a row holds no
+  Jinja. `preset_registry.validate_row` checks the format.
+- `duty` names a key of your `duty_names`, or a duty of `declarative_preset_text.DUTY_NAMES`.
+  Your `duty_names` win for your rows. `en` is required. A language that you do not give gets
+  the English name.
+- A preset id is `<your domain>/<id>`. The id of a Home Keeper preset has no `/`, so your ids
+  never replace a Home Keeper preset.
+- Each list has a limit. See the table below. An unknown key is refused.
+
+  | List or text | Limit |
+  | --- | --- |
+  | Rows | 20 |
+  | Duties in a row | 20 |
+  | Keys in a duty | 20 |
+  | Duty names | 50 |
+  | A duty name | 100 characters |
+  | A brand | 50 characters |
+
+- If 1 field is bad, the call fails with a `ServiceValidationError` that names the field, such
+  as `rows[0].duties[1].limit`. Your previous set stays.
+- Home Keeper keeps the presets in memory, and removes them when the last config entry of
+  your domain unloads.
+- The payload of `home_keeper_presets_registered` and `home_keeper_presets_removed` has `domain`
+  and `preset_ids`. They fire only after start and only on a change. They are not triggers.
+- A user who adds one of your presets gets a normal declarative companion with a copy of the
+  spec. It stays when your presets go.
 
 Write a glue integration instead when you must write back to the upstream integration on
 completion, or keep state across completions. See [GLUE_INTEGRATIONS.md](GLUE_INTEGRATIONS.md).

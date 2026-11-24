@@ -329,6 +329,10 @@ Each integration can have up to 6 presets, one for each type of reading:
 Home Keeper completes each task when the reading recovers. To complete it, reset the
 part on the device or refill the salt.
 
+A companion integration can add its own integration presets. The picker and the suggestions
+on the Tasks tab show them with the name of the companion, such as *From Car Keeper*. A
+declarative companion that you add from one of these presets stays when the companion is removed.
+
 ![The preset picker with a search for filter, showing the integration presets and the tasks each one makes](../../images/21v-panel-declarative-preset-search.png)
 
 ![The same search on a phone](../../images/21v-panel-mobile-preset-search.png)

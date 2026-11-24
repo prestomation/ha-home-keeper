@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrar predefinits",
+      "description": "Afegeix els predefinits d'un complement al selector de predefinits. Cada crida substitueix els predefinits que el complement havia registrat abans.",
+      "fields": {
+        "domain": {
+          "name": "Domini",
+          "description": "El domini de la integració complementària."
+        },
+        "rows": {
+          "name": "Files",
+          "description": "Les files de predefinits, en el format del catàleg de predefinits de Home Keeper."
+        },
+        "duty_names": {
+          "name": "Noms de feines",
+          "description": "El nom de la tasca de cada feina, per idioma. L'anglès és obligatori."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Anul·lar el registre de predefinits",
+      "description": "Elimina els predefinits d'un complement del selector de predefinits. Els complements declaratius creats a partir d'ells es mantenen.",
+      "fields": {
+        "domain": {
+          "name": "Domini",
+          "description": "El domini de la integració complementària."
+        }
+      }
+    },
     "list_companions": {
       "name": "Llista els companys",
       "description": "Retorna la llista combinada de companys (integracions autoregistrades més upstreams detectats el connector dels quals encara no està instal·lat) com a resposta."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Indica un document o un paquet per importar."
+    },
+    "invalid_preset_rows": {
+      "message": "No s'han registrat els predefinits: {error}"
     }
   }
 }

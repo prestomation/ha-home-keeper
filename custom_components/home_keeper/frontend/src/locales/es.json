@@ -774,6 +774,7 @@
   "declarative.companions.preset_show_all.other": "Mostrar {n} ajustes más",
   "declarative.companions.preset_hide_other": "Ocultar otros dispositivos",
   "declarative.companions.preset_none": "Ningún ajuste coincide con la búsqueda.",
+  "declarative.companions.preset_from": "De {name}",
   "declarative.companions.preview_empty": "Ninguna entidad coincide con este companion declarativo.",
   "declarative.companions.preview_loading": "Cargando vista previa…",
   "declarative.companions.preview_many": "{count} entidades coinciden — son muchas tareas. Considera reducir la selección.",

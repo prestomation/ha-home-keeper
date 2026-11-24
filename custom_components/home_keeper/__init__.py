@@ -48,6 +48,7 @@ from . import (
     options,
     panel,
     panel_tabs,
+    preset_registry,
     profiles,
     recurrence,
     sensor_tasks,
@@ -2118,6 +2119,34 @@ def _register_services(hass: HomeAssistant) -> None:
         companions.async_register_companion(hass, dict(call.data))
         return {"ok": True}
 
+    async def handle_register_presets(call: ServiceCall) -> dict[str, Any]:
+        """Replace the presets that a companion offers in the preset picker.
+
+        Admin-only, as ``register_companion`` is: a preset decides which tasks the
+        home gets, and its text shows in the admin panel. An integration registers
+        from its own setup, which has no user, so that call still passes.
+        """
+        await _verify_admin(call)
+        try:
+            ids = companions.async_register_presets(
+                hass,
+                call.data["domain"],
+                call.data["rows"],
+                call.data.get("duty_names"),
+            )
+        except preset_registry.PresetRowError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_preset_rows",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        return {"preset_ids": ids}
+
+    async def handle_unregister_presets(call: ServiceCall) -> None:
+        """Remove the presets of a companion. Admin-only, as ``register_presets``."""
+        await _verify_admin(call)
+        companions.async_unregister_presets(hass, call.data["domain"])
+
     async def handle_list_companions(call: ServiceCall) -> dict[str, Any]:
         return {"companions": companions.async_list_companions(hass)}
 
@@ -2200,6 +2229,20 @@ def _register_services(hass: HomeAssistant) -> None:
         companions.REGISTER_COMPANION_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
+    services.async_register(
+        DOMAIN,
+        "register_presets",
+        handle_register_presets,
+        companions.REGISTER_PRESETS_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    services.async_register(
+        DOMAIN,
+        "unregister_presets",
+        handle_unregister_presets,
+        companions.UNREGISTER_PRESETS_SCHEMA,
+    )
+    companions.async_watch_companion_entries(hass)
     services.async_register(
         DOMAIN,
         "list_companions",

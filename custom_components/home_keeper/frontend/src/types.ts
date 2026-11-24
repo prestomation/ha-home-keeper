@@ -851,6 +851,11 @@ export interface DeclarativeCompanionPreset {
   brand?: string | null;
   shape?: string | null;
   limit_text?: string | null;
+  // `builtin` for a preset that ships with Home Keeper, `companion` for one that a
+  // companion registered with `home_keeper.register_presets`. `provided_by` names that
+  // companion, or is `null` for a shipped preset. Older backends omit both.
+  source?: 'builtin' | 'companion';
+  provided_by?: { domain: string; name: string } | null;
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
 }
 

@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "Show {n} more presets",
   "declarative.companions.preset_hide_other": "Hide other devices",
   "declarative.companions.preset_none": "No preset matches your search.",
+  "declarative.companions.preset_from": "From {name}",
   "declarative.companions.preview_empty": "No entities match this declarative companion.",
   "declarative.companions.preview_loading": "Loading preview…",
   "declarative.companions.preview_many": "{count} entities match. That is a lot of tasks. Consider narrowing the selection.",

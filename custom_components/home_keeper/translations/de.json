@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Vorlagen registrieren",
+      "description": "Fügt die Vorlagen eines Begleiters zur Vorlagenauswahl hinzu. Jeder Aufruf ersetzt die Vorlagen, die der Begleiter vorher registriert hat.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "Die Domain der Begleit-Integration."
+        },
+        "rows": {
+          "name": "Zeilen",
+          "description": "Die Vorlagenzeilen im Format des Vorlagenkatalogs von Home Keeper."
+        },
+        "duty_names": {
+          "name": "Aufgabennamen der Pflichten",
+          "description": "Der Aufgabenname jeder Pflicht nach Sprache. Englisch ist erforderlich."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Vorlagen abmelden",
+      "description": "Entfernt die Vorlagen eines Begleiters aus der Vorlagenauswahl. Die deklarativen Begleiter, die daraus erstellt wurden, bleiben.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "Die Domain der Begleit-Integration."
+        }
+      }
+    },
     "list_companions": {
       "name": "Companions auflisten",
       "description": "Gibt die zusammengeführte Companion-Liste als Antwort zurück (selbst registrierte Integrationen plus erkannte Upstreams, deren Glue noch nicht installiert ist)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Gib ein Dokument oder ein Paket zum Importieren an."
+    },
+    "invalid_preset_rows": {
+      "message": "Die Vorlagen wurden nicht registriert: {error}"
     }
   }
 }

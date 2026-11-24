@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "Näytä {n} esiasetusta lisää",
   "declarative.companions.preset_hide_other": "Piilota muut laitteet",
   "declarative.companions.preset_none": "Mikään esiasetus ei vastaa hakua.",
+  "declarative.companions.preset_from": "Lähde: {name}",
   "declarative.companions.preview_empty": "Yksikään entiteetti ei vastaa tätä deklaratiivista kumppania.",
   "declarative.companions.preview_loading": "Ladataan esikatselua…",
   "declarative.companions.preview_many": "{count} entiteettiä vastaa — se on paljon tehtäviä. Harkitse valinnan kaventamista.",

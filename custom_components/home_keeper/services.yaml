@@ -1746,6 +1746,49 @@ register_companion:
         text:
           multiple: true
 
+register_presets:
+  name: Register presets
+  description: >-
+    Add the presets of a companion to the preset picker. Each call replaces the
+    presets that the companion registered before.
+  fields:
+    domain:
+      name: Domain
+      description: The domain of the companion integration.
+      required: true
+      example: car_keeper
+      selector:
+        text:
+    rows:
+      name: Rows
+      description: The preset rows, in the format of the Home Keeper preset catalog.
+      required: true
+      example: >-
+        [{"domain": "tesla_fleet", "brand": "Tesla", "icon": "mdi:car-wrench",
+        "duties": [{"duty": "change_engine_oil", "shape": "percent_low",
+        "keys": ["oil_life"], "limit": 15}]}]
+      selector:
+        object:
+    duty_names:
+      name: Duty names
+      description: The task name of each duty, by language. English is required.
+      example: >-
+        {"change_engine_oil": {"en": "Change the engine oil"}}
+      selector:
+        object:
+unregister_presets:
+  name: Unregister presets
+  description: >-
+    Remove the presets of a companion from the preset picker. The declarative
+    companions that were made from them stay.
+  fields:
+    domain:
+      name: Domain
+      description: The domain of the companion integration.
+      required: true
+      example: car_keeper
+      selector:
+        text:
 list_companions:
   name: List companions
   description: >-

@@ -107,6 +107,9 @@ _PURE_MODULES = (
     "declarative_preset_text",
     "declarative_presets_catalog",
     "declarative_presets",
+    # ``preset_registry`` holds the presets that companions register. It imports
+    # ``declarative_presets`` and ``declarative_companions``, so it comes after both.
+    "preset_registry",
     # ``task_entities`` names the per-task device-page entities. It imports
     # ``declarative_companions`` and ``notifications``, so it comes after both.
     "task_entities",

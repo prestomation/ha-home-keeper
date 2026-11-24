@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Zarejestruj ustawienia wstępne",
+      "description": "Dodaje ustawienia wstępne integracji towarzyszącej do wyboru ustawień. Każde wywołanie zastępuje ustawienia zarejestrowane wcześniej.",
+      "fields": {
+        "domain": {
+          "name": "Domena",
+          "description": "Domena integracji towarzyszącej."
+        },
+        "rows": {
+          "name": "Wiersze",
+          "description": "Wiersze ustawień wstępnych w formacie katalogu Home Keeper."
+        },
+        "duty_names": {
+          "name": "Nazwy obowiązków",
+          "description": "Nazwa zadania każdego obowiązku według języka. Angielski jest wymagany."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Wyrejestruj ustawienia wstępne",
+      "description": "Usuwa ustawienia wstępne integracji towarzyszącej z wyboru ustawień. Deklaratywne integracje utworzone z nich pozostają.",
+      "fields": {
+        "domain": {
+          "name": "Domena",
+          "description": "Domena integracji towarzyszącej."
+        }
+      }
+    },
     "list_companions": {
       "name": "Wyświetl towarzyszy",
       "description": "Zwróć jako odpowiedź scaloną listę towarzyszy (samodzielnie zarejestrowane integracje oraz wykryte integracje nadrzędne, których łącznik nie jest jeszcze zainstalowany)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Podaj dokument lub pakiet do zaimportowania."
+    },
+    "invalid_preset_rows": {
+      "message": "Ustawienia wstępne nie zostały zarejestrowane: {error}"
     }
   }
 }

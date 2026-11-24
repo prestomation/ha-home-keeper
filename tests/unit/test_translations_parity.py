@@ -104,6 +104,8 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_task.fields.labels.name",  # "Labels" — DE loanword (HA UI)
             "services.add_task.fields.name.name",
             "services.register_companion.fields.domain.name",  # "Domain" — DE loanword
+            "services.register_presets.fields.domain.name",  # "Domain" — DE loanword
+            "services.unregister_presets.fields.domain.name",  # "Domain" — DE loanword
             "services.register_companion.fields.name.name",  # "Name" — DE cognate
             "services.update_asset.fields.name.name",
             "services.update_managed_asset.fields.name.name",  # "Name" — DE cognate

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "注册预设",
+      "description": "将配套集成的预设添加到预设选择器。每次调用都会替换该配套集成之前注册的预设。",
+      "fields": {
+        "domain": {
+          "name": "域",
+          "description": "配套集成的域。"
+        },
+        "rows": {
+          "name": "行",
+          "description": "预设行，采用 Home Keeper 预设目录的格式。"
+        },
+        "duty_names": {
+          "name": "职责名称",
+          "description": "按语言列出的每项职责的任务名称。必须提供英语。"
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "注销预设",
+      "description": "从预设选择器中移除配套集成的预设。由这些预设创建的声明式配套保持不变。",
+      "fields": {
+        "domain": {
+          "name": "域",
+          "description": "配套集成的域。"
+        }
+      }
+    },
     "list_companions": {
       "name": "列出搭档",
       "description": "以响应形式返回合并后的搭档列表（自注册的集成，加上已检测到但其粘合尚未安装的上游集成）。"
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "请提供要导入的文档或数据包。"
+    },
+    "invalid_preset_rows": {
+      "message": "未注册预设：{error}"
     }
   }
 }

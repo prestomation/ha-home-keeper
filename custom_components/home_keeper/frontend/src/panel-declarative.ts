@@ -55,7 +55,7 @@ import { t, tn } from './i18n';
 import { confirmDestructive, makeDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
-import { groupPresets, presetTaskNames } from './preset-picker';
+import { groupPresets, presetFromBadge, presetTaskNames } from './preset-picker';
 import { wireBrandImage } from './panel-chips';
 import {
   changedSections,
@@ -579,7 +579,7 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
     el.innerHTML = `
         <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
         <span class="hk-decl-preset-text">
-          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}${count}</span>
+          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}${presetFromBadge(preset)}${count}</span>
           <span class="hk-decl-preset-desc">${escapeHTML(preset.description)}</span>
           ${chips}
           ${requires}

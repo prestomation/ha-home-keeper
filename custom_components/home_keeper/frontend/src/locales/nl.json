@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "Nog {n} voorinstellingen tonen",
   "declarative.companions.preset_hide_other": "Andere apparaten verbergen",
   "declarative.companions.preset_none": "Geen voorinstelling komt overeen met je zoekopdracht.",
+  "declarative.companions.preset_from": "Van {name}",
   "declarative.companions.preview_empty": "Geen entiteiten passen bij deze declaratieve companion.",
   "declarative.companions.preview_loading": "Voorbeeld laden…",
   "declarative.companions.preview_many": "{count} entiteiten passen — dat zijn veel taken. Beperk de selectie.",

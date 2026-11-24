@@ -1873,9 +1873,16 @@ async def ws_list_declarative_presets(
     # it: an installed integration can have none of the entities a preset selects.
     # The counts are kept between calls until the registry changes.
     sync = coord.declarative_sync
-    counts: dict[str, int] = sync.preset_match_counts() if sync is not None else {}
+    # The shipped presets, then the ones that companions registered.
+    merged = companions.async_merged_presets(hass)
+    counts: dict[str, int] = (
+        sync.preset_match_counts(merged) if sync is not None else {}
+    )
+    names = {
+        row["domain"]: row.get("name") for row in companions.async_list_companions(hass)
+    }
     presets_out = []
-    for preset in declarative_presets.CATALOG_PRESETS:
+    for preset in merged:
         # An integration preset fills the integration's name into a string that
         # every integration shares; the general presets have no placeholders.
         args = preset.get("name_args", {})
@@ -1912,9 +1919,23 @@ async def ws_list_declarative_presets(
                 "default_spec": declarative_presets.localized_default_spec(
                     preset, lang, name
                 ),
+                # ``builtin`` or ``companion``. A companion preset names its
+                # companion, by the name it registered with, else by its domain.
+                "source": preset.get("source", "builtin"),
+                "provided_by": _provided_by(preset, names),
             }
         )
     connection.send_result(msg["id"], {"presets": presets_out})
+
+
+def _provided_by(
+    preset: declarative_presets.PresetDefinition, names: dict[str, Any]
+) -> dict[str, str] | None:
+    """The companion that registered *preset*, or ``None`` for a shipped preset."""
+    domain = preset.get("provided_by")
+    if domain is None:
+        return None
+    return {"domain": domain, "name": str(names.get(domain) or domain)}
 
 
 @websocket_api.websocket_command(

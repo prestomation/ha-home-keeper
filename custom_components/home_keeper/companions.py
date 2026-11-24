@@ -30,14 +30,22 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import (
+    SIGNAL_CONFIG_ENTRY_CHANGED,
+    ConfigEntry,
+    ConfigEntryChange,
+    ConfigEntryState,
+)
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import companions_catalog as catalog
-from . import events
+from . import events, preset_registry
 from .companions_catalog import STATUS_CONNECTED, STATUS_SUGGESTED
 from .const import (
     DATA_COMPANIONS,
+    DATA_PRESET_REGISTRY,
     DOMAIN,
     EVENT_COMPANION_CONNECTED,
     EVENT_COMPANION_SUGGESTED,
@@ -45,6 +53,7 @@ from .const import (
     MAX_COMPANIONS,
     OPTION_DISMISSED_COMPANIONS,
 )
+from .declarative_presets import PresetDefinition
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,6 +94,19 @@ REGISTER_COMPANION_SCHEMA = vol.Schema(
     },
     extra=vol.REMOVE_EXTRA,
 )
+
+
+# The fields of ``home_keeper.register_presets``. The shape of each row and each duty
+# name is checked by ``preset_registry.build_registration``, the 1 check for the
+# catalog format. A key that this schema does not name is refused.
+REGISTER_PRESETS_SCHEMA = vol.Schema(
+    {
+        vol.Required("domain"): cv.string,
+        vol.Required("rows"): list,
+        vol.Optional("duty_names"): dict,
+    }
+)
+UNREGISTER_PRESETS_SCHEMA = vol.Schema({vol.Required("domain"): cv.string})
 
 
 class CompanionRegistry:
@@ -270,16 +292,120 @@ def async_request_registration(hass: HomeAssistant) -> None:
     async_reconcile(hass)
 
 
+class PresetRegistryHolder:
+    """The registered presets for this Home Assistant run.
+
+    The state is a frozen ``preset_registry.PresetRegistry``, and only
+    ``preset_registry.transition`` makes the next one.
+    """
+
+    def __init__(self) -> None:
+        self.state = preset_registry.PresetRegistry()
+        self.unsub: CALLBACK_TYPE | None = None
+
+
+def async_get_preset_registry(hass: HomeAssistant) -> PresetRegistryHolder:
+    """Return (creating if needed) the holder of the registered presets."""
+    holder = hass.data.get(DATA_PRESET_REGISTRY)
+    if not isinstance(holder, PresetRegistryHolder):
+        holder = PresetRegistryHolder()
+        hass.data[DATA_PRESET_REGISTRY] = holder
+    return holder
+
+
+def _apply(
+    hass: HomeAssistant, action: preset_registry.Register | preset_registry.Unregister
+) -> None:
+    """Apply *action* and fire its events once Home Assistant has started.
+
+    The presets are memory and every companion registers again at each start, so
+    the events of a start would repeat what was there before the restart.
+    """
+    holder = async_get_preset_registry(hass)
+    result = preset_registry.transition(holder.state, action)
+    holder.state = result.registry
+    if hass.is_running:
+        for name, data in result.events:
+            hass.bus.async_fire(name, data)
+
+
+@callback
+def async_register_presets(
+    hass: HomeAssistant, domain: Any, rows: Any, duty_names: Any = None
+) -> list[str]:
+    """Replace the presets of companion *domain*. Return the preset ids.
+
+    Raises ``preset_registry.PresetRowError`` and keeps the old presets if one
+    field is bad.
+    """
+    registration = preset_registry.build_registration(domain, rows, duty_names)
+    _apply(hass, preset_registry.Register(registration))
+    return registration.preset_ids
+
+
+@callback
+def async_unregister_presets(hass: HomeAssistant, domain: str) -> None:
+    """Remove the presets of companion *domain*. A domain with none is no change."""
+    _apply(hass, preset_registry.Unregister(domain))
+
+
+@callback
+def async_merged_presets(hass: HomeAssistant) -> list[PresetDefinition]:
+    """The shipped presets, then the registered ones (``preset_registry``)."""
+    return preset_registry.merged_presets(async_get_preset_registry(hass).state)
+
+
+@callback
+def async_watch_companion_entries(hass: HomeAssistant) -> None:
+    """Remove a companion's presets when its last config entry unloads or goes.
+
+    A companion removes its presets itself when it unloads. This is the fallback for
+    a companion that does not. A companion with no config entry is not changed. The
+    listener only removes presets and changes no config entry, so its work never
+    comes back to it as a config entry change.
+    """
+    holder = async_get_preset_registry(hass)
+    if holder.unsub is not None:
+        return
+
+    @callback
+    def _changed(change: ConfigEntryChange, entry: ConfigEntry) -> None:
+        if entry.domain not in holder.state.registrations:
+            return
+        if change is not ConfigEntryChange.REMOVED and entry.state in (
+            ConfigEntryState.LOADED,
+            ConfigEntryState.SETUP_IN_PROGRESS,
+        ):
+            return
+        if any(
+            other.state is ConfigEntryState.LOADED
+            for other in hass.config_entries.async_entries(entry.domain)
+            if other.entry_id != entry.entry_id
+        ):
+            return
+        async_unregister_presets(hass, entry.domain)
+
+    holder.unsub = async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, _changed)
+
+
 __all__ = [
     "REGISTER_COMPANION_SCHEMA",
+    "REGISTER_PRESETS_SCHEMA",
     "STATUS_CONNECTED",
     "STATUS_SUGGESTED",
+    "UNREGISTER_PRESETS_SCHEMA",
     "CompanionRegistry",
+    "PresetRegistryHolder",
+    "async_get_preset_registry",
     "async_get_registry",
     "async_list_companions",
+    "async_merged_presets",
     "async_reconcile",
     "async_register_companion",
+    "async_register_presets",
     "async_registration_order",
     "async_request_registration",
     "async_set_live",
+    "async_unregister_presets",
+    "async_watch_companion_entries",
 ]

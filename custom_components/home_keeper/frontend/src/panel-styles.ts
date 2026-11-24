@@ -2672,6 +2672,13 @@ export const STYLES = `
   }
   .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
+  /* "From <companion>" on a preset that a companion registered. No border, so it
+     reads as a label and not as a control. */
+  .hk-preset-from {
+    display: inline-block; margin-inline-start: 6px; padding: 0 8px; border-radius: 10px;
+    font-size: 0.75rem; font-weight: 500; line-height: 1.5; white-space: nowrap;
+    vertical-align: middle; background: var(--hk-accent-soft); color: var(--hk-accent-ink);
+  }
   .hk-decl-preset-search {
     display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 12px;
     background: var(--input-fill-color, var(--secondary-background-color));

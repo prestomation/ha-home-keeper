@@ -796,6 +796,7 @@
   "declarative.companions.preset_show_all.other": "Показати ще {n} пресета",
   "declarative.companions.preset_hide_other": "Приховати інші пристрої",
   "declarative.companions.preset_none": "Пресетів за запитом не знайдено.",
+  "declarative.companions.preset_from": "Від {name}",
   "declarative.companions.preview_empty": "Жодна сутність не відповідає умовам компаньйона.",
   "declarative.companions.preview_loading": "Завантаження попереднього перегляду…",
   "declarative.companions.preview_many": "Збігів: {count}. Звузьте вибір, якщо потрібно менше завдань.",

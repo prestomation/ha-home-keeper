@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrar preajustes",
+      "description": "Añade los preajustes de un complemento al selector de preajustes. Cada llamada sustituye los preajustes que el complemento registró antes.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "El dominio de la integración complementaria."
+        },
+        "rows": {
+          "name": "Filas",
+          "description": "Las filas de preajustes, con el formato del catálogo de preajustes de Home Keeper."
+        },
+        "duty_names": {
+          "name": "Nombres de labores",
+          "description": "El nombre de la tarea de cada labor, por idioma. El inglés es obligatorio."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Anular registro de preajustes",
+      "description": "Quita los preajustes de un complemento del selector de preajustes. Los complementos declarativos creados a partir de ellos se mantienen.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "El dominio de la integración complementaria."
+        }
+      }
+    },
     "list_companions": {
       "name": "Listar companions",
       "description": "Devuelve como respuesta la lista combinada de companions (integraciones autorregistradas más upstreams detectados cuya integración de enlace aún no está instalada)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Indica un documento o un paquete para importar."
+    },
+    "invalid_preset_rows": {
+      "message": "No se registraron los preajustes: {error}"
     }
   }
 }

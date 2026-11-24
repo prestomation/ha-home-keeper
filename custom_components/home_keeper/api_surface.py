@@ -81,6 +81,9 @@ class EventSpec:
     """The "fires when" one-liner. Required for every fired event."""
     extra: tuple[Field, ...] = ()
     """Per-event keys merged onto the spine."""
+    mirrored: bool = True
+    """False for an event that is no trigger and no event type on the event entity:
+    a change of memory for the Home Assistant run, not of Home Keeper data."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +238,8 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("import_data", admin_only=True, response="only"),
     ServiceSpec("set_options", admin_only=True),
     ServiceSpec("register_companion", admin_only=True, response="optional"),
+    ServiceSpec("register_presets", admin_only=True, response="optional"),
+    ServiceSpec("unregister_presets", admin_only=True),
     ServiceSpec("list_companions", response="only"),
     ServiceSpec("add_declarative_companion", admin_only=True, response="only"),
     ServiceSpec("update_declarative_companion", admin_only=True, response="only"),
@@ -365,6 +370,15 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "the bundled preset the declarative companion was seeded from, or None for "
             "one written by hand",
+        ),
+    ),
+    "presets": (
+        Field("domain", "str", "the companion that registered the presets"),
+        Field(
+            "preset_ids",
+            "list[str]",
+            "the ids, as <companion domain>/<preset id>: the new set for a "
+            "registration, the removed set for a removal",
         ),
     ),
     "data_transfer": (
@@ -685,6 +699,24 @@ EVENTS: tuple[EventSpec, ...] = (
         "declarative_companion",
         "a declarative companion is deleted, along with every task it materialized",
         extra=(_MATCH_COUNT,),
+    ),
+    EventSpec(
+        const.EVENT_PRESETS_REGISTERED,
+        "EVENT_PRESETS_REGISTERED",
+        "fired",
+        "presets",
+        "register_presets changes the set of presets of a companion, after Home "
+        "Assistant has started",
+        mirrored=False,
+    ),
+    EventSpec(
+        const.EVENT_PRESETS_REMOVED,
+        "EVENT_PRESETS_REMOVED",
+        "fired",
+        "presets",
+        "unregister_presets removes the presets of a companion, or its last config "
+        "entry unloads, after Home Assistant has started",
+        mirrored=False,
     ),
     EventSpec(
         const.EVENT_DATA_EXPORTED,
@@ -1171,6 +1203,14 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "`register_companion`, or are detected from a curated catalog.",
     ),
     SurfaceKind(
+        "Companion presets",
+        "published",
+        "A companion adds presets to the preset picker with the admin-only "
+        "`register_presets`, in the format of the shipped catalog. The registry is "
+        "memory for the Home Assistant run; its 2 bus events are not triggers and "
+        "not event types, so a registration writes no logbook row.",
+    ),
+    SurfaceKind(
         "Companion panel tabs",
         "published",
         "A companion integration adds a tab to the panel with the in-process Python "
@@ -1312,12 +1352,14 @@ def event_entity_type(event_name: str) -> str:
 TRIGGERS: tuple[TriggerSpec, ...] = tuple(
     TriggerSpec(event_entity_type(spec.name), spec.name, spec.payload)
     for spec in EVENTS
-    if spec.direction == "fired" and spec.payload != "none"
+    if spec.direction == "fired" and spec.payload != "none" and spec.mirrored
 )
 """1 trigger for each fired event that has a payload, in declaration order.
 
 ``home_keeper_register_companions`` has no payload. It asks companions to announce
-themselves and is not a state change, so it gets no trigger and no event type.
+themselves and is not a state change, so it gets no trigger and no event type. The
+2 preset registration events are not ``mirrored``: they report memory for the Home
+Assistant run, not a change of Home Keeper data.
 """
 
 

@@ -774,6 +774,7 @@
   "declarative.companions.preset_show_all.other": "Afficher {n} préréglages de plus",
   "declarative.companions.preset_hide_other": "Masquer les autres appareils",
   "declarative.companions.preset_none": "Aucun préréglage ne correspond à votre recherche.",
+  "declarative.companions.preset_from": "De {name}",
   "declarative.companions.preview_empty": "Aucune entité ne correspond à ce companion déclaratif.",
   "declarative.companions.preview_loading": "Chargement de l'aperçu…",
   "declarative.companions.preview_many": "{count} entités correspondent — cela fait beaucoup de tâches. Envisagez de réduire la sélection.",

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrovat předvolby",
+      "description": "Přidá předvolby doprovodné integrace do výběru předvoleb. Každé volání nahradí předvolby, které integrace registrovala dříve.",
+      "fields": {
+        "domain": {
+          "name": "Doména",
+          "description": "Doména doprovodné integrace."
+        },
+        "rows": {
+          "name": "Řádky",
+          "description": "Řádky předvoleb ve formátu katalogu předvoleb Home Keeper."
+        },
+        "duty_names": {
+          "name": "Názvy povinností",
+          "description": "Název úkolu každé povinnosti podle jazyka. Angličtina je povinná."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Zrušit registraci předvoleb",
+      "description": "Odebere předvolby doprovodné integrace z výběru předvoleb. Deklarativní doprovody vytvořené z nich zůstanou.",
+      "fields": {
+        "domain": {
+          "name": "Doména",
+          "description": "Doména doprovodné integrace."
+        }
+      }
+    },
     "list_companions": {
       "name": "Vypsat společníky",
       "description": "Vrátí sloučený seznam společníků (samostatně zaregistrované integrace plus zjištěné upstreamy, jejichž propojení ještě není nainstalováno) jako odpověď."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Zadejte dokument nebo balíček k importu."
+    },
+    "invalid_preset_rows": {
+      "message": "Předvolby nebyly registrovány: {error}"
     }
   }
 }

@@ -95,7 +95,9 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
 - Backfilled history from an import fires no completion event.
 - An event needs no new service. It observes a change that a service already makes.
 - A change to in-memory registration that is not store state, such as the panel tab
-  registry, fires no event. Give the reason in its `SURFACE_KINDS` row.
+  registry, fires no event. Give the reason in its `SURFACE_KINDS` row. The 1 exception is the
+  companion presets: their 2 events fire only after start and on a change, and they carry
+  `mirrored=False` in `api_surface.py`, so they are no trigger and no event type.
 
 ## The declared surface
 
@@ -103,7 +105,8 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   and payloads, triggers, device triggers, entity platforms and attributes, options, websocket
   commands and HTTP views. A new one is not done until it has a spec there.
   `tests/unit/test_api_surface.py` parses the source and fails on drift.
-- **A new fired event with a payload is also a trigger and an event type.** `trigger.py`
+- **A new fired event with a payload is also a trigger and an event type**, unless it is
+  `mirrored=False`. `trigger.py`
   and `event.py` take the list from `api_surface.TRIGGERS`. Add its key to `triggers.yaml`
   and `icons.json`, and its `triggers` name and description to `strings.json` and all
   locales. Its `name` is the same text as its event type label on the `event` entity.
