@@ -38,7 +38,7 @@ implements:
   - custom_components/home_keeper/backend_i18n.py
   - custom_components/home_keeper/*/uk.json
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: f2d5d516a0fa
+source_hash: c7a79be160a2
 ---
 
 # Frontend
@@ -119,10 +119,10 @@ variable. Media queries change the layout at 1150px (sheet drawer), 1000px (Sett
 
 ### Dashboard card
 
-`card.ts` defines `HomeKeeperCard` and its editor, and shapes tasks with `card-filter.ts`. It
-refreshes from `todo/item/subscribe`; an admin also listens for `home_keeper_task_completed`. Rows
-show [task photos](task-photos.md). A `profile` picks tasks; `labels` narrow them. A toggle beats
-`startsCollapsed`. The card picker (or `preview`) draws `PREVIEW_MAX_ITEMS` rows.
+`card.ts` defines `HomeKeeperCard` and its editor, and uses `card-filter.ts`. It refreshes from
+`todo/item/subscribe`; an admin listens for `home_keeper_task_completed`. Rows show [task
+photos](task-photos.md). `profile` picks tasks; `labels` narrow them. A toggle beats
+`startsCollapsed`. The picker draws `PREVIEW_MAX_ITEMS` rows. A short card scrolls its form.
 `card.async_register_card` uses one delivery path per install: a Lovelace resource in storage mode,
 else `frontend.add_extra_js_url`. Both at once race the scoped element registry.
 `card_resource.plan_card_resource` matches rows on the URL path without the `?v=` token and plans

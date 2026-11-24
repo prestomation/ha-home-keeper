@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b6] - 2026-11-24
+
+### Fixed
+
+- **Scrolling add form.** The add form in a card with a fixed height now scrolls, so you can
+  reach every field and the Save button on a touchscreen (Fixes #605).
+
 ## [0.38.0b4] - 2026-11-24
 
 ### Changed
