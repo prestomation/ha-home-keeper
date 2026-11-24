@@ -76,6 +76,18 @@ describe('assetDeleteImpact', () => {
     expect(assetDeleteImpact(asset, tasks)).toEqual({ dropped: 2, kept: 1, history: 3 });
   });
 
+  it('counts the completions of a task that goes, and not those of a task that stays', () => {
+    const done = (n) => Array.from({ length: n }, () => ({ ts: 'x' }));
+    const tasks = [
+      { ...part(), completions: done(2) }, // goes with its 2 completions
+      { source: { buy: { asset_id: 'a1', part_id: 'p' } }, completions: done(1) }, // goes
+      { source: { parts: [{ asset_id: 'a1', part_id: 'q' }] }, completions: done(5) }, // stays
+      { ...part(), source: { part: { asset_id: 'other', part_id: 'p' } }, completions: done(7) },
+    ];
+    // 3 more from the history that the appliance archived before.
+    expect(assetDeleteImpact(asset, tasks)).toEqual({ dropped: 2, kept: 1, history: 6 });
+  });
+
   it('counts nothing for a task that is about another appliance or another source', () => {
     const tasks = [
       { source: { parts: [{ asset_id: 'other', part_id: 'p' }] } },

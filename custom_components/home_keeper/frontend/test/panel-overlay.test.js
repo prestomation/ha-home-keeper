@@ -145,6 +145,22 @@ describe('Escape closes 1 overlay', () => {
   });
 });
 
+describe('a confirmation when the panel leaves the page', () => {
+  it('takes the scrim and its key listener down on unmount', async () => {
+    const { confirmDestructive } = await import('../src/panel-dialogs.ts');
+    const { panel } = await mountCounting();
+    let cancelled = 0;
+    confirmDestructive(panel, { title: 'Delete?', onConfirm: () => {} });
+    expect(document.querySelector('.hk-confirm-scrim')).toBeTruthy();
+    panel.remove();
+    expect(document.querySelector('.hk-confirm-scrim')).toBeNull();
+    // The listener is gone too: an Escape now reaches no handler of the dialog.
+    document.addEventListener('keydown', () => (cancelled += 1), { once: true });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(cancelled).toBe(1);
+  });
+});
+
 describe('the keyboard after an overlay closes', () => {
   it('goes back to the caret after a Snooze that the deferral menu opened', async () => {
     const { panel } = await mountCounting();

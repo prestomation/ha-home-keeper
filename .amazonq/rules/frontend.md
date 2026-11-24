@@ -149,6 +149,7 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
   outside cancel. Style it with `--hk-confirm-*` tokens, never inline.
 - `destructive-scan-parity.test.js` fails on a call of a delete, remove or replace function
   outside `confirmDestructive`. An exception needs an `ALLOW` entry with a reason.
+  It also fails on a `home_keeper/delete_*` command outside `api.ts`: call the helper.
 
 ## Documents and files
 

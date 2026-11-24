@@ -23,8 +23,8 @@ const ALLOW = {
     'Edits the open draft of the task form. The drawer Cancel throws the draft away, ' +
     'and nothing is stored before Save.',
   'panel.ts::_undoComplete::deleteCompletion':
-    'The Undo button of the Done toast. It removes the entry that Done just added, ' +
-    'and the user pressed Undo to ask for that.',
+    'The Undo button of the Done toast. Pressing Undo is itself the answer to "keep it?", ' +
+    'and the entry that goes is the one that Done added a moment before.',
   'panel.ts::_transferCall::importData':
     'Also runs for Preview, which writes nothing (dryRun). The real import starts in ' +
     '_runImport, and its only caller is inside the Import confirmation.',
@@ -56,9 +56,23 @@ describe('destructive actions are confirmed', () => {
     }
   });
 
+  it('keeps every destructive websocket command inside api.ts', () => {
+    // A direct `callWS({ type: 'home_keeper/delete_...' })` would bypass the names the
+    // scan follows. The panel calls the helpers of `api.ts` for each data action.
+    const direct = files
+      .filter((f) => f.name !== 'api.ts')
+      .filter((f) =>
+        /['"`]home_keeper\/(delete_|remove_|archive_|import_data|import_upload)/.test(f.source),
+      )
+      .map((f) => f.name);
+    expect(direct).toEqual([]);
+  });
+
   it('finds the guarded calls that it should', () => {
     // A scan that sees no call at all would pass for the wrong reason.
-    const history = files.find((f) => f.name === 'panel-history.ts').source;
+    const file = files.find((f) => f.name === 'panel-history.ts');
+    expect(file, 'panel-history.ts must be in src/').toBeDefined();
+    const history = file.source;
     expect(history).toContain('confirmDestructive');
     expect(history).toContain('deleteCompletion');
   });

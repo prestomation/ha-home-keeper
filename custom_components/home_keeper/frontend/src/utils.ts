@@ -676,8 +676,9 @@ export function taskHomeName(
 
 /**
  * What deleting an appliance deletes, counted the way `store.delete_asset` decides.
- * A task made from one of its wear parts, and an auto-buy task, are deleted. A task
- * that links one of its consumables stays and only loses the link.
+ * A task made from one of its wear parts, and an auto-buy task, are deleted with their
+ * completions. A task that links one of its consumables stays and only loses the link.
+ * The counts are a snapshot of the data that the panel holds when the dialog opens.
  */
 export function assetDeleteImpact(
   asset: Pick<Asset, 'id' | 'task_history'>,
@@ -685,19 +686,23 @@ export function assetDeleteImpact(
 ): { dropped: number; kept: number; history: number } {
   let dropped = 0;
   let kept = 0;
+  // The history that goes: what the appliance archived from tasks that were removed
+  // before, and the completions of each task that goes with it now.
+  let history = (asset.task_history ?? []).reduce(
+    (sum, entry) => sum + (entry.completions?.length ?? 0),
+    0,
+  );
   for (const task of tasks) {
     if (task.source?.buy?.asset_id === asset.id) {
       dropped += 1;
+      history += task.completions?.length ?? 0;
     } else if (consumableLinks(task).some((link) => link.asset_id === asset.id)) {
       kept += 1;
     } else if (task.source?.part?.asset_id === asset.id && !task.source.part.manual) {
       dropped += 1;
+      history += task.completions?.length ?? 0;
     }
   }
-  const history = (asset.task_history ?? []).reduce(
-    (sum, entry) => sum + (entry.completions?.length ?? 0),
-    0,
-  );
   return { dropped, kept, history };
 }
 

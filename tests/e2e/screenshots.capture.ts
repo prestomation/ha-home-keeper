@@ -1522,8 +1522,8 @@ test('capture the appliances, parts and stock', async () => {
   await expect(page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]')).toBeAttached({
     timeout: 5_000,
   });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/8b-panel-appliance-delete-confirm.png`, fullPage: false });
+  // The photo of this dialog is `99-panel-appliance-delete-confirm.png`, from
+  // `screenshots-confirm-everywhere.capture.ts`, which shows the counts in its body.
   // Dismiss via Escape so the seeded appliance survives for later shots.
   await page.keyboard.press('Escape');
   await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });

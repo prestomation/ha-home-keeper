@@ -199,7 +199,7 @@ export function teardownOverlay(p: PanelHost): void {
 
 /**
  * Ask before an action that loses data or is hard to reverse. This is the 1 door for
- * every such action in the panel (`tests/frontend/destructive-scan.test.js` checks
+ * every such action in the panel (`frontend/test/destructive-scan-parity.test.js` checks
  * that). An action that is easy to reverse asks nothing.
  */
 export function confirmDestructive(p: PanelHost, spec: ConfirmSpec): void {
