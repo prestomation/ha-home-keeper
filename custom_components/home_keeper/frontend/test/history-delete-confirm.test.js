@@ -96,6 +96,22 @@ describe('history delete asks first', () => {
     expect(calls.map((c) => c.type)).toEqual(['home_keeper/delete_completion']);
   });
 
+  it('shows a note with HTML as plain text', async () => {
+    const { wireHistory } = await import('../src/panel-history.ts');
+    const { p } = host();
+    const note = '"<img src=x onerror=alert(1)><b>x</b>"';
+    const root = mount(
+      `<ha-icon-button class="hk-hist-del" data-del-task="t1" data-ts="2026-03-01T10:00:00Z"></ha-icon-button>`,
+    );
+    root.querySelector('.hk-hist-del').dataset.detail = note;
+    wireHistory(p, root);
+    root.querySelector('.hk-hist-del').click();
+    const body = document.querySelector('#hk-confirm-body');
+    expect(body.querySelector('img, b')).toBeNull();
+    expect(body.textContent).toContain('<img src=x onerror=alert(1)><b>x</b>');
+    click('Cancel');
+  });
+
   it('an archived completion and a skip wait too', async () => {
     const { wireHistory } = await import('../src/panel-history.ts');
     const { wireSkipHistoryRows } = await import('../src/panel-defer.ts');
