@@ -8,9 +8,9 @@ import { TASK } from '../fixture-ids';
  * The seed has one task (Rex's vet visit) whose managing integration is not loaded,
  * so the task list shows the orphan banner. These open the confirm dialog and cancel
  * it — never confirm it, because the orphaned task is shared fixture data that the
- * capture harness and other specs photograph. The screenshots
- * `71-panel-orphan-confirm.png` / `71c-panel-mobile-orphan-confirm.png` photograph the
- * same dialog; a capture asserts nothing, so this spec does.
+ * capture harness and other specs photograph. The
+ * screenshot `102-panel-orphan-delete-confirm.png` photographs the same dialog; a capture
+ * asserts nothing, so this spec does.
  */
 test.describe('Home Keeper panel — orphan cleanup confirm', () => {
   test('opens a named dialog with focus on Cancel, and Cancel deletes nothing', async ({
