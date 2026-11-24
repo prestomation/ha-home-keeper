@@ -26,6 +26,7 @@ implements:
   - custom_components/home_keeper/frontend/src/api.ts
   - custom_components/home_keeper/frontend/src/forms.ts
   - custom_components/home_keeper/frontend/src/dialogs.ts
+  - custom_components/home_keeper/frontend/src/confirm-dialog.ts
   - custom_components/home_keeper/frontend/src/limits.ts
   - custom_components/home_keeper/frontend/src/index.ts
   - custom_components/home_keeper/frontend/src/global.d.ts
@@ -37,7 +38,7 @@ implements:
   - custom_components/home_keeper/backend_i18n.py
   - custom_components/home_keeper/*/uk.json
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: 9474b4820cd5
+source_hash: f2d5d516a0fa
 ---
 
 # Frontend
@@ -81,7 +82,8 @@ the focused control (`_focusKey`) and restores it after the rebuild. The task fo
 form numbers its draft (`draft-step.ts`); a late save answer for a replaced draft is ignored.
 `overlay-state.ts` stacks the open dialogs, forms, sheets and menus with their openers, also in the
 card. `_busy()` is the 1 busy rule, only the top overlay takes Escape, and a close gives the
-keyboard back to its opener.
+keyboard back to its opener. Every action that loses data asks in `confirm-dialog.ts`
+(`confirmDestructive`; the card calls `mountConfirm`), with Cancel as the default.
 
 ### Routes
 
@@ -89,13 +91,11 @@ keyboard back to its opener.
 browser. Paths: `/tasks`, `/tasks/<id>`, `/appliances`, `/appliances/parts`, `/appliances/<id>`,
 `/appliances/<id>/<tab>` (`ASSET_TABS`), `/settings/<section>` (`SETTINGS_SECTIONS`) and
 `/<tab id>/<path>` for a companion tab ([panel-tabs](panel-tabs.md)). Other paths give the task
-list. `utils.encodeRouteSegment` encodes each id and path segment: `.` and `..` become `~.` and
-`~..`. An appliance with the id `parts` keeps its sub-tab in the URL. Only `set route` changes
+list. `utils.encodeRouteSegment` encodes each id and path segment. Only `set route` changes
 `_view`, `_detail` and `_partsView` (`_applyLocation`). `_navigate(loc, replace)`: a detail pushes;
 a tab or mode switch, a close or a delete replaces. The panel keeps the URL that each history entry
-(`hkKey`) shows now, so the back arrow of a section pops only to the index. A form is an overlay
-with no URL. The Parts mode (`panel-parts.partsBody`, `parts-overview.ts`) keeps its choices per
-browser (`LS_PARTS_*`).
+(`hkKey`) shows now, so the back arrow of a section pops only to the index. The Parts mode
+(`panel-parts.partsBody`, `parts-overview.ts`) keeps its choices per browser (`LS_PARTS_*`).
 
 ### Data and refresh
 
@@ -112,10 +112,10 @@ Tasks draws Rows, Tiles or a Board (`task-layout.ts`, `panel-lists.ts`). Above i
 each active filter (`list-bar.ts`). A sentinel observer marks a pinned bar `data-stuck`. `_render`
 keeps the scroll of the board and the appliance pane. A choice about this screen is per browser
 (`localStorage`, `LS_*` in `panel-types.ts`). A choice about the person (task layout, intro
-dismissed) is per user, in HA frontend user data under a `home_keeper_<pref>` key, through
-`api.getTaskLayout` and peers. `panel-styles.STYLES` starts with `--hk-*` tokens on `:host`, each
-mapped to a Home Assistant theme variable. Media queries change the layout at 1150px (sheet drawer),
-1000px (Settings index) and 700px (bottom tabs, folded filters, stacked rows and parts cards).
+dismissed) is per user, in HA frontend user data (`home_keeper_<pref>`, `api.getTaskLayout`).
+`panel-styles.STYLES` starts with `--hk-*` tokens on `:host`, each mapped to a Home Assistant theme
+variable. Media queries change the layout at 1150px (sheet drawer), 1000px (Settings index) and
+700px (bottom tabs, folded filters, stacked rows and parts cards).
 
 ### Dashboard card
 
@@ -138,8 +138,8 @@ of `strings.json`, and `resolve_string` reads `backend_strings/<lang>.json`. Set
 
 ## Trade-offs
 
-- **String templates, not a framework:** no runtime dependency, but the escape and focus rules.
-- **Free functions over `PanelHost`:** no forwarding layer.
+- **String templates, free functions over `PanelHost`:** no dependency and no forwarding layer,
+  but the escape and focus rules.
 
 ## One-way doors
 

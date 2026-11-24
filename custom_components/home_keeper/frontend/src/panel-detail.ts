@@ -35,7 +35,7 @@ import {
   wirePartChips,
 } from './panel-chips';
 import { declarativeCompanionFor, openDeclarativeForm } from './panel-declarative';
-import { openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
@@ -98,6 +98,9 @@ import {
   statusChipHtml,
   useCountLabel,
   useProgress,
+  assetDeleteBody,
+  taskDeleteBody,
+  taskHomeName,
   tasksForAsset,
   toast,
   type AssetTab,
@@ -1354,11 +1357,16 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
     p._wireNoteEditor(root, { kind: 'task', id: task.id });
     wireTaskPhotos(p, root, task);
     root.querySelector('.d-del')?.addEventListener('click', () => {
-      openConfirmDialog(p, t('confirm.deleteTask', { name: task.name }), () => {
-        // The detail is about to vanish: replace it with its list so Forward
-        // can't return to a deleted task.
-        p._navigate({ view: 'tasks', detail: null }, true);
-        void p._delete(task);
+      confirmDestructive(p, {
+        title: t('confirm.deleteTask', { name: task.name }),
+        confirmLabel: t('confirm.btn.deleteTask'),
+        body: taskDeleteBody(task, taskHomeName(task, p._assets, p._hass?.devices)),
+        onConfirm: () => {
+          // The detail is about to vanish: replace it with its list so Forward
+          // can't return to a deleted task.
+          p._navigate({ view: 'tasks', detail: null }, true);
+          void p._delete(task);
+        },
       });
     });
     // "Edit in X" deep link: navigate to the managing integration's config page
@@ -1405,11 +1413,16 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));
   root.querySelector('.d-del')?.addEventListener('click', () => {
     const name = assetTitle(asset, p._hass?.devices);
-    openConfirmDialog(p, t('confirm.deleteAsset', { name }), () => {
-      // The detail is about to vanish: replace it with its list so Forward
-      // can't return to a deleted appliance.
-      p._navigate({ view: 'appliances', detail: null }, true);
-      void p._deleteAsset(asset);
+    confirmDestructive(p, {
+      title: t('confirm.deleteAsset', { name }),
+      confirmLabel: t('confirm.btn.deleteAsset'),
+      body: assetDeleteBody(asset, p._tasks),
+      onConfirm: () => {
+        // The detail is about to vanish: replace it with its list so Forward
+        // can't return to a deleted appliance.
+        p._navigate({ view: 'appliances', detail: null }, true);
+        void p._deleteAsset(asset);
+      },
     });
   });
   // Uploaded files (asset documents and part attachments) open via a short-lived

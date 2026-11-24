@@ -43,9 +43,12 @@ Appliances tab to show archived appliances. An archived appliance can be
 
 ![Archived appliance detail page](../../images/8c-panel-appliance-archived-detail.png)
 
-**Delete** asks for confirmation for an appliance and for a task.
+**Delete** asks for confirmation for an appliance and for a task. The question says what goes
+with it, with the number of tasks and history entries. Every other delete in the panel asks
+first in the same way, and the red button says what it does, such as **Delete task** or
+**Remove part**.
 
-![Delete confirmation dialog](../../images/8b-panel-appliance-delete-confirm.png)
+![The question before an appliance is deleted, with what goes with it](../../images/99-panel-appliance-delete-confirm.png)
 
 #### Tree view
 

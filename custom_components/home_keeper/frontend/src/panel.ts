@@ -1,3 +1,4 @@
+import type { ConfirmHandle } from './confirm-dialog';
 import {
   emptyLabelDialog,
   renderLabelDialog,
@@ -275,20 +276,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onOpen: (caret) => this._openOverlay('deferMenu', caret),
     onClose: (keyboard) => this._closeOverlay('deferMenu', keyboard),
   });
-  _confirmDelete: {
-    label: string;
-    body: string;
-    onConfirm: (() => void) | null;
-  } = {
-    label: '',
-    body: '',
-    onConfirm: null,
-  };
-  // Body-level scrim for the delete confirmation overlay.
-  _confirmScrim: HTMLElement | null = null;
-  // The document keydown (Escape) handler bound while the confirm dialog is open, held
-  // as a field so disconnectedCallback can remove it if we unmount mid-dialog.
-  _confirmOnKey: ((e: KeyboardEvent) => void) | null = null;
+  // The open delete confirmation (body-level scrim and keydown listener).
+  _confirmHandle: ConfirmHandle | null = null;
   // config entry id -> integration domain, for resolving device brand logos.
   _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.

@@ -123,6 +123,8 @@ your topic before you change code or push.
 - **Every integrator surface is declared in `api_surface.py`.**
 - **A new persisted field round-trips through import and export**, or is excluded with a
   reason ([data-and-storage.md](.amazonq/rules/data-and-storage.md#import-and-export)).
+- **Every action that loses data asks through `confirmDestructive`.** There is no undo. A scan
+  test enforces it ([frontend.md](.amazonq/rules/frontend.md#destructive-actions)).
 - **An options flow returns `options.merge_flow_input(...)`**, never `user_input`.
 - Escape all user content with `escapeHTML`. Navigate the panel only by URL.
 - All datetimes are timezone-aware. Recurrence code takes an explicit `now`.

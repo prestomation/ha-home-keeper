@@ -268,6 +268,17 @@ export function reportRows(report: ImportReport, companions: Companion[]): Repor
   return rows;
 }
 
+/**
+ * What the import will write, over all rows of the preview: the records it adds and
+ * the records it updates. An import never removes a record, so there is no third count.
+ */
+export function importTotals(rows: ReportRow[]): { created: number; updated: number } {
+  return rows.reduce(
+    (sum, row) => ({ created: sum.created + row.created, updated: sum.updated + row.updated }),
+    { created: 0, updated: 0 },
+  );
+}
+
 /** The problems that no row of the table holds, errors first. */
 export function otherProblems(report: ImportReport, rows: ReportRow[]): ImportProblem[] {
   const held = new Set(rows.flatMap((r) => r.problems));

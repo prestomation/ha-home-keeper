@@ -132,16 +132,32 @@ describe('1 busy rule for every overlay', () => {
 
 describe('Escape closes 1 overlay', () => {
   it('closes the confirmation and leaves the spend sheet under it open', async () => {
-    const { openConfirmDialog } = await import('../src/panel-dialogs.ts');
+    const { confirmDestructive } = await import('../src/panel-dialogs.ts');
     const { panel } = await mountCounting();
     panel._openSpendSheet();
-    openConfirmDialog(panel, 'Delete?', () => {});
+    confirmDestructive(panel, { title: 'Delete?', onConfirm: () => {} });
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(panel._isOpen('confirm')).toBe(false);
     expect(panel._isOpen('spendSheet')).toBe(true);
     expect(panel.shadowRoot.querySelector('.hk-spend-sheet')).toBeTruthy();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(panel._isOpen('spendSheet')).toBe(false);
+  });
+});
+
+describe('a confirmation when the panel leaves the page', () => {
+  it('takes the scrim and its key listener down on unmount', async () => {
+    const { confirmDestructive } = await import('../src/panel-dialogs.ts');
+    const { panel } = await mountCounting();
+    let cancelled = 0;
+    confirmDestructive(panel, { title: 'Delete?', onConfirm: () => {} });
+    expect(document.querySelector('.hk-confirm-scrim')).toBeTruthy();
+    panel.remove();
+    expect(document.querySelector('.hk-confirm-scrim')).toBeNull();
+    // The listener is gone too: an Escape now reaches no handler of the dialog.
+    document.addEventListener('keydown', () => (cancelled += 1), { once: true });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(cancelled).toBe(1);
   });
 });
 
@@ -212,7 +228,7 @@ describe('overlay model on the real panel', () => {
 
   async function openKind(panel, kind) {
     const { openSnooze, openSkip } = await import('../src/panel-defer.ts');
-    const { openCompletionDialog, openConfirmDialog } = await import('../src/panel-dialogs.ts');
+    const { openCompletionDialog, confirmDestructive } = await import('../src/panel-dialogs.ts');
     const { openLabelDialog } = await import('../src/panel-labels.ts');
     switch (kind) {
       case 'snooze': return openSnooze(panel, task);
@@ -222,7 +238,7 @@ describe('overlay model on the real panel', () => {
       case 'label': return openLabelDialog(panel, 'task', 'A');
       case 'spendSheet': return panel._openSpendSheet();
       case 'taskForm': return panel._openCreate();
-      case 'confirm': return openConfirmDialog(panel, 'Delete?', () => {});
+      case 'confirm': return confirmDestructive(panel, { title: 'Delete?', onConfirm: () => {} });
       case 'deferMenu':
         return panel.shadowRoot.querySelector('.hk-split[data-id="A"] .hk-split-caret')?.click();
     }

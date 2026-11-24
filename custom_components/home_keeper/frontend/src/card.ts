@@ -1,3 +1,4 @@
+import { mountConfirm, type ConfirmHandle } from './confirm-dialog';
 import * as api from './api';
 import {
   filterTasks,
@@ -591,6 +592,8 @@ export class HomeKeeperCard extends HTMLElement {
   // Set in disconnectedCallback, reset in connectedCallback: guards the gap in
   // `_subscribe` where an in-flight subscribeEvents resolves after we've detached.
   private _disconnected = false;
+  // The open "mark done?" dialog, held so that the card can take it down when it detaches.
+  private _confirmHandle: ConfirmHandle | null = null;
   // The websocket connection our event subscription is bound to, so we can
   // re-subscribe if HA hands us a fresh connection after a reconnect.
   private _subConn?: Hass['connection'];
@@ -694,6 +697,8 @@ export class HomeKeeperCard extends HTMLElement {
 
   disconnectedCallback(): void {
     this._disconnected = true;
+    this._confirmHandle?.close();
+    this._confirmHandle = null;
     if (this._unsub) {
       this._unsub();
       this._unsub = undefined;
@@ -1023,9 +1028,40 @@ export class HomeKeeperCard extends HTMLElement {
     }
     const prompt = task.managed_by?.completion_prompt;
     if (this._config.confirm_complete || prompt) {
-      const msg = prompt || t('confirm.completeTask', { name: task.name });
-      if (!window.confirm(msg)) return;
+      // The same dialog the panel uses. Nothing is lost by saying yes, so the button
+      // is the plain primary one and says what it does.
+      this._askComplete(prompt || t('confirm.completeTask', { name: task.name }), () =>
+        void this._record(task),
+      );
+      return;
     }
+    await this._record(task);
+  }
+
+  /** Ask "mark done?" in the shared dialog; *onYes* runs only on the confirm button. */
+  private _askComplete(title: string, onYes: () => void): void {
+    this._confirmHandle?.close();
+    this._openOverlay('confirm');
+    const close = (): void => {
+      this._confirmHandle?.close();
+      this._confirmHandle = null;
+      this._closeOverlay('confirm');
+      this._render();
+    };
+    this._confirmHandle = mountConfirm(
+      { title, body: '', confirmLabel: t('btn.done'), tone: 'primary' },
+      {
+        onCancel: close,
+        onConfirm: () => {
+          close();
+          onYes();
+        },
+      },
+    );
+  }
+
+  private async _record(task: Task): Promise<void> {
+    if (!this._hass || this._completing.has(task.id)) return;
     this._completing.add(task.id);
     try {
       await api.completeTask(this._hass, task.id);

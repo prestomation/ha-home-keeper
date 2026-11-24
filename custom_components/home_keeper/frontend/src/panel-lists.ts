@@ -36,7 +36,7 @@ import {
   renderGroups,
 } from './panel-controls';
 import { deferMenu, openSkip, openSnooze, setDueToday, verbsFor } from './panel-defer';
-import { openCompletionDialog, openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive, openCompletionDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
@@ -220,12 +220,12 @@ function orphanBanner(p: PanelHost): string {
 function cleanupOrphans(p: PanelHost): void {
   const n = p._tasks.filter((task) => isManagedOrphan(p, task)).length;
   if (!n) return;
-  openConfirmDialog(
-    p,
-    tn('confirm.deleteOrphans', n),
-    () => void removeOrphans(p),
-    `${tn('managed.orphanBanner', n)} ${t('confirm.cannotUndo')}`,
-  );
+  confirmDestructive(p, {
+    title: tn('confirm.deleteOrphans', n),
+    confirmLabel: t('confirm.btn.deleteOrphans'),
+    body: `${tn('managed.orphanBanner', n)} ${t('confirm.cannotUndo')}`,
+    onConfirm: () => void removeOrphans(p),
+  });
 }
 
 async function removeOrphans(p: PanelHost): Promise<void> {

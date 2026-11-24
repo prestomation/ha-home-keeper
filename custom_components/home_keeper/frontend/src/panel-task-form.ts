@@ -35,7 +35,7 @@ import {
 } from './forms';
 import { t } from './i18n';
 import { isManagedOrphan } from './panel-chips';
-import { openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive } from './panel-dialogs';
 import { setIcon } from './panel-history';
 import { applyRuleChange, previewLine, ruleControls, schedulePreview } from './panel-rule';
 import type { PanelHost } from './panel-host';
@@ -53,6 +53,8 @@ import {
   safeHref,
   setBtnWeight,
   stockLinks,
+  taskDeleteBody,
+  taskHomeName,
 } from './utils';
 
 /**
@@ -654,13 +656,18 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     del.textContent = t('btn.delete');
     const onThisTasksPage = p._detail?.kind === 'task' && p._detail.id === task.id;
     del.addEventListener('click', () =>
-      openConfirmDialog(p, t('confirm.deleteTask', { name: String(task.name ?? '') }), () => {
-        p._closeForm();
-        // Deleting from the task's own page empties that page: replace it with the
-        // list first, the same way the page's own Delete does, so neither the render
-        // that follows nor Forward lands on a task that is gone.
-        if (onThisTasksPage) p._navigate({ view: 'tasks', detail: null }, true);
-        void p._delete(task as Task);
+      confirmDestructive(p, {
+        title: t('confirm.deleteTask', { name: String(task.name ?? '') }),
+        confirmLabel: t('confirm.btn.deleteTask'),
+        body: taskDeleteBody(task, taskHomeName(task as Task, p._assets, p._hass?.devices)),
+        onConfirm: () => {
+          p._closeForm();
+          // Deleting from the task's own page empties that page: replace it with the
+          // list first, the same way the page's own Delete does, so neither the render
+          // that follows nor Forward lands on a task that is gone.
+          if (onThisTasksPage) p._navigate({ view: 'tasks', detail: null }, true);
+          void p._delete(task as Task);
+        },
       }),
     );
     const spacer = document.createElement('span');

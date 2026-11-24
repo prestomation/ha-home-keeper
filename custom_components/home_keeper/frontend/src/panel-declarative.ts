@@ -52,7 +52,7 @@ import {
   type FormField,
 } from './forms';
 import { t, tn } from './i18n';
-import { makeDialog, openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive, makeDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
 import { groupPresets, presetTaskNames } from './preset-picker';
@@ -407,11 +407,11 @@ export function wireDeclarativeSection(p: PanelHost, root: HTMLElement): void {
     b.addEventListener('click', () => {
       const spec = specFor(b);
       if (!spec) return;
-      openConfirmDialog(
-        p,
-        t('declarative.companions.delete_confirm', { name: spec.name }),
-        () => void deleteDeclarative(p, spec.id),
-      );
+      confirmDestructive(p, {
+        title: t('declarative.companions.delete_confirm', { name: spec.name }),
+        confirmLabel: t('confirm.btn.deleteCompanion'),
+        onConfirm: () => void deleteDeclarative(p, spec.id),
+      });
     }),
   );
 }

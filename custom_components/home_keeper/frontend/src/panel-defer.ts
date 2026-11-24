@@ -23,8 +23,8 @@ import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import { setIcon } from './panel-history';
 import type { Task } from './types';
-import { setDueTime, toast, type BtnWeight } from './utils';
-import { openConfirmEntryDelete } from './panel-dialogs';
+import { historyDeleteText, setDueTime, toast, type BtnWeight } from './utils';
+import { confirmDestructive } from './panel-dialogs';
 
 /**
  * Which deferral verbs *task* can actually take, given the global switches.
@@ -160,10 +160,13 @@ export function wireSkipHistoryRows(p: PanelHost, root: ParentNode): void {
     b.addEventListener('click', () => {
       const ts = b.dataset.ts;
       const taskId = b.dataset.delSkip;
-      if (ts && taskId)
-        openConfirmEntryDelete(p, 'skip', ts, b.dataset.detail || '', () =>
-          void deleteSkip(p, taskId, ts),
-        );
+      if (!ts || !taskId) return;
+      const text = historyDeleteText(
+        'skip',
+        { ts, task: b.dataset.task, detail: b.dataset.detail, who: b.dataset.who },
+        p._lang(),
+      );
+      confirmDestructive(p, { ...text, onConfirm: () => void deleteSkip(p, taskId, ts) });
     });
   });
   root.querySelectorAll<HTMLElement>('.hk-hist-skip-edit').forEach((b) => {

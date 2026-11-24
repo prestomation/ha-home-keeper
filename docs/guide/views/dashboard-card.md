@@ -9,7 +9,8 @@ The card on your dashboard shows all its tasks.
 
 From the card, a user can:
 
-- complete a task with **Done**
+- complete a task with **Done**. With **Confirm before completing**, the card asks first
+  in the same dialog as the panel
 - add a task with the **+** button in the header, with [photos](../tasks/task-photos.md)
 - open the cover photo of a task
 - open the document links that a task shows

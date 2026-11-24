@@ -44,7 +44,7 @@ import {
 } from './forms';
 import { t, tn } from './i18n';
 import type { MarkdownPreview } from './markdown';
-import { openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive } from './panel-dialogs';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_CONSUMABLE, MDI_DELETE, MDI_EDIT, MDI_OPEN_IN_NEW, MDI_WEAR } from './panel-icons';
@@ -163,7 +163,11 @@ function entryBox(
   del.setAttribute('label', spec.removeLabel);
   setIcon(del, MDI_DELETE);
   del.addEventListener('click', () => {
-    openConfirmDialog(p, spec.confirmLabel(), spec.onRemove);
+    confirmDestructive(p, {
+      title: spec.confirmLabel(),
+      confirmLabel: spec.removeLabel,
+      onConfirm: spec.onRemove,
+    });
   });
   head.appendChild(del);
   box.appendChild(head);
@@ -222,8 +226,10 @@ function renderDocumentCard(p: PanelHost, inner: HTMLElement, d: AssetDocument):
         // The backend deletes an uploaded file at once, and the drawer's Cancel does
         // not bring it back, so ask first (F08-3).
         onClick: () =>
-          openConfirmDialog(p, t('confirm.removeNamed', { name: documentLabel(d) }), () => {
-            void removeDocument(p, d);
+          confirmDestructive(p, {
+            title: t('confirm.removeNamed', { name: documentLabel(d) }),
+            confirmLabel: t('btn.removeDocument'),
+            onConfirm: () => void removeDocument(p, d),
           }),
       },
     }),
@@ -871,10 +877,11 @@ function partBox(
     del.textContent = t('btn.removePart');
     del.addEventListener('click', () => {
       const name = p._assetEdit.asset?.parts?.[i]?.name;
-      openConfirmDialog(
-        p,
-        name ? t('confirm.removeNamed', { name }) : t('confirm.removePart', { n: i + 1 }),
-        () => {
+      confirmDestructive(p, {
+        title: name ? t('confirm.removeNamed', { name }) : t('confirm.removePart', { n: i + 1 }),
+        confirmLabel: t('btn.removePart'),
+        body: removePartBody(p, p._assetEdit.asset?.id, p._assetEdit.asset?.parts?.[i]?.id),
+        onConfirm: () => {
           const all = p._assetEdit.asset?.parts || [];
           p._assetEdit.asset!.parts = all.filter((_, j) => j !== i);
           const chosen = p._assetEdit.openPart;
@@ -883,8 +890,7 @@ function partBox(
             else if (chosen > i) p._assetEdit.openPart = chosen - 1;
           }
         },
-        removePartBody(p, p._assetEdit.asset?.id, p._assetEdit.asset?.parts?.[i]?.id),
-      );
+      });
     });
     foot.appendChild(del);
     bodyEl.appendChild(foot);
@@ -927,8 +933,10 @@ function renderPartFile(p: PanelHost, box: HTMLElement, part: Part): void {
           label: t('btn.removePartFile'),
           // The stored file goes at once and Cancel does not restore it (F08-3).
           onClick: () =>
-            openConfirmDialog(p, t('confirm.removeNamed', { name: part.file_name ?? '' }), () => {
-              void removePartFile(p, part);
+            confirmDestructive(p, {
+              title: t('confirm.removeNamed', { name: part.file_name ?? '' }),
+              confirmLabel: t('btn.removePartFile'),
+              onConfirm: () => void removePartFile(p, part),
             }),
         },
       }),

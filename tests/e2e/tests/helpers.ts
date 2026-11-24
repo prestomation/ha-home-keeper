@@ -430,3 +430,19 @@ export async function openSendTo(form: Locator): Promise<void> {
   await expect(field).toHaveCount(1);
   await field.locator('ha-button').first().click();
 }
+
+/**
+ * Whether *el* holds the keyboard. `ha-button` delegates focus to a button inside its
+ * own shadow root, so Playwright's `toBeFocused` (which compares the innermost element)
+ * reads the host as inactive. Walk the chain of shadow-root active elements instead.
+ */
+export async function holdsFocus(el: Locator): Promise<boolean> {
+  return el.evaluate((node: Element) => {
+    let at: Element | null = document.activeElement;
+    while (at) {
+      if (at === node) return true;
+      at = at.shadowRoot?.activeElement ?? null;
+    }
+    return false;
+  });
+}

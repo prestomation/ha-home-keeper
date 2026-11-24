@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b4] - 2026-11-24
+
+### Changed
+
+- **Consistent delete confirmation.** Every delete and every import now asks first, in the
+  same dialog. The red button says what it does, and the text says what goes with it, such
+  as the history of a task or the tasks of an appliance.
+
 ## [0.38.0b3] - 2026-11-24
 
 ### Fixed

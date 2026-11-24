@@ -37,6 +37,11 @@ const settingsReady = async (page: Page): Promise<void> => {
   await expect(panel(page).locator('.hk-settings-layout')).toBeVisible();
 };
 /** A dialog host reports hidden to Playwright, so wait on a button inside it. */
+/** Put back what a confirmation opened: Escape cancels it. */
+const closeConfirm = async (page: Page): Promise<void> => {
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
+};
 const dialogOpen = async (page: Page): Promise<void> => {
   await expect(
     page.locator('ha-dialog[open]').getByRole('button', { name: 'Cancel' }).first(),
@@ -119,10 +124,56 @@ const VIEWS: View[] = [
       await panel(page).locator('.hk-hist-del').first().click();
       await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
     },
-    after: async (page) => {
-      await page.keyboard.press('Escape');
-      await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
+    after: closeConfirm,
+  },
+  {
+    name: 'Task page, delete confirmation (counts in the body)',
+    url: WATER_FILTER,
+    before: async (page) => {
+      await panel(page).locator('.d-del').click();
+      await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+      await expect(page.locator('#hk-confirm-body')).toContainText('cannot be undone');
     },
+    after: closeConfirm,
+  },
+  {
+    name: 'Appliance page, delete confirmation (counts in the body)',
+    url: WATER_HEATER,
+    before: async (page) => {
+      await panel(page).locator('.d-del').click();
+      await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+      await expect(page.locator('#hk-confirm-body')).toContainText('parts, documents and notes');
+    },
+    after: closeConfirm,
+  },
+  {
+    name: 'Settings, import confirmation',
+    url: '/home-keeper/settings/transfer',
+    ready: settingsReady,
+    before: async (page) => {
+      await panel(page).locator('#transfer-text').evaluate((el: HTMLElement) => {
+        (el as HTMLTextAreaElement).value = 'home_keeper:\n  format: 1\n';
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await panel(page).locator('#transfer-preview').click();
+      await expect(panel(page).locator('#transfer-import')).not.toHaveAttribute('disabled', '');
+      await panel(page).locator('#transfer-import').click();
+      await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+    },
+    after: closeConfirm,
+  },
+  {
+    name: 'Card, mark done confirmation',
+    url: '/home-keeper-e2e/card',
+    ready: cardReady,
+    before: async (page) => {
+      await card(page, 0).evaluate((el: any) =>
+        el.setConfig({ ...el._config, confirm_complete: true }),
+      );
+      await card(page, 0).locator('.hk-done:not(.blocked)').first().click();
+      await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+    },
+    after: closeConfirm,
   },
   {
     name: 'Add task form',
