@@ -76,6 +76,16 @@ describe('assetDeleteImpact', () => {
     expect(assetDeleteImpact(asset, tasks)).toEqual({ dropped: 2, kept: 1, history: 3 });
   });
 
+  it('counts nothing for a task that is about another appliance or another source', () => {
+    const tasks = [
+      { source: { parts: [{ asset_id: 'other', part_id: 'p' }] } },
+      { source: { problem_sensor: { entity_id: 'binary_sensor.x' } } },
+      { source: {} },
+      { source: null },
+    ];
+    expect(assetDeleteImpact({ id: 'a1' }, tasks)).toEqual({ dropped: 0, kept: 0, history: 0 });
+  });
+
   it('counts a task with a consumable link as kept, even if it also has a wear source', () => {
     const task = {
       source: {
