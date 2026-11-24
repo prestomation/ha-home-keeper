@@ -17,7 +17,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: 5dfc1d4ff9f0
+source_hash: e28ed6624f37
 ---
 
 # Companions and presets
@@ -118,8 +118,8 @@ A companion sends catalog rows to the admin-only `home_keeper.register_presets`.
 `preset_registry.build_registration` builds them with `_integration_presets`, so a row has no
 Jinja. `duty_names` need `en`. Ids are `<companion>/<id>`. `preset_registry.transition` makes
 each state of `companions.PresetRegistryHolder`, memory on `hass.data`, and its 2 events, which
-fire after start and on a change. The unload of a companion's last config entry removes its
-presets. `companions.async_merged_presets` feeds the list. An added spec is a copy.
+fire after start and on a change. `preset_registry.drops_on_entry_change` removes the presets
+when the last config entry unloads, but not on a setup retry. An added spec is a copy.
 
 ### Panel
 

@@ -259,6 +259,23 @@ def validate_duty_names(
     return clean
 
 
+# The config entry states in which a companion keeps its presets. A retry is a wait for
+# the next setup, so the presets stay and no removed and registered pair fires.
+_KEEP_STATES = frozenset({"loaded", "setup_in_progress", "setup_retry"})
+
+
+def drops_on_entry_change(removed: bool, state: str, other_loaded: bool) -> bool:
+    """Whether a config entry change of a companion removes its presets.
+
+    *removed* is true when the entry was deleted. *state* is the entry state value,
+    such as ``not_loaded``. *other_loaded* is true when another entry of the same
+    domain is loaded, and then the presets stay.
+    """
+    if other_loaded:
+        return False
+    return removed or state not in _KEEP_STATES
+
+
 @dataclass(frozen=True)
 class Registration:
     """The checked presets of 1 companion."""
@@ -403,6 +420,7 @@ __all__ = [
     "Transition",
     "Unregister",
     "build_registration",
+    "drops_on_entry_change",
     "merged_presets",
     "transition",
     "validate_duty",

@@ -372,18 +372,15 @@ def async_watch_companion_entries(hass: HomeAssistant) -> None:
     def _changed(change: ConfigEntryChange, entry: ConfigEntry) -> None:
         if entry.domain not in holder.state.registrations:
             return
-        if change is not ConfigEntryChange.REMOVED and entry.state in (
-            ConfigEntryState.LOADED,
-            ConfigEntryState.SETUP_IN_PROGRESS,
-        ):
-            return
-        if any(
+        other_loaded = any(
             other.state is ConfigEntryState.LOADED
             for other in hass.config_entries.async_entries(entry.domain)
             if other.entry_id != entry.entry_id
+        )
+        if preset_registry.drops_on_entry_change(
+            change is ConfigEntryChange.REMOVED, entry.state.value, other_loaded
         ):
-            return
-        async_unregister_presets(hass, entry.domain)
+            async_unregister_presets(hass, entry.domain)
 
     holder.unsub = async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, _changed)
 

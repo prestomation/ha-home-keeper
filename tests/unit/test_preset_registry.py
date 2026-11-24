@@ -497,6 +497,30 @@ def test_validate_duty_keeps_only_the_keys_it_was_given():
     }
 
 
+# ── A config entry change of a companion ─────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("removed", "state", "other_loaded", "drops"),
+    [
+        (False, "loaded", False, False),
+        (False, "setup_in_progress", False, False),
+        (False, "setup_retry", False, False),
+        (False, "not_loaded", False, True),
+        (False, "setup_error", False, True),
+        (False, "failed_unload", False, True),
+        (True, "loaded", False, True),
+        (True, "not_loaded", False, True),
+        (True, "not_loaded", True, False),
+        (False, "not_loaded", True, False),
+    ],
+)
+def test_an_entry_change_drops_the_presets_only_when_the_companion_is_gone(
+    removed, state, other_loaded, drops
+):
+    assert pr.drops_on_entry_change(removed, state, other_loaded) is drops
+
+
 # ── The transition function ──────────────────────────────────────────────────
 
 
@@ -745,7 +769,8 @@ def test_property_an_unknown_duty_key_is_refused(raw, key):
 @settings(max_examples=100, deadline=None)
 @given(rows(), st.sampled_from(["brand", "icon", "domain"]), st.integers(1, 40))
 def test_property_a_field_over_its_cap_is_refused(raw, field, extra):
-    caps = {"brand": pr.MAX_BRAND_LEN, "icon": 64, "domain": 50}
+    # The icon cap is on the part after "mdi:".
+    caps = {"brand": pr.MAX_BRAND_LEN, "icon": 60, "domain": 50}
     raw[0][field] = ("mdi:" if field == "icon" else "") + "a" * (caps[field] + extra)
     with pytest.raises(pr.PresetRowError) as info:
         pr.build_registration("car_keeper", raw, _NAMES)
