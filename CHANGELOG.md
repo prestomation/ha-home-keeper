@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b3] - 2026-11-24
+
+### Fixed
+
+- **History delete confirmation.** The trash can on a history row now asks first. The
+  dialog shows the date, reading and note of the entry, so you know which one goes away
+  (Fixes #597).
+
 ## [0.38.0b2] - 2026-11-23
 
 ### Added

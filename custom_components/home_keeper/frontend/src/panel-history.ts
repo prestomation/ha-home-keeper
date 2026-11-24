@@ -12,7 +12,7 @@
 import * as api from './api';
 import { t, tn } from './i18n';
 import { markdownBlock } from './markdown';
-import { openCompletionEdit, openMoveCompletion } from './panel-dialogs';
+import { openCompletionEdit, openConfirmEntryDelete, openMoveCompletion } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import type { HistoryGroup } from './panel-types';
@@ -23,6 +23,7 @@ import {
   formatCost,
   formatDate,
   formatReading,
+  historyEntryDetail,
   isSafeImageUrl,
   personName,
   readingUnit,
@@ -217,6 +218,8 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
       const d = new Date(c.ts);
       const date = formatDate(d, p._lang());
       const skip = kind === 'skip';
+      // What the delete confirmation says about this entry besides its date.
+      const detail = historyEntryDetail(c, unit, p._lang());
       // A skip's edit/move/delete go to their own services, so the buttons carry
       // their own classes; a skip's delete target is always the live task, since
       // skips are never archived onto an appliance.
@@ -230,10 +233,10 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
         : '';
       // An archived group's delete is admin-only, so a view-only user does not get it.
       const delBtn = skip
-        ? `<ha-icon-button class="hk-hist-skip-del" data-del-skip="${escapeHTML(group.taskId || '')}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`
+        ? `<ha-icon-button class="hk-hist-skip-del" data-del-skip="${escapeHTML(group.taskId || '')}" data-ts="${escapeHTML(c.ts)}" data-detail="${escapeHTML(detail)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`
         : group.assetId && !group.taskId && p._readOnly()
           ? ''
-          : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
+          : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" data-detail="${escapeHTML(detail)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
       // The chip is what stops a skip reading as a completion at a glance — the
       // dates alone look identical, and mistaking the two misreads the whole list.
       const chip = skip
@@ -343,9 +346,13 @@ export function wireHistory(p: PanelHost, root: ParentNode): void {
     b.addEventListener('click', () => {
       const ts = b.dataset.ts;
       if (!ts) return;
-      if (b.dataset.delTask) void deleteCompletion(p, b.dataset.delTask, ts);
-      else if (b.dataset.delAsset)
-        void deleteArchivedCompletion(p, b.dataset.delAsset, b.dataset.delArch || '', ts);
+      const { delTask, delAsset, delArch } = b.dataset;
+      const run = delTask
+        ? () => void deleteCompletion(p, delTask, ts)
+        : delAsset
+          ? () => void deleteArchivedCompletion(p, delAsset, delArch || '', ts)
+          : null;
+      if (run) openConfirmEntryDelete(p, 'completion', ts, b.dataset.detail || '', run);
     });
   });
   root.querySelectorAll<HTMLElement>('.hk-hist-edit').forEach((b) => {

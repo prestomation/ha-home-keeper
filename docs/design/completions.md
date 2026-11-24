@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/tag_listener.py
   - custom_components/home_keeper/repeats.py
 related: [recurrence, store, appliances, documents-photos, sensor-tasks, events-api, frontend]
-source_hash: e6271c3073ae
+source_hash: 0cea5e42a9b8
 ---
 
 # Completions
@@ -58,9 +58,8 @@ the panel repeats it with `isSafeImageUrl`. Empty keys are omitted, never stored
 `const.COMPLETION_ENTRY_FIELDS` lists every entry field, and the device-page sensor copies
 the latest entry's fields into `last_completion_<field>` attributes.
 
-`recurrence._record_entry` appends an entry, replaces a twin at the same `ts`, and keeps
-the newest `const.MAX_COMPLETION_HISTORY` (500). The skip log shares it. Undo and edit
-thus always find exactly 1 entry for a `ts`.
+`recurrence._record_entry` appends an entry, replaces a twin at the same `ts`, and keeps the
+newest `const.MAX_COMPLETION_HISTORY` (500), also for skips. So a `ts` names 1 entry.
 
 ### Detail modes and required fields
 
@@ -102,10 +101,11 @@ the latest as backfill: it moves neither `last_completed` nor a floating or fixe
   Only a floating task recomputes `next_due`, and only if the latest entry changed. It
   fires `home_keeper_task_uncompleted` then `home_keeper_task_completed`.
 - **Delete.** `store.delete_completion` calls `recurrence.remove_completion`. A latest entry
-  puts its `prior_due` back, except on an armed triggered or sensor task. Stock and the
-  meter baseline return. Event: `home_keeper_task_uncompleted` with the removed `ts`.
+  puts its `prior_due` back, except on an armed triggered or sensor task. Stock and the meter
+  baseline return. Event: `home_keeper_task_uncompleted` with the removed `ts`.
 
 `panel-history.ts` wires these 3 row buttons. A sync-owned problem-sensor task refuses all 3.
+A delete asks first (`openConfirmEntryDelete`), naming the entry by date, reading and note.
 
 ### Archived completions on appliances
 

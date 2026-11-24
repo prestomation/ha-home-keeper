@@ -792,6 +792,7 @@ test('capture the task list and the task page', async () => {
   await page.screenshot({ path: `${OUT}/53-panel-skip-in-history.png`, fullPage: true });
   // Undo it, so the shots after this one see the seeded history unchanged.
   await panel.locator('.hk-hist-skip-del').first().click();
+  await page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]').click();
   await expect(panel.locator('.hk-hist-list li.hk-hist-is-skip')).toHaveCount(0, {
     timeout: 10_000,
   });
