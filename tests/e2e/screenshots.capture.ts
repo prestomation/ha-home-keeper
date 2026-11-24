@@ -858,18 +858,6 @@ test('capture managed and sensor tasks, layouts and the task form', async () => 
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/12-panel-orphan-cleanup.png`, fullPage: true });
 
-  // 71. "Remove orphaned tasks" asks first: a confirm dialog that names the count,
-  // with the keyboard on Cancel. Cancelled, so the seeded orphan stays for 13 below.
-  // Asserted in tests/orphan-cleanup.spec.ts.
-  await panel.locator('#cleanup-orphans-btn').click();
-  const orphanConfirm = page.getByRole('alertdialog', { name: 'Delete 1 orphaned task?' });
-  await expect(orphanConfirm).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(500);
-  // Viewport screenshot — the scrim is position:fixed on document.body.
-  await page.screenshot({ path: `${OUT}/71-panel-orphan-confirm.png` });
-  await orphanConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
-  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
-
   // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
   // explanation that the owning integration is gone.
   await panel.locator(`.detail-open[data-detail-id="${TASK.rexVet}"]`).click();
@@ -1429,10 +1417,16 @@ test('capture managed and sensor tasks, layouts and the task form', async () => 
   // of the appliance the task is attached to (not every appliance's spares).
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
-  await expect(panel.locator('#hk-task-form').getByText('Linked consumable')).toBeVisible();
+  // The picker shows its name twice: as the field label and as the empty-state
+  // placeholder. Take the label, which comes first, so the locator is not ambiguous.
+  const consumableLabel = panel
+    .locator('#hk-task-form')
+    .locator('.chips-label', { hasText: 'Linked consumables' })
+    .first();
+  await expect(consumableLabel).toBeVisible();
   // The picker is well down a long form and the drawer scrolls its own content, so
   // bring it into frame — `toBeVisible` only means it is in the DOM and painted.
-  await centre(panel.locator('#hk-task-form').getByText('Linked consumable'));
+  await centre(consumableLabel);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await shotWithDrawer(page, `${OUT}/34-panel-create-linked-consumable.png`);
@@ -1440,10 +1434,13 @@ test('capture managed and sensor tasks, layouts and the task form', async () => 
   // 36. The same edit form also offers "Links to show on card" — a multi-select of
   // the attached appliance's document/metadata links. The seeded task pins two, which
   // the dashboard card renders as openable chips on the task's row.
-  await expect(
-    panel.locator('#hk-task-form').getByText('Links to show on card'),
-  ).toBeVisible();
-  await centre(panel.locator('#hk-task-form').getByText('Links to show on card'));
+  // Same as the consumable picker: take the field label, not the placeholder.
+  const cardLinksLabel = panel
+    .locator('#hk-task-form')
+    .locator('.chips-label', { hasText: 'Links to show on card' })
+    .first();
+  await expect(cardLinksLabel).toBeVisible();
+  await centre(cardLinksLabel);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await shotWithDrawer(page, `${OUT}/36-panel-task-card-links.png`);
@@ -1684,10 +1681,15 @@ test('capture the appliances, parts and stock', async () => {
   await chooseHaSelect(existingForm.locator('ha-select').first(), /Existing device/);
   await expect(existingForm.locator('ha-selector-icon')).toHaveCount(1);
   // The device picker is HA's modern searchable picker: a button that opens an
-  // overlay with a search box and a results list (`#list-item-0` is the first hit).
+  // overlay with a search box and a results list of `ha-combo-box-item` rows. Match the
+  // row by its text: the row ids differ between Home Assistant releases.
   await existingForm.locator('ha-selector-device').first().locator('button').click();
   await page.getByPlaceholder('Search').fill('Radio shade controller');
-  await page.locator('#list-item-0').click();
+  await page
+    .locator('ha-combo-box-item:visible')
+    .filter({ hasText: 'Radio shade controller' })
+    .first()
+    .click();
   // Manufacturer is the first field after name in the identity schema — confirms the
   // prefill actually landed before the shot is taken.
   await expect(existingForm.locator('ha-selector-text').nth(1).locator('input')).toHaveValue('Lutron');
@@ -1780,18 +1782,9 @@ test('capture the appliances, parts and stock', async () => {
   });
   await expect(docForm.locator('#hk-upload')).toHaveCount(0, { timeout: 30_000 });
 
-  // 72. Removing a document asks first: the backend deletes an uploaded file at once
-  // and the drawer's Cancel does not bring it back. Cancelled, so nothing changes.
+  // The "Remove document" confirm has no photo here. `confirm-everywhere` photographs
+  // every delete dialog with its current buttons.
   await settleToasts(page);
-  const docCard = docForm.locator('.hk-doc-card').first();
-  await centre(docCard);
-  await docCard.locator('ha-icon-button[label="Remove document"]').click();
-  const docConfirm = page.getByRole('alertdialog', { name: /^Remove ".+"\?$/ });
-  await expect(docConfirm).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/72-panel-document-remove-confirm.png` });
-  await docConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
-  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
   // 73. A link the backend refuses (no https://) shows its error under Add link, and
   // the name and URL the user typed stay in the boxes to be corrected.
@@ -1846,23 +1839,11 @@ test('capture the appliances, parts and stock', async () => {
   // foot of the open row — scoped to the Parts section so the Custom Fields rows,
   // which share a class, are excluded).
   await openPart(partsDetails.locator('.hk-part').first());
-  await partsDetails.locator('.hk-part').first().locator('ha-button.part-del').click();
-  // Scrim is appended to document.body (not shadow root) so use page.locator.
-  await expect(
-    page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]'),
-  ).toBeAttached({ timeout: 5_000 });
-  await page.waitForTimeout(500);
-  // Viewport screenshot — position:fixed overlays render correctly here.
-  await page.screenshot({ path: `${OUT}/35-panel-part-delete-confirm.png`, fullPage: false });
-  // Dismiss via Escape key (our keydown handler closes the overlay).
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
   // 38. A part's attached file: the Anode rod part (seeded with a file, and first in
   // the list) shows a card — icon, filename · size · type, Open / Remove — right in
   // its editor, below the part's own fields. (The part's name lives inside a form
-  // input, not rendered text, so we select by position — same as the delete-icon
-  // click above — rather than by name text.)
+  // input, not rendered text, so we select by position rather than by name text.)
   await expect(partsDetails.locator('.hk-part').first().locator('.hk-doc-card')).toBeVisible();
   await centre(partsDetails.locator('.hk-part').first().locator('.hk-doc-card'));
   await page.waitForTimeout(400);
@@ -2643,34 +2624,13 @@ test('capture the phone layout', async () => {
   await phoneLayoutMenu.selectOption('rows');
   await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible({ timeout: 10_000 });
 
-  // 71c. The orphan cleanup confirm on a phone: the dialog keeps a 16px margin
-  // each side and its buttons stay on one row.
-  await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
-  await panel.locator('#cleanup-orphans-btn').click();
-  const orphanConfirmPhone = page.getByRole('alertdialog', { name: 'Delete 1 orphaned task?' });
-  await expect(orphanConfirmPhone).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/71c-panel-mobile-orphan-confirm.png` });
-  await orphanConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
-  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
-
-  // 72c/73c. The document Remove confirm and a refused link on a phone, where the
-  // appliance editor is a page rather than a drawer.
+  // 73c. A refused link on a phone, where the appliance editor is a page rather than
+  // a drawer.
   await panel.locator('#mtab-appliances').click();
   await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   await panel.locator('.d-edit').click();
   const docFormPhone = panel.locator('#hk-asset-form');
   await expect(docFormPhone).toBeVisible();
-  const docCardPhone = docFormPhone.locator('.hk-doc-card').first();
-  await centre(docCardPhone);
-  await docCardPhone.locator('ha-icon-button[label="Remove document"]').click();
-  const docConfirmPhone = page.getByRole('alertdialog', { name: /^Remove ".+"\?$/ });
-  await expect(docConfirmPhone).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/72c-panel-mobile-document-remove-confirm.png` });
-  await docConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
-  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
-
   const docAddPhone = docFormPhone.locator('.hk-doc-add');
   await fillText(docAddPhone, 0, 'Warranty card');
   await fillText(docAddPhone, 1, 'example.com/warranty');
