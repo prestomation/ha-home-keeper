@@ -49,8 +49,8 @@ The next due date of a **floating** task is measured from the completion date, s
 the completion date moves the schedule. A completion that is older than the most
 recent one only adds an entry to the history. It does not move the due date.
 
-The trash can of a history row asks first. The question gives the date, the task, the
-reading, the note and the person of the entry, so you know which one goes away.
+The trash can of a history row opens a question first. The question names the entry
+by its date and time, with its task, reading, note and person.
 
 ![The question before a history entry is deleted](../../images/90-panel-history-delete-confirm.png)
 
