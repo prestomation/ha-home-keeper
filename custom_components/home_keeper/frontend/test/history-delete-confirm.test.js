@@ -27,6 +27,20 @@ describe('historyEntryDetail', () => {
     expect(out).toContain('…');
   });
 
+  it('takes the first line of a note, with a Windows line end too', () => {
+    expect(historyEntryDetail({ ts: 'x', note: 'first  \nsecond' }, '', 'en')).toBe('"first"');
+    expect(historyEntryDetail({ ts: 'x', note: 'first\r\nsecond' }, '', 'en')).toBe('"first"');
+    expect(historyEntryDetail({ ts: 'x', note: '\n  hello  ' }, '', 'en')).toBe('"hello"');
+  });
+
+  it('cuts a note at 60 characters and trims the space before the cut', () => {
+    const sixty = 'a'.repeat(60);
+    expect(historyEntryDetail({ ts: 'x', note: sixty }, '', 'en')).toBe(`"${sixty}"`);
+    expect(historyEntryDetail({ ts: 'x', note: `${sixty}b` }, '', 'en')).toBe(`"${sixty}…"`);
+    const spaced = `${'a'.repeat(59)} tail`;
+    expect(historyEntryDetail({ ts: 'x', note: spaced }, '', 'en')).toBe(`"${'a'.repeat(59)}…"`);
+  });
+
   it('ignores a blank note', () => {
     expect(historyEntryDetail({ ts: 'x', note: '   ' }, '', 'en')).toBe('');
   });

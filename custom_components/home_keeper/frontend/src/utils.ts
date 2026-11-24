@@ -614,7 +614,7 @@ export function historyEntryDetail(
   const bits: string[] = [];
   if (entry.reading != null)
     bits.push(t('completion.reading', { reading: formatReading(entry.reading, unit, lang) }));
-  const line = (entry.note ?? '').trim().split(/\r?\n/, 1)[0].trim();
+  const line = (entry.note ?? '').trim().split('\n', 1)[0].trim();
   if (line) bits.push(`"${line.length > 60 ? `${line.slice(0, 60).trimEnd()}…` : line}"`);
   return bits.join(' · ');
 }
