@@ -176,6 +176,10 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
 
     // Undo it, so the seeded fixture is left as the other specs expect it.
     await skipRow.locator('.hk-hist-skip-del').click();
+    await expect(page.locator('.hk-confirm-scrim #hk-confirm-title')).toContainText(
+      'Delete the skip of',
+    );
+    await page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]').click();
     await expect(panel.locator('.hk-hist-list li.hk-hist-is-skip')).toHaveCount(0, {
       timeout: 10_000,
     });

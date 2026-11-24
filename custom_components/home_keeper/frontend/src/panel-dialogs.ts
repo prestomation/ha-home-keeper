@@ -34,7 +34,7 @@ import type { PanelHost } from './panel-host';
 import { dialogCoverEl } from './panel-photo-markup';
 import { coverOf } from './task-photos';
 import type { Completion, Hass, Task } from './types';
-import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
+import { formatDateTime, guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 
 // ── completion dialog lifecycle ─────────────────────────────────────────────
 
@@ -165,6 +165,24 @@ async function submitCompletion(p: PanelHost, button?: Element | null): Promise<
 }
 
 // ── destructive-action confirmation ─────────────────────────────────────────
+
+/**
+ * Ask before a history entry (a completion or a skip) goes away. The title names the
+ * entry by its date and time, and the body adds its reading and note, so the user
+ * knows which one. Cancel is the default, as in every confirmation here.
+ */
+export function openConfirmEntryDelete(
+  p: PanelHost,
+  kind: 'completion' | 'skip',
+  ts: string,
+  detail: string,
+  onConfirm: () => void,
+): void {
+  const date = formatDateTime(ts, p._lang());
+  const key = kind === 'skip' ? 'confirm.deleteSkip' : 'confirm.deleteEntry';
+  const cannotUndo = t('confirm.cannotUndo');
+  openConfirmDialog(p, t(key, { date }), onConfirm, detail ? `${detail}. ${cannotUndo}` : cannotUndo);
+}
 
 /**
  * Dismantle the confirmation overlay: its body-level scrim and both document keydown

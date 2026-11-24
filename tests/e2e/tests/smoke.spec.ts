@@ -172,6 +172,10 @@ test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
     expect(before).toBeGreaterThan(1);
     // Each row carries a trash (ha-icon-button) — delete the first completion.
     await panel.locator('.hk-hist-del').first().click();
+    // The panel asks first; nothing is removed until Delete.
+    await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+    await expect(rows).toHaveCount(before);
+    await page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]').click();
     await expect(rows).toHaveCount(before - 1);
     // Still on the detail page after the in-place refresh.
     await expect(panel.locator('#back-btn')).toBeVisible();

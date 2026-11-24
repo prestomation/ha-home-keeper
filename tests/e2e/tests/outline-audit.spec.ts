@@ -113,6 +113,18 @@ const VIEWS: View[] = [
     },
   },
   {
+    name: 'Task page, History, delete confirmation',
+    url: `/home-keeper/tasks/${TASK.fridgeFilter}/history`,
+    before: async (page) => {
+      await panel(page).locator('.hk-hist-del').first().click();
+      await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
+    },
+    after: async (page) => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
+    },
+  },
+  {
     name: 'Add task form',
     url: '/home-keeper',
     before: async (page) => {

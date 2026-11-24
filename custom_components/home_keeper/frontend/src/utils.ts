@@ -602,6 +602,24 @@ export function formatReading(value: number, unit?: string | null, lang?: string
 }
 
 /**
+ * What a delete confirmation shows about a history entry besides its date: the meter
+ * reading and the first line of the note, so the user can tell which entry goes away.
+ * Empty when the entry has neither.
+ */
+export function historyEntryDetail(
+  entry: { reading?: number | null; note?: string | null },
+  unit?: string | null,
+  lang?: string,
+): string {
+  const bits: string[] = [];
+  if (entry.reading != null)
+    bits.push(t('completion.reading', { reading: formatReading(entry.reading, unit, lang) }));
+  const line = (entry.note ?? '').trim().split('\n', 1)[0].trim();
+  if (line) bits.push(`"${line.length > 60 ? `${line.slice(0, 60).trimEnd()}…` : line}"`);
+  return bits.join(' · ');
+}
+
+/**
  * The step a part's stock moves in: a whole spare, or a fine step once the part
  * deals in fractions — it has a unit, or any of its quantities is fractional. The
  * same rule as the device page's `number` entity (`number.py` `native_step`), so

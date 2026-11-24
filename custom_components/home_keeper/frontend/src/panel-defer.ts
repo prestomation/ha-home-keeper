@@ -24,6 +24,7 @@ import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import { setIcon } from './panel-history';
 import type { Task } from './types';
 import { setDueTime, toast, type BtnWeight } from './utils';
+import { openConfirmEntryDelete } from './panel-dialogs';
 
 /**
  * Which deferral verbs *task* can actually take, given the global switches.
@@ -159,7 +160,10 @@ export function wireSkipHistoryRows(p: PanelHost, root: ParentNode): void {
     b.addEventListener('click', () => {
       const ts = b.dataset.ts;
       const taskId = b.dataset.delSkip;
-      if (ts && taskId) void deleteSkip(p, taskId, ts);
+      if (ts && taskId)
+        openConfirmEntryDelete(p, 'skip', ts, b.dataset.detail || '', () =>
+          void deleteSkip(p, taskId, ts),
+        );
     });
   });
   root.querySelectorAll<HTMLElement>('.hk-hist-skip-edit').forEach((b) => {
