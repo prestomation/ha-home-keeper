@@ -10,9 +10,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
-- **History delete confirmation.** The trash can on a history row now asks first. The
-  dialog shows the date, reading and note of the entry, so you know which one goes away
-  (Fixes #597).
+- **History delete confirmation.** Deleting a history entry now needs a second tap on
+  Delete. The dialog gives the date, reading and note of the entry (Fixes #597).
 
 ## [0.38.0b2] - 2026-11-23
 
