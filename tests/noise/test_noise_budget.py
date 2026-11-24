@@ -85,6 +85,55 @@ def test_noop_set_options(ha: HomeAssistantClient, baseline: Baseline) -> None:
     )
 
 
+_PRESETS = {
+    "domain": "hk_noise_presets",
+    "rows": [
+        {
+            "domain": "hk_noise_probe",
+            "brand": "Noise probe",
+            "icon": "mdi:car",
+            "duties": [
+                {
+                    "duty": "replace_filter",
+                    "shape": "percent_low",
+                    "keys": ["noise_filter"],
+                    "limit": 10,
+                }
+            ],
+        }
+    ],
+}
+
+
+def test_register_presets(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    # Memory only: 1 bus event, and no logbook row, store write or entry reload.
+    _run(
+        ha,
+        baseline,
+        "register_presets",
+        lambda: ha.call(HK, "register_presets", _PRESETS),
+    )
+
+
+def test_register_same_presets(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    # A companion registers again on home_keeper_register_companions: no change.
+    _run(
+        ha,
+        baseline,
+        "register_same_presets",
+        lambda: ha.call(HK, "register_presets", _PRESETS),
+    )
+
+
+def test_unregister_presets(ha: HomeAssistantClient, baseline: Baseline) -> None:
+    _run(
+        ha,
+        baseline,
+        "unregister_presets",
+        lambda: ha.call(HK, "unregister_presets", {"domain": _PRESETS["domain"]}),
+    )
+
+
 # --- A normal day --------------------------------------------------------------------
 
 

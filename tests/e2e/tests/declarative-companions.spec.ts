@@ -6,6 +6,7 @@ import {
   openSettingsSection,
   trackPanelErrors,
 } from './helpers';
+import { COMPANION_PRESET } from '../user-data';
 
 /**
  * Settings → Companions → Declarative companions, end to end.
@@ -161,13 +162,17 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    // The Tuya Local stub has one sensor with the filter_life key, so that preset is
-    // the only one in For your devices, with its count. The 3 general presets follow,
-    // and the rest wait behind Show all.
+    // The Tuya Local stub has one sensor with the filter_life key, so that preset is in
+    // For your devices, with its count. The Pawsistant stub registers a companion
+    // preset over the Battery Notes stub's sensor, so it is there too, with "From
+    // Pawsistant". The 3 general presets follow, and the rest wait behind Show all.
     const mine = picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-card');
-    await expect(mine).toHaveCount(1);
-    await expect(mine).toHaveAttribute('data-preset-id', 'tuya_local_percent_low');
-    await expect(mine.locator('.hk-decl-preset-count')).toHaveText('1 entity');
+    await expect(mine).toHaveCount(2);
+    const ids = await mine.evaluateAll((cards) => cards.map((c) => (c as HTMLElement).dataset.presetId));
+    expect(ids).toEqual([COMPANION_PRESET, 'tuya_local_percent_low']);
+    await expect(mine.locator('.hk-decl-preset-count')).toHaveText(['1 entity', '1 entity']);
+    await expect(mine.nth(0).locator('.hk-preset-from')).toHaveText('From Pawsistant');
+    await expect(mine.nth(1).locator('.hk-preset-from')).toHaveCount(0);
     await expect(picker.locator('.hk-decl-preset-group[data-group="mine"]')).toHaveText(
       'For your devices',
     );

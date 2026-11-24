@@ -682,12 +682,16 @@ def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha)
     The Tuya Local stub has one sensor with the ``filter_life`` key, so its preset
     matches 1 entity. The container has no device for the other integration presets,
     so each of those counts 0. A general preset carries its count too, for the Tasks
-    tab's suggestions (see the test below); the picker does not sort by it.
+    tab's suggestions (see the test below); the picker does not sort by it. The
+    preset that the Pawsistant stub registers is counted the same way.
     """
     token = ha.headers["Authorization"].split(" ", 1)[1]
     reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
     assert reply.get("success"), reply
-    presets = reply["result"]["presets"]
+    rows = reply["result"]["presets"]
+    companion = {p["id"]: p["matches"] for p in rows if p["source"] == "companion"}
+    assert companion == {"pawsistant/home_keeper_battery_notes_percent_low": 1}
+    presets = [p for p in rows if p["source"] == "builtin"]
     integration = [p for p in presets if p["group"] == "integration"]
     general = [p for p in presets if p["group"] == "general"]
     assert len(integration) > 50

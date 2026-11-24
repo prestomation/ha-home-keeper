@@ -29,6 +29,7 @@ import {
   markAllPresetsSeen,
   setUserData,
   suggestOnly,
+  COMPANION_PRESET,
 } from './user-data';
 import {
   centre,
@@ -447,7 +448,8 @@ async function chooseEntity(
 
 /**
  * Photograph the preset suggestion dialog, then the card that Not now leaves, then put
- * the key back so no later shot meets either one.
+ * the key back so no later shot meets either one. The companion preset of the
+ * Pawsistant stub shows next to Firmware update available, with its "From" badge.
  */
 async function showPresetSuggestions(
   page: Page,
@@ -455,18 +457,19 @@ async function showPresetSuggestions(
   dialogShot: string,
   cardShot: string,
 ): Promise<void> {
-  await suggestOnly(authToken(), FIRMWARE_PRESET);
+  await suggestOnly(authToken(), [FIRMWARE_PRESET, COMPANION_PRESET]);
   try {
     await openPanel(page);
     const dialog = panel.locator('ha-dialog.hk-preset-dialog');
-    await expect(dialog.locator('label.hk-preset-pick')).toHaveCount(1, { timeout: 20_000 });
-    await expect(dialog.locator('label.hk-preset-pick')).toBeVisible();
+    await expect(dialog.locator('label.hk-preset-pick')).toHaveCount(2, { timeout: 20_000 });
+    await expect(dialog.locator('.hk-preset-from')).toHaveText('From Pawsistant');
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/${dialogShot}.png` });
     await dialog.locator('ha-button.hk-preset-dialog-later').click();
     await expect(dialog).toHaveCount(0);
     const card = panel.locator('.hk-preset-nudge');
     await expect(card).toBeVisible();
+    await expect(card.locator('.hk-preset-from')).toHaveText('From Pawsistant');
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${OUT}/${cardShot}.png` });
   } finally {

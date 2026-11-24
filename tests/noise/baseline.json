@@ -52,6 +52,52 @@
         "entry_reloads"
       ]
     },
+    "register_presets": {
+      "budget": {
+        "entry_reloads": 0,
+        "events": 1,
+        "logbook_rows": 0,
+        "storage_writes": 0,
+        "unavailable_flips": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
+    "register_same_presets": {
+      "budget": {
+        "entry_reloads": 0,
+        "events": 0,
+        "logbook_rows": 0,
+        "storage_writes": 0,
+        "unavailable_flips": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "storage_writes",
+        "entry_reloads",
+        "events"
+      ]
+    },
+    "unregister_presets": {
+      "budget": {
+        "entry_reloads": 0,
+        "events": 1,
+        "logbook_rows": 0,
+        "storage_writes": 0,
+        "unavailable_flips": 0
+      },
+      "pinned": [
+        "logbook_rows",
+        "unavailable_flips",
+        "storage_writes",
+        "entry_reloads"
+      ]
+    },
     "add_task": {
       "budget": {
         "logbook_rows": 5,
