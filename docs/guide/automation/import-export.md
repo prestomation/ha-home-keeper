@@ -34,6 +34,9 @@ export fails, the card names that companion too.
    Then press **Preview** again.
 4. Press **Import**. **Import** stays off until a preview of that exact input comes
    back clean.
+5. Read the question and press **Import** again. It shows how many records are new
+   and how many are updated. An update replaces the fields of a matching record. Your
+   last export is the only way back, so export first if the data matters.
 
 Both halves are also actions, so a script or an automation can call them:
 `home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only. Each

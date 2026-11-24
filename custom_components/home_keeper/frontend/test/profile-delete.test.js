@@ -120,7 +120,7 @@ describe('Settings → Profiles — deleting a profile', () => {
     expect(scrim().querySelector('h2').textContent).toContain('Chores');
     expect(saves).toEqual([]);
 
-    buttonLabelled('Delete').click();
+    buttonLabelled('Delete profile').click();
     await waitFor(() => saves.length === 1);
     expect(saves[0].profiles).toEqual([]);
   });
@@ -148,7 +148,7 @@ describe('Settings → Profiles — deleting a profile', () => {
     expect(body).toContain('Walk');
     expect(body).toContain('Evening');
     // No way through: a Delete here could only produce the backend's error.
-    expect(buttonLabelled('Delete')).toBeUndefined();
+    expect(buttonLabelled('Delete profile')).toBeUndefined();
     expect(buttonLabelled('Close')).toBeTruthy();
     expect(saves).toEqual([]);
   });
@@ -159,7 +159,7 @@ describe('Settings → Profiles — deleting a profile', () => {
     const { hass } = makeHass({ profiles: [CHORES, GARDEN], notifications: [ON_GARDEN] });
     const panel = await mountSettings(hass);
     deleteButton(rows(panel)[0]).click();
-    expect(buttonLabelled('Delete')).toBeTruthy();
+    expect(buttonLabelled('Delete profile')).toBeTruthy();
   });
 
   it('puts the row back when the save is refused', async () => {
@@ -172,7 +172,7 @@ describe('Settings → Profiles — deleting a profile', () => {
     });
     const panel = await mountSettings(hass);
     deleteButton(rows(panel)[0]).click();
-    buttonLabelled('Delete').click();
+    buttonLabelled('Delete profile').click();
 
     await waitFor(() => rows(panel).length === 1);
     expect(panel._options.profiles).toEqual([CHORES]);
@@ -186,10 +186,10 @@ describe('Settings → Profiles — deleting a profile', () => {
     const { hass, saves } = makeHass({ profiles: [CHORES, GARDEN] });
     const panel = await mountSettings(hass);
     deleteButton(rows(panel)[0]).click();
-    buttonLabelled('Delete').click();
+    buttonLabelled('Delete profile').click();
     await waitFor(() => saves.length === 1);
     deleteButton(rows(panel)[0]).click();
-    buttonLabelled('Delete').click();
+    buttonLabelled('Delete profile').click();
     await waitFor(() => saves.length === 2);
     expect(panel._options.profiles).toEqual([]);
   });

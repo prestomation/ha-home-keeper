@@ -62,11 +62,12 @@ import {
   fileRoute,
   isPicked,
   otherProblems,
+  importTotals,
   reportRows,
   reportVerdict,
 } from './transfer-view';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
-import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive, openBlockedDialog } from './panel-dialogs';
 import { indentGroup } from './panel-indent';
 import type { PanelHost } from './panel-host';
 import { normalizeLineStyle, previewLines, supportsDescription } from './shopping-preview';
@@ -1544,8 +1545,10 @@ function confirmDeleteProfile(p: PanelHost, profile: Profile): void {
     );
     return;
   }
-  openConfirmDialog(p, t('confirm.deleteProfile', { name: profile.name }), () => {
-    void deleteProfile(p, profile.id);
+  confirmDestructive(p, {
+    title: t('confirm.deleteProfile', { name: profile.name }),
+    confirmLabel: t('confirm.btn.deleteProfile'),
+    onConfirm: () => void deleteProfile(p, profile.id),
   });
 }
 
@@ -1652,7 +1655,12 @@ function notificationEditor(
           when_empty: 'all_clear',
         }),
     },
-    onDelete: () => void deleteNotification(p, notification.id),
+    onDelete: () =>
+      confirmDestructive(p, {
+        title: t('confirm.deleteNotification', { name: notification.name }),
+        confirmLabel: t('confirm.btn.deleteNotification'),
+        onConfirm: () => void deleteNotification(p, notification.id),
+      }),
     fill: (body, nameSpan, repaint) => {
       // Three forms editing one notification, so the panel can put text between them:
       // what the chosen profile selects belongs under the profile picker, and the two
@@ -2412,7 +2420,16 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
     void p._previewImport();
   });
   root.querySelector('#transfer-import')?.addEventListener('click', () => {
-    void p._runImport();
+    // An import changes the records that match, and the only way back is the export
+    // taken before. So say what it will write, and that the export is the backup.
+    const report = p._transfer.report;
+    const totals = importTotals(report ? reportRows(report, p._companions) : []);
+    confirmDestructive(p, {
+      title: t('confirm.importTitle'),
+      confirmLabel: t('btn.importData'),
+      body: `${t('confirm.importCounts', totals)}\n${t('confirm.importWarn')}`,
+      onConfirm: () => void p._runImport(),
+    });
   });
   root.querySelectorAll<HTMLInputElement>('input[data-transfer-source]').forEach((box) => {
     box.addEventListener('change', () => {

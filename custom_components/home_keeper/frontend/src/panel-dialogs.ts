@@ -6,7 +6,7 @@
  * The first two share `makeDialog`, the one place an `ha-dialog` is constructed —
  * Home Assistant has broken hand-built dialogs twice, and each time the fix had to be
  * written once per dialog. The confirmation is deliberately *not* one of them: it is
- * built by hand onto `document.body`, for the reason its own comment gives.
+ * built onto `document.body` by `confirm-dialog.ts`, which the card shares.
  *
  * `teardownOverlay` is the single dismantling of the confirmation's body-level scrim
  * and its document keydown listeners. It ran in three places (open, close, and the
@@ -28,13 +28,14 @@ import {
   sensorLive,
   type FormField,
 } from './forms';
+import { mountConfirm } from './confirm-dialog';
 import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import type { PanelHost } from './panel-host';
 import { dialogCoverEl } from './panel-photo-markup';
 import { coverOf } from './task-photos';
 import type { Completion, Hass, Task } from './types';
-import { formatDateTime, guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
+import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 
 // ── completion dialog lifecycle ─────────────────────────────────────────────
 
@@ -166,77 +167,82 @@ async function submitCompletion(p: PanelHost, button?: Element | null): Promise<
 
 // ── destructive-action confirmation ─────────────────────────────────────────
 
-/**
- * Ask before a history entry (a completion or a skip) goes away. The title names the
- * entry by its date and time, and the body adds its reading and note, so the user
- * knows which one. Cancel is the default, as in every confirmation here.
- */
-export function openConfirmEntryDelete(
-  p: PanelHost,
-  kind: 'completion' | 'skip',
-  ts: string,
-  detail: string,
-  onConfirm: () => void,
-): void {
-  const date = formatDateTime(ts, p._lang());
-  const key = kind === 'skip' ? 'confirm.deleteSkip' : 'confirm.deleteEntry';
-  const cannotUndo = t('confirm.cannotUndo');
-  openConfirmDialog(p, t(key, { date }), onConfirm, detail ? `${detail}. ${cannotUndo}` : cannotUndo);
+/** What a confirmation says. `confirmLabel` is the action word of the red button
+ *  ("Delete entry", "Remove part"); it is "Delete" when absent. `body` is the line
+ *  under the title; it is "This cannot be undone." when absent. Give a body only when
+ *  it says something true and specific about what is lost. */
+export interface ConfirmSpec {
+  title: string;
+  body?: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
 }
 
 /**
- * Dismantle the confirmation overlay: its body-level scrim and both document keydown
- * listeners (its own, and the drawer's — opening a confirmation takes the drawer's
+ * Dismantle the confirmation overlay: its body-level scrim and the document keydown
+ * listeners (its own, and the drawer's: opening a confirmation takes the drawer's
  * Escape away so one press cannot close two overlays).
  *
- * Safe to call when nothing is open, which is what lets the three callers — opening a
- * confirmation, closing one, and the panel unmounting mid-dialog — share it.
+ * Safe to call when nothing is open, which is what lets the callers (opening a
+ * confirmation, closing one, and the panel unmounting mid-dialog) share it.
  */
 export function teardownOverlay(p: PanelHost): void {
   if (p._drawerOnKey) {
     document.removeEventListener('keydown', p._drawerOnKey);
     p._drawerOnKey = null;
   }
-  if (p._confirmOnKey) {
-    document.removeEventListener('keydown', p._confirmOnKey);
-    p._confirmOnKey = null;
-  }
-  if (p._confirmScrim) {
-    p._confirmScrim.remove();
-    p._confirmScrim = null;
+  if (p._confirmHandle) {
+    p._confirmHandle.close();
+    p._confirmHandle = null;
   }
 }
 
-export function openConfirmDialog(
-  p: PanelHost,
-  label: string,
-  onConfirm: () => void,
-  body: string = t('confirm.cannotUndo'),
-): void {
+/**
+ * Ask before an action that loses data or is hard to reverse. This is the 1 door for
+ * every such action in the panel (`tests/frontend/destructive-scan.test.js` checks
+ * that). An action that is easy to reverse asks nothing.
+ */
+export function confirmDestructive(p: PanelHost, spec: ConfirmSpec): void {
   // Drop any prior scrim (and its keydown listener) before opening a new one, so a
-  // second open — or a stale scrim — can't orphan the earlier overlay + handler.
+  // second open, or a stale scrim, cannot orphan the earlier overlay and handler.
   teardownOverlay(p);
-  p._confirmDelete = { label, body, onConfirm };
   p._openOverlay('confirm');
-  renderConfirmDeleteDialog(p);
+  p._confirmHandle = mountConfirm(
+    {
+      title: spec.title,
+      body: spec.body ?? t('confirm.cannotUndo'),
+      confirmLabel: spec.confirmLabel ?? t('btn.delete'),
+    },
+    {
+      onCancel: () => closeConfirmDialog(p),
+      onConfirm: () => {
+        spec.onConfirm();
+        closeConfirmDialog(p);
+        // Re-render after the mutation: a confirm callback may only change state, and
+        // neither it nor closeConfirmDialog renders. A deleted row stayed visible, and
+        // its siblings' value-changed closures kept stale render-time indices that
+        // wrote into the now-shifted array. Rebuilding the form gives fresh indices.
+        p._render();
+      },
+    },
+  );
 }
 
 /**
  * The same scrim, with the destructive button taken away: a heading, a reason, and
  * Close. For an action the backend will refuse, where offering Delete would be a
- * button whose only outcome is an error. `onConfirm` is null, which is what
- * `renderConfirmDeleteDialog` reads to drop the Delete button and to label the one
- * remaining button Close — there is nothing here to cancel.
+ * button whose only outcome is an error. There is nothing here to cancel.
  */
 export function openBlockedDialog(p: PanelHost, label: string, body: string): void {
   teardownOverlay(p);
-  p._confirmDelete = { label, body, onConfirm: null };
   p._openOverlay('confirm');
-  renderConfirmDeleteDialog(p);
+  p._confirmHandle = mountConfirm(
+    { title: label, body, confirmLabel: null },
+    { onCancel: () => closeConfirmDialog(p), onConfirm: () => {} },
+  );
 }
 
 function closeConfirmDialog(p: PanelHost): void {
-  p._confirmDelete = { label: '', body: '', onConfirm: null };
   p._closeOverlay('confirm');
   teardownOverlay(p);
   // Opening the confirmation took the drawer's Escape handler away, so that one
@@ -247,133 +253,6 @@ function closeConfirmDialog(p: PanelHost): void {
   // Give the keyboard back to the control that opened the dialog (X11-1). It is found
   // again by its selector, because a render can have replaced it.
   p._flushOverlayFocus();
-}
-
-function renderConfirmDeleteDialog(p: PanelHost): void {
-  const { label, body, onConfirm } = p._confirmDelete;
-
-  // Appended to document.body so position:fixed works correctly outside the
-  // shadow DOM stacking context.
-  const scrim = document.createElement('div');
-  scrim.className = 'hk-confirm-scrim';
-  scrim.style.cssText =
-    'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
-    'justify-content:center;background:rgba(0,0,0,.4)';
-
-  // A real modal dialog to assistive technology (X11-1): it names itself from its
-  // heading, reads its body as the description, and says the page behind is inert.
-  // Border-box and the viewport cap keep it on a 320px screen.
-  const modal = document.createElement('div');
-  modal.className = 'hk-confirm-modal';
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.setAttribute('aria-labelledby', 'hk-confirm-title');
-  modal.setAttribute('aria-describedby', 'hk-confirm-body');
-  modal.style.cssText =
-    'background:var(--ha-card-background,var(--card-background-color,#fff));' +
-    'border-radius:28px;padding:24px;min-width:280px;max-width:400px;' +
-    'box-sizing:border-box;max-width:min(400px,calc(100vw - 32px));' +
-    'box-shadow:0 8px 32px rgba(0,0,0,.24)';
-
-  const h2 = document.createElement('h2');
-  h2.id = 'hk-confirm-title';
-  h2.style.cssText =
-    'margin:0 0 16px;font-size:1.25rem;font-weight:500;' +
-    'color:var(--primary-text-color,#000)';
-  h2.textContent = label;
-
-  const para = document.createElement('p');
-  para.id = 'hk-confirm-body';
-  para.style.cssText = 'margin:0 0 24px;color:var(--secondary-text-color,#666)';
-  para.textContent = body;
-
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
-
-  const close = (): void => {
-    closeConfirmDialog(p);
-  };
-
-  // Cancel when there is a Delete beside it, Close when this dialog only reports
-  // something. A blocked action has nothing to cancel: the save never started.
-  const cancel = document.createElement('ha-button');
-  setBtnWeight(cancel, 'tertiary');
-  cancel.textContent = onConfirm ? t('btn.cancel') : t('btn.close');
-  cancel.addEventListener('click', close);
-  row.appendChild(cancel);
-
-  if (onConfirm) {
-    // The one surface in the panel whose whole reason to exist is the destruction, so
-    // the one place Delete carries a solid fill. Its red comes from `variant`, which
-    // resolves against Home Assistant's document-level theme — this scrim is appended
-    // to document.body, where the panel's own `:host` tokens do not reach.
-    const del = document.createElement('ha-button');
-    setBtnWeight(del, 'danger-primary');
-    del.textContent = t('btn.delete');
-    del.addEventListener('click', () => {
-      onConfirm();
-      closeConfirmDialog(p);
-      // Re-render after the mutation: the confirm callbacks (metadata/part row
-      // deletion) only mutate state, and neither this handler nor
-      // closeConfirmDialog rendered — so a deleted row stayed visible, and its
-      // siblings' value-changed closures kept stale render-time indices that wrote
-      // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
-      // with fresh indices fixes both.
-      p._render();
-    });
-    row.appendChild(del);
-  }
-  modal.appendChild(h2);
-  modal.appendChild(para);
-  modal.appendChild(row);
-  scrim.appendChild(modal);
-  scrim.addEventListener('click', (e) => {
-    if (e.target === scrim) close();
-  });
-
-  // Escape closes. Tab and Shift+Tab move between the dialog's own buttons and never
-  // reach the page behind the scrim (X11-1). Held on an instance field so
-  // disconnectedCallback can remove it if we unmount while the dialog is open;
-  // closeConfirmDialog is the single teardown path.
-  const buttons = [...row.children] as HTMLElement[];
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') {
-      // 1 press closes 1 overlay: a handler of an overlay under this one does not run.
-      e.stopImmediatePropagation();
-      closeConfirmDialog(p);
-      return;
-    }
-    if (e.key !== 'Tab') return;
-    e.preventDefault();
-    const at = buttons.indexOf(document.activeElement as HTMLElement);
-    const step = e.shiftKey ? -1 : 1;
-    const next = at < 0 ? (e.shiftKey ? buttons.length - 1 : 0) : at + step;
-    buttons[(next + buttons.length) % buttons.length].focus();
-  };
-  p._confirmOnKey = onKey;
-  document.addEventListener('keydown', onKey);
-
-  p._confirmScrim = scrim;
-  document.body.appendChild(scrim);
-  // Cancel (or Close) takes the keyboard: the safe choice for a destructive dialog.
-  // In a real browser `ha-button` renders its inner <button> asynchronously, and its
-  // focus() throws until it has one — which aborted this function and left the
-  // keyboard on the opener behind the scrim. So try now (a test double, or a button
-  // already rendered), and again once it has rendered, if this dialog is still open.
-  const focusCancel = (): void => {
-    try {
-      cancel.focus();
-    } catch {
-      // Not rendered yet: the deferred call below focuses it.
-    }
-  };
-  focusCancel();
-  void customElements
-    .whenDefined('ha-button')
-    .then(() => (cancel as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete)
-    .then(() => {
-      if (p._confirmScrim === scrim && cancel.isConnected) focusCancel();
-    });
 }
 
 // ── dialog shell and the two dialogs built on it ────────────────────────────

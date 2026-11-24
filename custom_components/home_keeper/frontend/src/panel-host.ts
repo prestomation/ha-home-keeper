@@ -22,6 +22,7 @@
  *   commit at a time, alongside the region that needs it.
  */
 
+import type { ConfirmHandle } from './confirm-dialog';
 import type { LabelDialogState } from './panel-labels';
 import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
@@ -131,20 +132,8 @@ export interface PanelHost extends HTMLElement {
   _completion: CompletionDialogState;
   /** The companion integrations the Settings tab lists. */
   _companions: Companion[];
-  /** The destructive-action confirmation's state. `body` is the line under the
-   *  heading, usually "This cannot be undone"; a null `onConfirm` makes it the
-   *  blocked-action dialog, which reports and offers only Close. */
-  _confirmDelete: {
-    label: string;
-    body: string;
-    onConfirm: (() => void) | null;
-  };
-  /** The document keydown (Escape) handler bound while the confirmation is open, held
-   *  as a field so an unmount mid-dialog can remove it. */
-  _confirmOnKey: ((e: KeyboardEvent) => void) | null;
-  /** Body-level scrim for the confirmation overlay (outside the shadow root, so
-   *  `position:fixed` resolves against the viewport). */
-  _confirmScrim: HTMLElement | null;
+  /** The open confirmation, held so an unmount mid-dialog can take it down. */
+  _confirmHandle: ConfirmHandle | null;
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
   _complete(task: Task, button?: Element | null): Promise<void>;
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't

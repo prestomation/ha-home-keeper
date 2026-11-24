@@ -138,6 +138,18 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - A backend limit that the panel checks is mirrored in `limits.ts` and guarded by
   `tests/unit/test_upload_limit_parity.py`. The backend stays the authority.
 
+## Destructive actions
+
+- **An action that loses data or is hard to reverse asks first, through `confirmDestructive`**
+  (`panel-dialogs.ts`). The card uses the same dialog through `mountConfirm`. An action that is
+  easy to reverse (archive, snooze, a stock step) asks nothing. There is no undo toast.
+- Put the item's name in the title and the action word in `confirmLabel` ("Delete task").
+  Give a `body` only when it says what is lost, with real counts. The default is "This cannot
+  be undone." The dialog is an `alertdialog`: Cancel holds the keyboard, and Escape and a tap
+  outside cancel. Style it with `--hk-confirm-*` tokens, never inline.
+- `destructive-scan-parity.test.js` fails on a call of a delete, remove or replace function
+  outside `confirmDestructive`. An exception needs an `ALLOW` entry with a reason.
+
 ## Documents and files
 
 - `AssetDocument` is a union on `kind`. Every surface uses the `documents.ts` helpers.
@@ -173,7 +185,7 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 - **Probe a real element before you design against it.** `observedAttributes` tells you
   what it still reads. Assert on rendered pixels, not markup, where HA draws.
 - Build an `ha-dialog` with `makeDialog` from `dialogs.ts`. Do not write a new one. The
-  delete confirmation is a body-level scrim, not an `ha-dialog`.
+  confirmation is a body-level scrim (`confirm-dialog.ts`), not an `ha-dialog`.
 - **Never tear down the panel or the card resource on unload.** Most unloads are half of a
   reload. Remove them in `async_remove_entry`, and the panel also for a disabled entry.
 - **The card loads by 1 path per install.** A Lovelace resource in storage mode.

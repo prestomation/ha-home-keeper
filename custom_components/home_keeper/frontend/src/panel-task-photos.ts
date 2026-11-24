@@ -6,7 +6,7 @@
 import * as api from './api';
 import { t } from './i18n';
 import { MAX_TASK_PHOTO_BYTES, MAX_TASK_PHOTOS } from './limits';
-import { openConfirmDialog } from './panel-dialogs';
+import { confirmDestructive } from './panel-dialogs';
 import { setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE } from './panel-icons';
@@ -117,8 +117,11 @@ export function wireTaskPhotos(p: PanelHost, root: ParentNode, task: Task): void
     btn.addEventListener('click', () => {
       const photo = photosOf(task).find((x) => x.id === btn.dataset.photoId);
       if (!photo) return;
-      openConfirmDialog(p, t('photos.confirmRemove', { name: photo.name }), () => {
-        void photoAction(p, () => api.removeTaskPhoto(p._hass!, task.id, photo.id));
+      confirmDestructive(p, {
+        title: t('photos.confirmRemove', { name: photo.name }),
+        confirmLabel: t('confirm.btn.removePhoto'),
+        onConfirm: () =>
+          void photoAction(p, () => api.removeTaskPhoto(p._hass!, task.id, photo.id)),
       });
     });
   });

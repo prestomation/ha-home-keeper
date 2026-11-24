@@ -620,6 +620,100 @@ export function historyEntryDetail(
 }
 
 /**
+ * The words of the delete confirmation for a history entry: the title names the entry
+ * by its date and time, the body names the task, the reading, the note and the person,
+ * and the button says "Delete entry" (or "Delete skip").
+ */
+export function historyDeleteText(
+  kind: 'completion' | 'skip',
+  entry: { ts: string; task?: string; detail?: string; who?: string },
+  lang?: string,
+): { title: string; body: string; confirmLabel: string } {
+  const skip = kind === 'skip';
+  const who = entry.who ? t('completion.by', { who: entry.who }) : '';
+  const lines = [
+    entry.task ?? '',
+    [entry.detail ?? '', who].filter(Boolean).join(' · '),
+    t('confirm.cannotUndo'),
+  ].filter(Boolean);
+  return {
+    title: t(skip ? 'confirm.deleteSkip' : 'confirm.deleteEntry', {
+      date: formatDateTime(entry.ts, lang),
+    }),
+    body: lines.join('\n'),
+    confirmLabel: t(skip ? 'confirm.btn.deleteSkip' : 'confirm.btn.deleteEntry'),
+  };
+}
+
+/**
+ * What deleting a task does to its history, or `undefined` when it has none (then
+ * the plain "cannot be undone" line is all that is true). A task that an appliance
+ * owns leaves its entries on that appliance; any other task takes them along.
+ * `homeName` is the name of the appliance that would keep them
+ * (`assetForTask`, the same ranking the backend uses to archive).
+ */
+export function taskDeleteBody(
+  task: { completions?: unknown[] },
+  homeName?: string,
+): string | undefined {
+  const n = task.completions?.length ?? 0;
+  if (!n) return undefined;
+  const line = homeName
+    ? t('confirm.deleteTaskKept', { n, asset: homeName })
+    : t('confirm.deleteTaskHistory', { n });
+  return `${line}\n${t('confirm.cannotUndo')}`;
+}
+
+/** The name of the appliance that keeps a task's history when the task is deleted. */
+export function taskHomeName(
+  task: Task,
+  assets: Asset[],
+  devices: Parameters<typeof assetTitle>[1],
+): string | undefined {
+  const home = assetForTask(task, assets);
+  return home ? assetTitle(home, devices) : undefined;
+}
+
+/**
+ * What deleting an appliance deletes, counted the way `store.delete_asset` decides.
+ * A task made from one of its wear parts, and an auto-buy task, are deleted. A task
+ * that links one of its consumables stays and only loses the link.
+ */
+export function assetDeleteImpact(
+  asset: Pick<Asset, 'id' | 'task_history'>,
+  tasks: Task[],
+): { dropped: number; kept: number; history: number } {
+  let dropped = 0;
+  let kept = 0;
+  for (const task of tasks) {
+    if (task.source?.buy?.asset_id === asset.id) {
+      dropped += 1;
+    } else if (consumableLinks(task).some((link) => link.asset_id === asset.id)) {
+      kept += 1;
+    } else if (task.source?.part?.asset_id === asset.id && !task.source.part.manual) {
+      dropped += 1;
+    }
+  }
+  const history = (asset.task_history ?? []).reduce(
+    (sum, entry) => sum + (entry.completions?.length ?? 0),
+    0,
+  );
+  return { dropped, kept, history };
+}
+
+/** The body of the delete confirmation of an appliance: its own contents, and what
+ *  happens to its tasks and to the history of the tasks it kept. */
+export function assetDeleteBody(asset: Asset, tasks: Task[]): string {
+  const { dropped, kept, history } = assetDeleteImpact(asset, tasks);
+  const lines = [t('confirm.deleteAssetOwn')];
+  if (dropped) lines.push(t('confirm.deleteAssetDropped', { n: dropped }));
+  if (kept) lines.push(t('confirm.deleteAssetKept', { n: kept }));
+  if (history) lines.push(t('confirm.deleteAssetHistory', { n: history }));
+  lines.push(t('confirm.cannotUndo'));
+  return lines.join('\n');
+}
+
+/**
  * The step a part's stock moves in: a whole spare, or a fine step once the part
  * deals in fractions — it has a unit, or any of its quantities is fractional. The
  * same rule as the device page's `number` entity (`number.py` `native_step`), so

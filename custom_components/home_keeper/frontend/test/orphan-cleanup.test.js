@@ -88,7 +88,7 @@ describe('F07-5: Remove orphaned tasks', () => {
     const { hass, calls } = makeHass();
     const { panel } = await mountPanel('/tasks', hass);
     (await waitFor(() => panel.shadowRoot.querySelector('#cleanup-orphans-btn'))).click();
-    confirmButton('Delete').click();
+    confirmButton('Delete tasks').click();
     await waitFor(() => count(calls, 'home_keeper/delete_orphaned_tasks'));
     expect(count(calls, 'home_keeper/delete_orphaned_tasks')).toBe(1);
     expect(count(calls, 'home_keeper/delete_task')).toBe(0);

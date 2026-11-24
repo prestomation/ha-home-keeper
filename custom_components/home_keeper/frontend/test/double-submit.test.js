@@ -102,8 +102,14 @@ describe('double submit', () => {
     panel._transfer.text = 'home_keeper:\n  format: 1\n';
     await panel._previewImport();
     const run = () => panel.shadowRoot.querySelector('#transfer-import');
+    // Import asks first. A second press of Import opens the dialog again, and a second
+    // press on its button must still send nothing more.
+    const yes = () =>
+      document.querySelector('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]');
     run().click();
+    yes().click();
     run().click();
+    yes()?.click();
     await settle();
     release();
     await settle();

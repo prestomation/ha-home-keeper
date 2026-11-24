@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { historyEntryDetail } from '../src/utils.ts';
 
 describe('historyEntryDetail', () => {
@@ -47,13 +47,17 @@ describe('historyEntryDetail', () => {
 });
 
 describe('history delete asks first', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.head.querySelector('#hk-confirm-style')?.remove();
+  });
+
   const host = () => {
     const calls = [];
     const p = {
       _hass: { callWS: async (m) => (calls.push(m), { task: {} }), language: 'en' },
-      _confirmDelete: { label: '', body: '', onConfirm: null },
-      _confirmScrim: null,
-      _confirmOnKey: null,
+      _confirmHandle: null,
+      _drawerOnKey: null,
       _lang: () => 'en',
       _refresh: async () => {},
       _render: () => {},
@@ -73,20 +77,30 @@ describe('history delete asks first', () => {
   };
   const click = (label) =>
     [...document.querySelectorAll('.hk-confirm-scrim ha-button')]
-      .find((b) => b.textContent === label)
+      .find((b) =>
+        label === 'Delete'
+          ? b.getAttribute('data-hk-weight') === 'danger-primary'
+          : b.textContent === label,
+      )
       .click();
 
   it('a completion waits for Delete and names its date and note', async () => {
     const { wireHistory } = await import('../src/panel-history.ts');
     const { p, calls } = host();
     const root = mount(
-      '<ha-icon-button class="hk-hist-del" data-del-task="t1" data-ts="2026-03-01T10:00:00Z" data-detail="&quot;New oil&quot;"></ha-icon-button>',
+      '<ha-icon-button class="hk-hist-del" data-del-task="t1" data-ts="2026-03-01T10:00:00Z" data-detail="&quot;New oil&quot;" data-task="Car oil" data-who="Sam"></ha-icon-button>',
     );
     wireHistory(p, root);
     root.querySelector('.hk-hist-del').click();
     expect(calls).toEqual([]);
     expect(document.querySelector('#hk-confirm-title').textContent).toContain('2026');
-    expect(document.querySelector('#hk-confirm-body').textContent).toContain('New oil');
+    const body = document.querySelector('#hk-confirm-body').textContent;
+    expect(body).toContain('New oil');
+    expect(body).toContain('Car oil');
+    expect(body).toContain('by Sam');
+    expect(document.querySelector('[data-hk-weight="danger-primary"]').textContent).toBe(
+      'Delete entry',
+    );
     click('Cancel');
     await Promise.resolve();
     expect(calls).toEqual([]);

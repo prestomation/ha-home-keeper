@@ -9,7 +9,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-task-photos.ts
   - custom_components/home_keeper/frontend/src/panel-photo-markup.ts
 related: [documents-photos, store, completions, transfer, frontend, events-api]
-source_hash: 1bd40a5e62c0
+source_hash: ed07838ca184
 ---
 
 # Task photos

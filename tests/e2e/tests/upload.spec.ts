@@ -107,7 +107,7 @@ test('a valid upload shows progress and adds the document', async ({ page }) => 
   await card.locator('ha-icon-button[label="Remove document"]').click();
   const scrim = page.locator('.hk-confirm-scrim');
   await expect(scrim).toBeVisible();
-  await scrim.locator('ha-button').filter({ hasText: /Delete/i }).click();
+  await scrim.locator('ha-button[data-hk-weight="danger-primary"]').click();
   await expect(scrim).toHaveCount(0);
   await expect(card).toHaveCount(0);
 });

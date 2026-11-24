@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/tag_listener.py
   - custom_components/home_keeper/repeats.py
 related: [recurrence, store, appliances, documents-photos, sensor-tasks, events-api, frontend]
-source_hash: 0cea5e42a9b8
+source_hash: 4819625da009
 ---
 
 # Completions
@@ -105,7 +105,7 @@ the latest as backfill: it moves neither `last_completed` nor a floating or fixe
   baseline return. Event: `home_keeper_task_uncompleted` with the removed `ts`.
 
 `panel-history.ts` wires these 3 row buttons. A sync-owned problem-sensor task refuses all 3.
-A delete asks first (`openConfirmEntryDelete`), naming the entry by date, reading and note.
+A delete asks first (`confirmDestructive`), naming the entry by date, reading, note and person.
 
 ### Archived completions on appliances
 

@@ -155,7 +155,7 @@ describe('F08-3: removing a document or a part file asks first', () => {
     expect(sent(calls, 'home_keeper/remove_asset_document')).toHaveLength(0);
 
     iconButton(panel, '.hk-doc-actions', 'Remove document').click();
-    confirmButton('Delete').click();
+    confirmButton('Remove document').click();
     await waitFor(() => sent(calls, 'home_keeper/remove_asset_document').length);
     expect(sent(calls, 'home_keeper/remove_asset_document')[0].document_id).toBe('d1');
   });
@@ -169,7 +169,7 @@ describe('F08-3: removing a document or a part file asks first', () => {
     remove.click();
     expect(scrim().querySelector('h2').textContent).toBe('Remove "anode.pdf"?');
     expect(sent(calls, 'home_keeper/remove_part_file')).toHaveLength(0);
-    confirmButton('Delete').click();
+    confirmButton('Remove file').click();
 
     const alert = await waitFor(() => $(panel, '.hk-part ha-alert[alert-type="error"]'));
     expect(alert, 'F08-1: the error shows beside the part file').toBeTruthy();
@@ -195,14 +195,14 @@ describe('X11-1: the confirmation is a real modal dialog', () => {
 
   it('says it is a modal dialog and names itself from its heading', async () => {
     await openConfirm();
-    const modal = scrim().querySelector('[role="dialog"]');
+    const modal = scrim().querySelector('[role="alertdialog"]');
     expect(modal).toBeTruthy();
     expect(modal.getAttribute('aria-modal')).toBe('true');
     const title = document.getElementById(modal.getAttribute('aria-labelledby'));
     expect(title.textContent).toBe('Remove "Manual"?');
     const body = document.getElementById(modal.getAttribute('aria-describedby'));
     expect(body.textContent).toBe('This cannot be undone.');
-    expect(modal.style.boxSizing).toBe('border-box');
+    expect(getComputedStyle(modal).boxSizing).toBe('border-box');
   });
 
   it('gives the keyboard to Cancel when it opens', async () => {
@@ -213,7 +213,7 @@ describe('X11-1: the confirmation is a real modal dialog', () => {
   it('keeps Tab inside the dialog', async () => {
     const { focused } = await openConfirm();
     const cancel = confirmButton('Cancel');
-    const del = confirmButton('Delete');
+    const del = confirmButton('Remove document');
     vi.restoreAllMocks();
     cancel.tabIndex = 0;
     del.tabIndex = 0;
@@ -238,7 +238,7 @@ describe('X11-1: the confirmation is a real modal dialog', () => {
     const { opener } = await openConfirm();
     vi.restoreAllMocks();
     const cancel = confirmButton('Cancel');
-    const del = confirmButton('Delete');
+    const del = confirmButton('Remove document');
     cancel.tabIndex = 0;
     del.tabIndex = 0;
     opener.focus();

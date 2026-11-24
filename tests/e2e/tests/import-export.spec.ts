@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   callService,
   gotoTab,
+  holdsFocus,
   openPanel,
   openSettingsSection,
   trackPanelErrors,
@@ -103,6 +104,20 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     await expect(panel.locator('#transfer-import')).not.toHaveAttribute('disabled', '');
 
     await panel.locator('#transfer-import').click();
+    // Import asks first, with the counts of the preview, and names the export as the
+    // backup. Cancel holds the keyboard, and Escape imports nothing.
+    const scrim = page.locator('.hk-confirm-scrim');
+    await expect(scrim).toBeVisible();
+    await expect
+      .poll(() => holdsFocus(scrim.locator('ha-button').filter({ hasText: 'Cancel' })))
+      .toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(scrim).toHaveCount(0);
+    await expect(panel.locator('.hk-transfer-report')).not.toContainText('was imported');
+    await panel.locator('#transfer-import').click();
+    await expect(scrim.locator('#hk-confirm-body')).toContainText('New records: 2');
+    await expect(scrim.locator('#hk-confirm-body')).toContainText('only way back');
+    await scrim.locator('ha-button[data-hk-weight="danger-primary"]').click();
     // The import reloads the config entry, so the panel re-reads on the far side of
     // it — the task appearing on the list is what proves the whole chain ran.
     await expect(panel.locator('.hk-transfer-report')).toContainText('imported');
