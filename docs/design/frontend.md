@@ -37,7 +37,7 @@ implements:
   - custom_components/home_keeper/backend_i18n.py
   - custom_components/home_keeper/*/uk.json
 related: [architecture, coordinator-entities, events-api, profiles-notifications, recurrence]
-source_hash: e0c68913ca0d
+source_hash: 9474b4820cd5
 ---
 
 # Frontend
