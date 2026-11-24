@@ -4,8 +4,8 @@
  *   SHOT_DIR=../../docs/images npx playwright test screenshots-overlays.capture.ts \
  *     --config=screenshots-overlays.config.ts
  *
- * On the Tasks list: the deferral menu, the action sheet of a tile, the spend sheet and
- * the delete confirmation of the edit form. Desktop and phone.
+ * On the Tasks list: the deferral menu, the action sheet of a tile and the spend sheet.
+ * Desktop and phone.
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { PHONE } from './viewports';
@@ -54,14 +54,6 @@ async function shots(page: Page, panel: Locator, tag: string): Promise<void> {
   await page.screenshot({ path: `${OUT}/overlay-${tag}spend-sheet.png` });
   await reset(page, panel);
 
-  // The delete confirmation over the edit form.
-  await panel.evaluate((p: any) => p._openEdit(p._tasks.find((t: any) => !t.managed_by) ?? p._tasks[0]));
-  const del = panel.locator('#hk-form-host ha-button', { hasText: 'Delete' }).first();
-  await expect(del).toBeVisible();
-  await del.click();
-  await expect(page.locator('.hk-confirm-scrim')).toBeVisible();
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/overlay-${tag}confirm.png` });
   await reset(page, panel);
 }
 
