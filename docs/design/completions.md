@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/tag_listener.py
   - custom_components/home_keeper/repeats.py
 related: [recurrence, store, appliances, documents-photos, sensor-tasks, events-api, frontend]
-source_hash: 4819625da009
+source_hash: 1771f1056dc4
 ---
 
 # Completions
