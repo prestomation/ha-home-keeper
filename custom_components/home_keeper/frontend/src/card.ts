@@ -241,6 +241,9 @@ const STYLES = `
     padding: 12px 16px 8px; flex: none;
   }
   .hk-title { font-size: 1.25rem; font-weight: 400; flex: 1; min-width: 0; }
+  /* An open form or dialog shrinks to the card and scrolls inside it. Without this it
+     keeps its full height, and the card clips the rest with no way to scroll. */
+  #hk-form-host { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .hk-body { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 8px; }
   .hk-row {
     display: flex; align-items: center; gap: 8px; padding: 8px 8px;
