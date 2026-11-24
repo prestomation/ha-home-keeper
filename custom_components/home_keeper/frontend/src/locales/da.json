@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "Vis {n} forudindstillinger mere",
   "declarative.companions.preset_hide_other": "Skjul andre enheder",
   "declarative.companions.preset_none": "Ingen forudindstilling matcher din søgning.",
+  "declarative.companions.preset_from": "Fra {name}",
   "declarative.companions.preview_empty": "Ingen entiteter matcher denne deklarative companion.",
   "declarative.companions.preview_loading": "Indlæser forhåndsvisning…",
   "declarative.companions.preview_many": "{count} entiteter matcher — det er mange opgaver. Overvej at indsnævre valget.",

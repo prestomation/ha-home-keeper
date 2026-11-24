@@ -39,11 +39,13 @@ def test_each_fired_event_with_a_payload_has_1_trigger() -> None:
     fired = [
         spec
         for spec in api_surface.EVENTS
-        if spec.direction == "fired" and spec.payload != "none"
+        if spec.direction == "fired" and spec.payload != "none" and spec.mirrored
     ]
     assert [spec.event for spec in api_surface.TRIGGERS] == [s.name for s in fired]
     assert len(set(_KEYS)) == len(_KEYS)
     assert "register_companions" not in _KEYS
+    assert "presets_registered" not in _KEYS
+    assert "presets_removed" not in _KEYS
     assert "task_overdue" in _KEYS
 
 

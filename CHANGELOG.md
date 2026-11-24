@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b5] - 2026-11-24
+
+### Added
+
+- **[Companion presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  A companion integration can add its own presets to the preset picker and to the
+  suggestions on the Tasks tab, with the name of the companion on each one. A declarative
+  companion that you add from one of these presets stays when the companion is removed.
+
 ## [0.38.0b4] - 2026-11-24
 
 ### Changed

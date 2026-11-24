@@ -228,6 +228,25 @@ _ADMIN_ONLY_CALLS: dict[str, dict] = {
     "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
     "set_options": {"sync_problem_sensors": True},
     "register_companion": {"domain": "pawsistant", "name": "Should not exist"},
+    "register_presets": {
+        "domain": "gate_probe",
+        "rows": [
+            {
+                "domain": "gate_probe",
+                "brand": "Should not exist",
+                "icon": "mdi:car",
+                "duties": [
+                    {
+                        "duty": "replace_filter",
+                        "shape": "percent_low",
+                        "keys": ["k"],
+                        "limit": 5,
+                    }
+                ],
+            }
+        ],
+    },
+    "unregister_presets": {"domain": "pawsistant"},
     "add_declarative_companion": {"name": "Should not exist"},
     "update_declarative_companion": {"id": "x"},
     "delete_declarative_companion": {"id": "x"},

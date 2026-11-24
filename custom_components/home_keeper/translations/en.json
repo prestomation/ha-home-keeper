@@ -1034,6 +1034,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Register presets",
+      "description": "Add the presets of a companion to the preset picker. Each call replaces the presets that the companion registered before.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "The domain of the companion integration."
+        },
+        "rows": {
+          "name": "Rows",
+          "description": "The preset rows, in the format of the Home Keeper preset catalog."
+        },
+        "duty_names": {
+          "name": "Duty names",
+          "description": "The task name of each duty, by language. English is required."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Unregister presets",
+      "description": "Remove the presets of a companion from the preset picker. The declarative companions that were made from them stay.",
+      "fields": {
+        "domain": {
+          "name": "Domain",
+          "description": "The domain of the companion integration."
+        }
+      }
+    },
     "list_companions": {
       "name": "List companions",
       "description": "Return the merged companion list (self-registered integrations plus detected upstreams whose glue isn't installed yet) as a response."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Give a document or a bundle to import."
+    },
+    "invalid_preset_rows": {
+      "message": "The presets were not registered: {error}"
     }
   }
 }

@@ -23,7 +23,8 @@ integration.
 > Assistant integration, see the developer guide,
 > [docs/INTEGRATING.md](../../INTEGRATING.md). It documents the contract, the
 > `source` field, the `home_keeper_task_completed` event, two-way completion
-> sync, and `home_keeper.register_companion` to register under **Companions**.
+> sync, `home_keeper.register_companion` to register under **Companions**, and
+> `home_keeper.register_presets` to add presets to the preset picker.
 > See [docs/GLUE_INTEGRATIONS.md](../../GLUE_INTEGRATIONS.md) for the glue
 > integration pattern that connects an existing integration, such as Battery
 > Notes, to Home Keeper.

@@ -142,6 +142,7 @@ class DeclarativeCompanionSync:
         # clears it. The panel reads it on every refresh, and a registry projection
         # per refresh is waste when the registry has not changed.
         self._preset_counts: dict[str, int] | None = None
+        self._preset_selections: dict[str, Any] | None = None
         # The last render error logged per (entity id, template source), so a broken
         # name or notes template is reported once instead of on every pass and every
         # preview keystroke. See ``_render_one``. The source is part of the key: name
@@ -679,21 +680,23 @@ class DeclarativeCompanionSync:
             "over_cap": False,
         }
 
-    def preset_match_counts(self) -> dict[str, int]:
-        """How many entities each shipped preset matches now, by preset id.
+    def preset_match_counts(
+        self, presets: list[declarative_presets.PresetDefinition]
+    ) -> dict[str, int]:
+        """How many entities each of *presets* matches now, by preset id.
 
-        Every preset, general and integration alike: the picker sorts by it, and the
+        Every preset, shipped and registered alike: the picker sorts by it, and the
         Tasks tab suggests the presets that match. One registry projection serves them
         all, and the result is kept until an entity, device or area registry event
-        clears it, because the panel asks on every refresh.
+        clears it, or the set of presets changes, because the panel asks on every
+        refresh.
         """
-        if self._preset_counts is None:
-            self._preset_counts = self.match_counts(
-                {
-                    preset["id"]: preset["default_spec"]["selection"]
-                    for preset in declarative_presets.CATALOG_PRESETS
-                }
-            )
+        selections = {
+            preset["id"]: preset["default_spec"]["selection"] for preset in presets
+        }
+        if self._preset_counts is None or self._preset_selections != selections:
+            self._preset_counts = self.match_counts(selections)
+            self._preset_selections = selections
         return dict(self._preset_counts)
 
     def installed_integrations(self) -> list[str]:

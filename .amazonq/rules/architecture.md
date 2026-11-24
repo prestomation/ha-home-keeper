@@ -39,6 +39,8 @@ Writes are admin-only and reads are open ([SECURITY.md](../../docs/SECURITY.md))
   `set_task_consumable` ([SECURITY.md](../../docs/SECURITY.md#open-stock-writes)).
 - `register_companion` is admin-only. A companion with `import_export` gets the admin's
   context during an export or import, so a user must not choose which domain that is.
+- `register_presets` and `unregister_presets` are admin-only. A preset decides which tasks the
+  home gets, and its text shows in the panel.
 - **An appliance read is the full record for every user.** Home Keeper has no private
   appliance field.
 - **Allowlist notify targets where they are stored.** `notifications.split_targets` keeps

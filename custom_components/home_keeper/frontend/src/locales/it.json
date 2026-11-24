@@ -774,6 +774,7 @@
   "declarative.companions.preset_show_all.other": "Mostra altre {n} preimpostazioni",
   "declarative.companions.preset_hide_other": "Nascondi altri dispositivi",
   "declarative.companions.preset_none": "Nessuna preimpostazione corrisponde alla ricerca.",
+  "declarative.companions.preset_from": "Da {name}",
   "declarative.companions.preview_empty": "Nessuna entità corrisponde a questo companion dichiarativo.",
   "declarative.companions.preview_loading": "Caricamento anteprima…",
   "declarative.companions.preview_many": "{count} entità corrispondono — sono molte attività. Considera di restringere la selezione.",

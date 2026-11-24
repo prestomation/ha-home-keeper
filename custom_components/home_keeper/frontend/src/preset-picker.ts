@@ -9,7 +9,9 @@
  * gate can score them; `panel-declarative.ts` builds the DOM.
  */
 
+import { t } from './i18n';
 import type { DeclarativeCompanionPreset } from './types';
+import { escapeHTML } from './utils';
 
 export interface PresetGroups {
   /** Integration presets that match at least one entity. */
@@ -28,7 +30,26 @@ export function presetTaskNames(preset: DeclarativeCompanionPreset): string[] {
   return [...new Set(Object.values(names))];
 }
 
-/** Whether *preset* matches the search *query*: name, description, domain or a task. */
+/**
+ * The name of the companion that registered *preset*, or `null` for a shipped preset.
+ * The picker and the suggestions show it as "From <name>".
+ */
+export function presetProvider(preset: DeclarativeCompanionPreset): string | null {
+  if (preset.source !== 'companion' || !preset.provided_by) return null;
+  return preset.provided_by.name || preset.provided_by.domain || null;
+}
+
+/** "From <companion>" after the name of a companion preset, or '' for a shipped one. */
+export function presetFromBadge(preset: DeclarativeCompanionPreset): string {
+  const name = presetProvider(preset);
+  if (name === null) return '';
+  return ` <span class="hk-preset-from">${escapeHTML(
+    t('declarative.companions.preset_from', { name }),
+  )}</span>`;
+}
+
+/** Whether *preset* matches the search *query*: name, description, domain, a task or
+ *  the companion that registered it. */
 export function presetMatches(preset: DeclarativeCompanionPreset, query: string): boolean {
   const q = query.trim().toLowerCase();
   // Stryker disable next-line ConditionalExpression: every string contains '', so the
@@ -41,6 +62,7 @@ export function presetMatches(preset: DeclarativeCompanionPreset, query: string)
     // general preset has no domain for; the tests search real fields.
     preset.requires_integration ?? '',
     ...presetTaskNames(preset),
+    presetProvider(preset) ?? '',
   ]
     .join('\n')
     .toLowerCase();

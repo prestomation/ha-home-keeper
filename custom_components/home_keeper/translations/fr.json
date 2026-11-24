@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Enregistrer des préréglages",
+      "description": "Ajoute les préréglages d'un compagnon au sélecteur de préréglages. Chaque appel remplace les préréglages que le compagnon a enregistrés avant.",
+      "fields": {
+        "domain": {
+          "name": "Domaine",
+          "description": "Le domaine de l'intégration compagnon."
+        },
+        "rows": {
+          "name": "Lignes",
+          "description": "Les lignes de préréglages, au format du catalogue de préréglages de Home Keeper."
+        },
+        "duty_names": {
+          "name": "Noms des obligations",
+          "description": "Le nom de tâche de chaque obligation, par langue. L'anglais est obligatoire."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Retirer des préréglages",
+      "description": "Retire les préréglages d'un compagnon du sélecteur de préréglages. Les compagnons déclaratifs créés à partir d'eux restent.",
+      "fields": {
+        "domain": {
+          "name": "Domaine",
+          "description": "Le domaine de l'intégration compagnon."
+        }
+      }
+    },
     "list_companions": {
       "name": "Lister les companions",
       "description": "Renvoie en réponse la liste fusionnée des companions (intégrations auto-enregistrées plus upstreams détectés dont la liaison n'est pas encore installée)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Indiquez un document ou un paquet à importer."
+    },
+    "invalid_preset_rows": {
+      "message": "Les préréglages n'ont pas été enregistrés : {error}"
     }
   }
 }

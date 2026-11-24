@@ -9,6 +9,7 @@ import {
   trackPanelErrors,
 } from './helpers';
 import {
+  COMPANION_PRESET,
   FIRMWARE_PRESET,
   INTRO_KEY,
   PRESET_NUDGE_KEY,
@@ -105,6 +106,32 @@ test.describe('Home Keeper panel — preset suggestions', { tag: '@responsive' }
     };
     expect(stored.shown).toContain(FIRMWARE);
     expect(stored.dismissed).not.toContain(FIRMWARE);
+    expect(errors).toEqual([]);
+  });
+
+  test('a companion preset says its companion, and Add keeps a copy of its spec', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await suggestOnly(authToken(), COMPANION_PRESET);
+    const panel = await openFresh(page);
+    const dialog = presetDialog(panel);
+    const row = dialog.locator('label.hk-preset-pick');
+    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    await expect(row).toContainText('Pet feeder: parts and supplies running low');
+    await expect(row.locator('.hk-preset-from')).toHaveText('From Pawsistant');
+    await dialog.locator('ha-button.hk-preset-dialog-add').click();
+    await expect(dialog).toHaveCount(0, { timeout: 30_000 });
+    await expect
+      .poll(
+        async () =>
+          (await listSpecs()).filter((s) => s.preset_id === COMPANION_PRESET).map((s) => s.name),
+        { timeout: 30_000 },
+      )
+      .toEqual(['Pet feeder: parts and supplies running low']);
+    const [spec] = (await listSpecs()).filter((s) => s.preset_id === COMPANION_PRESET);
+    expect(spec.selection.target_integration).toBe('home_keeper_battery_notes');
+    expect(spec.task_template.task_names).toEqual({ battery_level: 'Charge the pet feeder' });
     expect(errors).toEqual([]);
   });
 

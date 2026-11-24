@@ -150,6 +150,9 @@ only_mutate = [
     # The HA-bound reconciler that wires it up (``declarative_companion_sync.py``) is
     # not on this list — same rule as the other HA-importing modules.
     "custom_components/home_keeper/declarative_companions.py",
+    # The companion presets: the 1 check of a catalog row and the registry transition.
+    # Pure, and driven by tests/unit/test_preset_registry.py and its state machine.
+    "custom_components/home_keeper/preset_registry.py",
     # Per-task entity names and the entity-set key that decides an entry reload.
     # Pure and covered by tests/unit/test_task_entities.py.
     "custom_components/home_keeper/task_entities.py",

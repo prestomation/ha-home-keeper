@@ -15,6 +15,7 @@ import * as api from './api';
 import { t, tn } from './i18n';
 import { errorMessage, openDeclarativeForm, seededFrom } from './panel-declarative';
 import { makeDialog } from './panel-dialogs';
+import { presetFromBadge } from './preset-picker';
 import type { PanelHost } from './panel-host';
 import {
   addOutcome,
@@ -81,7 +82,7 @@ export function presetNudgeCard(p: PanelHost): string {
         <li class="hk-preset-nudge-row" data-preset-id="${escapeHTML(preset.id)}">
           <ha-icon class="hk-preset-nudge-icon" icon="${escapeHTML(preset.icon)}"></ha-icon>
           <span class="hk-preset-nudge-text">
-            <span class="hk-preset-nudge-name">${escapeHTML(preset.name)}</span>
+            <span class="hk-preset-nudge-name">${escapeHTML(preset.name)}${presetFromBadge(preset)}</span>
             <span class="hk-preset-nudge-count">${escapeHTML(
               tn('tasks.presets.matches', preset.matches ?? 0),
             )}</span>
@@ -220,7 +221,7 @@ export function renderPresetDialog(p: PanelHost, host: HTMLElement): void {
         <input type="checkbox" data-preset-id="${escapeHTML(preset.id)}">
         <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
         <span class="hk-preset-pick-text">
-          <span class="hk-preset-pick-name">${escapeHTML(preset.name)}</span>
+          <span class="hk-preset-pick-name">${escapeHTML(preset.name)}${presetFromBadge(preset)}</span>
           <span class="hk-preset-pick-desc">${escapeHTML(preset.description)}</span>
           <span class="hk-preset-pick-count">${escapeHTML(
             tn('tasks.presets.matches', preset.matches ?? 0),

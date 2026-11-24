@@ -14,6 +14,8 @@ export const PRESET_NUDGE_KEY = 'home_keeper_preset_nudge';
 export const INTRO_KEY = 'home_keeper_intro_dismissed';
 /** The one preset the e2e container matches: it has a single update entity. */
 export const FIRMWARE_PRESET = 'firmware_update_available';
+/** The preset that the Pawsistant stub registers (`home_keeper.register_presets`). */
+export const COMPANION_PRESET = 'pawsistant/home_keeper_battery_notes_percent_low';
 
 const HA_URL = process.env.HA_URL || 'http://localhost:8123';
 
@@ -71,7 +73,12 @@ export async function markAllPresetsSeen(token: string): Promise<void> {
  * dialog offers it on the next load; with *shown* true only the card lists it. This
  * keeps a spec to the preset it is about, whatever else the container matches.
  */
-export async function suggestOnly(token: string, id: string, shown = false): Promise<void> {
-  const others = (await presetIds(token)).filter((x) => x !== id);
-  await setUserData(token, PRESET_NUDGE_KEY, { shown: shown ? [id] : [], dismissed: others });
+export async function suggestOnly(
+  token: string,
+  id: string | string[],
+  shown = false,
+): Promise<void> {
+  const ids = Array.isArray(id) ? id : [id];
+  const others = (await presetIds(token)).filter((x) => !ids.includes(x));
+  await setUserData(token, PRESET_NUDGE_KEY, { shown: shown ? ids : [], dismissed: others });
 }

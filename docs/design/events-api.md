@@ -19,7 +19,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: 46c7d5f46a73
+source_hash: ea9a1bbc1cba
 ---
 
 # Events and API surface
@@ -86,8 +86,8 @@ to 0 fires only `home_keeper_part_out_of_stock`. A part with no `reorder_at` fir
 
 ### Triggers
 
-`trigger.py` gives 1 trigger (`home_keeper.<key>`) for each `api_surface.TRIGGERS` entry:
-each fired event with a payload. `triggers.yaml` and `icons.json` describe them to the
+`trigger.py` gives 1 trigger (`home_keeper.<key>`) for each `api_surface.TRIGGERS` entry: each
+fired event with a payload that is `mirrored`. `triggers.yaml` and `icons.json` describe them to the
 editor. A task, part or appliance trigger requires a target. Each trigger listens on its
 bus event. `trigger.resolve_target` resolves the target with the Home Assistant target
 helper for each event, and the pure `trigger_targets.matches` applies the rule of the

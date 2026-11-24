@@ -65,11 +65,18 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   );
   await expect(generalCards).toHaveCount(3);
   await expect(generalCards.and(picker.locator('.hk-decl-preset-disabled'))).toHaveCount(1);
+  // The Pawsistant stub registers a companion preset over the Battery Notes stub's
+  // sensor, so For your devices also holds it, with "From Pawsistant".
   await expect(
     picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-count'),
-  ).toHaveText('1 entity');
+  ).toHaveText(['1 entity', '1 entity']);
+  await expect(picker.locator('.hk-preset-from')).toHaveText('From Pawsistant');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
+  await page.setViewportSize(PHONE);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/21c-panel-mobile-preset-picker.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // 21v. A search reaches the integration presets. The Tuya Local preset matches the
   // stub's sensor and stays first. The others are for integrations this container does

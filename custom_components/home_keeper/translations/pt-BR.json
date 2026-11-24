@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrar predefinições",
+      "description": "Adiciona as predefinições de uma integração companheira ao seletor. Cada chamada substitui as predefinições registradas antes.",
+      "fields": {
+        "domain": {
+          "name": "Domínio",
+          "description": "O domínio da integração companheira."
+        },
+        "rows": {
+          "name": "Linhas",
+          "description": "As linhas de predefinições, no formato do catálogo de predefinições do Home Keeper."
+        },
+        "duty_names": {
+          "name": "Nomes das obrigações",
+          "description": "O nome da tarefa de cada obrigação, por idioma. O inglês é obrigatório."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Cancelar registro de predefinições",
+      "description": "Remove as predefinições de uma integração companheira do seletor. As companheiras declarativas criadas a partir delas permanecem.",
+      "fields": {
+        "domain": {
+          "name": "Domínio",
+          "description": "O domínio da integração companheira."
+        }
+      }
+    },
     "list_companions": {
       "name": "Listar companions",
       "description": "Retorna como resposta a lista combinada de companions (integrações auto-registradas mais upstreams detectados cuja conexão ainda não está instalada)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Informe um documento ou um pacote para importar."
+    },
+    "invalid_preset_rows": {
+      "message": "As predefinições não foram registradas: {error}"
     }
   }
 }

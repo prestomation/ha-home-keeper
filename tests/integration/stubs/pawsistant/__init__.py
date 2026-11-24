@@ -120,9 +120,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         },
         blocking=True,
     )
+    # 1 companion preset (docs/INTEGRATING.md, "Register presets"), so the preset
+    # picker and the suggestions show a row with "From Pawsistant". It selects the
+    # Battery Notes stub's battery sensor, which reads 42 %, below the limit of 50.
+    await hass.services.async_call(
+        "home_keeper", "register_presets", PRESETS, blocking=True
+    )
     return True
 
 
+PRESETS: dict[str, Any] = {
+    "domain": DOMAIN,
+    "duty_names": {
+        "charge_pet_feeder": {
+            "en": "Charge the pet feeder",
+            "de": "Futterautomat laden",
+        }
+    },
+    "rows": [
+        {
+            "domain": "home_keeper_battery_notes",
+            "brand": "Pet feeder",
+            "icon": "mdi:paw",
+            "duties": [
+                {
+                    "duty": "charge_pet_feeder",
+                    "shape": "percent_low",
+                    "keys": ["battery_level"],
+                    "limit": 50,
+                }
+            ],
+        }
+    ],
+}
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Nothing to tear down — the in-memory registry is reconciled by Home Keeper."""
+    """Remove the presets. Home Keeper reconciles the companion registry itself."""
+    await hass.services.async_call(
+        "home_keeper", "unregister_presets", {"domain": DOMAIN}, blocking=True
+    )
     return True

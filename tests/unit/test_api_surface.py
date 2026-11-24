@@ -483,6 +483,11 @@ def test_payload_spines_match_the_event_builders() -> None:
             ({},),
             (_FULL_DECLARATIVE_SPEC,),
         ),
+        "presets": (
+            events.presets_event_data,
+            ("demo", []),
+            ("demo", ["demo/x_alert_on"]),
+        ),
         "data_transfer": (
             events.data_transfer_event_data,
             ("data",),

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrer forudindstillinger",
+      "description": "Tilføj en ledsagers forudindstillinger til vælgeren. Hvert kald erstatter de forudindstillinger, som ledsageren registrerede før.",
+      "fields": {
+        "domain": {
+          "name": "Domæne",
+          "description": "Domænet for ledsagerintegrationen."
+        },
+        "rows": {
+          "name": "Rækker",
+          "description": "Rækkerne med forudindstillinger i formatet for Home Keepers katalog."
+        },
+        "duty_names": {
+          "name": "Pligtnavne",
+          "description": "Opgavenavnet for hver pligt efter sprog. Engelsk er påkrævet."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Afregistrer forudindstillinger",
+      "description": "Fjern en ledsagers forudindstillinger fra vælgeren. De deklarative ledsagere, der blev lavet ud fra dem, bliver.",
+      "fields": {
+        "domain": {
+          "name": "Domæne",
+          "description": "Domænet for ledsagerintegrationen."
+        }
+      }
+    },
     "list_companions": {
       "name": "Vis ledsagere",
       "description": "Returnér den sammenlagte ledsagerliste (selvregistrerede integrationer plus detekterede upstreams, hvis glue endnu ikke er installeret) som et svar."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Angiv et dokument eller en pakke, der skal importeres."
+    },
+    "invalid_preset_rows": {
+      "message": "Forudindstillingerne blev ikke registreret: {error}"
     }
   }
 }

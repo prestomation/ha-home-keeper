@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "{n} weitere Vorlagen zeigen",
   "declarative.companions.preset_hide_other": "Andere Geräte ausblenden",
   "declarative.companions.preset_none": "Keine Vorlage passt zu Ihrer Suche.",
+  "declarative.companions.preset_from": "Von {name}",
   "declarative.companions.preview_empty": "Keine Entitäten passen zu diesem deklarativen Companion.",
   "declarative.companions.preview_loading": "Vorschau wird geladen…",
   "declarative.companions.preview_many": "{count} Entitäten passen — das sind viele Aufgaben. Die Auswahl einschränken.",

@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "Vis {n} forhåndsinnstillinger til",
   "declarative.companions.preset_hide_other": "Skjul andre enheter",
   "declarative.companions.preset_none": "Ingen forhåndsinnstilling samsvarer med søket.",
+  "declarative.companions.preset_from": "Fra {name}",
   "declarative.companions.preview_empty": "Ingen entiteter matcher denne deklarative companion-en.",
   "declarative.companions.preview_loading": "Laster forhåndsvisning…",
   "declarative.companions.preview_many": "{count} entiteter matcher — det er mange oppgaver. Vurder å snevre inn valget.",

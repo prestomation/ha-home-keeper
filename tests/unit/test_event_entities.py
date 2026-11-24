@@ -131,10 +131,13 @@ def test_global_entity_mirrors_every_fired_event_with_a_payload() -> None:
     expected = {
         spec.name
         for spec in api_surface.EVENTS
-        if spec.direction == "fired" and spec.payload != "none"
+        if spec.direction == "fired" and spec.payload != "none" and spec.mirrored
     }
     assert set(event.GLOBAL_EVENTS.values()) == expected
     assert "home_keeper_register_companions" not in expected
+    # A preset registration is memory for the run: no event type, no logbook row.
+    assert "home_keeper_presets_registered" not in expected
+    assert "home_keeper_presets_removed" not in expected
     assert "home_keeper_companion_connected" in expected
 
 

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registra preimpostazioni",
+      "description": "Aggiunge le preimpostazioni di un'integrazione compagna al selettore. Ogni chiamata sostituisce le preimpostazioni registrate prima.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "Il dominio dell'integrazione compagna."
+        },
+        "rows": {
+          "name": "Righe",
+          "description": "Le righe delle preimpostazioni, nel formato del catalogo di Home Keeper."
+        },
+        "duty_names": {
+          "name": "Nomi delle attività di manutenzione",
+          "description": "Il nome dell'attività di ogni manutenzione, per lingua. L'inglese è obbligatorio."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Annulla registrazione preimpostazioni",
+      "description": "Rimuove le preimpostazioni di un'integrazione compagna dal selettore. I compagni dichiarativi creati da esse restano.",
+      "fields": {
+        "domain": {
+          "name": "Dominio",
+          "description": "Il dominio dell'integrazione compagna."
+        }
+      }
+    },
     "list_companions": {
       "name": "Elenca companion",
       "description": "Restituisce come risposta l'elenco unificato dei companion (integrazioni auto-registrate più upstream rilevati il cui collegamento non è ancora installato)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Indica un documento o un pacchetto da importare."
+    },
+    "invalid_preset_rows": {
+      "message": "Le preimpostazioni non sono state registrate: {error}"
     }
   }
 }

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrera förinställningar",
+      "description": "Lägger till en följeslagares förinställningar i väljaren. Varje anrop ersätter förinställningarna som registrerades tidigare.",
+      "fields": {
+        "domain": {
+          "name": "Domän",
+          "description": "Domänen för följeslagarintegrationen."
+        },
+        "rows": {
+          "name": "Rader",
+          "description": "Raderna med förinställningar i formatet för Home Keepers katalog."
+        },
+        "duty_names": {
+          "name": "Pliktnamn",
+          "description": "Uppgiftsnamnet för varje plikt per språk. Engelska krävs."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Avregistrera förinställningar",
+      "description": "Tar bort en följeslagares förinställningar från väljaren. De deklarativa följeslagare som skapades från dem finns kvar.",
+      "fields": {
+        "domain": {
+          "name": "Domän",
+          "description": "Domänen för följeslagarintegrationen."
+        }
+      }
+    },
     "list_companions": {
       "name": "Lista kompanjoner",
       "description": "Returnerar den sammanslagna kompanjonlistan (självregistrerade integrationer plus upptäckta uppströmsintegrationer vars koppling ännu inte är installerad) som ett svar."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Ange ett dokument eller ett paket att importera."
+    },
+    "invalid_preset_rows": {
+      "message": "Förinställningarna registrerades inte: {error}"
     }
   }
 }

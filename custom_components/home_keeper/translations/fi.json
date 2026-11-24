@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Rekisteröi esiasetukset",
+      "description": "Lisää kumppanin esiasetukset esiasetusten valitsimeen. Jokainen kutsu korvaa esiasetukset, jotka kumppani rekisteröi aiemmin.",
+      "fields": {
+        "domain": {
+          "name": "Toimialue",
+          "description": "Kumppani-integraation toimialue."
+        },
+        "rows": {
+          "name": "Rivit",
+          "description": "Esiasetusten rivit Home Keeperin esiasetusluettelon muodossa."
+        },
+        "duty_names": {
+          "name": "Velvollisuuksien nimet",
+          "description": "Kunkin velvollisuuden tehtävän nimi kielittäin. Englanti on pakollinen."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Poista esiasetusten rekisteröinti",
+      "description": "Poistaa kumppanin esiasetukset esiasetusten valitsimesta. Niistä tehdyt deklaratiiviset kumppanit säilyvät.",
+      "fields": {
+        "domain": {
+          "name": "Toimialue",
+          "description": "Kumppani-integraation toimialue."
+        }
+      }
+    },
     "list_companions": {
       "name": "Luettele kumppanit",
       "description": "Palauta yhdistetty kumppaniluettelo (itserekisteröidyt integraatiot sekä havaitut upstream-lähteet, joiden glue-liitäntää ei ole vielä asennettu) vastauksena."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Anna tuotava asiakirja tai paketti."
+    },
+    "invalid_preset_rows": {
+      "message": "Esiasetuksia ei rekisteröity: {error}"
     }
   }
 }

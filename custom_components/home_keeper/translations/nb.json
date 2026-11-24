@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Registrer forhåndsinnstillinger",
+      "description": "Legg til forhåndsinnstillingene til en følgeintegrasjon i velgeren. Hvert kall erstatter forhåndsinnstillingene som ble registrert før.",
+      "fields": {
+        "domain": {
+          "name": "Domene",
+          "description": "Domenet til følgeintegrasjonen."
+        },
+        "rows": {
+          "name": "Rader",
+          "description": "Radene med forhåndsinnstillinger i formatet til Home Keepers katalog."
+        },
+        "duty_names": {
+          "name": "Pliktnavn",
+          "description": "Oppgavenavnet for hver plikt etter språk. Engelsk er påkrevd."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Avregistrer forhåndsinnstillinger",
+      "description": "Fjern forhåndsinnstillingene til en følgeintegrasjon fra velgeren. De deklarative følgeintegrasjonene som ble laget fra dem, blir værende.",
+      "fields": {
+        "domain": {
+          "name": "Domene",
+          "description": "Domenet til følgeintegrasjonen."
+        }
+      }
+    },
     "list_companions": {
       "name": "List opp følgesvenner",
       "description": "Returner den sammenslåtte følgesvennlisten (selvregistrerte integrasjoner pluss oppdagede upstreams hvis glue ennå ikke er installert) som et svar."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Oppgi et dokument eller en pakke som skal importeres."
+    },
+    "invalid_preset_rows": {
+      "message": "Forhåndsinnstillingene ble ikke registrert: {error}"
     }
   }
 }

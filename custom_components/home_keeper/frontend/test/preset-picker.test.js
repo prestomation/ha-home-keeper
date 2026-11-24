@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   groupPresets,
+  presetFromBadge,
   presetIsMine,
   presetMatches,
+  presetProvider,
   presetTaskNames,
 } from '../src/preset-picker.ts';
 
@@ -167,5 +169,50 @@ describe('groupPresets with entity counts', () => {
     expect(groups.hidden).toBe(1);
     const all = groupPresets([vacuum, printer], new Set(['tuya']), '', true);
     expect(all.other.map((p) => p.id)).toEqual(['tuya_percent_low']);
+  });
+});
+
+
+describe('companion presets', () => {
+  const CAR = {
+    ...preset('car_keeper/tesla_fleet_percent_low', {
+      name: 'Tesla: parts and supplies running low',
+      group: 'integration',
+    }),
+    source: 'companion',
+    provided_by: { domain: 'car_keeper', name: 'Car Keeper' },
+  };
+
+  it('names the companion of a companion preset', () => {
+    expect(presetProvider(CAR)).toBe('Car Keeper');
+  });
+
+  it('falls back to the domain when the companion has no name', () => {
+    expect(presetProvider({ ...CAR, provided_by: { domain: 'car_keeper', name: '' } })).toBe(
+      'car_keeper',
+    );
+  });
+
+  it('names no companion for a shipped preset or an older backend', () => {
+    expect(presetProvider({ ...PULSE, source: 'builtin', provided_by: null })).toBeNull();
+    expect(presetProvider(PULSE)).toBeNull();
+    // A shipped row never shows a companion, even with a stray provided_by.
+    expect(presetProvider({ ...CAR, source: 'builtin' })).toBeNull();
+    expect(presetProvider({ ...CAR, provided_by: null })).toBeNull();
+    expect(presetProvider({ ...CAR, provided_by: { domain: '', name: '' } })).toBeNull();
+  });
+
+  it('draws the badge with the escaped name, and nothing for a shipped preset', () => {
+    expect(presetFromBadge(CAR)).toBe(' <span class="hk-preset-from">From Car Keeper</span>');
+    const evil = { ...CAR, provided_by: { domain: 'x', name: '<b>x</b>' } };
+    expect(presetFromBadge(evil)).toBe(
+      ' <span class="hk-preset-from">From &lt;b&gt;x&lt;/b&gt;</span>',
+    );
+    expect(presetFromBadge(PULSE)).toBe('');
+  });
+
+  it('finds a companion preset by the name of its companion', () => {
+    expect(presetMatches(CAR, 'car keeper')).toBe(true);
+    expect(presetMatches(PULSE, 'car keeper')).toBe(false);
   });
 });

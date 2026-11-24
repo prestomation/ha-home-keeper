@@ -39,7 +39,7 @@ through ``backend_i18n.resolve_string`` at request time).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, NotRequired, TypedDict
 
 from .declarative_preset_text import DUTY_NAMES
@@ -81,6 +81,10 @@ class PresetDefinition(TypedDict):
     # integration. The panel shows them on a companion row made from the preset.
     shape: NotRequired[str]
     brand: NotRequired[str]
+    # ``builtin`` for a shipped preset, ``companion`` for one that a companion
+    # registered (preset_registry.py). ``provided_by`` is that companion's domain.
+    source: NotRequired[str]
+    provided_by: NotRequired[str]
 
 
 CATALOG_PRESETS: list[PresetDefinition] = [
@@ -755,13 +759,27 @@ def limit_text(
     return resolve(lang, short, limit=format_limit(limit, lang, resolve))
 
 
-def _integration_presets() -> tuple[
-    list[PresetDefinition], dict[str, dict[str, dict[str, Any]]]
-]:
-    """Build the integration presets and their task text from the catalog."""
+# The 17 languages of the preset text. ``DUTY_NAMES`` gives each duty in all of them.
+LANGS: tuple[str, ...] = tuple(DUTY_NAMES["replace_filter"])
+
+
+def _integration_presets(
+    entries: list[dict[str, Any]] | None = None,
+    names: Mapping[str, dict[str, str]] | None = None,
+    prefix: str = "",
+) -> tuple[list[PresetDefinition], dict[str, dict[str, dict[str, Any]]]]:
+    """Build the integration presets and their task text from catalog *entries*.
+
+    *names* gives the task name of each duty by language. A language that a name
+    table does not have gets the English text. *prefix* goes in front of each
+    preset id: a companion's rows get ``<companion domain>/``. With no *entries*
+    and no *names*, it reads the shipped catalog and ``DUTY_NAMES``.
+    """
+    entries = INTEGRATIONS if entries is None else entries
+    names = DUTY_NAMES if names is None else names
     built: list[PresetDefinition] = []
     texts: dict[str, dict[str, dict[str, Any]]] = {}
-    for entry in INTEGRATIONS:
+    for entry in entries:
         groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
         for duty in entry["duties"]:
             platform = duty.get("platform", "sensor")
@@ -775,7 +793,7 @@ def _integration_presets() -> tuple[
             )
             groups.setdefault(group, []).append(duty)
         for (shape, platform, state, device_class), duties in groups.items():
-            preset_id = "_".join(
+            preset_id = prefix + "_".join(
                 part
                 for part in (
                     entry["domain"],
@@ -785,19 +803,19 @@ def _integration_presets() -> tuple[
                 )
                 if part
             )
-            names = [DUTY_NAMES[d["duty"]]["en"] for d in duties for _ in d["keys"]]
-            by_entity = len(set(names)) < len(names) or any(
+            english = [names[d["duty"]]["en"] for d in duties for _ in d["keys"]]
+            by_entity = len(set(english)) < len(english) or any(
                 d.get("per_instance") for d in duties
             )
             name_template = _NAME_BY_ENTITY if by_entity else _NAME_BY_DEVICE
             keys = [key for d in duties for key in d["keys"]]
             task_names = {
                 lang: {
-                    key: DUTY_NAMES[d["duty"]][lang]
+                    key: _pick(names[d["duty"]], lang)
                     for d in duties
                     for key in d["keys"]
                 }
-                for lang in DUTY_NAMES[duties[0]["duty"]]
+                for lang in LANGS
             }
             preset: PresetDefinition = {
                 "id": preset_id,

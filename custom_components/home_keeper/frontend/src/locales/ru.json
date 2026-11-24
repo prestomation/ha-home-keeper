@@ -796,6 +796,7 @@
   "declarative.companions.preset_show_all.other": "Показать ещё {n} шаблона",
   "declarative.companions.preset_hide_other": "Скрыть другие устройства",
   "declarative.companions.preset_none": "Ни один шаблон не подходит под запрос.",
+  "declarative.companions.preset_from": "От {name}",
   "declarative.companions.preview_empty": "Ни одна сущность не соответствует этому декларативному компаньону.",
   "declarative.companions.preview_loading": "Загрузка предпросмотра…",
   "declarative.companions.preview_many": "{count} сущностей соответствуют — это много задач. Рассмотрите сужение выбора.",

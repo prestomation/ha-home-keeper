@@ -16,7 +16,7 @@ PLATFORMS = [
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.38.0b4"
+PANEL_VERSION = "0.38.0b5"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -745,6 +745,14 @@ MAX_COMPANIONS = 50
 # isn't guaranteed, so companions both register at their own setup *and* listen for
 # this ping. Carries no data.
 EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
+# Where the presets that companions register live: memory for the Home Assistant
+# run, never stored (see preset_registry.py). A companion registers them again at
+# each start and on EVENT_REGISTER_COMPANIONS.
+DATA_PRESET_REGISTRY = f"{DOMAIN}_preset_registry"
+# Fired when a companion's set of registered presets changes, and when it is
+# removed. Payload built by preset_registry.event_data.
+EVENT_PRESETS_REGISTERED = f"{DOMAIN}_presets_registered"
+EVENT_PRESETS_REMOVED = f"{DOMAIN}_presets_removed"
 # Fired (edge-triggered, deduped per domain) when a companion first becomes
 # connected (self-registered or a known glue is detected installed) or when a known
 # upstream's glue is first suggested. Payload built by events.companion_event_data.

@@ -960,6 +960,34 @@
         }
       }
     },
+    "register_presets": {
+      "name": "Voorinstellingen registreren",
+      "description": "Voegt de voorinstellingen van een begeleidende integratie toe aan de kiezer. Elke aanroep vervangt de voorinstellingen die eerder zijn geregistreerd.",
+      "fields": {
+        "domain": {
+          "name": "Domein",
+          "description": "Het domein van de begeleidende integratie."
+        },
+        "rows": {
+          "name": "Rijen",
+          "description": "De rijen met voorinstellingen, in de indeling van de catalogus van Home Keeper."
+        },
+        "duty_names": {
+          "name": "Namen van taken per plicht",
+          "description": "De taaknaam van elke plicht, per taal. Engels is verplicht."
+        }
+      }
+    },
+    "unregister_presets": {
+      "name": "Voorinstellingen afmelden",
+      "description": "Verwijdert de voorinstellingen van een begeleidende integratie uit de kiezer. De declaratieve begeleiders die ervan zijn gemaakt, blijven.",
+      "fields": {
+        "domain": {
+          "name": "Domein",
+          "description": "Het domein van de begeleidende integratie."
+        }
+      }
+    },
     "list_companions": {
       "name": "Companions weergeven",
       "description": "Geeft de samengevoegde companion-lijst als antwoord terug (zelf-geregistreerde integraties plus gedetecteerde upstreams waarvan de glue nog niet is geïnstalleerd)."
@@ -1485,6 +1513,9 @@
     },
     "import_needs_document": {
       "message": "Geef een document of een pakket om te importeren."
+    },
+    "invalid_preset_rows": {
+      "message": "De voorinstellingen zijn niet geregistreerd: {error}"
     }
   }
 }

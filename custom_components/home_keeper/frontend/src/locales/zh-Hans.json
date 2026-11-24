@@ -752,6 +752,7 @@
   "declarative.companions.preset_show_all.other": "再显示 {n} 个预设",
   "declarative.companions.preset_hide_other": "隐藏其他设备",
   "declarative.companions.preset_none": "没有与搜索匹配的预设。",
+  "declarative.companions.preset_from": "来自 {name}",
   "declarative.companions.preview_empty": "没有实体匹配此声明式搭档。",
   "declarative.companions.preview_loading": "正在加载预览…",
   "declarative.companions.preview_many": "{count} 个实体匹配 — 任务数量较多，请考虑缩小选择范围。",

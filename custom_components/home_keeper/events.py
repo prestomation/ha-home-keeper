@@ -195,6 +195,15 @@ def companion_event_data(companion: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def presets_event_data(domain: str, preset_ids: list[str]) -> dict[str, Any]:
+    """Return the payload for `home_keeper_presets_registered` / `_removed`.
+
+    *domain* is the companion. *preset_ids* are the ids of its presets: the new set
+    for a registration, the removed set for a removal.
+    """
+    return {"domain": domain, "preset_ids": list(preset_ids)}
+
+
 def declarative_companion_event_data(
     spec: dict[str, Any], *, match_count: int | None = None
 ) -> dict[str, Any]:
