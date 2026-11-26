@@ -1451,7 +1451,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .filter({ hasText: 'Family chores' })
     .first();
   await expect(
-    familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
+    familyCard.locator('ha-list-item-option, ha-check-list-item, ha-md-list-item').first(),
   ).toBeVisible({ timeout: 40_000 });
   await expect(familyCard).toContainText('Family chores');
   // Framed on purpose rather than left to the masonry layout: the column order

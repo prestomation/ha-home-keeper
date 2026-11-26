@@ -234,7 +234,7 @@ test.describe('Home Keeper — tasks synced onto a household to-do list', () => 
     const card = familyChoresCard(page);
     await expect(card).toBeVisible({ timeout: 30_000 });
     const row = card
-      .locator('ha-check-list-item, ha-md-list-item')
+      .locator('ha-list-item-option, ha-check-list-item, ha-md-list-item')
       .filter({ hasText: CHORE })
       .first();
     await row.locator('ha-checkbox, input[type="checkbox"]').first().click();

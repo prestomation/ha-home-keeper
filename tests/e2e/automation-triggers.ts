@@ -34,7 +34,12 @@ export async function showDeviceTriggers(dialog: Locator, device: string): Promi
 /** By type: select the Home Keeper integration. */
 export async function showHomeKeeperByType(dialog: Locator): Promise<void> {
   await dialog.getByText('By type', { exact: true }).click();
-  await dialog.getByText('Home Keeper', { exact: true }).first().click();
+  // Click the list item, not its text. In Home Assistant 2026.12 the text sits inside
+  // the item, and a click on the text is caught by another item's hit area.
+  await dialog
+    .getByRole('listitem')
+    .filter({ hasText: /^\s*Home Keeper\s*$/ })
+    .click();
   await expect(dialog.getByText('Triggers when an appliance is added.')).toBeVisible({
     timeout: 15000,
   });
