@@ -2451,7 +2451,7 @@ test('capture Settings and the usage surfaces', async () => {
     .filter({ hasText: 'Family chores' })
     .first();
   await expect(
-    familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
+    familyCard.locator('ha-list-item-option, ha-check-list-item, ha-md-list-item').first(),
   ).toBeVisible({ timeout: 40_000 });
   await page.waitForTimeout(600);
   await familyCard.screenshot({ path: `${OUT}/48-todo-sync-synced-task.png` });

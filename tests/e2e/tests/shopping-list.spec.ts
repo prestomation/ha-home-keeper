@@ -168,7 +168,7 @@ test.describe('Home Keeper — buy reminders on the household shopping list', ()
     await openDashboard(page);
     const card = shoppingListCard(page);
     await expect(card).toBeVisible({ timeout: 30_000 });
-    const row = card.locator('ha-check-list-item, ha-md-list-item').filter({ hasText: REMINDER }).first();
+    const row = card.locator('ha-list-item-option, ha-check-list-item, ha-md-list-item').filter({ hasText: REMINDER }).first();
     await row.locator('ha-checkbox, input[type="checkbox"]').first().click();
 
     // Home Keeper completes the reminder, which restocks the part (1 + 4) and

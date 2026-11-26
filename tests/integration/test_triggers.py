@@ -210,7 +210,12 @@ def test_every_trigger_validates_in_home_assistant(ha):
     ]
     reply = ws_send(_token(ha), {"type": "validate_config", "triggers": triggers})
     assert reply.get("success"), reply
-    assert reply["result"]["triggers"] == {"valid": True, "error": None}
+    result = reply["result"]["triggers"]
+    assert result["valid"] is True
+    assert result["error"] is None
+    # Home Assistant 2026.12 adds an `errors` list to the reply. It is empty when
+    # the triggers are valid, and older versions do not send it.
+    assert result.get("errors", []) == []
 
     missing = ws_send(
         _token(ha),
