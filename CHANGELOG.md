@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.38.0b7] - 2026-11-27
+
+### Fixed
+
+- **Store link on Buy tasks.** A Buy task now shows the store link of its part. Before, the
+  link showed on the card and the task page only for other tasks that use a part (Fixes #613)
+  (Thanks @mdarocha!).
+
 ## [0.38.0b4] - 2026-11-24
 
 ### Changed

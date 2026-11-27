@@ -1533,6 +1533,17 @@ export function stockLinks(task: Pick<Task, 'source'>): PartLink[] {
   return own ? [own] : consumableLinks(task);
 }
 
+/**
+ * The parts whose product links a task shows: what a completion draws
+ * (`stockLinks`), or, for a buy reminder, the part it asks you to buy. A buy
+ * reminder draws no stock, but its part holds the store link.
+ */
+export function partLinksToShow(task: Pick<Task, 'source'>): PartLink[] {
+  const buy = task.source?.buy;
+  if (isBuyTask(task as Task) && buy) return [{ asset_id: buy.asset_id, part_id: buy.part_id }];
+  return stockLinks(task);
+}
+
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): string {
   // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no

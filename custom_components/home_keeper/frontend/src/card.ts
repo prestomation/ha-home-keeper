@@ -96,7 +96,7 @@ import {
   guardWrite,
   setTimeZone,
   hkStateSignal,
-  stockLinks,
+  partLinksToShow,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -873,7 +873,7 @@ export class HomeKeeperCard extends HTMLElement {
       // only when a task actually references one. A device chip also needs it, to
       // point at its appliance page.
       this._assets = this._tasks.some(
-        (tk) => tk.card_links?.length || stockLinks(tk).length || tk.device_id,
+        (tk) => tk.card_links?.length || partLinksToShow(tk).length || tk.device_id,
       )
         ? await api.getAssets(this._hass!).catch(() => [] as Asset[])
         : [];
@@ -1406,7 +1406,7 @@ export class HomeKeeperCard extends HTMLElement {
    */
   private _resolvePartLinks(task: Task): DocumentChip[] {
     const out: DocumentChip[] = [];
-    for (const link of stockLinks(task)) {
+    for (const link of partLinksToShow(task)) {
       const asset = this._assets.find((a) => a.id === link.asset_id);
       const part = asset?.parts?.find((p) => p.id === link.part_id);
       if (part?.url) out.push({ name: part.name, url: part.url, icon: MDI_OPEN_IN_NEW_ICON });

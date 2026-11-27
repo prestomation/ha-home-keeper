@@ -52,7 +52,7 @@ import {
   formatQuantity,
   safeHref,
   setBtnWeight,
-  stockLinks,
+  partLinksToShow,
   taskDeleteBody,
   taskHomeName,
 } from './utils';
@@ -240,7 +240,7 @@ export function documentOptions(p: PanelHost, task: Partial<Task>): { value: str
  *  parts-list read view. The appliance name opens the part on its appliance page,
  *  as the part chip does. Empty when no linked part still exists. */
 export function consumableLinkLabel(p: PanelHost, task: Task): string {
-  return stockLinks(task)
+  return partLinksToShow(task)
     .map((link) => partLinkLine(p, link))
     .filter(Boolean)
     .join('<br>');

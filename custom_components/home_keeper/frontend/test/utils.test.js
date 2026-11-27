@@ -70,6 +70,7 @@ import {
   isCompletedOneOff,
   consumableLinks,
   stockLinks,
+  partLinksToShow,
 } from '../src/utils.ts';
 import { setLanguage } from '../src/i18n';
 
@@ -2476,6 +2477,19 @@ describe('consumableLinks and stockLinks (#493)', () => {
     expect(stockLinks({ source: { part: A } })).toEqual([A]);
     expect(stockLinks({ source: { parts: [A, B] } })).toEqual([A, B]);
     expect(stockLinks({})).toEqual([]);
+  });
+
+  it('shows the part of a buy task, which draws no stock (#613)', () => {
+    const buy = { asset_id: 'a', part_id: 'p1', generated_name: 'Buy filter' };
+    expect(stockLinks({ source: { buy } })).toEqual([]);
+    expect(partLinksToShow({ source: { buy } })).toEqual([{ asset_id: 'a', part_id: 'p1' }]);
+  });
+
+  it('shows what the task draws when it is not a buy task', () => {
+    expect(partLinksToShow({ source: { part: A } })).toEqual([A]);
+    expect(partLinksToShow({ source: { parts: [A, B] } })).toEqual([A, B]);
+    expect(partLinksToShow({})).toEqual([]);
+    expect(partLinksToShow({ source: { buy: { asset_id: 'a' } } })).toEqual([]);
   });
 
   it('ranks each appliance whose part a task takes first', () => {
